@@ -102,3 +102,48 @@ test("InMemorySheetStorageAdapter insertLogRow executes RowInsertionPlan with ga
   assert.strictEqual(values[4].every(c => c === ""), true); // Blank row inserted before new group
   assert.deepStrictEqual(values[5], ["020000", "001", "001", "Submittal 2"]);
 });
+
+test("InMemorySheetStorageAdapter setRowValues maps rowData according to header column positions", () => {
+  const initialLog = [
+    ["Banner"],
+    ["Subtitle"],
+    ["Title", "Section", "Number", "Revision"]
+  ];
+  const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
+  const headers = ["Section", "Number", "Revision", "Title"];
+  const rowData = ["020000", "001", "001", "Submittal 2"];
+  adapter.setRowValues("Submittals Log", 4, headers, rowData);
+
+  const values = adapter.getSheetValues("Submittals Log");
+  assert.deepStrictEqual(values[3], ["Submittal 2", "020000", "001", "001"]);
+});
+
+test("InMemorySheetStorageAdapter insertLogRow with insertBlankBefore: true inserts exactly one blank separator row", () => {
+  const headers = ["Section", "Number", "Revision", "Title"];
+  const initialLog = [
+    ["Banner"],
+    ["Subtitle"],
+    headers,
+    ["010000", "001", "001", "Submittal 1"],
+    ["030000", "001", "001", "Submittal 3"]
+  ];
+
+  const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
+  const plan = {
+    targetRowIndex: 4,
+    insertBlankBefore: true,
+    insertBlankAfter: false,
+    finalRowIndex: 6
+  };
+
+  const newRowData = ["020000", "001", "001", "Submittal 2"];
+  const result = adapter.insertLogRow("Submittals Log", headers, newRowData, plan);
+
+  assert.strictEqual(result.rowIndex, 6);
+  const values = adapter.getSheetValues("Submittals Log");
+  assert.strictEqual(values.length, 7);
+  assert.deepStrictEqual(values[3], ["010000", "001", "001", "Submittal 1"]);
+  assert.strictEqual(values[4].every(c => c === ""), true);
+  assert.deepStrictEqual(values[5], ["020000", "001", "001", "Submittal 2"]);
+  assert.deepStrictEqual(values[6], ["030000", "001", "001", "Submittal 3"]);
+});

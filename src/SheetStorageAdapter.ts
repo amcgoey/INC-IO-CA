@@ -28,6 +28,13 @@ class InMemorySheetStorageAdapter implements SheetStorageAdapter {
     return this.sheets.get(sheetName)!;
   }
 
+  private insertBlankRowAt(sheetName: string, insertIdx: number): void {
+    const grid = this.getOrCreateSheet(sheetName);
+    const safeIdx = Math.min(grid.length, Math.max(0, insertIdx));
+    const colCount = grid.reduce((max, r) => Math.max(max, r.length), 0);
+    grid.splice(safeIdx, 0, new Array(colCount).fill(""));
+  }
+
   getSheetValues(sheetName: string): any[][] {
     const grid = this.getOrCreateSheet(sheetName);
     return grid.map(row => [...row]);
@@ -65,17 +72,11 @@ class InMemorySheetStorageAdapter implements SheetStorageAdapter {
   }
 
   insertRowBefore(sheetName: string, rowIndex: number): void {
-    const grid = this.getOrCreateSheet(sheetName);
-    const insertIdx = Math.max(0, rowIndex - 1);
-    const colCount = grid.reduce((max, r) => Math.max(max, r.length), 0);
-    grid.splice(insertIdx, 0, new Array(colCount).fill(""));
+    this.insertBlankRowAt(sheetName, Math.max(0, rowIndex - 1));
   }
 
   insertRowAfter(sheetName: string, rowIndex: number): void {
-    const grid = this.getOrCreateSheet(sheetName);
-    const insertIdx = Math.min(grid.length, Math.max(0, rowIndex));
-    const colCount = grid.reduce((max, r) => Math.max(max, r.length), 0);
-    grid.splice(insertIdx, 0, new Array(colCount).fill(""));
+    this.insertBlankRowAt(sheetName, Math.max(0, rowIndex));
   }
 
   insertColumnAfter(sheetName: string, colIndex: number): void {
@@ -94,7 +95,35 @@ class InMemorySheetStorageAdapter implements SheetStorageAdapter {
       grid.push([]);
     }
 
-    grid[rIdx] = [...rowData];
+    let sheetHeaderRow: string[] | null = null;
+    for (const r of grid) {
+      if (Array.isArray(r) && headers.some(h => r.includes(h))) {
+        sheetHeaderRow = r.map(c => String(c).trim());
+        break;
+      }
+    }
+
+    const targetRow = grid[rIdx];
+
+    for (let i = 0; i < headers.length; i++) {
+      const colName = headers[i];
+      const val = rowData[i] !== undefined ? rowData[i] : "";
+      let colIdx = i;
+
+      if (sheetHeaderRow) {
+        const hIdx = sheetHeaderRow.indexOf(colName);
+        if (hIdx !== -1) {
+          colIdx = hIdx;
+        }
+      }
+
+      while (targetRow.length <= colIdx) {
+        targetRow.push("");
+      }
+
+      targetRow[colIdx] = val;
+    }
+
     return { failedColumns: [] };
   }
 
@@ -109,7 +138,7 @@ class InMemorySheetStorageAdapter implements SheetStorageAdapter {
 
     // 2. Insert blank row before if plan requires it
     if (plan.insertBlankBefore) {
-      this.insertRowBefore(sheetName, plan.targetRowIndex + 1);
+      this.insertRowAfter(sheetName, plan.targetRowIndex + 1);
     }
 
     // 3. Insert blank row after if plan requires it
