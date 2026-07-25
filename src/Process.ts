@@ -89,14 +89,18 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     // Build the Contact History Chain and capture previous row for status updating
     let historyColIdx = getColIdx("Contact History");  
     let calcChainColIdx = getColIdx("Calc Contact Chain");  
+    const secIdx = getColIdx("Section");
+    const numIdx = getColIdx("Number");
+    const revIdx = getColIdx("Revision");
+    const tagIdx = getColIdx("Spec Tag");
     let previousChain = "";
     let previousRowSheetIndex: number | null = null;
 
     for (let i = boundedData.length - 1; i >= CONFIG.LOG_HEADER_ROW; i--) {   
         let row = boundedData[i];   
         let rowKey = (disc === "Architecture") 
-          ? `${String(row[getColIdx("Section")] || "").trim()}-${String(row[getColIdx("Number")] || "").trim()}-${String(row[getColIdx("Revision")] || "").trim()}`
-          : `${String(row[getColIdx("Spec Tag")] || "").trim()}-${String(row[getColIdx("Revision")] || "").trim()}`;   
+          ? `${String(secIdx !== -1 ? row[secIdx] || "" : "").trim()}-${String(numIdx !== -1 ? row[numIdx] || "" : "").trim()}-${String(revIdx !== -1 ? row[revIdx] || "" : "").trim()}`
+          : `${String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim()}-${String(revIdx !== -1 ? row[revIdx] || "" : "").trim()}`;   
         if (rowKey === targetKey) {   
             let histVal = (historyColIdx !== -1) ? String(row[historyColIdx] || "").trim() : "";  
             let calcVal = (calcChainColIdx !== -1) ? String(row[calcChainColIdx] || "").trim() : "";  

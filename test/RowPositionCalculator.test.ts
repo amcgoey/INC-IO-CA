@@ -6,6 +6,8 @@ import assert from "node:assert";
 
 const { getBoundedData, getRowGroupKey, getRowSortKey, computeRowInsertionPlan } = require("../src/RowPositionCalculator");
 
+const FF_E_HEADERS = ["Spec Tag", "Spec Title", "Vendor", "Revision", "Date"];
+
 test("getBoundedData stops after 3 consecutive empty rows", () => {
   const headers = ["Section", "Number", "Revision", "Date", "Title", "Contact", "Action", "Notes"];
   const mockData = [
@@ -82,31 +84,28 @@ test("computeRowInsertionPlan inserts new group between existing groups with gap
 });
 
 test("getRowGroupKey formats FF&E spec tag", () => {
-  const headers = ["Spec Tag", "Spec Title", "Vendor", "Revision", "Date"];
   const row = ["CH-01", "Chair", "Herman Miller", "0", "240101"];
-  const key = getRowGroupKey(row, "FF&E", headers);
+  const key = getRowGroupKey(row, "FF&E", FF_E_HEADERS);
   assert.strictEqual(key, "ch-01");
 });
 
 test("getRowSortKey formats FF&E sort key", () => {
-  const headers = ["Spec Tag", "Spec Title", "Vendor", "Revision", "Date"];
   const row = ["CH-01", "Chair", "Herman Miller", "1", "240101"];
-  const key = getRowSortKey(row, "FF&E", headers);
+  const key = getRowSortKey(row, "FF&E", FF_E_HEADERS);
   assert.strictEqual(key, "ch-01-001-240101");
 });
 
 test("computeRowInsertionPlan inserts into existing FF&E group", () => {
-  const headers = ["Spec Tag", "Spec Title", "Vendor", "Revision", "Date"];
   const boundedData = [
     ["Banner"],
     ["Subtitle"],
-    headers,
+    FF_E_HEADERS,
     ["CH-01", "Chair", "Herman Miller", "001", "240101"],
     ["CH-01", "Chair", "Herman Miller", "002", "240102"]
   ];
   const newRow = ["CH-01", "Chair", "Herman Miller", "003", "240103"];
 
-  const plan = computeRowInsertionPlan(boundedData, headers, newRow, "FF&E");
+  const plan = computeRowInsertionPlan(boundedData, FF_E_HEADERS, newRow, "FF&E");
   assert.strictEqual(plan.targetRowIndex, 5);
   assert.strictEqual(plan.finalRowIndex, 6);
   assert.strictEqual(plan.insertBlankBefore, false);
@@ -114,16 +113,15 @@ test("computeRowInsertionPlan inserts into existing FF&E group", () => {
 });
 
 test("computeRowInsertionPlan creates new FF&E group with gap formatting", () => {
-  const headers = ["Spec Tag", "Spec Title", "Vendor", "Revision", "Date"];
   const boundedData = [
     ["Banner"],
     ["Subtitle"],
-    headers,
+    FF_E_HEADERS,
     ["CH-01", "Chair", "Herman Miller", "001", "240101"]
   ];
   const newRow = ["TB-01", "Table", "Knoll", "001", "240101"];
 
-  const plan = computeRowInsertionPlan(boundedData, headers, newRow, "FF&E");
+  const plan = computeRowInsertionPlan(boundedData, FF_E_HEADERS, newRow, "FF&E");
   assert.strictEqual(plan.targetRowIndex, 4);
   assert.strictEqual(plan.insertBlankBefore, true);
   assert.strictEqual(plan.finalRowIndex, 6);
