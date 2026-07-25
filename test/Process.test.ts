@@ -55,7 +55,7 @@ const mockFolder: any = {
   getFileById: () => mockFile
 };
 
-const { ArchitectureSubmittalStrategy } = require("../src/DocumentLogStrategy");
+const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
 const { executeIncomingWorkflow, executeOutgoingWorkflow } = require("../src/Process");
 
 test("executeIncomingWorkflow for Architecture delegates logging to defaultLogRepository.appendDocument", async () => {
@@ -162,6 +162,109 @@ test("executeOutgoingWorkflow for Architecture delegates logging to defaultLogRe
   assert.strictEqual(appendCalled, true);
   assert.strictEqual(passedOptions.status, "Closed");
   assert.strictEqual(passedOptions.actionAbbr, " Rev");
+  assert.strictEqual(passedOptions.updatePreviousStatus, true);
+  assert.strictEqual(passedOptions.previousRowStatus, "Closed");
+  assert.strictEqual(result.navigation.action, "pushCard");
+});
+
+test("executeIncomingWorkflow for FF&E delegates logging to defaultLogRepository.appendDocument", async () => {
+  let appendCalled = false;
+  let passedOptions: any = null;
+
+  (globalThis as any).defaultLogRepository = {
+    appendDocument: (ssId: string, doc: any, strategy: any, options: any) => {
+      appendCalled = true;
+      passedOptions = options;
+      assert.strictEqual(ssId, "log-ss-789");
+      assert.ok(strategy instanceof FFESubmittalStrategy);
+      return {
+        targetKey: "CH-01-001",
+        newFileName: "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec",
+        contactHistory: "Vendor A",
+        rowIndex: 7,
+        failedColumns: [],
+        previousRowUpdated: false
+      };
+    }
+  };
+
+  const fakeSheet = { getSheetId: () => 303 };
+
+  const ctx = {
+    e: {},
+    form: { action: "Received", specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", date: "2026-07-25" },
+    p: { logFileId: "log-ss-789", targetFolderId: "folder-target", driveFileId: "file-1", projectAbbr: "PROJ" },
+    discipline: "FF&E",
+    logSheet: fakeSheet,
+    headers: ["Spec Tag", "Spec Title", "Vendor", "Link"],
+    getColIdx: (name: string) => 0,
+    selectedAction: { status: "Under Review", abbr: " Rec" },
+    emptyFallbacks: [],
+    validatedDoc: {
+      documentType: "Submittal",
+      date: "2026-07-25",
+      contact: "Vendor A",
+      action: "Received",
+      disciplineDetails: { discipline: "FF&E", specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", revision: "001" }
+    }
+  };
+
+  const result = await executeIncomingWorkflow(ctx);
+  assert.strictEqual(appendCalled, true);
+  assert.strictEqual(passedOptions.status, "Under Review");
+  assert.strictEqual(passedOptions.actionAbbr, " Rec");
+  assert.strictEqual(passedOptions.link, "http://drive.google.com/file1");
+
+  assert.strictEqual(result.navigation.card.flashData.targetKey, "CH-01-001");
+  assert.strictEqual(result.navigation.card.flashData.newFileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec");
+  assert.ok(result.navigation.card.flashData.directRowUrl.includes("range=A7"));
+});
+
+test("executeOutgoingWorkflow for FF&E delegates logging to defaultLogRepository.appendDocument with status update", async () => {
+  let appendCalled = false;
+  let passedOptions: any = null;
+
+  (globalThis as any).defaultLogRepository = {
+    appendDocument: (ssId: string, doc: any, strategy: any, options: any) => {
+      appendCalled = true;
+      passedOptions = options;
+      assert.strictEqual(ssId, "log-ss-999");
+      assert.ok(strategy instanceof FFESubmittalStrategy);
+      return {
+        targetKey: "CH-01-001",
+        newFileName: "CH-01-001 Furniture Co - 2026-07-25 Vendor A Designer Appr",
+        contactHistory: "Vendor A Designer",
+        rowIndex: 8,
+        failedColumns: [],
+        previousRowUpdated: true
+      };
+    }
+  };
+
+  const fakeSheet = { getSheetId: () => 404 };
+
+  const ctx = {
+    form: { action: "Approved", specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", date: "2026-07-25" },
+    p: { logFileId: "log-ss-999", targetFolderId: "folder-target", driveFileId: "file-1", projectAbbr: "PROJ" },
+    discipline: "FF&E",
+    logSheet: fakeSheet,
+    headers: ["Spec Tag", "Spec Title", "Vendor", "Link"],
+    getColIdx: (name: string) => 0,
+    selectedAction: { status: "Approved", abbr: " Appr" },
+    emptyFallbacks: [],
+    validatedDoc: {
+      documentType: "Submittal",
+      date: "2026-07-25",
+      contact: "Designer",
+      action: "Approved",
+      disciplineDetails: { discipline: "FF&E", specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", revision: "001" }
+    }
+  };
+
+  const result = await executeOutgoingWorkflow(ctx);
+  assert.strictEqual(appendCalled, true);
+  assert.strictEqual(passedOptions.status, "Approved");
+  assert.strictEqual(passedOptions.actionAbbr, " Appr");
   assert.strictEqual(passedOptions.updatePreviousStatus, true);
   assert.strictEqual(passedOptions.previousRowStatus, "Closed");
   assert.strictEqual(result.navigation.action, "pushCard");

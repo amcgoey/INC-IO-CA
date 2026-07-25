@@ -8,7 +8,7 @@ import assert from "node:assert";
 };
 
 const { InMemorySheetStorageAdapter } = require("../src/SheetStorageAdapter");
-const { ArchitectureSubmittalStrategy } = require("../src/DocumentLogStrategy");
+const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
 const { LogEngine } = require("../src/LogEngine");
 
 test("ArchitectureSubmittalStrategy extracts keys, formats filename and payload", () => {
@@ -196,4 +196,148 @@ test("LogEngine correctly inserts new groups with gap formatting in sorted order
   assert.strictEqual(sheetValues[4].every((c: any) => c === ""), true); // Separator gap row
   assert.strictEqual(sheetValues[5][0], "020000");
   assert.strictEqual(result.rowIndex, 6); // 1-based index 6
+});
+
+test("FFESubmittalStrategy extracts keys, formats filename and payload", () => {
+  const strategy = new FFESubmittalStrategy();
+
+  const doc: ValidatedDocument = {
+    documentType: "Submittal",
+    date: "2026-07-25",
+    contact: "Vendor A",
+    action: "Received",
+    notes: "Sample chair",
+    disciplineDetails: {
+      discipline: "FF&E",
+      specTag: "CH-01",
+      specTitle: "Side Chair",
+      vendor: "Furniture Co",
+      revision: "001",
+      relatedTag: "CH-01A"
+    }
+  };
+
+  assert.strictEqual(strategy.getGroupKey(doc), "ch-01");
+  assert.strictEqual(strategy.getTargetKey(doc), "CH-01-001");
+  assert.strictEqual(strategy.getSortKey(doc), "ch-01-001-20260725");
+
+  const fileName = strategy.getFileName(doc, "Vendor A", " Rec");
+  assert.strictEqual(fileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec");
+
+  const payload = strategy.formatRowPayload(doc, {
+ link: "http://example.com/ffe.pdf", contactHistory: "Vendor A", status: "Under Review" });
+  assert.strictEqual(payload["Spec Tag"], "CH-01");
+  assert.strictEqual(payload["Related Tag"], "CH-01A");
+  assert.strictEqual(payload["Spec Title"], "Side Chair");
+  assert.strictEqual(payload["Vendor"], "Furniture Co");
+  assert.strictEqual(payload["Revision"], "001");
+  assert.strictEqual(payload["Status"], "Under Review");
+  assert.strictEqual(payload["Contact History"], "Vendor A");
+  assert.strictEqual(payload["Link"], "http://example.com/ffe.pdf");
+});
+
+test("LogEngine appends new FF&E document end-to-end with InMemorySheetStorageAdapter", () => {
+  const headers = [
+    "Spec Tag", "Related Tag", "Spec Title", "Vendor", "Revision", "Date",
+    "Contact", "Action", "Status", "Notes", "Link", "Contact History"
+  ];
+
+  const initialLog = [
+    ["Project Log Banner"],
+    ["Project Submittals Log"],
+    headers
+  ];
+
+  const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
+  const engine = new LogEngine(adapter);
+  const strategy = new FFESubmittalStrategy();
+
+  const doc: ValidatedDocument = {
+    documentType: "Submittal",
+    date: "2026-07-25",
+    contact: "Vendor A",
+    action: "Received",
+    notes: "For review",
+    disciplineDetails: {
+      discipline: "FF&E",
+      specTag: "CH-01",
+      specTitle: "Side Chair",
+      vendor: "Furniture Co",
+      revision: "001"
+    }
+  };
+
+  const result = engine.appendDocument("test-ss-id", doc, strategy, {
+    link: "http://drive.google.com/ffe1",
+    status: "Under Review",
+    actionAbbr: " Rec"
+  });
+
+  assert.strictEqual(result.targetKey, "CH-01-001");
+  assert.strictEqual(result.contactHistory, "Vendor A");
+  assert.strictEqual(result.newFileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec");
+  assert.strictEqual(result.previousRowUpdated, false);
+  assert.strictEqual(result.rowIndex, 4);
+
+  const sheetValues = adapter.getSheetValues("Submittals Log");
+  assert.strictEqual(sheetValues.length, 4);
+  const insertedRow = sheetValues[3];
+  assert.strictEqual(insertedRow[0], "CH-01");
+  assert.strictEqual(insertedRow[2], "Side Chair");
+  assert.strictEqual(insertedRow[3], "Furniture Co");
+  assert.strictEqual(insertedRow[4], "001");
+  assert.strictEqual(insertedRow[8], "Under Review");
+  assert.strictEqual(insertedRow[10], "http://drive.google.com/ffe1");
+  assert.strictEqual(insertedRow[11], "Vendor A");
+});
+
+test("LogEngine handles FF&E revision workflow by updating previous row status to Closed and chaining contact history", () => {
+  const headers = [
+    "Spec Tag", "Related Tag", "Spec Title", "Vendor", "Revision", "Date",
+    "Contact", "Action", "Status", "Notes", "Link", "Contact History"
+  ];
+
+  const initialLog = [
+    ["Project Log Banner"],
+    ["Project Submittals Log"],
+    headers,
+    ["CH-01", "", "Side Chair", "Furniture Co", "001", "2026-07-20", "Vendor A", "Received", "Under Review", "", "http://drive.google.com/ffe1", "Vendor A"]
+  ];
+
+  const adapter = new InMemorySheetStorageAdapter( { "Submittals Log": initialLog });
+  const engine = new LogEngine(adapter);
+  const strategy = new FFESubmittalStrategy();
+
+  const docRev2: ValidatedDocument = {
+    documentType: "Submittal",
+    date: "2026-07-25",
+    contact: "Designer",
+    action: "Approved",
+    notes: "Approved finish",
+    disciplineDetails: {
+      discipline: "FF&E",
+      specTag: "CH-01",
+      specTitle: "Side Chair",
+      vendor: "Furniture Co",
+      revision: "001"
+    }
+  };
+
+  const result = engine.appendDocument("test-ss-id", docRev2, strategy, {
+    link: "http://drive.google.com/ffe2",
+    status: "Approved",
+    actionAbbr: " Appr",
+    updatePreviousStatus: true,
+    previousRowStatus: "Closed"
+  });
+
+  assert.strictEqual(result.targetKey, "CH-01-001");
+  assert.strictEqual(result.contactHistory, "Vendor A Designer");
+  assert.strictEqual(result.newFileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Designer Appr");
+  assert.strictEqual(result.previousRowUpdated, true);
+
+  const sheetValues = adapter.getSheetValues("Submittals Log");
+  assert.strictEqual(sheetValues[3][8], "Closed");
+  assert.strictEqual(sheetValues[4][8], "Approved");
+  assert.strictEqual(sheetValues[4][11], "Vendor A Designer");
 });

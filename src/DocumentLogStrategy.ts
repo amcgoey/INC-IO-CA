@@ -108,11 +108,73 @@ class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocu
   }
 }
 
+class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
+  getGroupKey(doc: ValidatedDocument): string {
+    const details = doc.disciplineDetails as FFEDetails;
+    return String(details.specTag || "").trim().toLowerCase();
+  }
+
+  getSortKey(doc: ValidatedDocument): string {
+    const details = doc.disciplineDetails as FFEDetails;
+    const groupKey = this.getGroupKey(doc);
+    const rev = safePadNum(details.revision, 3);
+    const dateStr = formatDateStr(doc.date);
+    return `${groupKey}-${rev}-${dateStr}`;
+  }
+
+  getTargetKey(doc: ValidatedDocument): string {
+    const details = doc.disciplineDetails as FFEDetails;
+    return `${details.specTag}-${details.revision}`;
+  }
+
+  getGroupKeyFromRow(row: any[], headers: string[]): string {
+    return getRowGroupKey(row, "FF&E", headers);
+  }
+
+  getSortKeyFromRow(row: any[], headers: string[]): string {
+    return getRowSortKey(row, "FF&E", headers);
+  }
+
+  getTargetKeyFromRow(row: any[], headers: string[]): string {
+    const tagIdx = headers.indexOf("Spec Tag");
+    const revIdx = headers.indexOf("Revision");
+    const tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim();
+    const rev = String(revIdx !== -1 ? row[revIdx] || "" : "").trim();
+    return `${tag}-${rev}`;
+  }
+
+  formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string> {
+    const details = doc.disciplineDetails as FFEDetails;
+    return {
+      "Spec Tag": details.specTag,
+      "Related Tag": details.relatedTag || "",
+      "Spec Title": details.specTitle,
+      "Vendor": details.vendor,
+      "Revision": details.revision,
+      "Date": doc.date,
+      "Contact": doc.contact,
+      "Action": doc.action,
+      "Status": options.status,
+      "Notes": doc.notes || "",
+      "Link": options.link,
+      "Contact History": options.contactHistory
+    };
+  }
+
+  getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string {
+    const details = doc.disciplineDetails as FFEDetails;
+    const targetKey = this.getTargetKey(doc);
+    const suffix = actionAbbr ? actionAbbr : "";
+    return `${targetKey} ${details.vendor} - ${doc.date} ${contactHistory}${suffix}`;
+  }
+}
+
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     ArchitectureSubmittalStrategy,
+    FFESubmittalStrategy,
     formatDateStr
   };
 }

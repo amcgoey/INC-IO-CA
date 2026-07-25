@@ -289,8 +289,29 @@ declare var defaultLogRepository: LogRepository;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 declare function getLocalDrivePath(fileId: string): string;
 declare function getOrCreateFilingFolder(parentFolderId: string, discipline: string, section?: string, specTag?: string): string;
-declare function insertSmartRowGapAware(sheet: GoogleAppsScript.Spreadsheet.Sheet, headers: string[], rowData: any[], discipline: string, boundedData: any[][]): { rowIndex: number; failedColumns: string[] };
 
 // Global declaration for pdf-lib evaluated at runtime
 declare const PDFLib: any;
 
+
+declare class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
+  getGroupKey(doc: ValidatedDocument): string;
+  getSortKey(doc: ValidatedDocument): string;
+  getTargetKey(doc: ValidatedDocument): string;
+  getGroupKeyFromRow(row: any[], headers: string[]): string;
+  getSortKeyFromRow(row: any[], headers: string[]): string;
+  getTargetKeyFromRow(row: any[], headers: string[]): string;
+  formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
+  getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string;
+}
+
+declare class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
+  getGroupKey(doc: ValidatedDocument): string;
+  getSortKey(doc: ValidatedDocument): string;
+  getTargetKey(doc: ValidatedDocument): string;
+  getGroupKeyFromRow(row: any[], headers: string[]): string;
+  getSortKeyFromRow(row: any[], headers: string[]): string;
+  getTargetKeyFromRow(row: any[], headers: string[]): string;
+  formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
+  getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string;
+}
