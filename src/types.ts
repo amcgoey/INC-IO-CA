@@ -285,7 +285,23 @@ declare function getRowGroupKey(row: any[], discipline: string, headers: string[
 declare function getRowSortKey(row: any[], discipline: string, headers: string[]): string;
 declare function computeRowInsertionPlan(boundedData: any[][], headers: string[], rowData: any[], disciplineOrGroupKeyFn: string | RowKeyFn, sortKeyFn?: RowKeyFn): RowInsertionPlan;
 
+interface StampOptions {
+  newFileName: string;
+  stampSubmittalNo: string;
+  templateId: string;
+}
+
+interface PdfDocumentService {
+  extractFormAction(fileId: string): Promise<string | null>;
+  stampSubmittal(
+    sourceBlob: GoogleAppsScript.Base.Blob,
+    data: ParsedData,
+    options: StampOptions
+  ): Promise<GoogleAppsScript.Base.Blob>;
+}
+
 declare var defaultLogRepository: LogRepository;
+declare var defaultPdfDocumentService: PdfDocumentService;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 declare function getLocalDrivePath(fileId: string): string;
 declare function getOrCreateFilingFolder(parentFolderId: string, discipline: string, section?: string, specTag?: string): string;
