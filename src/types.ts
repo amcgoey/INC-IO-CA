@@ -204,11 +204,24 @@ type ValidationResult =
   | { status: "error"; errors: string[]; missingFields?: string[] }
   | { status: "interaction_required"; interactionType: "ADD_TAG" | "ADD_VENDOR"; message: string };
 
+interface RowInsertionPlan {
+  targetRowIndex: number;
+  insertBlankBefore: boolean;
+  insertBlankAfter: boolean;
+  finalRowIndex: number;
+}
+
 interface LogRepository {
   getLogSettings(spreadsheetId: string, discipline: string): LogSettings;
   verifyAndFormatLogSheet(spreadsheetId: string): string[];
   addNewTagToTagList(spreadsheetId: string, newTag: string, newTitle: string): void;
   addNewVendorToTagList(spreadsheetId: string, newVendor: string): void;
+  insertLogRow(
+    spreadsheetId: string,
+    headers: string[],
+    rowData: any[],
+    plan: RowInsertionPlan
+  ): { rowIndex: number; failedColumns: string[] };
 }
 
 
@@ -228,6 +241,10 @@ declare function predictProjectAndDiscipline(emailData: EmailData, driveNames: s
 declare function analyzeSubmittalDeep(sourceBlob: GoogleAppsScript.Base.Blob, emailText: string, contextObj: any): Promise<any>;
 declare function fetchAndSaveFile(url: string, folderId: string): { success: boolean; error?: string; fileId?: string; fileName?: string };
 declare function manipulatePdf(sourceBlob: GoogleAppsScript.Base.Blob, data: ParsedData, newFileName: string, stampSubmittalNo: string, templateId: string): Promise<GoogleAppsScript.Base.Blob>;
+declare function getBoundedData(logData: any[][]): any[][];
+declare function getRowGroupKey(row: any[], discipline: string, headers: string[]): string;
+declare function getRowSortKey(row: any[], discipline: string, headers: string[]): string;
+declare function computeRowInsertionPlan(boundedData: any[][], headers: string[], rowData: any[], discipline: string): RowInsertionPlan;
 declare var defaultLogRepository: LogRepository;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 declare function getLocalDrivePath(fileId: string): string;

@@ -155,7 +155,7 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
   };
 }
 
-declare const module: any;
+declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { validateDocument };

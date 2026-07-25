@@ -1,28 +1,3 @@
-/**
- * Generates a sortable key for the row based on Discipline.
- * Combines section/tag, revision, and date into a single string for comparison.
- */
-function getRowSortKey(row: any[], discipline: string, headers: string[]): string {
-  const padNum = (val: any, len: number) => String(val || "").trim().padStart(len, '0');
-  let rev = padNum(row[headers.indexOf("Revision")], 3);
-  let rawDate = row[headers.indexOf("Date")];
-  let dateStr = "";
-
-  if (rawDate instanceof Date) {
-    dateStr = Utilities.formatDate(rawDate, Session.getScriptTimeZone(), "yyMMdd");
-  } else {
-    dateStr = String(rawDate || "").replace(/\D/g, '').padEnd(6, '0');
-  }
-
-  if (discipline === "Architecture") {
-    let sec = padNum(row[headers.indexOf("Section")], 6);
-    let num = padNum(row[headers.indexOf("Number")], 3);
-    return `${sec}-${num}-${rev}-${dateStr}`;
-  } else {
-    let tag = String(row[headers.indexOf("Spec Tag")] || "").trim().toLowerCase();
-    return `${tag}-${rev}-${dateStr}`;
-  }
-}
 
 /**
  * Main execution entry point for logging a submittal.
@@ -109,21 +84,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const groupKey = (details.discipline === "Architecture") ? sectionVal : specTagVal;
 
     // Establish boundaries of existing data for smart insertion
-    let boundedData: any[][] = [];  
-    let emptyGapCount = 0;
-    for (let i = 0; i < logData.length; i++) {   
-      boundedData.push(logData[i]);   
-      if (i >= CONFIG.LOG_HEADER_ROW) {   
-        let isRowBlank = logData[i].slice(0, 8).every((cell: any) => String(cell).trim() === "");   
-        if (String(logData[i][0]).toLowerCase().includes("formula row")) isRowBlank = false;   
-        if (isRowBlank) {   
-          emptyGapCount++;   
-          if (emptyGapCount >= 3) break;   
-        } else {   
-          emptyGapCount = 0;   
-        }   
-      }   
-    }
+    const boundedData = getBoundedData(logData);
 
     // Build the Contact History Chain and capture previous row for status updating
     let historyColIdx = getColIdx("Contact History");  
@@ -379,78 +340,9 @@ function insertSmartRowGapAware(
   sortKey: string,
   boundedData: any[][]
 ): { rowIndex: number; failedColumns: string[] } {
-  const getGroupKeyFromRow = (row: any[]) => {
-    if (discipline === "Architecture") {
-      const secIdx = headers.indexOf("Section");
-      const numIdx = headers.indexOf("Number");
-      let sec = String(secIdx !== -1 ? row[secIdx] : "").trim();
-      let num = String(numIdx !== -1 ? row[numIdx] : "").trim();
-      if (/^\d+$/.test(sec)) sec = sec.padStart(6, '0');
-      if (/^\d+$/.test(num)) num = num.padStart(3, '0');
-      return `${sec}-${num}`.toLowerCase();
-    } else {
-      const tagIdx = headers.indexOf("Spec Tag");
-      let tag = String(tagIdx !== -1 ? row[tagIdx] : "").trim();
-      return tag.toLowerCase();
-    }
-  };
-
-  let groups: Array<{ val: string; start: number; end: number; rows: Array<{ index: number; key: string }> }> = [];
-  let currentGroup: { val: string; start: number; end: number; rows: Array<{ index: number; key: string }> } | null = null;
-  let firstDataRowIdx = -1;
-  const normalizedTargetGroupKey = getGroupKeyFromRow(rowData);
-
-  for (let i = CONFIG.LOG_HEADER_ROW; i < boundedData.length; i++) {
-    let row = boundedData[i]; if (String(row[0]).toLowerCase().includes("formula row")) continue;
-    let isRowBlank = row.slice(0, 8).every((cell: any) => String(cell).trim() === "");  
-    if (isRowBlank) { if (currentGroup) { groups.push(currentGroup); currentGroup = null; } continue; }
-    
-    let rowGroupVal = getGroupKeyFromRow(row);
-    if (rowGroupVal && rowGroupVal !== "-") {  
-      if (firstDataRowIdx === -1) firstDataRowIdx = i;  
-      if (!currentGroup) { 
-        currentGroup = { val: rowGroupVal, start: i, end: i, rows: [] }; 
-      } else if (currentGroup.val !== rowGroupVal) { 
-        groups.push(currentGroup); 
-        currentGroup = { val: rowGroupVal, start: i, end: i, rows: [] }; 
-      } else { 
-        currentGroup.end = i; 
-      }  
-      currentGroup.rows.push({ index: i, key: getRowSortKey(row, discipline, headers) });  
-    } else if (currentGroup) { 
-      groups.push(currentGroup); 
-      currentGroup = null; 
-    }
-  }
-  if (currentGroup) groups.push(currentGroup);
-
-  const targetGroup = groups.find(g => g.val === normalizedTargetGroupKey);
-  let finalRowIndex = -1;
-  if (targetGroup) {
-    let insertAfterIdx = targetGroup.start - 1;
-    for (let r of targetGroup.rows) { if (sortKey.localeCompare(r.key) >= 0) insertAfterIdx = r.index; }
-    sheet.insertRowAfter(insertAfterIdx + 1);
-    finalRowIndex = insertAfterIdx + 2;
-  } else {
-    let insertAfterRow1Based = firstDataRowIdx !== -1 ? firstDataRowIdx : CONFIG.LOG_HEADER_ROW;
-    for (let g of groups) { if (normalizedTargetGroupKey.localeCompare(g.val) > 0) insertAfterRow1Based = g.end + 1; }
-    sheet.insertRowAfter(insertAfterRow1Based);  
-    let newRowIndex = insertAfterRow1Based + 1;
-    if (insertAfterRow1Based >= firstDataRowIdx && firstDataRowIdx !== -1) { sheet.insertRowBefore(newRowIndex); newRowIndex++; }
-    finalRowIndex = newRowIndex;
-    let isRowBelowBlank = false; let dataRowBelow = boundedData[insertAfterRow1Based];   
-    if (!dataRowBelow || dataRowBelow.slice(0, 8).every((cell: any) => String(cell).trim() === "")) isRowBelowBlank = true;  
-    if (!isRowBelowBlank) sheet.insertRowAfter(finalRowIndex);
-  }
-
-  let failedColumns: string[] = [];
-  try {
-    sheet.getRange(finalRowIndex, 1, 1, headers.length).setValues([rowData]);
-  } catch (err) {
-    failedColumns = setValuesCellByCell(sheet, finalRowIndex, headers, rowData);
-  }
-
-  return { rowIndex: finalRowIndex, failedColumns: failedColumns };
+  const plan = computeRowInsertionPlan(boundedData, headers, rowData, discipline);
+  const spreadsheetId = sheet.getParent().getId();
+  return defaultLogRepository.insertLogRow(spreadsheetId, headers, rowData, plan);
 }
 
 function setValuesCellByCell(sheet: GoogleAppsScript.Spreadsheet.Sheet, rowIndex: number, headers: string[], rowData: any[]): string[] {

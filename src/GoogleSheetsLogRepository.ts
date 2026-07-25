@@ -14,6 +14,21 @@ class GoogleSheetsLogRepository implements LogRepository {
     return tagData.length > 2 ? tagData[2].map((h: any) => String(h).trim()) : [];
   }
 
+  private setValuesCellByCell(sheet: GoogleAppsScript.Spreadsheet.Sheet, rowIndex: number, headers: string[], rowData: any[]): string[] {
+    const failedColumns: string[] = [];
+    for (let i = 0; i < headers.length; i++) {
+      const colName = headers[i];
+      const cellValue = rowData[i];
+      try {
+        sheet.getRange(rowIndex, i + 1).setValue(cellValue);
+      } catch (err: any) {
+        console.warn(`Failed to write cell at row ${rowIndex}, col ${i + 1} (${colName}): ${err.message}`);
+        failedColumns.push(colName);
+      }
+    }
+    return failedColumns;
+  }
+
   getLogSettings(spreadsheetId: string, discipline: string): LogSettings {
     const cache = CacheService.getUserCache();
     const cacheKey = `log_settings_${spreadsheetId}_${discipline}`;
@@ -226,6 +241,35 @@ class GoogleSheetsLogRepository implements LogRepository {
     tagSheet.getRange(insertRow, vendorIdx + 1).setValue(newVendor);
 
     this.invalidateSettingsCache(spreadsheetId, "FF&E");
+  }
+
+  insertLogRow(
+    spreadsheetId: string,
+    headers: string[],
+    rowData: any[],
+    plan: RowInsertionPlan
+  ): { rowIndex: number; failedColumns: string[] } {
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const sheet = ss.getSheetByName(CONFIG.LOG_SHEET_NAME);
+    if (!sheet) throw new Error("Log sheet not found in spreadsheet.");
+
+    sheet.insertRowAfter(plan.targetRowIndex);
+
+    if (plan.insertBlankBefore) {
+      sheet.insertRowBefore(plan.finalRowIndex);
+    }
+    if (plan.insertBlankAfter) {
+      sheet.insertRowAfter(plan.finalRowIndex);
+    }
+
+    let failedColumns: string[] = [];
+    try {
+      sheet.getRange(plan.finalRowIndex, 1, 1, headers.length).setValues([rowData]);
+    } catch (err) {
+      failedColumns = this.setValuesCellByCell(sheet, plan.finalRowIndex, headers, rowData);
+    }
+
+    return { rowIndex: plan.finalRowIndex, failedColumns };
   }
 }
 

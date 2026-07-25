@@ -1,0 +1,172 @@
+// src/RowPositionCalculator.ts
+
+function getBoundedData(logData: any[][]): any[][] {
+  const boundedData: any[][] = [];
+  let emptyGapCount = 0;
+
+  for (let i = 0; i < logData.length; i++) {
+    boundedData.push(logData[i]);
+    if (i >= CONFIG.LOG_HEADER_ROW) {
+      let isRowBlank = logData[i].slice(0, 8).every((cell: any) => String(cell || "").trim() === "");
+      if (String(logData[i][0] || "").toLowerCase().includes("formula row")) {
+        isRowBlank = false;
+      }
+      if (isRowBlank) {
+        emptyGapCount++;
+        if (emptyGapCount >= 3) break;
+      } else {
+        emptyGapCount = 0;
+      }
+    }
+  }
+
+  return boundedData;
+}
+
+function getRowGroupKey(row: any[], discipline: string, headers: string[]): string {
+  if (discipline === "Architecture") {
+    const secIdx = headers.indexOf("Section");
+    const numIdx = headers.indexOf("Number");
+    let sec = String(secIdx !== -1 ? row[secIdx] || "" : "").trim();
+    let num = String(numIdx !== -1 ? row[numIdx] || "" : "").trim();
+    if (/^\d+$/.test(sec)) sec = sec.padStart(6, '0');
+    if (/^\d+$/.test(num)) num = num.padStart(3, '0');
+    return `${sec}-${num}`.toLowerCase();
+  } else {
+    const tagIdx = headers.indexOf("Spec Tag");
+    let tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim();
+    return tag.toLowerCase();
+  }
+}
+
+function getRowSortKey(row: any[], discipline: string, headers: string[]): string {
+  const padNum = (val: any, len: number) => String(val || "").trim().padStart(len, '0');
+  const revIdx = headers.indexOf("Revision");
+  const dateIdx = headers.indexOf("Date");
+  
+  let rev = padNum(revIdx !== -1 ? row[revIdx] : "", 3);
+  let rawDate = dateIdx !== -1 ? row[dateIdx] : "";
+  let dateStr = "";
+
+  if (rawDate instanceof Date) {
+    if (typeof Utilities !== "undefined" && Utilities.formatDate && typeof Session !== "undefined") {
+      dateStr = Utilities.formatDate(rawDate, Session.getScriptTimeZone(), "yyMMdd");
+    } else {
+      const yy = String(rawDate.getFullYear()).slice(-2);
+      const mm = String(rawDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(rawDate.getDate()).padStart(2, '0');
+      dateStr = `${yy}${mm}${dd}`;
+    }
+  } else {
+    dateStr = String(rawDate || "").replace(/\D/g, '').padEnd(6, '0');
+  }
+
+  if (discipline === "Architecture") {
+    let sec = padNum(headers.indexOf("Section") !== -1 ? row[headers.indexOf("Section")] : "", 6);
+    let num = padNum(headers.indexOf("Number") !== -1 ? row[headers.indexOf("Number")] : "", 3);
+    return `${sec}-${num}-${rev}-${dateStr}`;
+  } else {
+    let tag = String(headers.indexOf("Spec Tag") !== -1 ? row[headers.indexOf("Spec Tag")] || "" : "").trim().toLowerCase();
+    return `${tag}-${rev}-${dateStr}`;
+  }
+}
+
+function computeRowInsertionPlan(
+  boundedData: any[][],
+  headers: string[],
+  rowData: any[],
+  discipline: string
+): RowInsertionPlan {
+  const normalizedTargetGroupKey = getRowGroupKey(rowData, discipline, headers);
+  const targetSortKey = getRowSortKey(rowData, discipline, headers);
+
+  let groups: Array<{ val: string; start: number; end: number; rows: Array<{ index: number; key: string }> }> = [];
+  let currentGroup: { val: string; start: number; end: number; rows: Array<{ index: number; key: string }> } | null = null;
+  let firstDataRowIdx = -1;
+
+  for (let i = CONFIG.LOG_HEADER_ROW; i < boundedData.length; i++) {
+    let row = boundedData[i];
+    if (String(row[0] || "").toLowerCase().includes("formula row")) continue;
+    let isRowBlank = row.slice(0, 8).every((cell: any) => String(cell || "").trim() === "");
+    if (isRowBlank) {
+      if (currentGroup) {
+        groups.push(currentGroup);
+        currentGroup = null;
+      }
+      continue;
+    }
+
+    let rowGroupVal = getRowGroupKey(row, discipline, headers);
+    if (rowGroupVal && rowGroupVal !== "-") {
+      if (firstDataRowIdx === -1) firstDataRowIdx = i;
+      if (!currentGroup) {
+        currentGroup = { val: rowGroupVal, start: i, end: i, rows: [] };
+      } else if (currentGroup.val !== rowGroupVal) {
+        groups.push(currentGroup);
+        currentGroup = { val: rowGroupVal, start: i, end: i, rows: [] };
+      } else {
+        currentGroup.end = i;
+      }
+      currentGroup.rows.push({ index: i, key: getRowSortKey(row, discipline, headers) });
+    } else if (currentGroup) {
+      groups.push(currentGroup);
+      currentGroup = null;
+    }
+  }
+  if (currentGroup) groups.push(currentGroup);
+
+  const targetGroup = groups.find(g => g.val === normalizedTargetGroupKey);
+
+  if (targetGroup) {
+    let insertAfterIdx = targetGroup.start - 1;
+    for (let r of targetGroup.rows) {
+      if (targetSortKey.localeCompare(r.key) >= 0) insertAfterIdx = r.index;
+    }
+    return {
+      targetRowIndex: insertAfterIdx + 1, // 1-based index to insert after
+      insertBlankBefore: false,
+      insertBlankAfter: false,
+      finalRowIndex: insertAfterIdx + 2
+    };
+  } else {
+    let insertAfterRow1Based = firstDataRowIdx !== -1 ? firstDataRowIdx : CONFIG.LOG_HEADER_ROW;
+    for (let g of groups) {
+      if (normalizedTargetGroupKey.localeCompare(g.val) > 0) insertAfterRow1Based = g.end + 1;
+    }
+
+    let newRowIndex = insertAfterRow1Based + 1;
+    let insertBlankBefore = false;
+    if (insertAfterRow1Based >= firstDataRowIdx && firstDataRowIdx !== -1) {
+      insertBlankBefore = true;
+      newRowIndex++;
+    }
+
+    let insertBlankAfter = false;
+    let dataRowBelow = boundedData[insertAfterRow1Based];
+    let isRowBelowBlank = false;
+    if (!dataRowBelow || dataRowBelow.slice(0, 8).every((cell: any) => String(cell || "").trim() === "")) {
+      isRowBelowBlank = true;
+    }
+    if (!isRowBelowBlank) {
+      insertBlankAfter = true;
+    }
+
+    return {
+      targetRowIndex: insertAfterRow1Based,
+      insertBlankBefore,
+      insertBlankAfter,
+      finalRowIndex: newRowIndex
+    };
+  }
+}
+
+declare var module: any;
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    getBoundedData,
+    getRowGroupKey,
+    getRowSortKey,
+    computeRowInsertionPlan
+  };
+}
