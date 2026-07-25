@@ -97,19 +97,12 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
 async function executeIncomingWorkflow(ctx: any): Promise<any> {
   const { e, form, p, discipline, logSheet, selectedAction, sectionVal, emptyFallbacks, validatedDoc } = ctx;
 
-  const root = DriveApp.getFolderById(p.targetFolderId);
-  const closedId = getOrCreateFilingFolder(p.targetFolderId, discipline, sectionVal, form.specTag);
-  const closed = DriveApp.getFolderById(closedId);
+  const strategy: DocumentLogStrategy = (discipline === "Architecture")
+    ? new ArchitectureSubmittalStrategy()
+    : new FFESubmittalStrategy();
 
-  let url = "", blob: GoogleAppsScript.Base.Blob | null = null, id = "";
-
-  if (p.driveFileId) {
-    const file = DriveApp.getFileById(p.driveFileId);
-    file.moveTo(closed);
-    url = file.getUrl();
-    id = file.getId();
-    blob = file.getBlob();
-  } else {
+  let blob: GoogleAppsScript.Base.Blob | null = null;
+  if (!p.driveFileId) {
     if (form.fileSource === "Email Attachment") {
       const msg = GmailApp.getMessageById(p.messageId);
       const att = msg.getAttachments().find(a => a.getName() === form.attachmentName);
@@ -118,35 +111,36 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
       const match = form.driveFileUrl ? form.driveFileUrl.match(/[-\w]{25,}/) : null;
       if (match) blob = DriveApp.getFileById(match[0]).getAs((MimeType as any).PDF);
     }
-    if (blob) {
-      const file = closed.createFile(blob.copyBlob().setName("temp.pdf"));
-      url = file.getUrl();
-      id = file.getId();
-    }
+  } else {
+    blob = DriveApp.getFileById(p.driveFileId).getBlob();
   }
 
-  const strategy: DocumentLogStrategy = (discipline === "Architecture") 
-    ? new ArchitectureSubmittalStrategy() 
-    : new FFESubmittalStrategy();
+  const subfolderPath = strategy.getFilingSubfolders
+    ? strategy.getFilingSubfolders(validatedDoc)
+    : [(typeof CONFIG !== "undefined" && CONFIG.CLOSED_FOLDER_NAME) ? CONFIG.CLOSED_FOLDER_NAME : "Closed"];
+
+  const filingResult = defaultDriveFilingRepository.fileDocument(
+    { fileId: p.driveFileId, blob: blob || undefined },
+    { targetFolderId: p.targetFolderId, subfolderPath: strategy.getFilingSubfolders ? subfolderPath : undefined }
+  );
 
   const appendResult = defaultLogRepository.appendDocument(
     p.logFileId,
     validatedDoc,
     strategy,
     {
-      link: url,
+      link: filingResult.url,
       status: selectedAction.status,
       actionAbbr: selectedAction.abbr
     }
   );
 
-  if (p.driveFileId) {
-    DriveApp.getFileById(p.driveFileId).setName(appendResult.newFileName + ".pdf");
-  } else if (blob && id) {
-    DriveApp.getFileById(id).setName(appendResult.newFileName + ".pdf");
+  if (filingResult.fileId) {
+    DriveApp.getFileById(filingResult.fileId).setName(appendResult.newFileName + ".pdf");
   }
 
   if (blob) {
+    const root = DriveApp.getFolderById(p.targetFolderId);
     const templateId = (form.incomingRouting === "To Refer") ? CONFIG.TRANSMITTAL_TEMPLATE_ID : CONFIG.PDF_TEMPLATE_ID;
     try {
       const stamped = await defaultPdfDocumentService.stampSubmittal(blob, form, {
@@ -167,10 +161,10 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
   const directRowUrl = `https://docs.google.com/spreadsheets/d/${p.logFileId}/edit#gid=${logSheetId}&range=A${appendResult.rowIndex}`;
 
   const flashData = { 
-    fileId: id, 
+    fileId: filingResult.fileId, 
     targetKey: appendResult.targetKey, 
-    url, 
-    localPath: getLocalDrivePath(id), 
+    url: filingResult.url, 
+    localPath: filingResult.localPath, 
     title: form.title || form.specTitle || "", 
     action: form.action, 
     incomingRouting: form.incomingRouting, 
@@ -187,14 +181,8 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
 async function executeOutgoingWorkflow(ctx: any): Promise<any> {
   const { form, p, discipline, logSheet, selectedAction, sectionVal, emptyFallbacks, validatedDoc } = ctx;
 
-  let url = "", path = "", id = "", root = DriveApp.getFolderById(p.targetFolderId);
-
-  if (p.driveFileId) {
-    const file = DriveApp.getFileById(p.driveFileId);
-    if (file.getParents().hasNext() && file.getParents().next().getId() !== p.targetFolderId) file.moveTo(root);
-    url = file.getUrl(); id = p.driveFileId; path = getLocalDrivePath(id);
-  } else {
-    let blob: GoogleAppsScript.Base.Blob | null = null;
+  let blob: GoogleAppsScript.Base.Blob | null = null;
+  if (!p.driveFileId) {
     if (form.fileSource === "Email Attachment") {
       const msg = GmailApp.getMessageById(p.messageId);
       const att = msg.getAttachments().find(a => a.getName() === form.attachmentName);
@@ -203,11 +191,12 @@ async function executeOutgoingWorkflow(ctx: any): Promise<any> {
       const match = form.driveFileUrl ? form.driveFileUrl.match(/[-\w]{25,}/) : null;
       if (match) blob = DriveApp.getFileById(match[0]).getAs((MimeType as any).PDF);
     }
-    if (blob) {
-      const file = root.createFile(blob.copyBlob().setName("temp.pdf"));
-      url = file.getUrl(); id = file.getId(); path = getLocalDrivePath(id);
-    }
   }
+
+  const filingResult = defaultDriveFilingRepository.fileDocument(
+    { fileId: p.driveFileId, blob: blob || undefined },
+    { targetFolderId: p.targetFolderId }
+  );
 
   const strategy: DocumentLogStrategy = (discipline === "Architecture")
     ? new ArchitectureSubmittalStrategy()
@@ -218,7 +207,7 @@ async function executeOutgoingWorkflow(ctx: any): Promise<any> {
     validatedDoc,
     strategy,
     {
-      link: url,
+      link: filingResult.url,
       status: selectedAction.status,
       actionAbbr: selectedAction.abbr,
       updatePreviousStatus: true,
@@ -226,69 +215,21 @@ async function executeOutgoingWorkflow(ctx: any): Promise<any> {
     }
   );
 
-  if (id) {
-    DriveApp.getFileById(id).setName(appendResult.newFileName + ".pdf");
+  if (filingResult.fileId) {
+    DriveApp.getFileById(filingResult.fileId).setName(appendResult.newFileName + ".pdf");
   }
 
   const logSheetId = logSheet.getSheetId();
   const directRowUrl = `https://docs.google.com/spreadsheets/d/${p.logFileId}/edit#gid=${logSheetId}&range=A${appendResult.rowIndex}`;
 
   return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().pushCard(buildSuccessCard(
-    id, appendResult.newFileName, url, path, appendResult.targetKey, form.title || form.specTitle, discipline, sectionVal, form.specTag, 
+    filingResult.fileId, appendResult.newFileName, filingResult.url, filingResult.localPath, appendResult.targetKey, form.title || form.specTitle, discipline, sectionVal, form.specTag, 
     p.targetFolderId, p.logFileId, false, p.projectAbbr, form.action, form.incomingRouting, null,
     directRowUrl, appendResult.failedColumns, emptyFallbacks
   ))).build();
 }
 
-/**
- * Maps the Google Drive file structure back to a local G:\ drive path for the user.
- */
-function getLocalDrivePath(fileId: string): string {
-  try {
-    const fileMeta = (Drive as any).Files.get(fileId, {supportsAllDrives: true});
-    let path = [fileMeta.title];
-    if (fileMeta.driveId) {
-      const driveMeta = (Drive as any).Drives.get(fileMeta.driveId);
-      let currentParentId = (fileMeta.parents && fileMeta.parents.length > 0) ? fileMeta.parents[0].id : null;
-      while (currentParentId && currentParentId !== fileMeta.driveId) {
-        let pFolder = (Drive as any).Files.get(currentParentId, {supportsAllDrives: true});
-        path.unshift(pFolder.title);
-        currentParentId = (pFolder.parents && pFolder.parents.length > 0) ? pFolder.parents[0].id : null;
-      }
-      path.unshift(driveMeta.name);
-      return "G:\\Shared drives\\" + path.join("\\");
-    } else {
-      let curFile = DriveApp.getFileById(fileId); path = [curFile.getName()]; let parents = curFile.getParents();
-      while (parents.hasNext()) {
-        let pFolder = parents.next(); let n = pFolder.getName();
-        if (n !== "Drive" && n !== "My Drive") path.unshift(n);
-        parents = pFolder.getParents();
-      }
-      return "G:\\My Drive\\" + path.join("\\");
-    }
-  } catch (e) { return "G:\\Error\\" + fileId; }
-}
 
-/**
- * Logic to find or create the specific subfolder for a division or FF&E tag.
- */
-function getOrCreateFilingFolder(parentFolderId: string, discipline: string, section?: string, specTag?: string): string {
-  const parent = DriveApp.getFolderById(parentFolderId);
-  const closedIter = parent.getFoldersByName(CONFIG.CLOSED_FOLDER_NAME);
-  const closed = closedIter.hasNext() ? closedIter.next() : parent.createFolder(CONFIG.CLOSED_FOLDER_NAME);
-  let subName: string | null = null;
-  if (discipline === "Architecture" && section) {
-    subName = CSI_DIVISIONS[String(section).substring(0, 2)];
-  } else if (discipline === "FF&E" && specTag) {
-    const trimmedTag = String(specTag).trim();
-    if (trimmedTag) subName = trimmedTag.substring(0, 2);
-  }
-  if (subName) {
-    const subIter = closed.getFoldersByName(subName);
-    return subIter.hasNext() ? subIter.next().getId() : closed.createFolder(subName).getId();
-  }
-  return closed.getId();
-}
 
 /**
  * Handles moving a file to its final destination after logging.
@@ -296,19 +237,39 @@ function getOrCreateFilingFolder(parentFolderId: string, discipline: string, sec
 function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
   const p = e.parameters || {};
   try {
-    const destId = getOrCreateFilingFolder(p.targetFolderId, p.discipline, p.section, p.specTag);
-    DriveApp.getFileById(p.fileId).moveTo(DriveApp.getFolderById(destId));
-    const newPath = getLocalDrivePath(p.fileId);
-    
+    const strategy: DocumentLogStrategy = (p.discipline === "Architecture")
+      ? new ArchitectureSubmittalStrategy()
+      : new FFESubmittalStrategy();
+
+    const doc: ValidatedDocument = {
+      documentType: "Submittal",
+      date: "",
+      contact: "",
+      action: "",
+      disciplineDetails: p.discipline === "Architecture"
+        ? { discipline: "Architecture", section: p.section || "", number: "", title: "", revision: "" }
+        : { discipline: "FF&E", specTag: p.specTag || "", specTitle: "", vendor: "", revision: "" }
+    };
+
+    const subfolderPath = strategy.getFilingSubfolders
+      ? strategy.getFilingSubfolders(doc)
+      : [(typeof CONFIG !== "undefined" && CONFIG.CLOSED_FOLDER_NAME) ? CONFIG.CLOSED_FOLDER_NAME : "Closed"];
+
+    const filingResult = defaultDriveFilingRepository.fileDocument(
+      { fileId: p.fileId },
+      { targetFolderId: p.targetFolderId, subfolderPath }
+    );
+
+    const destName = DriveApp.getFolderById(filingResult.folderId).getName();
     const failedCols = p.failedColumns ? JSON.parse(p.failedColumns) : [];
     const emptyFalls = p.emptyFallbacks ? JSON.parse(p.emptyFallbacks) : [];
 
     const updated = buildSuccessCard(
-      p.fileId, p.newFileName, p.fileUrl, newPath, p.stampSubNo, p.itemTitle, p.discipline, p.section, p.specTag, 
+      p.fileId, p.newFileName, p.fileUrl, filingResult.localPath, p.stampSubNo, p.itemTitle, p.discipline, p.section, p.specTag, 
       p.targetFolderId, p.logFileId, true, p.projectAbbr, p.action, p.incomingRouting, null,
       p.directRowUrl, failedCols, emptyFalls
     );
-    return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(updated)).setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_MOVED(DriveApp.getFolderById(destId).getName()))).build();
+    return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(updated)).setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_MOVED(destName))).build();
   } catch (err: any) { return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build(); }
 }
 
@@ -319,7 +280,6 @@ if (typeof module !== "undefined" && module.exports) {
     processSubmission,
     executeIncomingWorkflow,
     executeOutgoingWorkflow,
-    getOrCreateFilingFolder,
-    getLocalDrivePath
+    moveSubmittalToClosed
   };
 }

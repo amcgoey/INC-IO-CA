@@ -214,6 +214,19 @@ interface RowInsertionPlan {
 }
 
 
+interface FilingOptions {
+  targetFolderId: string;
+  subfolderPath?: string[];
+  newFileName?: string;
+}
+
+interface FilingResult {
+  fileId: string;
+  url: string;
+  localPath: string;
+  folderId: string;
+}
+
 interface DocumentLogStrategy<T = ValidatedDocument> {
   getGroupKey(doc: T): string;
   getSortKey(doc: T): string;
@@ -223,6 +236,7 @@ interface DocumentLogStrategy<T = ValidatedDocument> {
   getTargetKeyFromRow(row: any[], headers: string[]): string;
   formatRowPayload(doc: T, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
   getFileName(doc: T, contactHistory: string, actionAbbr: string): string;
+  getFilingSubfolders?(doc: T): string[];
 }
 
 interface AppendDocumentOptions {
@@ -298,17 +312,22 @@ interface PdfDocumentService {
   ): Promise<GoogleAppsScript.Base.Blob>;
 }
 
+interface DriveFilingRepository {
+  getLocalPath(fileId: string): string;
+  fileDocument(file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob }, options: FilingOptions): FilingResult;
+}
+
 declare var defaultLogRepository: LogRepository;
+declare var defaultDriveFilingRepository: DriveFilingRepository;
 declare var defaultPdfDocumentService: PdfDocumentService;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
-declare function getLocalDrivePath(fileId: string): string;
-declare function getOrCreateFilingFolder(parentFolderId: string, discipline: string, section?: string, specTag?: string): string;
 
 // Global declaration for pdf-lib evaluated at runtime
 declare const PDFLib: any;
 
 
 declare class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
+  getFilingSubfolders(doc: ValidatedDocument): string[];
   getGroupKey(doc: ValidatedDocument): string;
   getSortKey(doc: ValidatedDocument): string;
   getTargetKey(doc: ValidatedDocument): string;

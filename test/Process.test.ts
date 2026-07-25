@@ -12,14 +12,22 @@ import assert from "node:assert";
 };
 
 (globalThis as any).MESSAGES = {
-  ERROR_GENERAL: (m: string) => `Error: ${m}`
+  ERROR_GENERAL: (m: string) => `Error: ${m}`,
+  SUCCESS_MOVED: (f: string) => `Moved to ${f}`
 };
 
 (globalThis as any).CardService = {
-  newActionResponseBuilder: () => ({
-    setNavigation: (nav: any) => ({
-      build: () => ({ navigation: nav })
-    })
+  newActionResponseBuilder: () => {
+    let resNav: any = null, resNotif: any = null;
+    const builder: any = {
+      setNavigation: (nav: any) => { resNav = nav; return builder; },
+      setNotification: (notif: any) => { resNotif = notif; return builder; },
+      build: () => ({ navigation: resNav, notification: resNotif })
+    };
+    return builder;
+  },
+  newNotification: () => ({
+    setText: (t: string) => t
   }),
   newNavigation: () => ({
     updateCard: (card: any) => ({ card, action: "updateCard" }),
@@ -28,11 +36,12 @@ import assert from "node:assert";
 };
 
 const { FakePdfDocumentService, defaultPdfDocumentService } = require("../src/PdfDocumentService");
+const { FakeDriveFilingRepository } = require("../src/DriveFilingRepository");
 
 (globalThis as any).buildMainCard = (e: any, d: any, tag: any, flashData: any) => ({ cardType: "MainCard", flashData });
 (globalThis as any).buildSuccessCard = (...args: any[]) => ({ cardType: "SuccessCard", args });
-(globalThis as any).getOrCreateFilingFolder = () => "folder-closed-id";
-(globalThis as any).getLocalDrivePath = (id: string) => `G:\\My Drive\\${id}`;
+const mockDriveFilingRepo = new FakeDriveFilingRepository();
+(globalThis as any).defaultDriveFilingRepository = mockDriveFilingRepo;
 
 const mockFakePdfService = new FakePdfDocumentService();
 (globalThis as any).defaultPdfDocumentService = mockFakePdfService;
@@ -60,7 +69,7 @@ const mockFolder: any = {
 };
 
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
-const { executeIncomingWorkflow, executeOutgoingWorkflow } = require("../src/Process");
+const { executeIncomingWorkflow, executeOutgoingWorkflow, moveSubmittalToClosed } = require("../src/Process");
 
 test("executeIncomingWorkflow for Architecture delegates logging to defaultLogRepository.appendDocument", async () => {
   let appendCalled = false;
@@ -111,7 +120,7 @@ test("executeIncomingWorkflow for Architecture delegates logging to defaultLogRe
   assert.strictEqual(appendCalled, true);
   assert.strictEqual(passedOptions.status, "Under Review");
   assert.strictEqual(passedOptions.actionAbbr, " Rec");
-  assert.strictEqual(passedOptions.link, "http://drive.google.com/file1");
+  assert.strictEqual(passedOptions.link, "http://drive.google.com/file-1");
 
   assert.strictEqual(result.navigation.card.flashData.targetKey, "033000-001-001");
   assert.strictEqual(result.navigation.card.flashData.newFileName, "033000-001-001 Concrete - 2026-07-25 GC Rec");
@@ -169,6 +178,7 @@ test("executeOutgoingWorkflow for Architecture delegates logging to defaultLogRe
   assert.strictEqual(passedOptions.updatePreviousStatus, true);
   assert.strictEqual(passedOptions.previousRowStatus, "Closed");
   assert.strictEqual(result.navigation.action, "pushCard");
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments[mockDriveFilingRepo.filedDocuments.length - 1].result.fileId, "file-1");
 });
 
 test("executeIncomingWorkflow for FF&E delegates logging to defaultLogRepository.appendDocument", async () => {
@@ -217,8 +227,9 @@ test("executeIncomingWorkflow for FF&E delegates logging to defaultLogRepository
   assert.strictEqual(appendCalled, true);
   assert.strictEqual(passedOptions.status, "Under Review");
   assert.strictEqual(passedOptions.actionAbbr, " Rec");
-  assert.strictEqual(passedOptions.link, "http://drive.google.com/file1");
+  assert.strictEqual(passedOptions.link, "http://drive.google.com/file-1");
 
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[mockDriveFilingRepo.filedDocuments.length - 1].options.subfolderPath, ["Closed", "CH"]);
   assert.strictEqual(result.navigation.card.flashData.targetKey, "CH-01-001");
   assert.strictEqual(result.navigation.card.flashData.newFileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec");
   assert.ok(result.navigation.card.flashData.directRowUrl.includes("range=A7"));
@@ -272,4 +283,63 @@ test("executeOutgoingWorkflow for FF&E delegates logging to defaultLogRepository
   assert.strictEqual(passedOptions.updatePreviousStatus, true);
   assert.strictEqual(passedOptions.previousRowStatus, "Closed");
   assert.strictEqual(result.navigation.action, "pushCard");
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments[mockDriveFilingRepo.filedDocuments.length - 1].result.fileId, "file-1");
+});
+
+test("moveSubmittalToClosed delegates file move and subfolder path resolution to defaultDriveFilingRepository for Architecture", () => {
+  mockDriveFilingRepo.filedDocuments = [];
+  const event = {
+    parameters: {
+      targetFolderId: "target-folder-1",
+      discipline: "Architecture",
+      section: "033000",
+      specTag: "",
+      fileId: "file-closed-123",
+      newFileName: "033000-001 Concrete",
+      fileUrl: "http://drive.google.com/file-closed-123",
+      stampSubNo: "033000-001-001",
+      itemTitle: "Concrete",
+      logFileId: "log-123",
+      projectAbbr: "PROJ",
+      action: "Approved",
+      incomingRouting: "To Review",
+      directRowUrl: "http://docs.google.com/sheet",
+      failedColumns: "[]",
+      emptyFallbacks: "[]"
+    }
+  };
+
+  const res = moveSubmittalToClosed(event as any);
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-123");
+});
+
+test("moveSubmittalToClosed delegates file move and subfolder path resolution to defaultDriveFilingRepository for FF&E", () => {
+  mockDriveFilingRepo.filedDocuments = [];
+  const event = {
+    parameters: {
+      targetFolderId: "target-folder-1",
+      discipline: "FF&E",
+      section: "",
+      specTag: "CH-01",
+      fileId: "file-closed-ffe-456",
+      newFileName: "CH-01-001 Side Chair",
+      fileUrl: "http://drive.google.com/file-closed-ffe-456",
+      stampSubNo: "CH-01-001",
+      itemTitle: "Side Chair",
+      logFileId: "log-456",
+      projectAbbr: "PROJ",
+      action: "Approved",
+      incomingRouting: "To Review",
+      directRowUrl: "http://docs.google.com/sheet",
+      failedColumns: "[]",
+      emptyFallbacks: "[]"
+    }
+  };
+
+  const res = moveSubmittalToClosed(event as any);
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "CH"]);
+  assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-ffe-456");
 });
