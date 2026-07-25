@@ -42,6 +42,7 @@ export interface DocumentLogStrategy<T = ValidatedDocument> {
   getTargetKeyFromRow(row: any[], headers: string[]): string;
   formatRowPayload(doc: T, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
   getFileName(doc: T, contactHistory: string, actionAbbr: string): string;
+  getFilingSubfolders?(doc: T): string[];
 }
 
 class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
@@ -105,6 +106,17 @@ class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocu
     const targetKey = this.getTargetKey(doc);
     const suffix = actionAbbr ? actionAbbr : "";
     return `${targetKey} ${details.title} - ${doc.date} ${contactHistory}${suffix}`;
+  }
+
+  getFilingSubfolders(doc: ValidatedDocument): string[] {
+    const details = doc.disciplineDetails as ArchitectureDetails;
+    const secPrefix = String(details && details.section ? details.section : "").trim().substring(0, 2);
+    const divName = (typeof CSI_DIVISIONS !== "undefined" && CSI_DIVISIONS[secPrefix]) ? CSI_DIVISIONS[secPrefix] : null;
+    const closedFolder = (typeof CONFIG !== "undefined" && CONFIG.CLOSED_FOLDER_NAME) ? CONFIG.CLOSED_FOLDER_NAME : "Closed";
+    if (divName) {
+      return [closedFolder, divName];
+    }
+    return [closedFolder];
   }
 }
 

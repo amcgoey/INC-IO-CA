@@ -121,7 +121,7 @@ test("executeIncomingWorkflow for Architecture delegates logging to defaultLogRe
   assert.strictEqual(appendCalled, true);
   assert.strictEqual(passedOptions.status, "Under Review");
   assert.strictEqual(passedOptions.actionAbbr, " Rec");
-  assert.strictEqual(passedOptions.link, "http://drive.google.com/file1");
+  assert.strictEqual(passedOptions.link, "http://drive.google.com/file-1");
 
   assert.strictEqual(result.navigation.card.flashData.targetKey, "033000-001-001");
   assert.strictEqual(result.navigation.card.flashData.newFileName, "033000-001-001 Concrete - 2026-07-25 GC Rec");
@@ -227,7 +227,7 @@ test("executeIncomingWorkflow for FF&E delegates logging to defaultLogRepository
   assert.strictEqual(appendCalled, true);
   assert.strictEqual(passedOptions.status, "Under Review");
   assert.strictEqual(passedOptions.actionAbbr, " Rec");
-  assert.strictEqual(passedOptions.link, "http://drive.google.com/file1");
+  assert.strictEqual(passedOptions.link, "http://drive.google.com/file-1");
 
   assert.strictEqual(result.navigation.card.flashData.targetKey, "CH-01-001");
   assert.strictEqual(result.navigation.card.flashData.newFileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec");
