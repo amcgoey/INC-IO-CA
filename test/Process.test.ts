@@ -40,7 +40,6 @@ const { FakeDriveFilingRepository } = require("../src/DriveFilingRepository");
 
 (globalThis as any).buildMainCard = (e: any, d: any, tag: any, flashData: any) => ({ cardType: "MainCard", flashData });
 (globalThis as any).buildSuccessCard = (...args: any[]) => ({ cardType: "SuccessCard", args });
-(globalThis as any).getOrCreateFilingFolder = () => "folder-closed-id";
 const mockDriveFilingRepo = new FakeDriveFilingRepository();
 (globalThis as any).defaultDriveFilingRepository = mockDriveFilingRepo;
 
@@ -179,6 +178,7 @@ test("executeOutgoingWorkflow for Architecture delegates logging to defaultLogRe
   assert.strictEqual(passedOptions.updatePreviousStatus, true);
   assert.strictEqual(passedOptions.previousRowStatus, "Closed");
   assert.strictEqual(result.navigation.action, "pushCard");
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments[mockDriveFilingRepo.filedDocuments.length - 1].result.fileId, "file-1");
 });
 
 test("executeIncomingWorkflow for FF&E delegates logging to defaultLogRepository.appendDocument", async () => {
@@ -283,10 +283,11 @@ test("executeOutgoingWorkflow for FF&E delegates logging to defaultLogRepository
   assert.strictEqual(passedOptions.updatePreviousStatus, true);
   assert.strictEqual(passedOptions.previousRowStatus, "Closed");
   assert.strictEqual(result.navigation.action, "pushCard");
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments[mockDriveFilingRepo.filedDocuments.length - 1].result.fileId, "file-1");
 });
 
-test("moveSubmittalToClosed delegates local path resolution to defaultDriveFilingRepository.getLocalPath", () => {
-  mockDriveFilingRepo.calls = [];
+test("moveSubmittalToClosed delegates file move and subfolder path resolution to defaultDriveFilingRepository for Architecture", () => {
+  mockDriveFilingRepo.filedDocuments = [];
   const event = {
     parameters: {
       targetFolderId: "target-folder-1",
@@ -309,6 +310,36 @@ test("moveSubmittalToClosed delegates local path resolution to defaultDriveFilin
   };
 
   const res = moveSubmittalToClosed(event as any);
-  assert.ok(mockDriveFilingRepo.calls.includes("file-closed-123"));
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
   assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-123");
+});
+
+test("moveSubmittalToClosed delegates file move and subfolder path resolution to defaultDriveFilingRepository for FF&E", () => {
+  mockDriveFilingRepo.filedDocuments = [];
+  const event = {
+    parameters: {
+      targetFolderId: "target-folder-1",
+      discipline: "FF&E",
+      section: "",
+      specTag: "CH-01",
+      fileId: "file-closed-ffe-456",
+      newFileName: "CH-01-001 Side Chair",
+      fileUrl: "http://drive.google.com/file-closed-ffe-456",
+      stampSubNo: "CH-01-001",
+      itemTitle: "Side Chair",
+      logFileId: "log-456",
+      projectAbbr: "PROJ",
+      action: "Approved",
+      incomingRouting: "To Review",
+      directRowUrl: "http://docs.google.com/sheet",
+      failedColumns: "[]",
+      emptyFallbacks: "[]"
+    }
+  };
+
+  const res = moveSubmittalToClosed(event as any);
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "CH"]);
+  assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-ffe-456");
 });
