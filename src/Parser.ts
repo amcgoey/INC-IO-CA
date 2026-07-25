@@ -1,4 +1,4 @@
-﻿interface SubjectPattern {
+interface SubjectPattern {
   id: string;
   regex: RegExp;
   extract: (match: RegExpMatchArray) => {
@@ -86,9 +86,6 @@ function parseDriveFilename(filename: string): ParsedData {
   return data;
 }
 
-async function extractActionFromPdfForm(fileId: string): Promise<string | null> {
-  return defaultPdfDocumentService.extractFormAction(fileId);
-}
 
 function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
   const defaultResult: ParsedData = {
@@ -158,4 +155,5 @@ function parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> 
   }
   return result;
 }
+
 
