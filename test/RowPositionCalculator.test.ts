@@ -1,15 +1,16 @@
 import test from "node:test";
 import assert from "node:assert";
 
-// Global ambient CONFIG mock for Node runner
-(global as any).CONFIG = { LOG_HEADER_ROW: 1 };
+// Global ambient CONFIG mock matching production Config.ts (LOG_HEADER_ROW: 3, 1-based index 3 = array index 3)
+(global as any).CONFIG = { LOG_HEADER_ROW: 3 };
 
 const { getBoundedData, getRowGroupKey, computeRowInsertionPlan } = require("../src/RowPositionCalculator");
 
 test("getBoundedData stops after 3 consecutive empty rows", () => {
   const headers = ["Section", "Number", "Revision", "Date", "Title", "Contact", "Action", "Notes"];
   const mockData = [
-    ["Project Log Header"],
+    ["Project Log Banner"],
+    ["Project Subtitle"],
     headers,
     ["010000", "001", "001", "240101", "Submittal 1", "John", "Received", "Notes 1"],
     ["", "", "", "", "", "", "", ""],
@@ -19,7 +20,7 @@ test("getBoundedData stops after 3 consecutive empty rows", () => {
   ];
 
   const bounded = getBoundedData(mockData);
-  assert.strictEqual(bounded.length, 6);
+  assert.strictEqual(bounded.length, 7);
 });
 
 test("getRowGroupKey formats Architecture section and number", () => {
@@ -32,7 +33,8 @@ test("getRowGroupKey formats Architecture section and number", () => {
 test("computeRowInsertionPlan inserts into existing group", () => {
   const headers = ["Section", "Number", "Revision", "Date", "Title"];
   const boundedData = [
-    ["Header"],
+    ["Banner"],
+    ["Subtitle"],
     headers,
     ["010000", "001", "001", "240101", "Submittal 1"],
     ["010000", "001", "002", "240102", "Submittal 2"]
@@ -40,8 +42,8 @@ test("computeRowInsertionPlan inserts into existing group", () => {
   const newRow = ["010000", "001", "003", "240103", "Submittal 3"];
 
   const plan = computeRowInsertionPlan(boundedData, headers, newRow, "Architecture");
-  assert.strictEqual(plan.targetRowIndex, 4);
-  assert.strictEqual(plan.finalRowIndex, 5);
+  assert.strictEqual(plan.targetRowIndex, 5);
+  assert.strictEqual(plan.finalRowIndex, 6);
   assert.strictEqual(plan.insertBlankBefore, false);
   assert.strictEqual(plan.insertBlankAfter, false);
 });
@@ -49,14 +51,15 @@ test("computeRowInsertionPlan inserts into existing group", () => {
 test("computeRowInsertionPlan creates new group with gap formatting", () => {
   const headers = ["Section", "Number", "Revision", "Date", "Title"];
   const boundedData = [
-    ["Header"],
+    ["Banner"],
+    ["Subtitle"],
     headers,
     ["010000", "001", "001", "240101", "Submittal 1"]
   ];
   const newRow = ["020000", "001", "001", "240101", "Submittal 2"];
 
   const plan = computeRowInsertionPlan(boundedData, headers, newRow, "Architecture");
-  assert.strictEqual(plan.targetRowIndex, 3);
+  assert.strictEqual(plan.targetRowIndex, 4);
   assert.strictEqual(plan.insertBlankBefore, true);
-  assert.strictEqual(plan.finalRowIndex, 5);
+  assert.strictEqual(plan.finalRowIndex, 6);
 });

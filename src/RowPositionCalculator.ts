@@ -83,7 +83,7 @@ function computeRowInsertionPlan(
   let currentGroup: { val: string; start: number; end: number; rows: Array<{ index: number; key: string }> } | null = null;
   let firstDataRowIdx = -1;
 
-  for (let i = CONFIG.LOG_HEADER_ROW + 1; i < boundedData.length; i++) {
+  for (let i = CONFIG.LOG_HEADER_ROW; i < boundedData.length; i++) {
     let row = boundedData[i];
     if (String(row[0] || "").toLowerCase().includes("formula row")) continue;
     if (isRowBlank(row)) {
