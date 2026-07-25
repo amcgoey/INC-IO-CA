@@ -179,7 +179,7 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
     let i = getColIdx(k); if (i !== -1) rowData[i] = v;
   }
 
-  const writeResult = insertSmartRowGapAware(logSheet, headers, rowData, discipline, getRowSortKey(rowData, discipline, headers), boundedData);
+  const writeResult = insertSmartRowGapAware(logSheet, headers, rowData, discipline, boundedData);
   const logSheetId = logSheet.getSheetId();
   const directRowUrl = `https://docs.google.com/spreadsheets/d/${p.logFileId}/edit#gid=${logSheetId}&range=A${writeResult.rowIndex}`;
 
@@ -246,7 +246,7 @@ async function executeOutgoingWorkflow(ctx: any): Promise<any> {
     }
   }
 
-  const writeResult = insertSmartRowGapAware(logSheet, headers, rowData, discipline, getRowSortKey(rowData, discipline, headers), boundedData);
+  const writeResult = insertSmartRowGapAware(logSheet, headers, rowData, discipline, boundedData);
   const logSheetId = logSheet.getSheetId();
   const directRowUrl = `https://docs.google.com/spreadsheets/d/${p.logFileId}/edit#gid=${logSheetId}&range=A${writeResult.rowIndex}`;
 
@@ -337,25 +337,9 @@ function insertSmartRowGapAware(
   headers: string[],
   rowData: any[],
   discipline: string,
-  sortKey: string,
   boundedData: any[][]
 ): { rowIndex: number; failedColumns: string[] } {
   const plan = computeRowInsertionPlan(boundedData, headers, rowData, discipline);
   const spreadsheetId = sheet.getParent().getId();
   return defaultLogRepository.insertLogRow(spreadsheetId, headers, rowData, plan);
-}
-
-function setValuesCellByCell(sheet: GoogleAppsScript.Spreadsheet.Sheet, rowIndex: number, headers: string[], rowData: any[]): string[] {
-  const failedColumns: string[] = [];
-  for (let i = 0; i < headers.length; i++) {
-    const colName = headers[i];
-    const cellValue = rowData[i];
-    try {
-      sheet.getRange(rowIndex, i + 1).setValue(cellValue);
-    } catch (err: any) {
-      console.warn(`Failed to write cell at row ${rowIndex}, col ${i+1} (${colName}): ${err.message}`);
-      failedColumns.push(colName);
-    }
-  }
-  return failedColumns;
 }

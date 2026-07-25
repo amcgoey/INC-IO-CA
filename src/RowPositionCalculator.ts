@@ -1,5 +1,9 @@
 // src/RowPositionCalculator.ts
 
+function padNum(val: any, len: number): string {
+  return String(val || "").trim().padStart(len, '0');
+}
+
 function getBoundedData(logData: any[][]): any[][] {
   const boundedData: any[][] = [];
   let emptyGapCount = 0;
@@ -27,10 +31,8 @@ function getRowGroupKey(row: any[], discipline: string, headers: string[]): stri
   if (discipline === "Architecture") {
     const secIdx = headers.indexOf("Section");
     const numIdx = headers.indexOf("Number");
-    let sec = String(secIdx !== -1 ? row[secIdx] || "" : "").trim();
-    let num = String(numIdx !== -1 ? row[numIdx] || "" : "").trim();
-    if (/^\d+$/.test(sec)) sec = sec.padStart(6, '0');
-    if (/^\d+$/.test(num)) num = num.padStart(3, '0');
+    let sec = padNum(secIdx !== -1 ? row[secIdx] : "", 6);
+    let num = padNum(numIdx !== -1 ? row[numIdx] : "", 3);
     return `${sec}-${num}`.toLowerCase();
   } else {
     const tagIdx = headers.indexOf("Spec Tag");
@@ -40,7 +42,6 @@ function getRowGroupKey(row: any[], discipline: string, headers: string[]): stri
 }
 
 function getRowSortKey(row: any[], discipline: string, headers: string[]): string {
-  const padNum = (val: any, len: number) => String(val || "").trim().padStart(len, '0');
   const revIdx = headers.indexOf("Revision");
   const dateIdx = headers.indexOf("Date");
   
@@ -62,11 +63,14 @@ function getRowSortKey(row: any[], discipline: string, headers: string[]): strin
   }
 
   if (discipline === "Architecture") {
-    let sec = padNum(headers.indexOf("Section") !== -1 ? row[headers.indexOf("Section")] : "", 6);
-    let num = padNum(headers.indexOf("Number") !== -1 ? row[headers.indexOf("Number")] : "", 3);
+    const secIdx = headers.indexOf("Section");
+    const numIdx = headers.indexOf("Number");
+    let sec = padNum(secIdx !== -1 ? row[secIdx] : "", 6);
+    let num = padNum(numIdx !== -1 ? row[numIdx] : "", 3);
     return `${sec}-${num}-${rev}-${dateStr}`;
   } else {
-    let tag = String(headers.indexOf("Spec Tag") !== -1 ? row[headers.indexOf("Spec Tag")] || "" : "").trim().toLowerCase();
+    const tagIdx = headers.indexOf("Spec Tag");
+    let tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim().toLowerCase();
     return `${tag}-${rev}-${dateStr}`;
   }
 }

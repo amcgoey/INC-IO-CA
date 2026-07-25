@@ -249,7 +249,7 @@ declare var defaultLogRepository: LogRepository;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 declare function getLocalDrivePath(fileId: string): string;
 declare function getOrCreateFilingFolder(parentFolderId: string, discipline: string, section?: string, specTag?: string): string;
-declare function insertSmartRowGapAware(sheet: GoogleAppsScript.Spreadsheet.Sheet, headers: string[], rowData: any[], discipline: string, sortKey: string, boundedData: any[][]): { rowIndex: number; failedColumns: string[] };
+declare function insertSmartRowGapAware(sheet: GoogleAppsScript.Spreadsheet.Sheet, headers: string[], rowData: any[], discipline: string, boundedData: any[][]): { rowIndex: number; failedColumns: string[] };
 
 // Global declaration for pdf-lib evaluated at runtime
 declare const PDFLib: any;
