@@ -204,6 +204,8 @@ type ValidationResult =
   | { status: "error"; errors: string[]; missingFields?: string[] }
   | { status: "interaction_required"; interactionType: "ADD_TAG" | "ADD_VENDOR"; message: string };
 
+type RowKeyFn = (row: any[], headers: string[]) => string;
+
 interface RowInsertionPlan {
   targetRowIndex: number;
   insertBlankBefore: boolean;
@@ -211,18 +213,6 @@ interface RowInsertionPlan {
   finalRowIndex: number;
 }
 
-
-interface SheetStorageAdapter {
-  getSheetValues(sheetName: string): any[][];
-  setSheetValues(sheetName: string, values: any[][]): void;
-  getRangeValue(sheetName: string, rowIndex: number, colIndex: number): any;
-  setRangeValue(sheetName: string, rowIndex: number, colIndex: number, value: any): void;
-  insertRowBefore(sheetName: string, rowIndex: number): void;
-  insertRowAfter(sheetName: string, rowIndex: number): void;
-  insertColumnAfter(sheetName: string, colIndex: number): void;
-  setRowValues(sheetName: string, rowIndex: number, headers: string[], rowData: any[]): { failedColumns: string[] };
-  insertLogRow(sheetName: string, headers: string[], rowData: any[], plan: RowInsertionPlan): { rowIndex: number; failedColumns: string[] };
-}
 
 interface LogRepository {
   getLogSettings(spreadsheetId: string, discipline: string): LogSettings;
@@ -257,7 +247,7 @@ declare function manipulatePdf(sourceBlob: GoogleAppsScript.Base.Blob, data: Par
 declare function getBoundedData(logData: any[][]): any[][];
 declare function getRowGroupKey(row: any[], discipline: string, headers: string[]): string;
 declare function getRowSortKey(row: any[], discipline: string, headers: string[]): string;
-declare function computeRowInsertionPlan(boundedData: any[][], headers: string[], rowData: any[], disciplineOrGroupKeyExtractor: string | ((row: any[], headers: string[]) => string), sortKeyExtractor?: (row: any[], headers: string[]) => string): RowInsertionPlan;
+declare function computeRowInsertionPlan(boundedData: any[][], headers: string[], rowData: any[], disciplineOrGroupKeyFn: string | RowKeyFn, sortKeyFn?: RowKeyFn): RowInsertionPlan;
 declare var defaultLogRepository: LogRepository;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 declare function getLocalDrivePath(fileId: string): string;

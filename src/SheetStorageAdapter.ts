@@ -7,7 +7,6 @@ interface SheetStorageAdapter {
   setRangeValue(sheetName: string, rowIndex: number, colIndex: number, value: any): void;
   insertRowBefore(sheetName: string, rowIndex: number): void;
   insertRowAfter(sheetName: string, rowIndex: number): void;
-  insertColumnAfter(sheetName: string, colIndex: number): void;
   setRowValues(sheetName: string, rowIndex: number, headers: string[], rowData: any[]): { failedColumns: string[] };
   insertLogRow(sheetName: string, headers: string[], rowData: any[], plan: RowInsertionPlan): { rowIndex: number; failedColumns: string[] };
 }
@@ -79,14 +78,6 @@ class InMemorySheetStorageAdapter implements SheetStorageAdapter {
     this.insertBlankRowAt(sheetName, Math.max(0, rowIndex));
   }
 
-  insertColumnAfter(sheetName: string, colIndex: number): void {
-    const grid = this.getOrCreateSheet(sheetName);
-    const insertIdx = colIndex; // After colIndex (1-based), so 0-based array index is colIndex
-    for (const row of grid) {
-      row.splice(insertIdx, 0, "");
-    }
-  }
-
   setRowValues(sheetName: string, rowIndex: number, headers: string[], rowData: any[]): { failedColumns: string[] } {
     const grid = this.getOrCreateSheet(sheetName);
     const rIdx = rowIndex - 1;
@@ -95,33 +86,14 @@ class InMemorySheetStorageAdapter implements SheetStorageAdapter {
       grid.push([]);
     }
 
-    let sheetHeaderRow: string[] | null = null;
-    for (const r of grid) {
-      if (Array.isArray(r) && headers.some(h => r.includes(h))) {
-        sheetHeaderRow = r.map(c => String(c).trim());
-        break;
-      }
-    }
-
     const targetRow = grid[rIdx];
 
     for (let i = 0; i < headers.length; i++) {
-      const colName = headers[i];
       const val = rowData[i] !== undefined ? rowData[i] : "";
-      let colIdx = i;
-
-      if (sheetHeaderRow) {
-        const hIdx = sheetHeaderRow.indexOf(colName);
-        if (hIdx !== -1) {
-          colIdx = hIdx;
-        }
-      }
-
-      while (targetRow.length <= colIdx) {
+      while (targetRow.length <= i) {
         targetRow.push("");
       }
-
-      targetRow[colIdx] = val;
+      targetRow[i] = val;
     }
 
     return { failedColumns: [] };

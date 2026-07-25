@@ -127,7 +127,7 @@ test("computeRowInsertionPlan creates new FF&E group with gap formatting", () =>
   assert.strictEqual(plan.finalRowIndex, 6);
 });
 
-test("computeRowInsertionPlan accepts generic key extractors for custom document types", () => {
+test("computeRowInsertionPlan accepts generic key functions for custom document types", () => {
   const headers = ["DocID", "Seq", "Title"];
   const boundedData = [
     ["Banner"],

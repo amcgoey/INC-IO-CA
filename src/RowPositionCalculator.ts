@@ -1,6 +1,5 @@
 // src/RowPositionCalculator.ts
 
-type RowKeyExtractor = (row: any[], headers: string[]) => string;
 
 function padNum(val: any, len: number): string {
   return String(val || "").trim().padStart(len, '0');
@@ -76,16 +75,16 @@ function computeRowInsertionPlan(
   boundedData: any[][],
   headers: string[],
   rowData: any[],
-  disciplineOrGroupKeyExtractor: string | RowKeyExtractor,
-  sortKeyExtractor?: RowKeyExtractor
+  disciplineOrGroupKeyFn: string | RowKeyFn,
+  sortKeyFn?: RowKeyFn
 ): RowInsertionPlan {
-  const getGroupKeyFn: RowKeyExtractor = typeof disciplineOrGroupKeyExtractor === "function"
-    ? disciplineOrGroupKeyExtractor
-    : (row, h) => getRowGroupKey(row, disciplineOrGroupKeyExtractor, h);
+  const getGroupKeyFn: RowKeyFn = typeof disciplineOrGroupKeyFn === "function"
+    ? disciplineOrGroupKeyFn
+    : (row, h) => getRowGroupKey(row, disciplineOrGroupKeyFn, h);
 
-  const getSortKeyFn: RowKeyExtractor = sortKeyExtractor
-    ? sortKeyExtractor
-    : (row, h) => getRowSortKey(row, typeof disciplineOrGroupKeyExtractor === "string" ? disciplineOrGroupKeyExtractor : "", h);
+  const getSortKeyFn: RowKeyFn = sortKeyFn
+    ? sortKeyFn
+    : (row, h) => getRowSortKey(row, typeof disciplineOrGroupKeyFn === "string" ? disciplineOrGroupKeyFn : "", h);
 
   const normalizedTargetGroupKey = getGroupKeyFn(rowData, headers);
   const targetSortKey = getSortKeyFn(rowData, headers);

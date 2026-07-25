@@ -55,22 +55,6 @@ test("InMemorySheetStorageAdapter insertRowBefore and insertRowAfter shift rows 
   assert.deepStrictEqual(values[4], ["Row 3"]);
 });
 
-test("InMemorySheetStorageAdapter insertColumnAfter inserts blank column across all rows", () => {
-  const adapter = new InMemorySheetStorageAdapter({
-    "Log": [
-      ["A1", "B1"],
-      ["A2", "B2"]
-    ]
-  });
-
-  // Insert column after col 1 (A)
-  adapter.insertColumnAfter("Log", 1);
-  const values = adapter.getSheetValues("Log");
-
-  assert.deepStrictEqual(values[0], ["A1", "", "B1"]);
-  assert.deepStrictEqual(values[1], ["A2", "", "B2"]);
-});
-
 test("InMemorySheetStorageAdapter insertLogRow executes RowInsertionPlan with gaps", () => {
   const headers = ["Section", "Number", "Revision", "Title"];
   const initialLog = [
@@ -103,7 +87,7 @@ test("InMemorySheetStorageAdapter insertLogRow executes RowInsertionPlan with ga
   assert.deepStrictEqual(values[5], ["020000", "001", "001", "Submittal 2"]);
 });
 
-test("InMemorySheetStorageAdapter setRowValues maps rowData according to header column positions", () => {
+test("InMemorySheetStorageAdapter setRowValues writes raw rowData directly at target row index without header searching", () => {
   const initialLog = [
     ["Banner"],
     ["Subtitle"],
@@ -115,7 +99,7 @@ test("InMemorySheetStorageAdapter setRowValues maps rowData according to header 
   adapter.setRowValues("Submittals Log", 4, headers, rowData);
 
   const values = adapter.getSheetValues("Submittals Log");
-  assert.deepStrictEqual(values[3], ["Submittal 2", "020000", "001", "001"]);
+  assert.deepStrictEqual(values[3], ["020000", "001", "001", "Submittal 2"]);
 });
 
 test("InMemorySheetStorageAdapter insertLogRow with insertBlankBefore: true inserts exactly one blank separator row", () => {
