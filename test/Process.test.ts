@@ -12,14 +12,22 @@ import assert from "node:assert";
 };
 
 (globalThis as any).MESSAGES = {
-  ERROR_GENERAL: (m: string) => `Error: ${m}`
+  ERROR_GENERAL: (m: string) => `Error: ${m}`,
+  SUCCESS_MOVED: (f: string) => `Moved to ${f}`
 };
 
 (globalThis as any).CardService = {
-  newActionResponseBuilder: () => ({
-    setNavigation: (nav: any) => ({
-      build: () => ({ navigation: nav })
-    })
+  newActionResponseBuilder: () => {
+    let resNav: any = null, resNotif: any = null;
+    const builder: any = {
+      setNavigation: (nav: any) => { resNav = nav; return builder; },
+      setNotification: (notif: any) => { resNotif = notif; return builder; },
+      build: () => ({ navigation: resNav, notification: resNotif })
+    };
+    return builder;
+  },
+  newNotification: () => ({
+    setText: (t: string) => t
   }),
   newNavigation: () => ({
     updateCard: (card: any) => ({ card, action: "updateCard" }),
@@ -28,11 +36,13 @@ import assert from "node:assert";
 };
 
 const { FakePdfDocumentService, defaultPdfDocumentService } = require("../src/PdfDocumentService");
+const { FakeDriveFilingRepository } = require("../src/DriveFilingRepository");
 
 (globalThis as any).buildMainCard = (e: any, d: any, tag: any, flashData: any) => ({ cardType: "MainCard", flashData });
 (globalThis as any).buildSuccessCard = (...args: any[]) => ({ cardType: "SuccessCard", args });
 (globalThis as any).getOrCreateFilingFolder = () => "folder-closed-id";
-(globalThis as any).getLocalDrivePath = (id: string) => `G:\\My Drive\\${id}`;
+const mockDriveFilingRepo = new FakeDriveFilingRepository();
+(globalThis as any).defaultDriveFilingRepository = mockDriveFilingRepo;
 
 const mockFakePdfService = new FakePdfDocumentService();
 (globalThis as any).defaultPdfDocumentService = mockFakePdfService;
@@ -60,7 +70,7 @@ const mockFolder: any = {
 };
 
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
-const { executeIncomingWorkflow, executeOutgoingWorkflow } = require("../src/Process");
+const { executeIncomingWorkflow, executeOutgoingWorkflow, moveSubmittalToClosed } = require("../src/Process");
 
 test("executeIncomingWorkflow for Architecture delegates logging to defaultLogRepository.appendDocument", async () => {
   let appendCalled = false;
@@ -272,4 +282,32 @@ test("executeOutgoingWorkflow for FF&E delegates logging to defaultLogRepository
   assert.strictEqual(passedOptions.updatePreviousStatus, true);
   assert.strictEqual(passedOptions.previousRowStatus, "Closed");
   assert.strictEqual(result.navigation.action, "pushCard");
+});
+
+test("moveSubmittalToClosed delegates local path resolution to defaultDriveFilingRepository.getLocalPath", () => {
+  mockDriveFilingRepo.calls = [];
+  const event = {
+    parameters: {
+      targetFolderId: "target-folder-1",
+      discipline: "Architecture",
+      section: "033000",
+      specTag: "",
+      fileId: "file-closed-123",
+      newFileName: "033000-001 Concrete",
+      fileUrl: "http://drive.google.com/file-closed-123",
+      stampSubNo: "033000-001-001",
+      itemTitle: "Concrete",
+      logFileId: "log-123",
+      projectAbbr: "PROJ",
+      action: "Approved",
+      incomingRouting: "To Review",
+      directRowUrl: "http://docs.google.com/sheet",
+      failedColumns: "[]",
+      emptyFallbacks: "[]"
+    }
+  };
+
+  const res = moveSubmittalToClosed(event as any);
+  assert.ok(mockDriveFilingRepo.calls.includes("file-closed-123"));
+  assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-123");
 });

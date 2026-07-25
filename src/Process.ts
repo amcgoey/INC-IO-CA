@@ -170,7 +170,7 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
     fileId: id, 
     targetKey: appendResult.targetKey, 
     url, 
-    localPath: getLocalDrivePath(id), 
+    localPath: defaultDriveFilingRepository.getLocalPath(id), 
     title: form.title || form.specTitle || "", 
     action: form.action, 
     incomingRouting: form.incomingRouting, 
@@ -192,7 +192,7 @@ async function executeOutgoingWorkflow(ctx: any): Promise<any> {
   if (p.driveFileId) {
     const file = DriveApp.getFileById(p.driveFileId);
     if (file.getParents().hasNext() && file.getParents().next().getId() !== p.targetFolderId) file.moveTo(root);
-    url = file.getUrl(); id = p.driveFileId; path = getLocalDrivePath(id);
+    url = file.getUrl(); id = p.driveFileId; path = defaultDriveFilingRepository.getLocalPath(id);
   } else {
     let blob: GoogleAppsScript.Base.Blob | null = null;
     if (form.fileSource === "Email Attachment") {
@@ -205,7 +205,7 @@ async function executeOutgoingWorkflow(ctx: any): Promise<any> {
     }
     if (blob) {
       const file = root.createFile(blob.copyBlob().setName("temp.pdf"));
-      url = file.getUrl(); id = file.getId(); path = getLocalDrivePath(id);
+      url = file.getUrl(); id = file.getId(); path = defaultDriveFilingRepository.getLocalPath(id);
     }
   }
 
@@ -244,34 +244,9 @@ async function executeOutgoingWorkflow(ctx: any): Promise<any> {
  * Maps the Google Drive file structure back to a local G:\ drive path for the user.
  */
 function getLocalDrivePath(fileId: string): string {
-  try {
-    const fileMeta = (Drive as any).Files.get(fileId, {supportsAllDrives: true});
-    let path = [fileMeta.title];
-    if (fileMeta.driveId) {
-      const driveMeta = (Drive as any).Drives.get(fileMeta.driveId);
-      let currentParentId = (fileMeta.parents && fileMeta.parents.length > 0) ? fileMeta.parents[0].id : null;
-      while (currentParentId && currentParentId !== fileMeta.driveId) {
-        let pFolder = (Drive as any).Files.get(currentParentId, {supportsAllDrives: true});
-        path.unshift(pFolder.title);
-        currentParentId = (pFolder.parents && pFolder.parents.length > 0) ? pFolder.parents[0].id : null;
-      }
-      path.unshift(driveMeta.name);
-      return "G:\\Shared drives\\" + path.join("\\");
-    } else {
-      let curFile = DriveApp.getFileById(fileId); path = [curFile.getName()]; let parents = curFile.getParents();
-      while (parents.hasNext()) {
-        let pFolder = parents.next(); let n = pFolder.getName();
-        if (n !== "Drive" && n !== "My Drive") path.unshift(n);
-        parents = pFolder.getParents();
-      }
-      return "G:\\My Drive\\" + path.join("\\");
-    }
-  } catch (e) { return "G:\\Error\\" + fileId; }
+  return defaultDriveFilingRepository.getLocalPath(fileId);
 }
 
-/**
- * Logic to find or create the specific subfolder for a division or FF&E tag.
- */
 function getOrCreateFilingFolder(parentFolderId: string, discipline: string, section?: string, specTag?: string): string {
   const parent = DriveApp.getFolderById(parentFolderId);
   const closedIter = parent.getFoldersByName(CONFIG.CLOSED_FOLDER_NAME);
@@ -298,7 +273,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
   try {
     const destId = getOrCreateFilingFolder(p.targetFolderId, p.discipline, p.section, p.specTag);
     DriveApp.getFileById(p.fileId).moveTo(DriveApp.getFolderById(destId));
-    const newPath = getLocalDrivePath(p.fileId);
+    const newPath = defaultDriveFilingRepository.getLocalPath(p.fileId);
     
     const failedCols = p.failedColumns ? JSON.parse(p.failedColumns) : [];
     const emptyFalls = p.emptyFallbacks ? JSON.parse(p.emptyFallbacks) : [];
@@ -320,6 +295,7 @@ if (typeof module !== "undefined" && module.exports) {
     executeIncomingWorkflow,
     executeOutgoingWorkflow,
     getOrCreateFilingFolder,
-    getLocalDrivePath
+    getLocalDrivePath,
+    moveSubmittalToClosed
   };
 }
