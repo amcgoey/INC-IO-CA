@@ -1,0 +1,6 @@
+# Ignore all files by default
+**
+
+# Allow files under src/
+!src/**
+!appsscript.json

@@ -1,0 +1,15 @@
+{
+  "name": "inc-io-ca",
+  "version": "1.0.0",
+  "description": "Google Apps Script project for INC_IO_CA",
+  "main": "src/Main.js",
+  "scripts": {
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "open": "clasp open",
+    "deploy": "clasp deploy"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}
