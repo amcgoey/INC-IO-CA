@@ -321,8 +321,6 @@ declare var defaultLogRepository: LogRepository;
 declare var defaultDriveFilingRepository: DriveFilingRepository;
 declare var defaultPdfDocumentService: PdfDocumentService;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
-declare function getLocalDrivePath(fileId: string): string;
-declare function getOrCreateFilingFolder(parentFolderId: string, discipline: string, section?: string, specTag?: string): string;
 
 // Global declaration for pdf-lib evaluated at runtime
 declare const PDFLib: any;
