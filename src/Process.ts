@@ -2,8 +2,8 @@
  * Generates a sortable key for the row based on Discipline.
  * Combines section/tag, revision, and date into a single string for comparison.
  */
-function getRowSortKey(row, discipline, headers) {
-  const padNum = (val, len) => String(val || "").trim().padStart(len, '0');
+function getRowSortKey(row: any[], discipline: string, headers: string[]): string {
+  const padNum = (val: any, len: number) => String(val || "").trim().padStart(len, '0');
   let rev = padNum(row[headers.indexOf("Revision")], 3);
   let rawDate = row[headers.indexOf("Date")];
   let dateStr = "";
@@ -28,10 +28,10 @@ function getRowSortKey(row, discipline, headers) {
  * Main execution entry point for logging a submittal.
  * Triggered by the "File & Log" button in the UI.
  */
-async function processSubmission(e) {
+async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
   try {
-    const form = e.formInput;
-    const p = e.parameters;
+    const form = e.formInput || {};
+    const p = e.parameters || {};
 
     // Task 1: Fetch Bypass Validation
     // Ensures users don't skip the "Fetch" step when using external URLs.
@@ -44,14 +44,17 @@ async function processSubmission(e) {
     const disc = form.discipline || CONFIG.DEFAULT_DISCIPLINE;
     if (!p.logFileId) throw new Error(MESSAGES.ERROR_NO_LOG);
 
-    const logSheet = SpreadsheetApp.openById(p.logFileId).getSheetByName(CONFIG.LOG_SHEET_NAME);  
+    const openSs = SpreadsheetApp.openById(p.logFileId);
+    const logSheet = openSs.getSheetByName(CONFIG.LOG_SHEET_NAME);  
+    if (!logSheet) throw new Error("Log sheet not found in spreadsheet");
+
     const headers = verifyAndFormatLogSheet(logSheet);  
-    const getColIdx = (n) => headers.indexOf(n);  
+    const getColIdx = (n: string) => headers.indexOf(n);  
     const settings = getLogSettings(p.logFileId, disc);  
-    const selectedAction = settings.actions.find(a => a.action === form.action) || { abbr: "", status: "" };
+    const selectedAction = settings.actions.find(a => a.action === form.action) || { action: "", abbr: "", status: "" };
 
     // Validate required fields
-    const missingFields = [];
+    const missingFields: string[] = [];
     if (!form.date || !form.date.trim()) missingFields.push("Date");
     if (!form.contact || !form.contact.trim()) missingFields.push("Contact");
     if (!form.action || !form.action.trim()) missingFields.push("Action");
@@ -69,7 +72,7 @@ async function processSubmission(e) {
 
     if (missingFields.length > 0) {
       return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
+        .setNavigation(CardService.newNavigation().updateCard((globalThis as any).buildMainCard(e, null, false, {
           error: "Missing required fields: " + missingFields.join(", "),
           missingFields: missingFields
         })))
@@ -82,7 +85,7 @@ async function processSubmission(e) {
       const invalidRelatedTags = inputRelatedTags.filter(t => !settings.ffeTags.tags.some(validTag => validTag.toLowerCase() === t.toLowerCase()));
       if (invalidRelatedTags.length > 0) {
         return CardService.newActionResponseBuilder()
-          .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
+          .setNavigation(CardService.newNavigation().updateCard((globalThis as any).buildMainCard(e, null, false, {
             error: `Invalid Related Tags: ${invalidRelatedTags.join(", ")}. Only valid options from the tag list are accepted.`,
             missingFields: ["Related Tags"]
           })))
@@ -98,7 +101,7 @@ async function processSubmission(e) {
       const tagExists = settings.ffeTags.tags.some(t => t.toLowerCase() === (form.specTag || "").trim().toLowerCase());
       if (!tagExists && !bypassTag) {
         return CardService.newActionResponseBuilder()
-          .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
+          .setNavigation(CardService.newNavigation().updateCard((globalThis as any).buildMainCard(e, null, false, {
             promptAddTag: true,
             warning: `Spec Tag "${form.specTag}" is not in the Tag List. Would you like to add it?`
           })))
@@ -108,7 +111,7 @@ async function processSubmission(e) {
       const vendorExists = settings.ffeTags.vendors.some(v => v.toLowerCase() === (form.vendor || "").trim().toLowerCase());
       if (!vendorExists && !bypassVendor) {
         return CardService.newActionResponseBuilder()
-          .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
+          .setNavigation(CardService.newNavigation().updateCard((globalThis as any).buildMainCard(e, null, false, {
             promptAddVendor: true,
             warning: `Vendor "${form.vendor}" is not in the Tag List. Would you like to add it?`
           })))
@@ -117,7 +120,7 @@ async function processSubmission(e) {
     }
 
     // Graceful Fallbacks: Section, Number, Revision
-    const emptyFallbacks = [];
+    const emptyFallbacks: string[] = [];
     let sectionVal = "";
     let numberVal = "";
     let revisionVal = "";
@@ -146,12 +149,12 @@ async function processSubmission(e) {
     const groupKey = (disc === "Architecture") ? sectionVal : form.specTag;
 
     // Establish boundaries of existing data for smart insertion
-    let boundedData = [];  
+    let boundedData: any[][] = [];  
     let emptyGapCount = 0;
     for (let i = 0; i < logData.length; i++) {   
       boundedData.push(logData[i]);   
       if (i >= CONFIG.LOG_HEADER_ROW) {   
-        let isRowBlank = logData[i].slice(0, 8).every(cell => String(cell).trim() === "");   
+        let isRowBlank = logData[i].slice(0, 8).every((cell: any) => String(cell).trim() === "");   
         if (String(logData[i][0]).toLowerCase().includes("formula row")) isRowBlank = false;   
         if (isRowBlank) {   
           emptyGapCount++;   
@@ -166,7 +169,7 @@ async function processSubmission(e) {
     let historyColIdx = getColIdx("Contact History");  
     let calcChainColIdx = getColIdx("Calc Contact Chain");  
     let previousChain = "";
-    let previousRowSheetIndex = null;
+    let previousRowSheetIndex: number | null = null;
 
     for (let i = boundedData.length - 1; i >= CONFIG.LOG_HEADER_ROW; i--) {   
         let row = boundedData[i];   
@@ -193,19 +196,19 @@ async function processSubmission(e) {
     // Branch logic based on whether the action is "Received" (Incoming) or a Review status (Outgoing)
     return form.action === "Received" ? await executeIncomingWorkflow(ctx) : await executeOutgoingWorkflow(ctx);
 
-  } catch (err) {
+  } catch (err: any) {
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build();
   }
 }
 
-async function executeIncomingWorkflow(ctx) {
-  const { e, form, p, discipline, logSheet, headers, getColIdx, selectedAction, targetKey, groupKey, newFileName, boundedData, newChain, sectionVal, numberVal, revisionVal, emptyFallbacks } = ctx;
+async function executeIncomingWorkflow(ctx: any): Promise<any> {
+  const { e, form, p, discipline, logSheet, headers, getColIdx, selectedAction, targetKey, newFileName, boundedData, newChain, sectionVal, numberVal, revisionVal, emptyFallbacks } = ctx;
 
   const root = DriveApp.getFolderById(p.targetFolderId);
   const closedId = getOrCreateFilingFolder(p.targetFolderId, discipline, sectionVal, form.specTag);
   const closed = DriveApp.getFolderById(closedId);
 
-  let url = "", blob = null, id = "";
+  let url = "", blob: GoogleAppsScript.Base.Blob | null = null, id = "";
 
   if (p.driveFileId) {
     const file = DriveApp.getFileById(p.driveFileId);
@@ -216,9 +219,12 @@ async function executeIncomingWorkflow(ctx) {
     blob = file.getBlob();
   } else {
     if (form.fileSource === "Email Attachment") {
-      blob = GmailApp.getMessageById(p.messageId).getAttachments().find(a => a.getName() === form.attachmentName).copyBlob();
+      const msg = GmailApp.getMessageById(p.messageId);
+      const att = msg.getAttachments().find(a => a.getName() === form.attachmentName);
+      if (att) blob = att.copyBlob();
     } else if (form.fileSource === "Google Drive URL") {
-      blob = DriveApp.getFileById(form.driveFileUrl.match(/[-\w]{25,}/)[0]).getAs(MimeType.PDF);
+      const match = form.driveFileUrl ? form.driveFileUrl.match(/[-\w]{25,}/) : null;
+      if (match) blob = DriveApp.getFileById(match[0]).getAs(MimeType.PDF);
     }
     if (blob) {   
       const file = closed.createFile(blob.copyBlob().setName(newFileName + ".pdf"));   
@@ -231,15 +237,16 @@ async function executeIncomingWorkflow(ctx) {
     const templateId = (form.incomingRouting === "To Refer") ? CONFIG.TRANSMITTAL_TEMPLATE_ID : CONFIG.PDF_TEMPLATE_ID;
     try {
       const stamped = await manipulatePdf(blob, form, newFileName, targetKey, templateId);
-      root.createFile(stamped.setName(CONFIG.STAMPED_FILE_PREFIX + newFileName + ".pdf")); 
-    } catch (err) { 
+      stamped.setName(CONFIG.STAMPED_FILE_PREFIX + newFileName + ".pdf");
+      root.createFile(stamped); 
+    } catch (err: any) { 
       if (err.message === "TEMPLATE_MISSING") { 
         root.createFile(blob.copyBlob().setName(CONFIG.STAMPED_FILE_PREFIX + newFileName + ".pdf"));
       } else { throw err; }
     }
   }
 
-  const payload = { "Status": selectedAction.status, "Revision": revisionVal, "Date": form.date, "Contact": form.contact, "Action": form.action, "Notes": form.notes, "Link": url, "Contact History": newChain };
+  const payload: Record<string, string> = { "Status": selectedAction.status, "Revision": revisionVal, "Date": form.date, "Contact": form.contact, "Action": form.action, "Notes": form.notes, "Link": url, "Contact History": newChain };
   if (discipline === "Architecture") {
     payload["Section"] = sectionVal; payload["Number"] = numberVal; payload["Title"] = form.title;
   } else {
@@ -270,11 +277,11 @@ async function executeIncomingWorkflow(ctx) {
     newFileName: newFileName
   };
 
-  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, flashData))).build();
+  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard((globalThis as any).buildMainCard(e, null, false, flashData))).build();
 }
 
-async function executeOutgoingWorkflow(ctx) {
-  const { form, p, discipline, logSheet, headers, getColIdx, selectedAction, targetKey, groupKey, newFileName, boundedData, newChain, previousRowSheetIndex, sectionVal, numberVal, revisionVal, emptyFallbacks } = ctx;
+async function executeOutgoingWorkflow(ctx: any): Promise<any> {
+  const { form, p, discipline, logSheet, headers, getColIdx, selectedAction, targetKey, newFileName, boundedData, newChain, previousRowSheetIndex, sectionVal, numberVal, revisionVal, emptyFallbacks } = ctx;
   let url = "", path = "", id = "", root = DriveApp.getFolderById(p.targetFolderId);
 
   if (p.driveFileId) {
@@ -283,14 +290,22 @@ async function executeOutgoingWorkflow(ctx) {
     file.setName(newFileName + ".pdf");
     url = file.getUrl(); id = p.driveFileId; path = getLocalDrivePath(id);
   } else {
-    let blob = (form.fileSource === "Email Attachment") ? GmailApp.getMessageById(p.messageId).getAttachments().find(a => a.getName() === form.attachmentName).copyBlob() : DriveApp.getFileById(form.driveFileUrl.match(/[-\w]{25,}/)[0]).getAs(MimeType.PDF);
+    let blob: GoogleAppsScript.Base.Blob | null = null;
+    if (form.fileSource === "Email Attachment") {
+      const msg = GmailApp.getMessageById(p.messageId);
+      const att = msg.getAttachments().find(a => a.getName() === form.attachmentName);
+      if (att) blob = att.copyBlob();
+    } else if (form.fileSource === "Google Drive URL") {
+      const match = form.driveFileUrl ? form.driveFileUrl.match(/[-\w]{25,}/) : null;
+      if (match) blob = DriveApp.getFileById(match[0]).getAs(MimeType.PDF);
+    }
     if (blob) {
       const file = root.createFile(blob.copyBlob().setName(newFileName + ".pdf"));
       url = file.getUrl(); id = file.getId(); path = getLocalDrivePath(id);
     }
   }
 
-  const payload = { "Status": selectedAction.status, "Revision": revisionVal, "Date": form.date, "Contact": form.contact, "Action": form.action, "Notes": form.notes, "Link": url, "Contact History": newChain };
+  const payload: Record<string, string> = { "Status": selectedAction.status, "Revision": revisionVal, "Date": form.date, "Contact": form.contact, "Action": form.action, "Notes": form.notes, "Link": url, "Contact History": newChain };
   if (discipline === "Architecture") {
     payload["Section"] = sectionVal; payload["Number"] = numberVal; payload["Title"] = form.title;
   } else {
@@ -314,7 +329,7 @@ async function executeOutgoingWorkflow(ctx) {
   const logSheetId = logSheet.getSheetId();
   const directRowUrl = `https://docs.google.com/spreadsheets/d/${p.logFileId}/edit#gid=${logSheetId}&range=A${writeResult.rowIndex}`;
 
-  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().pushCard(buildSuccessCard(
+  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().pushCard((globalThis as any).buildSuccessCard(
     id, newFileName, url, path, targetKey, form.title || form.specTitle, discipline, sectionVal, form.specTag, 
     p.targetFolderId, p.logFileId, false, p.projectAbbr, form.action, form.incomingRouting, null,
     directRowUrl, writeResult.failedColumns, emptyFallbacks
@@ -324,25 +339,26 @@ async function executeOutgoingWorkflow(ctx) {
 /**
  * Maps the Google Drive file structure back to a local G:\ drive path for the user.
  */
-function getLocalDrivePath(fileId) {
+function getLocalDrivePath(fileId: string): string {
   try {
-    const fileMeta = Drive.Files.get(fileId, {supportsAllDrives: true});
+    const fileMeta = (globalThis as any).Drive.Files.get(fileId, {supportsAllDrives: true});
     let path = [fileMeta.title];
     if (fileMeta.driveId) {
-      const driveMeta = Drive.Drives.get(fileMeta.driveId);
+      const driveMeta = (globalThis as any).Drive.Drives.get(fileMeta.driveId);
       let currentParentId = (fileMeta.parents && fileMeta.parents.length > 0) ? fileMeta.parents[0].id : null;
       while (currentParentId && currentParentId !== fileMeta.driveId) {
-        let pFolder = Drive.Files.get(currentParentId, {supportsAllDrives: true});
+        let pFolder = (globalThis as any).Drive.Files.get(currentParentId, {supportsAllDrives: true});
         path.unshift(pFolder.title);
         currentParentId = (pFolder.parents && pFolder.parents.length > 0) ? pFolder.parents[0].id : null;
       }
       path.unshift(driveMeta.name);
       return "G:\\Shared drives\\" + path.join("\\");
     } else {
-      let cur = DriveApp.getFileById(fileId); path = [cur.getName()]; let parents = cur.getParents();
+      let curFile = DriveApp.getFileById(fileId); path = [curFile.getName()]; let parents = curFile.getParents();
       while (parents.hasNext()) {
-        cur = parents.next(); let n = cur.getName();
+        let pFolder = parents.next(); let n = pFolder.getName();
         if (n !== "Drive" && n !== "My Drive") path.unshift(n);
+        parents = pFolder.getParents();
       }
       return "G:\\My Drive\\" + path.join("\\");
     }
@@ -352,11 +368,11 @@ function getLocalDrivePath(fileId) {
 /**
  * Logic to find or create the specific subfolder for a division or FF&E tag.
  */
-function getOrCreateFilingFolder(parentFolderId, discipline, section, specTag) {
+function getOrCreateFilingFolder(parentFolderId: string, discipline: string, section?: string, specTag?: string): string {
   const parent = DriveApp.getFolderById(parentFolderId);
   const closedIter = parent.getFoldersByName(CONFIG.CLOSED_FOLDER_NAME);
   const closed = closedIter.hasNext() ? closedIter.next() : parent.createFolder(CONFIG.CLOSED_FOLDER_NAME);
-  let subName = null;
+  let subName: string | null = null;
   if (discipline === "Architecture" && section) {
     subName = CSI_DIVISIONS[String(section).substring(0, 2)];
   } else if (discipline === "FF&E" && specTag) {
@@ -373,8 +389,8 @@ function getOrCreateFilingFolder(parentFolderId, discipline, section, specTag) {
 /**
  * Handles moving a file to its final destination after logging.
  */
-function moveSubmittalToClosed(e) {
-  const p = e.parameters;
+function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
+  const p = e.parameters || {};
   try {
     const destId = getOrCreateFilingFolder(p.targetFolderId, p.discipline, p.section, p.specTag);
     DriveApp.getFileById(p.fileId).moveTo(DriveApp.getFolderById(destId));
@@ -383,20 +399,27 @@ function moveSubmittalToClosed(e) {
     const failedCols = p.failedColumns ? JSON.parse(p.failedColumns) : [];
     const emptyFalls = p.emptyFallbacks ? JSON.parse(p.emptyFallbacks) : [];
 
-    const updated = buildSuccessCard(
+    const updated = (globalThis as any).buildSuccessCard(
       p.fileId, p.newFileName, p.fileUrl, newPath, p.stampSubNo, p.itemTitle, p.discipline, p.section, p.specTag, 
       p.targetFolderId, p.logFileId, true, p.projectAbbr, p.action, p.incomingRouting, null,
       p.directRowUrl, failedCols, emptyFalls
     );
     return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(updated)).setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_MOVED(DriveApp.getFolderById(destId).getName()))).build();
-  } catch (err) { return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build(); }
+  } catch (err: any) { return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build(); }
 }
 
 /**
  * Injects a row into the spreadsheet while maintaining group sorting and handling gaps.
  */
-function insertSmartRowGapAware(sheet, headers, rowData, discipline, sortKey, boundedData) {
-  const getGroupKeyFromRow = (row) => {
+function insertSmartRowGapAware(
+  sheet: GoogleAppsScript.Spreadsheet.Sheet,
+  headers: string[],
+  rowData: any[],
+  discipline: string,
+  sortKey: string,
+  boundedData: any[][]
+): { rowIndex: number; failedColumns: string[] } {
+  const getGroupKeyFromRow = (row: any[]) => {
     if (discipline === "Architecture") {
       const secIdx = headers.indexOf("Section");
       const numIdx = headers.indexOf("Number");
@@ -412,12 +435,14 @@ function insertSmartRowGapAware(sheet, headers, rowData, discipline, sortKey, bo
     }
   };
 
-  let groups = [], currentGroup = null, firstDataRowIdx = -1;
+  let groups: Array<{ val: string; start: number; end: number; rows: Array<{ index: number; key: string }> }> = [];
+  let currentGroup: { val: string; start: number; end: number; rows: Array<{ index: number; key: string }> } | null = null;
+  let firstDataRowIdx = -1;
   const normalizedTargetGroupKey = getGroupKeyFromRow(rowData);
 
   for (let i = CONFIG.LOG_HEADER_ROW; i < boundedData.length; i++) {
     let row = boundedData[i]; if (String(row[0]).toLowerCase().includes("formula row")) continue;
-    let isRowBlank = row.slice(0, 8).every(cell => String(cell).trim() === "");  
+    let isRowBlank = row.slice(0, 8).every((cell: any) => String(cell).trim() === "");  
     if (isRowBlank) { if (currentGroup) { groups.push(currentGroup); currentGroup = null; } continue; }
     
     let rowGroupVal = getGroupKeyFromRow(row);
@@ -454,11 +479,11 @@ function insertSmartRowGapAware(sheet, headers, rowData, discipline, sortKey, bo
     if (insertAfterRow1Based >= firstDataRowIdx && firstDataRowIdx !== -1) { sheet.insertRowBefore(newRowIndex); newRowIndex++; }
     finalRowIndex = newRowIndex;
     let isRowBelowBlank = false; let dataRowBelow = boundedData[insertAfterRow1Based];   
-    if (!dataRowBelow || dataRowBelow.slice(0, 8).every(cell => String(cell).trim() === "")) isRowBelowBlank = true;  
+    if (!dataRowBelow || dataRowBelow.slice(0, 8).every((cell: any) => String(cell).trim() === "")) isRowBelowBlank = true;  
     if (!isRowBelowBlank) sheet.insertRowAfter(finalRowIndex);
   }
 
-  let failedColumns = [];
+  let failedColumns: string[] = [];
   try {
     sheet.getRange(finalRowIndex, 1, 1, headers.length).setValues([rowData]);
   } catch (err) {
@@ -468,14 +493,14 @@ function insertSmartRowGapAware(sheet, headers, rowData, discipline, sortKey, bo
   return { rowIndex: finalRowIndex, failedColumns: failedColumns };
 }
 
-function setValuesCellByCell(sheet, rowIndex, headers, rowData) {
-  const failedColumns = [];
+function setValuesCellByCell(sheet: GoogleAppsScript.Spreadsheet.Sheet, rowIndex: number, headers: string[], rowData: any[]): string[] {
+  const failedColumns: string[] = [];
   for (let i = 0; i < headers.length; i++) {
     const colName = headers[i];
     const cellValue = rowData[i];
     try {
       sheet.getRange(rowIndex, i + 1).setValue(cellValue);
-    } catch (err) {
+    } catch (err: any) {
       console.warn(`Failed to write cell at row ${rowIndex}, col ${i+1} (${colName}): ${err.message}`);
       failedColumns.push(colName);
     }

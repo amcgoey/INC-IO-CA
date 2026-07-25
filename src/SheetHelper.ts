@@ -1,18 +1,43 @@
-function getLogSettings(spreadsheetId, discipline) {
+// src/SheetHelper.ts
+
+interface ActionSetting {
+  action: string;
+  abbr: string;
+  status: string;
+}
+
+interface ContactSetting {
+  abbr: string;
+  name: string;
+}
+
+interface LogSettings {
+  contacts: ContactSetting[];
+  actions: ActionSetting[];
+  ffeTags: {
+    tags: string[];
+    vendors: string[];
+    tagMap: Record<string, string>;
+  };
+  projectAbbr: string;
+  logSheetId: number | null;
+}
+
+function getLogSettings(spreadsheetId: string, discipline: string): LogSettings {
   const cache = CacheService.getUserCache();
   const cacheKey = `log_settings_${spreadsheetId}_${discipline}`;
-  const cached = cache.get(cacheKey);
+  const cached = cache ? cache.get(cacheKey) : null;
 
   // Task 2: Return cached JSON if available
   if (cached) {
     try {
       return JSON.parse(cached);
-    } catch (e) {
+    } catch (e: any) {
       console.warn("Failed to parse cached log settings: " + e.message);
     }
   }
 
-  let result = { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null };
+  let result: LogSettings = { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null };
 
   try {
     const ss = SpreadsheetApp.openById(spreadsheetId);
@@ -30,7 +55,7 @@ function getLogSettings(spreadsheetId, discipline) {
 
       if (headerRowIdx !== -1) {
         const headers = data[headerRowIdx];
-        const projAbbrIdx = headers.findIndex(h => String(h).trim() === "Project Abbreviation" || String(h).trim() === "Project Abbrevation");
+        const projAbbrIdx = headers.findIndex((h: any) => String(h).trim() === "Project Abbreviation" || String(h).trim() === "Project Abbrevation");
         
         if (projAbbrIdx !== -1 && data.length > headerRowIdx + 1) { 
           result.projectAbbr = String(data[headerRowIdx + 1][projAbbrIdx] || "").trim(); 
@@ -54,7 +79,7 @@ function getLogSettings(spreadsheetId, discipline) {
           const tHeaders = tagData[2], specTagIdx = tHeaders.indexOf("Spec Tag"), specTitleIdx = tHeaders.indexOf("Spec Title");
           let vendorIdx = tHeaders.indexOf("Vendor Names");
           if (vendorIdx === -1) vendorIdx = tHeaders.indexOf("Vendor");
-          const vendorSet = new Set(), tagSet = new Set();
+          const vendorSet = new Set<string>(), tagSet = new Set<string>();
           
           for (let i = 3; i < tagData.length; i++) {
             const tagVal = specTagIdx > -1 ? tagData[i][specTagIdx] : "", titleVal = specTitleIdx > -1 ? tagData[i][specTitleIdx] : "", vendorVal = vendorIdx > -1 ? tagData[i][vendorIdx] : "";
@@ -71,22 +96,22 @@ function getLogSettings(spreadsheetId, discipline) {
         }
       }
     }
-  } catch (err) {}
+  } catch (err: any) {}
 
   // Cache the generated payload for 1 hour
   try {
-    cache.put(cacheKey, JSON.stringify(result), 3600);
-  } catch (e) {
+    if (cache) cache.put(cacheKey, JSON.stringify(result), 3600);
+  } catch (e: any) {
     console.warn("Failed to cache log settings: " + e.message);
   }
 
   return result;
 }
 
-function verifyAndFormatLogSheet(sheet) {
+function verifyAndFormatLogSheet(sheet: GoogleAppsScript.Spreadsheet.Sheet): string[] {
   const lastCol = sheet.getLastColumn() || 1;
   const headerRange = sheet.getRange(CONFIG.LOG_HEADER_ROW, 1, 1, lastCol);
-  let headers = headerRange.getValues()[0].map(h => String(h).trim());
+  let headers = headerRange.getValues()[0].map((h: any) => String(h).trim());
 
   let seenNumber = false, seenTitle = false;
 
@@ -128,7 +153,7 @@ function verifyAndFormatLogSheet(sheet) {
       sheet.insertColumnAfter(lastCol);
       sheet.getRange(CONFIG.LOG_HEADER_ROW, lastCol + 1).setValue("Link");
     }
-    headers = sheet.getRange(CONFIG.LOG_HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
+    headers = sheet.getRange(CONFIG.LOG_HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0].map((h: any) => String(h).trim());
   }
 
   if (headers.indexOf("Contact History") === -1) {
@@ -140,14 +165,14 @@ function verifyAndFormatLogSheet(sheet) {
       sheet.insertColumnAfter(sheet.getLastColumn());
       sheet.getRange(CONFIG.LOG_HEADER_ROW, sheet.getLastColumn() + 1).setValue("Contact History");
     }
-    headers = sheet.getRange(CONFIG.LOG_HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
+    headers = sheet.getRange(CONFIG.LOG_HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0].map((h: any) => String(h).trim());
   }
 
   return headers;
 }
 
 // Adds a new tag alphabetically to the Tag List tab
-function addNewTagToTagList(spreadsheetId, newTag, newTitle) {
+function addNewTagToTagList(spreadsheetId: string, newTag: string, newTitle: string): void {
   const ss = SpreadsheetApp.openById(spreadsheetId);
   const tagSheet = ss.getSheetByName(CONFIG.TAG_LIST_SHEET_NAME);
   if (!tagSheet) throw new Error("Tag List sheet not found.");
@@ -183,7 +208,7 @@ function addNewTagToTagList(spreadsheetId, newTag, newTitle) {
 }
 
 // Adds a new vendor to the first empty cell in the Vendor Names column
-function addNewVendorToTagList(spreadsheetId, newVendor) {
+function addNewVendorToTagList(spreadsheetId: string, newVendor: string): void {
   const ss = SpreadsheetApp.openById(spreadsheetId);
   const tagSheet = ss.getSheetByName(CONFIG.TAG_LIST_SHEET_NAME);
   if (!tagSheet) throw new Error("Tag List sheet not found.");
