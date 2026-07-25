@@ -161,6 +161,50 @@ interface ProcessContext {
   emptyFallbacks: string[];
 }
 
+type RawDocument = Record<string, string>;
+
+interface ArchitectureDetails {
+  discipline: "Architecture";
+  section: string;
+  number: string;
+  title: string;
+  revision: string;
+}
+
+interface FFEDetails {
+  discipline: "FF&E";
+  specTag: string;
+  specTitle: string;
+  vendor: string;
+  revision: string;
+  relatedTag?: string;
+}
+
+interface ValidatedDocument {
+  documentType: string;
+  date: string;
+  contact: string;
+  action: string;
+  notes?: string;
+  incomingRouting?: string;
+  disciplineDetails: ArchitectureDetails | FFEDetails;
+}
+
+interface ValidationContext {
+  ffeTags?: {
+    tags: string[];
+    vendors: string[];
+  };
+  bypassTagValidation?: boolean;
+  bypassVendorValidation?: boolean;
+}
+
+type ValidationResult =
+  | { status: "success"; data: ValidatedDocument; warnings: string[] }
+  | { status: "error"; errors: string[] }
+  | { status: "interaction_required"; interactionType: "ADD_TAG" | "ADD_VENDOR"; message: string };
+
+
 // Global Ambient Function Declarations
 declare function buildMainCard(e: GoogleAppsScriptEvent, initialData?: ParsedData | null, isTagChange?: boolean, flashMessage?: FlashMessage | null): GoogleAppsScript.Card_Service.Card;
 declare function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled?: boolean, projectAbbr?: string, action?: string, incomingRouting?: string, draftUrl?: string | null, directRowUrl?: string | null, failedColumns?: string[], emptyFallbacks?: string[]): GoogleAppsScript.Card_Service.Card;
