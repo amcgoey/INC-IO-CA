@@ -72,7 +72,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
 
     if (missingFields.length > 0) {
       return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard((globalThis as any).buildMainCard(e, null, false, {
+        .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
           error: "Missing required fields: " + missingFields.join(", "),
           missingFields: missingFields
         })))
@@ -85,7 +85,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
       const invalidRelatedTags = inputRelatedTags.filter(t => !settings.ffeTags.tags.some(validTag => validTag.toLowerCase() === t.toLowerCase()));
       if (invalidRelatedTags.length > 0) {
         return CardService.newActionResponseBuilder()
-          .setNavigation(CardService.newNavigation().updateCard((globalThis as any).buildMainCard(e, null, false, {
+          .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
             error: `Invalid Related Tags: ${invalidRelatedTags.join(", ")}. Only valid options from the tag list are accepted.`,
             missingFields: ["Related Tags"]
           })))
@@ -101,7 +101,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
       const tagExists = settings.ffeTags.tags.some(t => t.toLowerCase() === (form.specTag || "").trim().toLowerCase());
       if (!tagExists && !bypassTag) {
         return CardService.newActionResponseBuilder()
-          .setNavigation(CardService.newNavigation().updateCard((globalThis as any).buildMainCard(e, null, false, {
+          .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
             promptAddTag: true,
             warning: `Spec Tag "${form.specTag}" is not in the Tag List. Would you like to add it?`
           })))
@@ -111,7 +111,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
       const vendorExists = settings.ffeTags.vendors.some(v => v.toLowerCase() === (form.vendor || "").trim().toLowerCase());
       if (!vendorExists && !bypassVendor) {
         return CardService.newActionResponseBuilder()
-          .setNavigation(CardService.newNavigation().updateCard((globalThis as any).buildMainCard(e, null, false, {
+          .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
             promptAddVendor: true,
             warning: `Vendor "${form.vendor}" is not in the Tag List. Would you like to add it?`
           })))
@@ -224,7 +224,7 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
       if (att) blob = att.copyBlob();
     } else if (form.fileSource === "Google Drive URL") {
       const match = form.driveFileUrl ? form.driveFileUrl.match(/[-\w]{25,}/) : null;
-      if (match) blob = DriveApp.getFileById(match[0]).getAs(MimeType.PDF);
+      if (match) blob = DriveApp.getFileById(form.driveFileUrl.match(/[-\w]{25,}/)[0]).getAs((MimeType as any).PDF);
     }
     if (blob) {   
       const file = closed.createFile(blob.copyBlob().setName(newFileName + ".pdf"));   
@@ -277,7 +277,7 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
     newFileName: newFileName
   };
 
-  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard((globalThis as any).buildMainCard(e, null, false, flashData))).build();
+  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, flashData))).build();
 }
 
 async function executeOutgoingWorkflow(ctx: any): Promise<any> {
@@ -297,7 +297,7 @@ async function executeOutgoingWorkflow(ctx: any): Promise<any> {
       if (att) blob = att.copyBlob();
     } else if (form.fileSource === "Google Drive URL") {
       const match = form.driveFileUrl ? form.driveFileUrl.match(/[-\w]{25,}/) : null;
-      if (match) blob = DriveApp.getFileById(match[0]).getAs(MimeType.PDF);
+      if (match) blob = DriveApp.getFileById(match[0]).getAs((MimeType as any).PDF);
     }
     if (blob) {
       const file = root.createFile(blob.copyBlob().setName(newFileName + ".pdf"));
@@ -329,7 +329,7 @@ async function executeOutgoingWorkflow(ctx: any): Promise<any> {
   const logSheetId = logSheet.getSheetId();
   const directRowUrl = `https://docs.google.com/spreadsheets/d/${p.logFileId}/edit#gid=${logSheetId}&range=A${writeResult.rowIndex}`;
 
-  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().pushCard((globalThis as any).buildSuccessCard(
+  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().pushCard(buildSuccessCard(
     id, newFileName, url, path, targetKey, form.title || form.specTitle, discipline, sectionVal, form.specTag, 
     p.targetFolderId, p.logFileId, false, p.projectAbbr, form.action, form.incomingRouting, null,
     directRowUrl, writeResult.failedColumns, emptyFallbacks
@@ -341,13 +341,13 @@ async function executeOutgoingWorkflow(ctx: any): Promise<any> {
  */
 function getLocalDrivePath(fileId: string): string {
   try {
-    const fileMeta = (globalThis as any).Drive.Files.get(fileId, {supportsAllDrives: true});
+    const fileMeta = (Drive as any).Files.get(fileId, {supportsAllDrives: true});
     let path = [fileMeta.title];
     if (fileMeta.driveId) {
-      const driveMeta = (globalThis as any).Drive.Drives.get(fileMeta.driveId);
+      const driveMeta = (Drive as any).Drives.get(fileMeta.driveId);
       let currentParentId = (fileMeta.parents && fileMeta.parents.length > 0) ? fileMeta.parents[0].id : null;
       while (currentParentId && currentParentId !== fileMeta.driveId) {
-        let pFolder = (globalThis as any).Drive.Files.get(currentParentId, {supportsAllDrives: true});
+        let pFolder = (Drive as any).Files.get(currentParentId, {supportsAllDrives: true});
         path.unshift(pFolder.title);
         currentParentId = (pFolder.parents && pFolder.parents.length > 0) ? pFolder.parents[0].id : null;
       }
@@ -399,7 +399,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
     const failedCols = p.failedColumns ? JSON.parse(p.failedColumns) : [];
     const emptyFalls = p.emptyFallbacks ? JSON.parse(p.emptyFallbacks) : [];
 
-    const updated = (globalThis as any).buildSuccessCard(
+    const updated = buildSuccessCard(
       p.fileId, p.newFileName, p.fileUrl, newPath, p.stampSubNo, p.itemTitle, p.discipline, p.section, p.specTag, 
       p.targetFolderId, p.logFileId, true, p.projectAbbr, p.action, p.incomingRouting, null,
       p.directRowUrl, failedCols, emptyFalls

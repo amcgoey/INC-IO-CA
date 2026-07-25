@@ -70,7 +70,7 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
   const parsedData = parseDriveFilename(fileName);
 
   try {
-    const fileMeta = (globalThis as any).Drive.Files.get(fileId, { supportsAllDrives: true });
+    const fileMeta = (Drive as any).Files.get(fileId, { supportsAllDrives: true });
     if (fileMeta.driveId) parsedData.driveId = fileMeta.driveId;
   } catch (err) { }
 

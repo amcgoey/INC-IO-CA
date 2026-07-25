@@ -86,7 +86,7 @@ function getCachedDrives(): SharedDriveInfo[] {
   try {
     let pageToken: string | undefined;
     do {
-      let resp = (globalThis as any).Drive.Drives.list({ maxResults: 100, pageToken: pageToken, fields: "items(id,name),nextPageToken" });
+      let resp = (Drive as any).Drives.list({ maxResults: 100, pageToken: pageToken, fields: "items(id,name),nextPageToken" });
       if (resp.items) {
         drives = drives.concat(resp.items.map((d: any) => ({ id: d.id, name: d.name })));
       }

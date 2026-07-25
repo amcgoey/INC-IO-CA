@@ -162,7 +162,7 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
   if (!state.driveName) {
     let lookupId = (initialData && initialData.driveId) || null;
     if (!lookupId && driveFileId) {
-      try { lookupId = (globalThis as any).Drive.Files.get(driveFileId, {supportsAllDrives: true}).driveId; } catch (err) {}
+      try { lookupId = (Drive as any).Files.get(driveFileId, {supportsAllDrives: true}).driveId; } catch (err) {}
     }
     if (lookupId) {
       const matched = drives.find(d => d.id === lookupId);
@@ -192,7 +192,7 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
 
     if (logs.length === 0) {
       try {
-        const resp = (globalThis as any).Drive.Files.list({ q: `title contains '${CONFIG.LOG_FILE_SEARCH_TERM}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`, corpora: 'drive', driveId: state.driveId, supportsAllDrives: true, includeItemsFromAllDrives: true });
+        const resp = (Drive as any).Files.list({ q: `title contains '${CONFIG.LOG_FILE_SEARCH_TERM}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`, corpora: 'drive', driveId: state.driveId, supportsAllDrives: true, includeItemsFromAllDrives: true });
         if (resp && resp.items) {
           logs = resp.items.map((l: any) => ({ id: l.id, title: l.title }));
           try { if (cache) cache.put(logSearchKey, JSON.stringify(logs), 3600); } catch(e) {}
@@ -527,7 +527,7 @@ function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servi
   try { if (p.fileId) DriveApp.getFileById(p.fileId).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(err) {}
   let signature = "";
   try {
-    const configs = (globalThis as any).Gmail.Users.Settings.SendAs.list('me');
+    const configs = (Gmail as any).Users.Settings.SendAs.list('me');
     const primary = configs.sendAs.find((c: any) => c.isPrimary);
     if (primary && primary.signature) signature = "\n\n" + primary.signature;
   } catch (err) {}

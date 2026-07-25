@@ -1,4 +1,4 @@
-// src/types.ts (Global Ambient Declarations for Apps Script)
+// src/types.ts (Global Ambient Declarations for Google Apps Script)
 
 interface EmailData {
   subject: string;
@@ -16,15 +16,17 @@ interface AIPrediction {
   predictedDiscipline?: string;
   error?: string;
   confidence?: number;
-  [key: string]: any;
 }
 
 interface ParsedData {
   projectAbbr?: string;
   discipline?: string;
   specSection?: string;
+  section?: string;
   submittalNum?: string;
+  number?: string;
   revNum?: string;
+  revision?: string;
   title?: string;
   action?: string;
   driveName?: string;
@@ -32,6 +34,7 @@ interface ParsedData {
   logFileId?: string;
   incomingRouting?: string;
   fileSource?: string;
+  driveFileUrl?: string;
   contact?: string;
   targetKey?: string;
   driveFileId?: string;
@@ -39,15 +42,34 @@ interface ParsedData {
   pdfUrl?: string;
   fileName?: string;
   specTag?: string;
+  relatedTag?: string;
+  specTitle?: string;
   vendor?: string;
   date?: string;
-  [key: string]: any;
+  notes?: string;
 }
 
 interface FlashMessage {
   warning?: string;
   info?: string;
   error?: string;
+  missingFields?: string[];
+  promptAddTag?: boolean;
+  promptAddVendor?: boolean;
+  targetKey?: string;
+  fileId?: string;
+  url?: string;
+  localPath?: string;
+  title?: string;
+  action?: string;
+  incomingRouting?: string;
+  projectAbbr?: string;
+  directRowUrl?: string;
+  failedColumns?: string[];
+  emptyFallbacks?: string[];
+  newFileName?: string;
+  newDriveFileId?: string;
+  debugPhase2?: string;
 }
 
 interface DriveItem {
@@ -67,7 +89,6 @@ interface GoogleAppsScriptEvent {
   parameters?: Record<string, string>;
   formInputs?: Record<string, string[]>;
   formInput?: Record<string, string>;
-  [key: string]: any;
 }
 
 interface EmailTemplateParams {
@@ -95,6 +116,73 @@ interface GeminiFetchResult {
   statusCode?: number | string;
   errorText?: string;
 }
+
+interface ActionSetting {
+  action: string;
+  abbr: string;
+  status: string;
+}
+
+interface ContactSetting {
+  abbr: string;
+  name: string;
+}
+
+interface LogSettings {
+  contacts: ContactSetting[];
+  actions: ActionSetting[];
+  ffeTags: {
+    tags: string[];
+    vendors: string[];
+    tagMap: Record<string, string>;
+  };
+  projectAbbr: string;
+  logSheetId: number | null;
+}
+
+interface ProcessContext {
+  e: GoogleAppsScriptEvent;
+  form: Record<string, string>;
+  p: Record<string, string>;
+  discipline: string;
+  logSheet: GoogleAppsScript.Spreadsheet.Sheet;
+  headers: string[];
+  getColIdx: (name: string) => number;
+  selectedAction: { action: string; abbr: string; status: string };
+  targetKey: string;
+  groupKey: string;
+  newFileName: string;
+  boundedData: any[][];
+  newChain: string;
+  previousRowSheetIndex: number | null;
+  sectionVal: string;
+  numberVal: string;
+  revisionVal: string;
+  emptyFallbacks: string[];
+}
+
+// Global Ambient Function Declarations
+declare function buildMainCard(e: GoogleAppsScriptEvent, initialData?: ParsedData | null, isTagChange?: boolean, flashMessage?: FlashMessage | null): GoogleAppsScript.Card_Service.Card;
+declare function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled?: boolean, projectAbbr?: string, action?: string, incomingRouting?: string, draftUrl?: string | null, directRowUrl?: string | null, failedColumns?: string[], emptyFallbacks?: string[]): GoogleAppsScript.Card_Service.Card;
+declare function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData;
+declare function parseDriveFilename(filename: string): ParsedData;
+declare function extractActionFromPdfForm(fileId: string): Promise<string | null>;
+declare function getCachedPrediction(messageId: string): AIPrediction | null;
+declare function setCachedPrediction(messageId: string, predictionObj: AIPrediction): void;
+declare function getCachedDrives(): SharedDriveInfo[];
+declare function getAvailableDriveNames(): string[];
+declare function predictProjectAndDiscipline(emailData: EmailData, driveNames: string[]): AIPrediction;
+declare function analyzeSubmittalDeep(sourceBlob: GoogleAppsScript.Base.Blob, emailText: string, contextObj: any): Promise<any>;
+declare function fetchAndSaveFile(url: string, folderId: string): { success: boolean; error?: string; fileId?: string; fileName?: string };
+declare function manipulatePdf(sourceBlob: GoogleAppsScript.Base.Blob, data: ParsedData, newFileName: string, stampSubmittalNo: string, templateId: string): Promise<GoogleAppsScript.Base.Blob>;
+declare function getLogSettings(spreadsheetId: string, discipline: string): LogSettings;
+declare function verifyAndFormatLogSheet(sheet: GoogleAppsScript.Spreadsheet.Sheet): string[];
+declare function addNewTagToTagList(spreadsheetId: string, newTag: string, newTitle: string): void;
+declare function addNewVendorToTagList(spreadsheetId: string, newVendor: string): void;
+declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
+declare function getLocalDrivePath(fileId: string): string;
+declare function getOrCreateFilingFolder(parentFolderId: string, discipline: string, section?: string, specTag?: string): string;
+declare function insertSmartRowGapAware(sheet: GoogleAppsScript.Spreadsheet.Sheet, headers: string[], rowData: any[], discipline: string, sortKey: string, boundedData: any[][]): { rowIndex: number; failedColumns: string[] };
 
 // Global declaration for pdf-lib evaluated at runtime
 declare const PDFLib: any;

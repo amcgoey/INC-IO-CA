@@ -17,7 +17,7 @@ async function manipulatePdf(
     return u; 
   };
   
-  const pdfDoc = await PDFDocument.load(toUint8(DriveApp.getFileById(templateId).getAs(MimeType.PDF)));
+  const pdfDoc = await PDFDocument.load(toUint8(DriveApp.getFileById(templateId).getAs((MimeType as any).PDF)));
   const form = pdfDoc.getForm();
   
   const fill = (names: string[], val: string) => { 
