@@ -1,0 +1,75 @@
+{
+  "timeZone": "America/New_York",
+  "dependencies": {
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "Drive",
+        "serviceId": "drive",
+        "version": "v2"
+      },
+      {
+        "userSymbol": "Gmail",
+        "serviceId": "gmail",
+        "version": "v1"
+      }
+    ]
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.settings.basic",
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/drive.addons.metadata.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.locale",
+    "https://www.googleapis.com/auth/script.external_request"
+  ],
+  "runtimeVersion": "V8",
+  "urlFetchWhitelist": [
+    "https://unpkg.com/pdf-lib/dist/pdf-lib.min.js",
+    "https://generativelanguage.googleapis.com/",
+    "https://*.procore.com/",
+    "https://*.procoretech.com/",
+    "https://*.autodesk.com/",
+    "https://*.plangrid.com/",
+    "https://*.aconex.com/",
+    "https://*.cmicglobal.com/",
+    "https://*.e-builder.net/",
+    "https://*.submittalexchange.com/",
+    "https://*.newforma.com/",
+    "https://*.trimble.com/",
+    "https://*.corecon.com/",
+    "https://*.redteam.com/",
+    "https://*.fieldwire.com/",
+    "https://*.box.com/",
+    "https://*.dropbox.com/",
+    "https://*.sharepoint.com/",
+    "https://*.sharepointonline.com/",
+    "https://*.onedrive.com/",
+    "https://*.wetransfer.com/",
+    "https://drive.google.com/",
+    "https://*.googleusercontent.com/"
+  ],
+  "addOns": {
+    "common": {
+      "name": "INC IO CA",
+      "logoUrl": "https://io.inc.nyc/img/favicon-32x32.png",
+      "useLocaleFromApp": true
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "buildAddOn"
+        }
+      ]
+    },
+    "drive": {
+      "onItemsSelectedTrigger": {
+        "runFunction": "onDriveItemsSelected"
+      }
+    }
+  }
+}
