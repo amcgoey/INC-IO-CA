@@ -4,7 +4,7 @@ import assert from "node:assert";
 // Global ambient CONFIG mock matching production Config.ts (LOG_HEADER_ROW: 3, 1-based index 3 = array index 3)
 (global as any).CONFIG = { LOG_HEADER_ROW: 3 };
 
-const { getBoundedData, getRowGroupKey, computeRowInsertionPlan } = require("../src/RowPositionCalculator");
+const { getBoundedData, getRowGroupKey, getRowSortKey, computeRowInsertionPlan } = require("../src/RowPositionCalculator");
 
 test("getBoundedData stops after 3 consecutive empty rows", () => {
   const headers = ["Section", "Number", "Revision", "Date", "Title", "Contact", "Action", "Notes"];
@@ -86,6 +86,13 @@ test("getRowGroupKey formats FF&E spec tag", () => {
   const row = ["CH-01", "Chair", "Herman Miller", "0", "240101"];
   const key = getRowGroupKey(row, "FF&E", headers);
   assert.strictEqual(key, "ch-01");
+});
+
+test("getRowSortKey formats FF&E sort key", () => {
+  const headers = ["Spec Tag", "Spec Title", "Vendor", "Revision", "Date"];
+  const row = ["CH-01", "Chair", "Herman Miller", "1", "240101"];
+  const key = getRowSortKey(row, "FF&E", headers);
+  assert.strictEqual(key, "ch-01-001-240101");
 });
 
 test("computeRowInsertionPlan inserts into existing FF&E group", () => {
