@@ -298,7 +298,12 @@ interface PdfDocumentService {
   ): Promise<GoogleAppsScript.Base.Blob>;
 }
 
+interface DriveFilingRepository {
+  getLocalPath(fileId: string): string;
+}
+
 declare var defaultLogRepository: LogRepository;
+declare var defaultDriveFilingRepository: DriveFilingRepository;
 declare var defaultPdfDocumentService: PdfDocumentService;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 declare function getLocalDrivePath(fileId: string): string;
