@@ -271,6 +271,17 @@ class GoogleSheetsLogRepository implements LogRepository {
 
     return { rowIndex: plan.finalRowIndex, failedColumns };
   }
+
+  appendDocument(
+    spreadsheetId: string,
+    document: ValidatedDocument,
+    strategy: DocumentLogStrategy,
+    options: AppendDocumentOptions = {}
+  ): AppendDocumentResult {
+    const adapter = new GoogleSheetsStorageAdapter(spreadsheetId);
+    const engine = new LogEngine(adapter);
+    return engine.appendDocument(spreadsheetId, document, strategy, options);
+  }
 }
 
 // Global default repository instance

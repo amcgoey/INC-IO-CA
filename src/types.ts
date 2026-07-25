@@ -214,6 +214,36 @@ interface RowInsertionPlan {
 }
 
 
+interface DocumentLogStrategy<T = ValidatedDocument> {
+  getGroupKey(doc: T): string;
+  getSortKey(doc: T): string;
+  getTargetKey(doc: T): string;
+  getGroupKeyFromRow(row: any[], headers: string[]): string;
+  getSortKeyFromRow(row: any[], headers: string[]): string;
+  getTargetKeyFromRow(row: any[], headers: string[]): string;
+  formatRowPayload(doc: T, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
+  getFileName(doc: T, contactHistory: string, actionAbbr: string): string;
+}
+
+interface AppendDocumentOptions {
+  sheetName?: string;
+  headers?: string[];
+  link?: string;
+  status?: string;
+  actionAbbr?: string;
+  updatePreviousStatus?: boolean;
+  previousRowStatus?: string;
+}
+
+interface AppendDocumentResult {
+  targetKey: string;
+  newFileName: string;
+  contactHistory: string;
+  rowIndex: number;
+  failedColumns: string[];
+  previousRowUpdated: boolean;
+}
+
 interface LogRepository {
   getLogSettings(spreadsheetId: string, discipline: string): LogSettings;
   verifyAndFormatLogSheet(spreadsheetId: string): string[];
@@ -248,6 +278,7 @@ declare function getBoundedData(logData: any[][]): any[][];
 declare function getRowGroupKey(row: any[], discipline: string, headers: string[]): string;
 declare function getRowSortKey(row: any[], discipline: string, headers: string[]): string;
 declare function computeRowInsertionPlan(boundedData: any[][], headers: string[], rowData: any[], disciplineOrGroupKeyFn: string | RowKeyFn, sortKeyFn?: RowKeyFn): RowInsertionPlan;
+
 declare var defaultLogRepository: LogRepository;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 declare function getLocalDrivePath(fileId: string): string;

@@ -117,7 +117,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const ctx = { 
       e, form, p, discipline: disc, logSheet, headers, getColIdx, selectedAction, 
       targetKey, groupKey, newFileName, boundedData, newChain, previousRowSheetIndex,
-      sectionVal, numberVal, revisionVal, emptyFallbacks 
+      sectionVal, numberVal, revisionVal, emptyFallbacks, validatedDoc
     };  
     
     // Branch logic based on whether the action is "Received" (Incoming) or a Review status (Outgoing)
