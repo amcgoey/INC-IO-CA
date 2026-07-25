@@ -80,3 +80,44 @@ test("computeRowInsertionPlan inserts new group between existing groups with gap
   assert.strictEqual(plan.insertBlankBefore, true);
   assert.strictEqual(plan.insertBlankAfter, true);
 });
+
+test("getRowGroupKey formats FF&E spec tag", () => {
+  const headers = ["Spec Tag", "Spec Title", "Vendor", "Revision", "Date"];
+  const row = ["CH-01", "Chair", "Herman Miller", "0", "240101"];
+  const key = getRowGroupKey(row, "FF&E", headers);
+  assert.strictEqual(key, "ch-01");
+});
+
+test("computeRowInsertionPlan inserts into existing FF&E group", () => {
+  const headers = ["Spec Tag", "Spec Title", "Vendor", "Revision", "Date"];
+  const boundedData = [
+    ["Banner"],
+    ["Subtitle"],
+    headers,
+    ["CH-01", "Chair", "Herman Miller", "001", "240101"],
+    ["CH-01", "Chair", "Herman Miller", "002", "240102"]
+  ];
+  const newRow = ["CH-01", "Chair", "Herman Miller", "003", "240103"];
+
+  const plan = computeRowInsertionPlan(boundedData, headers, newRow, "FF&E");
+  assert.strictEqual(plan.targetRowIndex, 5);
+  assert.strictEqual(plan.finalRowIndex, 6);
+  assert.strictEqual(plan.insertBlankBefore, false);
+  assert.strictEqual(plan.insertBlankAfter, false);
+});
+
+test("computeRowInsertionPlan creates new FF&E group with gap formatting", () => {
+  const headers = ["Spec Tag", "Spec Title", "Vendor", "Revision", "Date"];
+  const boundedData = [
+    ["Banner"],
+    ["Subtitle"],
+    headers,
+    ["CH-01", "Chair", "Herman Miller", "001", "240101"]
+  ];
+  const newRow = ["TB-01", "Table", "Knoll", "001", "240101"];
+
+  const plan = computeRowInsertionPlan(boundedData, headers, newRow, "FF&E");
+  assert.strictEqual(plan.targetRowIndex, 4);
+  assert.strictEqual(plan.insertBlankBefore, true);
+  assert.strictEqual(plan.finalRowIndex, 6);
+});
