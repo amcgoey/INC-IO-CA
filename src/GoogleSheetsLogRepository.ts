@@ -1,6 +1,15 @@
 // src/GoogleSheetsLogRepository.ts
 
 class GoogleSheetsLogRepository implements LogRepository {
+  private invalidateSettingsCache(spreadsheetId: string, discipline: string = "FF&E"): void {
+    try {
+      const cache = CacheService.getUserCache();
+      if (cache) cache.remove(`log_settings_${spreadsheetId}_${discipline}`);
+    } catch (e: any) {
+      console.warn("Failed to invalidate cache: " + e.message);
+    }
+  }
+
   getLogSettings(spreadsheetId: string, discipline: string): LogSettings {
     const cache = CacheService.getUserCache();
     const cacheKey = `log_settings_${spreadsheetId}_${discipline}`;
@@ -86,7 +95,11 @@ class GoogleSheetsLogRepository implements LogRepository {
     return result;
   }
 
-  verifyAndFormatLogSheet(sheet: GoogleAppsScript.Spreadsheet.Sheet): string[] {
+  verifyAndFormatLogSheet(spreadsheetId: string): string[] {
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const sheet = ss.getSheetByName(CONFIG.LOG_SHEET_NAME);
+    if (!sheet) throw new Error("Log sheet not found in spreadsheet");
+
     const lastCol = sheet.getLastColumn() || 1;
     const headerRange = sheet.getRange(CONFIG.LOG_HEADER_ROW, 1, 1, lastCol);
     let headers = headerRange.getValues()[0].map((h: any) => String(h).trim());
@@ -182,13 +195,7 @@ class GoogleSheetsLogRepository implements LogRepository {
       tagSheet.getRange(insertRow, specTitleIdx + 1).setValue(newTitle);
     }
 
-    // Invalidate cached log settings for FF&E
-    try {
-      const cache = CacheService.getUserCache();
-      if (cache) cache.remove(`log_settings_${spreadsheetId}_FF&E`);
-    } catch (e: any) {
-      console.warn("Failed to invalidate cache: " + e.message);
-    }
+    this.invalidateSettingsCache(spreadsheetId, "FF&E");
   }
 
   addNewVendorToTagList(spreadsheetId: string, newVendor: string): void {
@@ -214,13 +221,7 @@ class GoogleSheetsLogRepository implements LogRepository {
     if (insertRow === -1) insertRow = tagData.length + 1;
     tagSheet.getRange(insertRow, vendorIdx + 1).setValue(newVendor);
 
-    // Invalidate cached log settings for FF&E
-    try {
-      const cache = CacheService.getUserCache();
-      if (cache) cache.remove(`log_settings_${spreadsheetId}_FF&E`);
-    } catch (e: any) {
-      console.warn("Failed to invalidate cache: " + e.message);
-    }
+    this.invalidateSettingsCache(spreadsheetId, "FF&E");
   }
 }
 

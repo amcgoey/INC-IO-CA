@@ -206,7 +206,7 @@ type ValidationResult =
 
 interface LogRepository {
   getLogSettings(spreadsheetId: string, discipline: string): LogSettings;
-  verifyAndFormatLogSheet(sheet: GoogleAppsScript.Spreadsheet.Sheet): string[];
+  verifyAndFormatLogSheet(spreadsheetId: string): string[];
   addNewTagToTagList(spreadsheetId: string, newTag: string, newTitle: string): void;
   addNewVendorToTagList(spreadsheetId: string, newVendor: string): void;
 }
