@@ -33,7 +33,7 @@ function safePadNum(val: any, len: number): string {
   return String(val || "").trim().padStart(len, '0');
 }
 
-interface DocumentLogStrategy<T = ValidatedDocument> {
+export interface DocumentLogStrategy<T = ValidatedDocument> {
   getGroupKey(doc: T): string;
   getSortKey(doc: T): string;
   getTargetKey(doc: T): string;
