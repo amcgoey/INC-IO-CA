@@ -341,3 +341,44 @@ test("LogEngine handles FF&E revision workflow by updating previous row status t
   assert.strictEqual(sheetValues[4][8], "Approved");
   assert.strictEqual(sheetValues[4][11], "Vendor A Designer");
 });
+
+test("ArchitectureSubmittalStrategy resolves subfolder path segments from CSI divisions", () => {
+  (globalThis as any).CSI_DIVISIONS = { "03": "03-Concrete" };
+  (globalThis as any).CONFIG = { CLOSED_FOLDER_NAME: "Closed" };
+
+  const strategy = new ArchitectureSubmittalStrategy();
+
+  const docConcrete: ValidatedDocument = {
+    documentType: "Submittal",
+    date: "2026-07-25",
+    contact: "GC",
+    action: "Submitted",
+    disciplineDetails: {
+      discipline: "Architecture",
+      section: "033000",
+      number: "001",
+      title: "Cast-in-Place Concrete",
+      revision: "001"
+    }
+  };
+
+  const subfolders = strategy.getFilingSubfolders(docConcrete);
+  assert.deepStrictEqual(subfolders, ["Closed", "03-Concrete"]);
+
+  const docFallback: ValidatedDocument = {
+    documentType: "Submittal",
+    date: "2026-07-25",
+    contact: "GC",
+    action: "Submitted",
+    disciplineDetails: {
+      discipline: "Architecture",
+      section: "990000",
+      number: "001",
+      title: "Unknown Section",
+      revision: "001"
+    }
+  };
+
+  const fallbackSubfolders = strategy.getFilingSubfolders(docFallback);
+  assert.deepStrictEqual(fallbackSubfolders, ["Closed"]);
+});

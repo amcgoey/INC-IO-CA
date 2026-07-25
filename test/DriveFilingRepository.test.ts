@@ -100,3 +100,119 @@ test("GoogleDriveFilingRepository returns fallback path on error", () => {
 test("defaultDriveFilingRepository is an instance of GoogleDriveFilingRepository", () => {
   assert.ok(defaultDriveFilingRepository instanceof GoogleDriveFilingRepository);
 });
+
+test("FakeDriveFilingRepository.fileDocument records invocation and returns deterministic result", () => {
+  const repo = new FakeDriveFilingRepository();
+  const options = { targetFolderId: "target-123", subfolderPath: ["Closed", "03-Concrete"] };
+  const res = repo.fileDocument({ fileId: "file-999" }, options);
+
+  assert.strictEqual(res.fileId, "file-999");
+  assert.strictEqual(res.url, "http://drive.google.com/file-999");
+  assert.strictEqual(res.folderId, "folder-Closed-03-Concrete");
+  assert.strictEqual(res.localPath, "G:\\My Drive\\FakePath\\file-999");
+  assert.strictEqual(repo.filedDocuments.length, 1);
+  assert.deepStrictEqual(repo.filedDocuments[0].options, options);
+});
+
+test("GoogleDriveFilingRepository.fileDocument traverses subfolder path and moves existing fileId", () => {
+  let movedToFolderId = "";
+  let renamedTo = "";
+  const mockFile = {
+    getId: () => "file-move-1",
+    getUrl: () => "http://drive.google.com/file-move-1",
+    moveTo: (targetFolder: any) => { movedToFolderId = targetFolder.getId(); },
+    setName: (name: string) => { renamedTo = name; }
+  };
+
+  const mockConcreteFolder = {
+    getId: () => "folder-03-concrete-id",
+    getFoldersByName: () => ({ hasNext: () => false }),
+    createFolder: () => mockConcreteFolder
+  };
+
+  const mockClosedFolder = {
+    getId: () => "folder-closed-id",
+    getFoldersByName: (name: string) => {
+      if (name === "03-Concrete") {
+        return {
+          hasNext: () => true,
+          next: () => mockConcreteFolder
+        };
+      }
+      return { hasNext: () => false };
+    },
+    createFolder: () => mockConcreteFolder
+  };
+
+  const mockTargetFolder = {
+    getId: () => "folder-target-id",
+    getFoldersByName: (name: string) => {
+      if (name === "Closed") {
+        return {
+          hasNext: () => true,
+          next: () => mockClosedFolder
+        };
+      }
+      return { hasNext: () => false };
+    }
+  };
+
+  (globalThis as any).DriveApp = {
+    getFolderById: (id: string) => {
+      if (id === "folder-target-id") return mockTargetFolder;
+      throw new Error("Folder not found " + id);
+    },
+    getFileById: (id: string) => {
+      if (id === "file-move-1") return mockFile;
+      throw new Error("File not found " + id);
+    }
+  };
+  delete (globalThis as any).Drive;
+
+  const repo = new GoogleDriveFilingRepository();
+  const result = repo.fileDocument(
+    { fileId: "file-move-1" },
+    { targetFolderId: "folder-target-id", subfolderPath: ["Closed", "03-Concrete"], newFileName: "033000-001 Concrete" }
+  );
+
+  assert.strictEqual(result.fileId, "file-move-1");
+  assert.strictEqual(result.folderId, "folder-03-concrete-id");
+  assert.strictEqual(movedToFolderId, "folder-03-concrete-id");
+  assert.strictEqual(renamedTo, "033000-001 Concrete.pdf");
+});
+
+test("GoogleDriveFilingRepository.fileDocument creates new file when blob is provided", () => {
+  let createdFileName = "";
+  const createdMockFile = {
+    getId: () => "created-file-id-100",
+    getUrl: () => "http://drive.google.com/created-file-id-100",
+    setName: (name: string) => { createdFileName = name; }
+  };
+
+  const mockFolder = {
+    getId: () => "folder-dest-id",
+    getFoldersByName: () => ({ hasNext: () => false }),
+    createFolder: () => mockFolder,
+    createFile: (b: any) => createdMockFile
+  };
+
+  (globalThis as any).DriveApp = {
+    getFolderById: () => mockFolder,
+    getFileById: (id: string) => createdMockFile
+  };
+  delete (globalThis as any).Drive;
+
+  const mockBlob = {
+    copyBlob: () => mockBlob,
+    setName: (n: string) => mockBlob
+  };
+
+  const repo = new GoogleDriveFilingRepository();
+  const result = repo.fileDocument(
+    { blob: mockBlob as any },
+    { targetFolderId: "root-123", subfolderPath: ["Closed"], newFileName: "Sample.pdf" }
+  );
+
+  assert.strictEqual(result.fileId, "created-file-id-100");
+  assert.strictEqual(result.folderId, "folder-dest-id");
+});

@@ -97,19 +97,12 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
 async function executeIncomingWorkflow(ctx: any): Promise<any> {
   const { e, form, p, discipline, logSheet, selectedAction, sectionVal, emptyFallbacks, validatedDoc } = ctx;
 
-  const root = DriveApp.getFolderById(p.targetFolderId);
-  const closedId = getOrCreateFilingFolder(p.targetFolderId, discipline, sectionVal, form.specTag);
-  const closed = DriveApp.getFolderById(closedId);
+  const strategy: DocumentLogStrategy = (discipline === "Architecture")
+    ? new ArchitectureSubmittalStrategy()
+    : new FFESubmittalStrategy();
 
-  let url = "", blob: GoogleAppsScript.Base.Blob | null = null, id = "";
-
-  if (p.driveFileId) {
-    const file = DriveApp.getFileById(p.driveFileId);
-    file.moveTo(closed);
-    url = file.getUrl();
-    id = file.getId();
-    blob = file.getBlob();
-  } else {
+  let blob: GoogleAppsScript.Base.Blob | null = null;
+  if (!p.driveFileId) {
     if (form.fileSource === "Email Attachment") {
       const msg = GmailApp.getMessageById(p.messageId);
       const att = msg.getAttachments().find(a => a.getName() === form.attachmentName);
@@ -118,35 +111,36 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
       const match = form.driveFileUrl ? form.driveFileUrl.match(/[-\w]{25,}/) : null;
       if (match) blob = DriveApp.getFileById(match[0]).getAs((MimeType as any).PDF);
     }
-    if (blob) {
-      const file = closed.createFile(blob.copyBlob().setName("temp.pdf"));
-      url = file.getUrl();
-      id = file.getId();
-    }
+  } else {
+    blob = DriveApp.getFileById(p.driveFileId).getBlob();
   }
 
-  const strategy: DocumentLogStrategy = (discipline === "Architecture") 
-    ? new ArchitectureSubmittalStrategy() 
-    : new FFESubmittalStrategy();
+  const subfolderPath = strategy.getFilingSubfolders
+    ? strategy.getFilingSubfolders(validatedDoc)
+    : [getOrCreateFilingFolder(p.targetFolderId, discipline, sectionVal, form.specTag)];
+
+  const filingResult = defaultDriveFilingRepository.fileDocument(
+    { fileId: p.driveFileId, blob: blob || undefined },
+    { targetFolderId: p.targetFolderId, subfolderPath: (discipline === "Architecture" && strategy.getFilingSubfolders) ? subfolderPath : undefined }
+  );
 
   const appendResult = defaultLogRepository.appendDocument(
     p.logFileId,
     validatedDoc,
     strategy,
     {
-      link: url,
+      link: filingResult.url,
       status: selectedAction.status,
       actionAbbr: selectedAction.abbr
     }
   );
 
-  if (p.driveFileId) {
-    DriveApp.getFileById(p.driveFileId).setName(appendResult.newFileName + ".pdf");
-  } else if (blob && id) {
-    DriveApp.getFileById(id).setName(appendResult.newFileName + ".pdf");
+  if (filingResult.fileId) {
+    DriveApp.getFileById(filingResult.fileId).setName(appendResult.newFileName + ".pdf");
   }
 
   if (blob) {
+    const root = DriveApp.getFolderById(p.targetFolderId);
     const templateId = (form.incomingRouting === "To Refer") ? CONFIG.TRANSMITTAL_TEMPLATE_ID : CONFIG.PDF_TEMPLATE_ID;
     try {
       const stamped = await defaultPdfDocumentService.stampSubmittal(blob, form, {
@@ -167,10 +161,10 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
   const directRowUrl = `https://docs.google.com/spreadsheets/d/${p.logFileId}/edit#gid=${logSheetId}&range=A${appendResult.rowIndex}`;
 
   const flashData = { 
-    fileId: id, 
+    fileId: filingResult.fileId, 
     targetKey: appendResult.targetKey, 
-    url, 
-    localPath: defaultDriveFilingRepository.getLocalPath(id), 
+    url: filingResult.url, 
+    localPath: filingResult.localPath, 
     title: form.title || form.specTitle || "", 
     action: form.action, 
     incomingRouting: form.incomingRouting, 
