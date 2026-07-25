@@ -36,4 +36,17 @@ _Avoid_: StorageAdapter, SheetManager
 The concrete implementation of LogRepository that persists documents, settings, and tags using the Google Sheets API.
 _Avoid_: SheetHelper
 
+**DocumentLogStrategy**:
+Encapsulates document-type specific rules for identity, group/sort keys, target keys, and field mapping into tabular row payloads.
+_Avoid_: KeyExtractor, DocumentFormatter
+
+**LogEngine**:
+The application module that coordinates contact history, status transitions, and generic row positioning for any document type using a DocumentLogStrategy and storage adapter.
+_Avoid_: LogProcessor, LogManager
+
+**SheetStorageAdapter**:
+The low-level infrastructure adapter that executes physical spreadsheet operations without any business logic or document-type assumptions.
+_Avoid_: SheetHelper
+
+
 
