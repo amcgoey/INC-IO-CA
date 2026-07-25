@@ -211,7 +211,7 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
         section1.addWidget(logDrop);
       }
 
-      logSettings = { ...logSettings, ...getLogSettings(logSettings.logFileId, state.discipline) };
+      logSettings = { ...logSettings, ...defaultLogRepository.getLogSettings(logSettings.logFileId, state.discipline) };
       if (logSettings.logFileId) {
         let logUrl = `https://docs.google.com/spreadsheets/d/${logSettings.logFileId}/edit`;
         if (logSettings.logSheetId) {
@@ -423,7 +423,7 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
      } catch (err) {}
   }
 
-  const logSettings = getLogSettings(p.logFileId, p.discipline);
+  const logSettings = defaultLogRepository.getLogSettings(p.logFileId, p.discipline);
   const contextObj = { discipline: p.discipline, contacts: logSettings.contacts, actions: logSettings.actions, ffeTags: logSettings.ffeTags.tags };
   const result = await analyzeSubmittalDeep(sourceBlob, emailText, contextObj);
   
@@ -553,7 +553,7 @@ function onSpecTagChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servic
 function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};
-    addNewTagToTagList(p.logFileId, p.newTag, p.newTitle);
+    defaultLogRepository.addNewTagToTagList(p.logFileId, p.newTag, p.newTitle);
     const cache = CacheService.getUserCache();
     if (cache) cache.remove(`log_settings_${p.logFileId}_FF&E`);
     e.parameters = e.parameters || {};
@@ -567,7 +567,7 @@ function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
 function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};
-    addNewVendorToTagList(p.logFileId, p.newVendor);
+    defaultLogRepository.addNewVendorToTagList(p.logFileId, p.newVendor);
     const cache = CacheService.getUserCache();
     if (cache) cache.remove(`log_settings_${p.logFileId}_FF&E`);
     e.parameters = e.parameters || {};

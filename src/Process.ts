@@ -48,9 +48,9 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const logSheet = openSs.getSheetByName(CONFIG.LOG_SHEET_NAME);  
     if (!logSheet) throw new Error("Log sheet not found in spreadsheet");
 
-    const headers = verifyAndFormatLogSheet(logSheet);  
+    const headers = defaultLogRepository.verifyAndFormatLogSheet(logSheet);  
     const getColIdx = (n: string) => headers.indexOf(n);  
-    const settings = getLogSettings(p.logFileId, disc);  
+    const settings = defaultLogRepository.getLogSettings(p.logFileId, disc);  
     const selectedAction = settings.actions.find(a => a.action === form.action) || { action: "", abbr: "", status: "" };
 
     // Validate form inputs using pure validation module

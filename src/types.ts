@@ -204,6 +204,14 @@ type ValidationResult =
   | { status: "error"; errors: string[]; missingFields?: string[] }
   | { status: "interaction_required"; interactionType: "ADD_TAG" | "ADD_VENDOR"; message: string };
 
+interface LogRepository {
+  getLogSettings(spreadsheetId: string, discipline: string): LogSettings;
+  verifyAndFormatLogSheet(sheet: GoogleAppsScript.Spreadsheet.Sheet): string[];
+  addNewTagToTagList(spreadsheetId: string, newTag: string, newTitle: string): void;
+  addNewVendorToTagList(spreadsheetId: string, newVendor: string): void;
+}
+
+
 
 
 // Global Ambient Function Declarations
