@@ -10,6 +10,10 @@ class GoogleSheetsLogRepository implements LogRepository {
     }
   }
 
+  private getTagSheetHeaders(tagData: any[][]): string[] {
+    return tagData.length > 2 ? tagData[2].map((h: any) => String(h).trim()) : [];
+  }
+
   getLogSettings(spreadsheetId: string, discipline: string): LogSettings {
     const cache = CacheService.getUserCache();
     const cacheKey = `log_settings_${spreadsheetId}_${discipline}`;
@@ -62,7 +66,7 @@ class GoogleSheetsLogRepository implements LogRepository {
         if (tagSheet) {
           const tagData = tagSheet.getDataRange().getValues();
           if (tagData.length > 2) {
-            const tHeaders = tagData[2].map((h: any) => String(h).trim());
+            const tHeaders = this.getTagSheetHeaders(tagData);
             const specTagIdx = tHeaders.indexOf("Spec Tag"), specTitleIdx = tHeaders.indexOf("Spec Title");
             let vendorIdx = tHeaders.indexOf("Vendor Names");
             if (vendorIdx === -1) vendorIdx = tHeaders.indexOf("Vendor");
@@ -171,7 +175,7 @@ class GoogleSheetsLogRepository implements LogRepository {
     if (tagData.length <= 2) {
       tagSheet.appendRow([newTag, newTitle]);
     } else {
-      const tHeaders = tagData[2].map((h: any) => String(h).trim());
+      const tHeaders = this.getTagSheetHeaders(tagData);
       const specTagIdx = tHeaders.indexOf("Spec Tag");
       const specTitleIdx = tHeaders.indexOf("Spec Title");
       
@@ -204,7 +208,7 @@ class GoogleSheetsLogRepository implements LogRepository {
     if (!tagSheet) throw new Error("Tag List sheet not found.");
     
     const tagData = tagSheet.getDataRange().getValues();
-    const tHeaders = tagData.length > 2 ? tagData[2].map((h: any) => String(h).trim()) : [];
+    const tHeaders = this.getTagSheetHeaders(tagData);
     let vendorIdx = tHeaders.indexOf("Vendor Names");
     if (vendorIdx === -1) vendorIdx = tHeaders.indexOf("Vendor");
     
