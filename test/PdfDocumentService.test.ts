@@ -1,7 +1,7 @@
 ﻿import test from "node:test";
 import assert from "node:assert";
 
-const { FakePdfDocumentService, defaultPdfDocumentService } = require("../src/PdfDocumentService");
+const { GoogleAppsScriptPdfDocumentService, FakePdfDocumentService, defaultPdfDocumentService, getPdfLib } = require("../src/PdfDocumentService");
 
 test("FakePdfDocumentService extracts configured form action and records calls", async () => {
   const service = new FakePdfDocumentService({
@@ -97,4 +97,111 @@ test("defaultPdfDocumentService global seam is bound and overridable", async () 
   } finally {
     (globalThis as any).defaultPdfDocumentService = originalDefault;
   }
+});
+
+test("getPdfLib lazy singleton executes UrlFetchApp.fetch and eval at most once per execution context", () => {
+  let fetchCallCount = 0;
+  (globalThis as any).CONFIG = { PDF_LIB_URL: "https://example.com/pdf-lib.js" };
+  (globalThis as any).UrlFetchApp = {
+    fetch: (url: string) => {
+      fetchCallCount++;
+      assert.strictEqual(url, "https://example.com/pdf-lib.js");
+      return {
+        getContentText: () => "globalThis.PDFLib = { PDFDocument: { load: async () => ({ getForm: () => ({}) }) } };"
+      };
+    }
+  };
+
+  const lib1 = getPdfLib();
+  assert.ok(lib1);
+  assert.strictEqual(fetchCallCount, 1);
+
+  const lib2 = getPdfLib();
+  assert.strictEqual(lib2, lib1);
+  assert.strictEqual(fetchCallCount, 1);
+});
+
+test("GoogleAppsScriptPdfDocumentService.extractFormAction extracts checkbox form action", async () => {
+  (globalThis as any).PDF_CHECKBOX_MAP = {
+    'No Exceptions Taken': 'NO EXCEPTIONS TAKEN',
+    'Revise & Resubmit': 'REVISE AND RESUBMIT'
+  };
+
+  const mockForm = {
+    getCheckBox: (name: string) => {
+      if (name === 'NO EXCEPTIONS TAKEN') {
+        return { isChecked: () => true };
+      }
+      return { isChecked: () => false };
+    },
+    getRadioGroup: () => { throw new Error("No radio group"); }
+  };
+
+  (globalThis as any).PDFLib = {
+    PDFDocument: {
+      load: async () => ({
+        getForm: () => mockForm
+      })
+    }
+  };
+
+  (globalThis as any).DriveApp = {
+    getFileById: (id: string) => ({
+      getBlob: () => ({
+        getBytes: () => [1, 2, 3]
+      })
+    })
+  };
+
+  const service = new GoogleAppsScriptPdfDocumentService();
+  const action = await service.extractFormAction("file-pdf-1");
+  assert.strictEqual(action, "No Exceptions Taken");
+});
+
+test("GoogleAppsScriptPdfDocumentService.extractFormAction extracts radio group form action fallback", async () => {
+  (globalThis as any).PDF_CHECKBOX_MAP = {
+    'No Exceptions Taken': 'NO EXCEPTIONS TAKEN'
+  };
+
+  const mockForm = {
+    getCheckBox: () => ({ isChecked: () => false }),
+    getRadioGroup: (name: string) => {
+      if (name === 'Submittal Response') {
+        return { getSelected: () => 'NO EXCEPTIONS TAKEN' };
+      }
+      return { getSelected: () => null };
+    }
+  };
+
+  (globalThis as any).PDFLib = {
+    PDFDocument: {
+      load: async () => ({
+        getForm: () => mockForm
+      })
+    }
+  };
+
+  (globalThis as any).DriveApp = {
+    getFileById: (id: string) => ({
+      getBlob: () => ({
+        getBytes: () => [1, 2, 3]
+      })
+    })
+  };
+
+  const service = new GoogleAppsScriptPdfDocumentService();
+  const action = await service.extractFormAction("file-pdf-2");
+  assert.strictEqual(action, "No Exceptions Taken");
+});
+
+test("GoogleAppsScriptPdfDocumentService.extractFormAction returns null on error", async () => {
+  (globalThis as any).DriveApp = {
+    getFileById: (id: string) => {
+      throw new Error("File not found");
+    }
+  };
+
+  const service = new GoogleAppsScriptPdfDocumentService();
+  const action = await service.extractFormAction("nonexistent-file");
+  assert.strictEqual(action, null);
 });

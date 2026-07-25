@@ -1,4 +1,4 @@
-// src/types.ts (Global Ambient Declarations for Google Apps Script)
+﻿// src/types.ts (Global Ambient Declarations for Google Apps Script)
 
 interface EmailData {
   subject: string;
@@ -331,3 +331,4 @@ declare class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocum
   formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
   getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string;
 }
+

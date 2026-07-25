@@ -1,4 +1,4 @@
-interface SubjectPattern {
+﻿interface SubjectPattern {
   id: string;
   regex: RegExp;
   extract: (match: RegExpMatchArray) => {
@@ -87,36 +87,7 @@ function parseDriveFilename(filename: string): ParsedData {
 }
 
 async function extractActionFromPdfForm(fileId: string): Promise<string | null> {
-  try {
-    const setTimeout = (fn: Function) => { fn(); return 0; };
-    eval(UrlFetchApp.fetch(CONFIG.PDF_LIB_URL).getContentText());
-    const { PDFDocument } = PDFLib;
-
-    const bytes = DriveApp.getFileById(fileId).getBlob().getBytes();
-    const unsigned = new Uint8Array(bytes.length);
-    for (let i = 0; i < bytes.length; i++) unsigned[i] = bytes[i] & 0xFF;
-
-    const pdfDoc = await PDFDocument.load(unsigned);
-    const form = pdfDoc.getForm();
-    const reverseMap: Record<string, string> = {};
-
-    for (const [uiAction, cbName] of Object.entries(PDF_CHECKBOX_MAP)) reverseMap[cbName] = uiAction;
-
-    for (const cbName of Object.values(PDF_CHECKBOX_MAP)) {
-      try {
-        if (form.getCheckBox(cbName).isChecked()) return reverseMap[cbName];
-      } catch (e) { }
-    }
-
-    try {
-      const selected = form.getRadioGroup('Submittal Response').getSelected();
-      if (selected) return reverseMap[selected.trim().toUpperCase()] || selected;
-    } catch (e) { }
-
-    return null;
-  } catch (err) {
-    return null;
-  }
+  return defaultPdfDocumentService.extractFormAction(fileId);
 }
 
 function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
@@ -187,3 +158,4 @@ function parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> 
   }
   return result;
 }
+
