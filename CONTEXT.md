@@ -48,5 +48,10 @@ _Avoid_: LogProcessor, LogManager
 The low-level infrastructure adapter that executes physical spreadsheet operations without any business logic or document-type assumptions.
 _Avoid_: SheetHelper
 
+**PdfDocumentService**:
+The module responsible for reading form field responses from PDF documents and stamping submittal approval metadata onto cover sheets.
+_Avoid_: PdfUtils, PdfParser
+
+
 
 
