@@ -1,6 +1,10 @@
-# Ignore all files by default
-**
+# Ignore configuration and node_modules by default
+node_modules/**
+.git/**
+tsconfig.json
+package.json
+package-lock.json
 
-# Allow files under src/
-!src/**
-!appsscript.json
+# Allow all files under rootDir (src/)
+!*
+!**/*
