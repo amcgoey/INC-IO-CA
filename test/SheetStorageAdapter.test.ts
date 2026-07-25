@@ -131,3 +131,33 @@ test("InMemorySheetStorageAdapter insertLogRow with insertBlankBefore: true inse
   assert.deepStrictEqual(values[5], ["020000", "001", "001", "Submittal 2"]);
   assert.deepStrictEqual(values[6], ["030000", "001", "001", "Submittal 3"]);
 });
+
+const { GoogleSheetsStorageAdapter } = require('../src/SheetStorageAdapter');
+
+test('GoogleSheetsStorageAdapter insertLogRow executes physical sheet operations directly without calling defaultLogRepository', () => {
+  const calls: string[] = [];
+  const fakeSheet = {
+    insertRowAfter: (idx: number) => calls.push('insertRowAfter:' + idx),
+    insertRowBefore: (idx: number) => calls.push('insertRowBefore:' + idx),
+    getRange: (row: number, col: number) => ({
+      setValues: () => calls.push('setValues:' + row + ',' + col),
+      setValue: () => calls.push('setValue:' + row + ',' + col)
+    })
+  };
+  (globalThis as any).SpreadsheetApp = {
+    openById: () => ({
+      getSheetByName: () => fakeSheet
+    })
+  };
+
+  const adapter = new GoogleSheetsStorageAdapter('test-ss-id');
+  const plan = { targetRowIndex: 4, insertBlankBefore: true, insertBlankAfter: false, finalRowIndex: 6 };
+  const res = adapter.insertLogRow('Submittals Log', ['Sec', 'Num'], ['010000', '001'], plan);
+
+  assert.strictEqual(res.rowIndex, 6);
+  assert.deepStrictEqual(calls, [
+    'insertRowAfter:4',
+    'insertRowBefore:5',
+    'setValues:6,1'
+  ]);
+});

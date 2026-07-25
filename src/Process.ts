@@ -1,3 +1,14 @@
+declare var require: any;
+
+if (typeof require !== "undefined") {
+  try {
+    const _dls = eval('require("./DocumentLogStrategy")');
+    if (_dls && _dls.ArchitectureSubmittalStrategy && typeof ArchitectureSubmittalStrategy === "undefined") {
+      (globalThis as any).ArchitectureSubmittalStrategy = _dls.ArchitectureSubmittalStrategy;
+    }
+  } catch (e) {}
+}
+
 
 /**
  * Main execution entry point for logging a submittal.
@@ -80,39 +91,39 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     }
 
     const logData = logSheet.getDataRange().getValues();  
-    let targetKey = (details.discipline === "Architecture") ? `${sectionVal}-${numberVal}-${revisionVal}` : `${specTagVal}-${revisionVal}`;  
-    const groupKey = (details.discipline === "Architecture") ? sectionVal : specTagVal;
-
-    // Establish boundaries of existing data for smart insertion
-    const boundedData = getBoundedData(logData);
-
-    // Build the Contact History Chain and capture previous row for status updating
-    let historyColIdx = getColIdx("Contact History");  
-    let calcChainColIdx = getColIdx("Calc Contact Chain");  
-    const secIdx = getColIdx("Section");
-    const numIdx = getColIdx("Number");
-    const revIdx = getColIdx("Revision");
-    const tagIdx = getColIdx("Spec Tag");
-    let previousChain = "";
+    let targetKey = "";  
+    let groupKey = "";
+    let boundedData: any[][] = [];
     let previousRowSheetIndex: number | null = null;
+    let newChain = "";
+    let newFileName = "";
 
-    for (let i = boundedData.length - 1; i >= CONFIG.LOG_HEADER_ROW; i--) {   
-        let row = boundedData[i];   
-        let rowKey = (disc === "Architecture") 
-          ? `${String(secIdx !== -1 ? row[secIdx] || "" : "").trim()}-${String(numIdx !== -1 ? row[numIdx] || "" : "").trim()}-${String(revIdx !== -1 ? row[revIdx] || "" : "").trim()}`
-          : `${String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim()}-${String(revIdx !== -1 ? row[revIdx] || "" : "").trim()}`;   
-        if (rowKey === targetKey) {   
-            let histVal = (historyColIdx !== -1) ? String(row[historyColIdx] || "").trim() : "";  
-            let calcVal = (calcChainColIdx !== -1) ? String(row[calcChainColIdx] || "").trim() : "";  
-            previousChain = histVal ? histVal : calcVal;  
-            previousRowSheetIndex = i + 1; // Capture 1-based sheet row index
-            break;   
-        }   
+    if (disc !== "Architecture") {
+      targetKey = `${specTagVal}-${revisionVal}`;  
+      groupKey = specTagVal;
+      boundedData = getBoundedData(logData);
+
+      let historyColIdx = getColIdx("Contact History");  
+      let calcChainColIdx = getColIdx("Calc Contact Chain");  
+      const revIdx = getColIdx("Revision");
+      const tagIdx = getColIdx("Spec Tag");
+      let previousChain = "";
+
+      for (let i = boundedData.length - 1; i >= CONFIG.LOG_HEADER_ROW; i--) {   
+          let row = boundedData[i];   
+          let rowKey = `${String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim()}-${String(revIdx !== -1 ? row[revIdx] || "" : "").trim()}`;   
+          if (rowKey === targetKey) {   
+              let histVal = (historyColIdx !== -1) ? String(row[historyColIdx] || "").trim() : "";  
+              let calcVal = (calcChainColIdx !== -1) ? String(row[calcChainColIdx] || "").trim() : "";  
+              previousChain = histVal ? histVal : calcVal;  
+              previousRowSheetIndex = i + 1;
+              break;   
+          }   
+      }
+      newChain = previousChain ? `${previousChain} ${form.contact}` : form.contact;  
+      const actionSuffix = selectedAction.abbr || "";  
+      newFileName = `${targetKey} ${form.vendor} - ${form.date} ${newChain}${actionSuffix}`;
     }
-
-    const newChain = previousChain ? `${previousChain} ${form.contact}` : form.contact;  
-    const actionSuffix = selectedAction.abbr || "";  
-    let newFileName = (disc === "Architecture") ? `${targetKey} ${form.title} - ${form.date} ${newChain}${actionSuffix}` : `${targetKey} ${form.vendor} - ${form.date} ${newChain}${actionSuffix}`;
 
     const ctx = { 
       e, form, p, discipline: disc, logSheet, headers, getColIdx, selectedAction, 
@@ -129,7 +140,87 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
 }
 
 async function executeIncomingWorkflow(ctx: any): Promise<any> {
-  const { e, form, p, discipline, logSheet, headers, getColIdx, selectedAction, targetKey, newFileName, boundedData, newChain, sectionVal, numberVal, revisionVal, emptyFallbacks } = ctx;
+  const { e, form, p, discipline, logSheet, headers, getColIdx, selectedAction, targetKey, newFileName, boundedData, newChain, sectionVal, numberVal, revisionVal, emptyFallbacks, validatedDoc } = ctx;
+
+  if (discipline === "Architecture") {
+    const root = DriveApp.getFolderById(p.targetFolderId);
+    const closedId = getOrCreateFilingFolder(p.targetFolderId, discipline, sectionVal, form.specTag);
+    const closed = DriveApp.getFolderById(closedId);
+
+    let url = "", blob: GoogleAppsScript.Base.Blob | null = null, id = "";
+
+    if (p.driveFileId) {
+      const file = DriveApp.getFileById(p.driveFileId);
+      file.moveTo(closed);
+      url = file.getUrl();
+      id = file.getId();
+      blob = file.getBlob();
+    } else {
+      if (form.fileSource === "Email Attachment") {
+        const msg = GmailApp.getMessageById(p.messageId);
+        const att = msg.getAttachments().find(a => a.getName() === form.attachmentName);
+        if (att) blob = att.copyBlob();
+      } else if (form.fileSource === "Google Drive URL") {
+        const match = form.driveFileUrl ? form.driveFileUrl.match(/[-\w]{25,}/) : null;
+        if (match) blob = DriveApp.getFileById(match[0]).getAs((MimeType as any).PDF);
+      }
+      if (blob) {
+        const file = closed.createFile(blob.copyBlob().setName("temp.pdf"));
+        url = file.getUrl();
+        id = file.getId();
+      }
+    }
+
+    const appendResult = defaultLogRepository.appendDocument(
+      p.logFileId,
+      validatedDoc,
+      new ArchitectureSubmittalStrategy(),
+      {
+        link: url,
+        status: selectedAction.status,
+        actionAbbr: selectedAction.abbr
+      }
+    );
+
+    if (p.driveFileId) {
+      DriveApp.getFileById(p.driveFileId).setName(appendResult.newFileName + ".pdf");
+    } else if (blob && id) {
+      DriveApp.getFileById(id).setName(appendResult.newFileName + ".pdf");
+    }
+
+    if (blob) {
+      const templateId = (form.incomingRouting === "To Refer") ? CONFIG.TRANSMITTAL_TEMPLATE_ID : CONFIG.PDF_TEMPLATE_ID;
+      try {
+        const stamped = await manipulatePdf(blob, form, appendResult.newFileName, appendResult.targetKey, templateId);
+        stamped.setName(CONFIG.STAMPED_FILE_PREFIX + appendResult.newFileName + ".pdf");
+        root.createFile(stamped);
+      } catch (err: any) {
+        if (err.message === "TEMPLATE_MISSING") {
+          root.createFile(blob.copyBlob().setName(CONFIG.STAMPED_FILE_PREFIX + appendResult.newFileName + ".pdf"));
+        } else { throw err; }
+      }
+    }
+
+    const logSheetId = logSheet.getSheetId();
+    const directRowUrl = `https://docs.google.com/spreadsheets/d/${p.logFileId}/edit#gid=${logSheetId}&range=A${appendResult.rowIndex}`;
+
+    const flashData = { 
+      fileId: id, 
+      targetKey: appendResult.targetKey, 
+      url, 
+      localPath: getLocalDrivePath(id), 
+      title: form.title || form.specTitle || "", 
+      action: form.action, 
+      incomingRouting: form.incomingRouting, 
+      projectAbbr: p.projectAbbr,
+      directRowUrl: directRowUrl,
+      failedColumns: appendResult.failedColumns,
+      emptyFallbacks: emptyFallbacks,
+      newFileName: appendResult.newFileName
+    };
+
+    return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, flashData))).build();
+  }
 
   const root = DriveApp.getFolderById(p.targetFolderId);
   const closedId = getOrCreateFilingFolder(p.targetFolderId, discipline, sectionVal, form.specTag);
@@ -208,7 +299,57 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
 }
 
 async function executeOutgoingWorkflow(ctx: any): Promise<any> {
-  const { form, p, discipline, logSheet, headers, getColIdx, selectedAction, targetKey, newFileName, boundedData, newChain, previousRowSheetIndex, sectionVal, numberVal, revisionVal, emptyFallbacks } = ctx;
+  const { form, p, discipline, logSheet, headers, getColIdx, selectedAction, targetKey, newFileName, boundedData, newChain, previousRowSheetIndex, sectionVal, numberVal, revisionVal, emptyFallbacks, validatedDoc } = ctx;
+
+  if (discipline === "Architecture") {
+    let url = "", path = "", id = "", root = DriveApp.getFolderById(p.targetFolderId);
+
+    if (p.driveFileId) {
+      const file = DriveApp.getFileById(p.driveFileId);
+      if (file.getParents().hasNext() && file.getParents().next().getId() !== p.targetFolderId) file.moveTo(root);
+      url = file.getUrl(); id = p.driveFileId; path = getLocalDrivePath(id);
+    } else {
+      let blob: GoogleAppsScript.Base.Blob | null = null;
+      if (form.fileSource === "Email Attachment") {
+        const msg = GmailApp.getMessageById(p.messageId);
+        const att = msg.getAttachments().find(a => a.getName() === form.attachmentName);
+        if (att) blob = att.copyBlob();
+      } else if (form.fileSource === "Google Drive URL") {
+        const match = form.driveFileUrl ? form.driveFileUrl.match(/[-\w]{25,}/) : null;
+        if (match) blob = DriveApp.getFileById(match[0]).getAs((MimeType as any).PDF);
+      }
+      if (blob) {
+        const file = root.createFile(blob.copyBlob().setName("temp.pdf"));
+        url = file.getUrl(); id = file.getId(); path = getLocalDrivePath(id);
+      }
+    }
+
+    const appendResult = defaultLogRepository.appendDocument(
+      p.logFileId,
+      validatedDoc,
+      new ArchitectureSubmittalStrategy(),
+      {
+        link: url,
+        status: selectedAction.status,
+        actionAbbr: selectedAction.abbr,
+        updatePreviousStatus: true,
+        previousRowStatus: "Closed"
+      }
+    );
+
+    if (id) {
+      DriveApp.getFileById(id).setName(appendResult.newFileName + ".pdf");
+    }
+
+    const logSheetId = logSheet.getSheetId();
+    const directRowUrl = `https://docs.google.com/spreadsheets/d/${p.logFileId}/edit#gid=${logSheetId}&range=A${appendResult.rowIndex}`;
+
+    return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().pushCard(buildSuccessCard(
+      id, appendResult.newFileName, url, path, appendResult.targetKey, form.title || form.specTitle, discipline, sectionVal, form.specTag, 
+      p.targetFolderId, p.logFileId, false, p.projectAbbr, form.action, form.incomingRouting, null,
+      directRowUrl, appendResult.failedColumns, emptyFallbacks
+    ))).build();
+  }
   let url = "", path = "", id = "", root = DriveApp.getFolderById(p.targetFolderId);
 
   if (p.driveFileId) {
@@ -348,4 +489,18 @@ function insertSmartRowGapAware(
   const plan = computeRowInsertionPlan(boundedData, headers, rowData, discipline);
   const spreadsheetId = sheet.getParent().getId();
   return defaultLogRepository.insertLogRow(spreadsheetId, headers, rowData, plan);
+}
+
+
+declare var module: any;
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    processSubmission,
+    executeIncomingWorkflow,
+    executeOutgoingWorkflow,
+    insertSmartRowGapAware,
+    getOrCreateFilingFolder,
+    getLocalDrivePath
+  };
 }

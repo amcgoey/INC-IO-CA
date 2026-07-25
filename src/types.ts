@@ -255,6 +255,12 @@ interface LogRepository {
     rowData: any[],
     plan: RowInsertionPlan
   ): { rowIndex: number; failedColumns: string[] };
+  appendDocument(
+    spreadsheetId: string,
+    document: ValidatedDocument,
+    strategy: DocumentLogStrategy,
+    options?: AppendDocumentOptions
+  ): AppendDocumentResult;
 }
 
 

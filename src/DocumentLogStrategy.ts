@@ -33,6 +33,17 @@ function safePadNum(val: any, len: number): string {
   return String(val || "").trim().padStart(len, '0');
 }
 
+interface DocumentLogStrategy<T = ValidatedDocument> {
+  getGroupKey(doc: T): string;
+  getSortKey(doc: T): string;
+  getTargetKey(doc: T): string;
+  getGroupKeyFromRow(row: any[], headers: string[]): string;
+  getSortKeyFromRow(row: any[], headers: string[]): string;
+  getTargetKeyFromRow(row: any[], headers: string[]): string;
+  formatRowPayload(doc: T, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
+  getFileName(doc: T, contactHistory: string, actionAbbr: string): string;
+}
+
 class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
   getGroupKey(doc: ValidatedDocument): string {
     const details = doc.disciplineDetails as ArchitectureDetails;

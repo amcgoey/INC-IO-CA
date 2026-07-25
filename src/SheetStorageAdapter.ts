@@ -191,7 +191,18 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
     rowData: any[],
     plan: RowInsertionPlan
   ): { rowIndex: number; failedColumns: string[] } {
-    return defaultLogRepository.insertLogRow(this.spreadsheetId, headers, rowData, plan);
+    this.insertRowAfter(sheetName, plan.targetRowIndex);
+    
+        if (plan.insertBlankBefore) {
+          this.insertRowBefore(sheetName, plan.targetRowIndex + 1);
+        }
+        if (plan.insertBlankAfter) {
+          this.insertRowAfter(sheetName, plan.finalRowIndex);
+        }
+    
+        const { failedColumns } = this.setRowValues(sheetName, plan.finalRowIndex, headers, rowData);
+    
+        return { rowIndex: plan.finalRowIndex, failedColumns };
   }
 }
 
