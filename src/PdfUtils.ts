@@ -1,11 +1,17 @@
-async function manipulatePdf(sourceBlob, data, newFileName, stampSubmittalNo, templateId) {
+async function manipulatePdf(
+  sourceBlob: GoogleAppsScript.Base.Blob,
+  data: ParsedData,
+  newFileName: string,
+  stampSubmittalNo: string,
+  templateId: string
+): Promise<GoogleAppsScript.Base.Blob> {
   if (!templateId || templateId === "") throw new Error("TEMPLATE_MISSING");
   
-  const setTimeout = (fn) => { fn(); return 0; };
+  const setTimeout = (fn: Function) => { fn(); return 0; };
   eval(UrlFetchApp.fetch(CONFIG.PDF_LIB_URL).getContentText());
   const { PDFDocument } = PDFLib;
   
-  const toUint8 = (b) => { 
+  const toUint8 = (b: GoogleAppsScript.Base.Blob): Uint8Array => { 
     let bytes = b.getBytes(), u = new Uint8Array(bytes.length); 
     for (let i = 0; i < bytes.length; i++) u[i] = bytes[i] & 0xFF; 
     return u; 
@@ -14,7 +20,7 @@ async function manipulatePdf(sourceBlob, data, newFileName, stampSubmittalNo, te
   const pdfDoc = await PDFDocument.load(toUint8(DriveApp.getFileById(templateId).getAs(MimeType.PDF)));
   const form = pdfDoc.getForm();
   
-  const fill = (names, val) => { 
+  const fill = (names: string[], val: string) => { 
     for (let n of names) { 
       try { 
         let f = form.getTextField(n); 
@@ -42,7 +48,7 @@ async function manipulatePdf(sourceBlob, data, newFileName, stampSubmittalNo, te
   
   const sourcePdf = await PDFDocument.load(toUint8(sourceBlob));
   const copied = await pdfDoc.copyPages(sourcePdf, sourcePdf.getPageIndices());
-  copied.forEach(p => pdfDoc.addPage(p));
+  copied.forEach((p: any) => pdfDoc.addPage(p));
   
   return Utilities.newBlob(await pdfDoc.save(), 'application/pdf', newFileName + ".pdf");
 }

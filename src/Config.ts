@@ -1,3 +1,5 @@
+// START FILE: Config.ts
+
 const CONFIG = {
   TARGET_FOLDER_NAME: "Submittals",
   CLOSED_FOLDER_NAME: "Closed",
@@ -6,13 +8,13 @@ const CONFIG = {
   SETTINGS_SHEET_NAME: "Settings",
   TAG_LIST_SHEET_NAME: "Tag List",
   LOG_HEADER_ROW: 3,
-  get PDF_TEMPLATE_ID() {
+  get PDF_TEMPLATE_ID(): string {
     return PropertiesService.getScriptProperties().getProperty('PDF_TEMPLATE_ID') || "";
   },
-  get TRANSMITTAL_TEMPLATE_ID() {
+  get TRANSMITTAL_TEMPLATE_ID(): string {
     return PropertiesService.getScriptProperties().getProperty('TRANSMITTAL_TEMPLATE_ID') || "";
   },
-  get LOGO_URL() {
+  get LOGO_URL(): string {
     return PropertiesService.getScriptProperties().getProperty('LOGO_URL') || "";
   },
   PDF_LIB_URL: "https://unpkg.com/pdf-lib/dist/pdf-lib.min.js",
@@ -31,7 +33,7 @@ const CONFIG = {
   GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
 };
 
-const CSI_DIVISIONS = {
+const CSI_DIVISIONS: Record<string, string> = {
   "00": "00 Procurement & Contracting",
   "01": "01 General Requirements",
   "02": "02 Existing Conditions",
@@ -69,7 +71,7 @@ const CSI_DIVISIONS = {
   "48": "48 Electrical Power Generation"
 };
 
-const PDF_CHECKBOX_MAP = {
+const PDF_CHECKBOX_MAP: Record<string, string> = {
   'No Exceptions Taken': 'NO EXCEPTIONS TAKEN',
   'No Objection as Corrected': 'NO OBJECTIONS AS CORRECTED',
   'Revise & Resubmit': 'REVISE AND RESUBMIT',
@@ -87,37 +89,37 @@ const MESSAGES = {
   ERROR_NO_LOG: "❌ No Submittal Log found in this Drive.",
   ERROR_AI_BUSY: "⏳ Google's AI is currently experiencing high demand. Please try again in a moment, or enter the metadata manually.",
 
-  SUCCESS_INCOMING: (targetKey) => `✅ Successfully logged ${targetKey} and saved original to 'Closed'.`,
-  SUCCESS_OUTGOING: (targetKey) => `✅ Successfully logged and renamed ${targetKey}.`,
+  SUCCESS_INCOMING: (targetKey: string) => `✅ Successfully logged ${targetKey} and saved original to 'Closed'.`,
+  SUCCESS_OUTGOING: (targetKey: string) => `✅ Successfully logged and renamed ${targetKey}.`,
 
   ERROR_INVALID_SELECTION_TITLE: "Invalid Selection",
   ERROR_INVALID_SELECTION_TEXT: "Please select exactly ONE PDF file.",
-  ERROR_DRIVE_API: (err) => `⚠️ Drive API Error:\n${sanitizeErrorString(err)}`,
-  ERROR_LOG_SEARCH: (err) => `⚠️ Log Search Error:\n${sanitizeErrorString(err)}`,
+  ERROR_DRIVE_API: (err: any) => `⚠️ Drive API Error:\n${sanitizeErrorString(err)}`,
+  ERROR_LOG_SEARCH: (err: any) => `⚠️ Log Search Error:\n${sanitizeErrorString(err)}`,
   WARNING_NO_PDF_ATTACHMENTS: "⚠️ No PDF attachments found in this email.",
   ERROR_TARGET_FOLDER: "❌ Error: Target folder not resolved. Please select a Drive/Log first.",
   WARNING_AUTH_WALL: "⚠️ Cannot download: File is behind a login wall. Please download manually and use 'Google Drive URL'.",
   WARNING_NOT_WHITELISTED: "⚠️ Domain not whitelisted. Please manually download the file and use 'Google Drive URL'.",
-  ERROR_FETCH_FAILED: (err) => `❌ Fetch failed: ${sanitizeErrorString(err)}`,
+  ERROR_FETCH_FAILED: (err: any) => `❌ Fetch failed: ${sanitizeErrorString(err)}`,
   SUCCESS_FETCHED: "✅ Fetched successfully!",
-  DEBUG_SAVED_TO_DRIVE: (fileName, fileId) => `✅ Saved ${fileName} to Drive.\nDriveFileId: ${fileId}`,
+  DEBUG_SAVED_TO_DRIVE: (fileName: string, fileId: string) => `✅ Saved ${fileName} to Drive.\nDriveFileId: ${fileId}`,
   ERROR_NO_DRIVE_FILE: "❌ Error: No Drive File selected.",
   ERROR_NO_ATTACHMENT: "❌ Error: No attachment selected.",
   ERROR_NO_URL: "❌ Error: No Drive URL provided.",
-  ERROR_GETTING_FILE: (err) => `❌ Error getting file: ${sanitizeErrorString(err)}`,
+  ERROR_GETTING_FILE: (err: any) => `❌ Error getting file: ${sanitizeErrorString(err)}`,
   ERROR_RESOLVING_FILE: "❌ Error: Could not resolve file for analysis. Check URL permissions.",
-  ERROR_AI_GENERAL: (err) => `❌ AI Error: ${sanitizeErrorString(err)}`,
-  WARNING_AI_AUTO_TRIAGE: (err) => `⚠️ ${sanitizeErrorString(err)}`,
+  ERROR_AI_GENERAL: (err: any) => `❌ AI Error: ${sanitizeErrorString(err)}`,
+  WARNING_AI_AUTO_TRIAGE: (err: any) => `⚠️ ${sanitizeErrorString(err)}`,
   SUCCESS_ANALYSIS: "✅ Analysis complete!",
   SUCCESS_DRAFT_CREATED: "✅ Draft created.",
-  SUCCESS_MOVED: (folderName) => `✅ Moved to ${folderName}`,
-  ERROR_GENERAL: (err) => `❌ Error: ${sanitizeErrorString(err)}`,
+  SUCCESS_MOVED: (folderName: string) => `✅ Moved to ${folderName}`,
+  ERROR_GENERAL: (err: any) => `❌ Error: ${sanitizeErrorString(err)}`,
   BTN_FETCH: "📥 Fetch & Save to Drive",
   BTN_ANALYZE: "✨ Analyze Submittal with AI"
 };
 
 const EMAIL_TEMPLATES = {
-  standardOutgoing: ({ projectAbbr, targetKey, title, action, url, localPath }) => {
+  standardOutgoing: ({ projectAbbr, targetKey, title, action, url, localPath }: EmailTemplateParams): EmailTemplateResult => {
     const subjPrefix = projectAbbr ? `${projectAbbr} - ` : "";
     const cleanTitle = title || "";
     return {
@@ -126,7 +128,7 @@ const EMAIL_TEMPLATES = {
     };
   },
 
-  rejectedOutgoing: ({ projectAbbr, targetKey, title, action, url, localPath }) => {
+  rejectedOutgoing: ({ projectAbbr, targetKey, title, action, url, localPath }: EmailTemplateParams): EmailTemplateResult => {
     const subjPrefix = projectAbbr ? `${projectAbbr} - ` : "";
     const cleanTitle = title || "";
     return {
@@ -135,7 +137,7 @@ const EMAIL_TEMPLATES = {
     };
   },
 
-  toRefer: ({ projectAbbr, targetKey, title, action, url, localPath }) => {
+  toRefer: ({ projectAbbr, targetKey, title, action, url, localPath }: EmailTemplateParams): EmailTemplateResult => {
     const subjPrefix = projectAbbr ? `${projectAbbr} - ` : "";
     const cleanTitle = title || "";
     return {
