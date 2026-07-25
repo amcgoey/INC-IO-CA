@@ -26,7 +26,7 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
   // Discipline-specific required fields
   if (discipline === "Architecture") {
     if (isEmpty(raw.title)) missingFields.push("Title");
-  } else {
+  } else if (discipline === "FF&E") {
     if (isEmpty(raw.specTag)) missingFields.push("Spec Tag");
     if (isEmpty(raw.specTitle)) missingFields.push("Spec Title");
     if (isEmpty(raw.vendor)) missingFields.push("Vendor");
@@ -84,7 +84,7 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
     const relatedTag = getTrimmed(raw.relatedTag);
 
     // Related Tags Validation
-    if (relatedTag) {
+    if (relatedTag && validTags.length > 0) {
       const inputRelatedTags = relatedTag.split(",").map(t => t.trim()).filter(Boolean);
       const invalidRelatedTags = inputRelatedTags.filter(
         t => !validTags.some(valid => valid.toLowerCase() === t.toLowerCase())
