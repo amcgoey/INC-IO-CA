@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Code Implementation Orchestrator
 
-This skill coordinates the development flow of subagents handling issue tickets. The **Orchestrator Agent** coordinates activities, manages the issue queue/frontier, reviews subagent plans, and merges branches, but does **not** write code. **Subagents** perform planning, implementation using `/implement` and `/tdd`, post-implementation `/code-review` (by spawning dedicated review subagents), artifact posting at each stage, defect breakdown, and ticket closure.
+This skill coordinates the development flow of subagents handling issue tickets. The **Orchestrator Agent** coordinates activities, manages the issue queue/frontier, reviews subagent plans, merges feature branches, and posts the final summary walkthrough on the primary parent issue upon completion. **Subagents** perform planning, implementation using `/implement` and `/tdd`, post-implementation `/code-review` (by spawning dedicated review subagents), milestone artifact posting on their assigned issue, defect breakdown, and child ticket closure.
 
 ---
 
@@ -18,32 +18,35 @@ This skill coordinates the development flow of subagents handling issue tickets.
 2. **Identify frontier issues**: Query the DAG for open issues that have no open blockers and no assignees.
    * *Completion Criterion*: A list of unblocked, unassigned frontier issues ready for immediate work.
 
-3. **Manage the queue & spawn subagents**: Assign each frontier issue (`gh issue edit <n> --add-assignee @me`) and spawn subagents using `invoke_subagent` with `Workspace: "share"` (Git worktrees). Direct subagents to spawn separate review subagents when running `/code-review` and post artifacts as comments at each milestone.
+3. **Manage the queue & spawn subagents**: Assign each frontier issue (`gh issue edit <n> --add-assignee @me`) and spawn subagents using `invoke_subagent` with `Workspace: "share"` (Git worktrees). Direct subagents to spawn separate review subagents when running `/code-review` and post milestone artifacts to their assigned issue.
    * *Completion Criterion*: Subagents spawned on isolated Git branches (`ticket-<number>`) for all available frontier slots with strict subagent-spawning and milestone commenting directives.
 
 4. **Manage resources & review plans**: Enforce subagent concurrency caps (2–4 active agents). Review subagent implementation plans against `CONTEXT.md` and repository standards. Provide feedback until satisfied, then approve the plan and release the subagent.
    * *Completion Criterion*: Approved plan attached to the GitHub issue as a comment and subagent released for development.
 
-5. **Merge commits once complete**: Once a subagent reports a ticket is defect-free and closed, merge the ticket's feature branch into the target integration branch (`develop`), recalculate the dependency frontier, and repeat.
+5. **Merge commits & update DAG**: Once a subagent reports a ticket is defect-free and closed, merge the ticket's feature branch into the target integration branch (`develop`), recalculate the dependency frontier, and repeat.
    * *Completion Criterion*: Ticket branch merged into integration branch, DAG updated, and next frontier queued.
+
+6. **Post primary issue walkthrough & close parent**: Once all child sub-issues under a primary parent issue are completed and merged, aggregate the overall work into a comprehensive final walkthrough comment on the **primary parent issue** (`gh issue comment <parent-number> --body "..."`) and close the primary issue.
+   * *Completion Criterion*: Primary parent issue closed with an aggregated summary walkthrough comment.
 
 ---
 
 ## Subagent Process
 
-1. **Formulate & post implementation plan**: Formulate an implementation plan for the assigned ticket (referring to `CONTEXT.md` and parent issue/spec). Submit the plan to the orchestrator for review. Once approved, post the plan as a comment on the GitHub issue (`gh issue comment <n> --body "..."`), scrubbing any sensitive information (tokens, credentials, internal paths).
+1. **Formulate & post implementation plan**: Formulate an implementation plan for the assigned ticket (referring to `CONTEXT.md` and parent issue/spec). Submit the plan to the orchestrator for review. Once approved, post the plan as a comment on the assigned GitHub issue (`gh issue comment <n> --body "..."`), scrubbing any sensitive information (tokens, credentials, internal paths).
    * *Completion Criterion*: Orchestrator-approved implementation plan posted as an issue comment on GitHub.
 
 2. **Implement assigned issue**: Run `/implement` on the assigned ticket using `/tdd`.
    * *Completion Criterion*: Code changes implemented, tested with `/tdd`, and passing local typechecks (`npm run typecheck`).
 
-3. **Post implementation walkthrough**: Produce a post-implementation walkthrough detailing code changes made and verification results. Post the walkthrough as a comment on the GitHub issue, scrubbing any sensitive information.
+3. **Post implementation walkthrough**: Produce a post-implementation walkthrough detailing code changes made and verification results. Post the walkthrough as a comment on the assigned GitHub issue, scrubbing any sensitive information.
    * *Completion Criterion*: Implementation walkthrough posted as an issue comment on GitHub.
 
 4. **Perform Code Review via spawned subagents**: Execute `/code-review` by **spawning separate parallel subagents** via `invoke_subagent` (one for Standards review and one for Spec review). **Do NOT perform the code review inline within your own conversation.**
    * *Completion Criterion*: Parallel review subagents spawned and their two-axis report (Standards & Spec) collected.
 
-5. **Post Code Review report as comment**: Post the aggregated `/code-review` report as a comment on the GitHub issue, scrubbing any sensitive information.
+5. **Post Code Review report as comment**: Post the aggregated `/code-review` report as a comment on the assigned GitHub issue, scrubbing any sensitive information.
    * *Completion Criterion*: Cleaned `/code-review` report posted as an issue comment on GitHub.
 
 6. **Route defects & human review tickets**:
@@ -57,8 +60,8 @@ This skill coordinates the development flow of subagents handling issue tickets.
 7. **Repeat Code Review loop**: Re-run Steps 4–6 (spawning new parallel review subagents for `/code-review`, posting updated `/code-review` comments, and implementing fixes) after defect fixes until the branch is completely defect-free (0 direct defects).
    * *Completion Criterion*: `/code-review` from spawned review subagents returns zero direct defects on both Standards and Spec axes.
 
-8. **Post final walkthrough & close issue**: Post the final completion walkthrough comment and close the issue (`gh issue close <number>`) once defect-free and all blocking human review tickets are accounted for.
-   * *Completion Criterion*: Issue state updated to `closed` on GitHub with a final completion walkthrough comment.
+8. **Post ticket walkthrough & close child issue**: Post a walkthrough comment on the assigned ticket summarizing its specific implementation and close the ticket (`gh issue close <number>`) once defect-free and all blocking human review tickets are accounted for.
+   * *Completion Criterion*: Assigned ticket state updated to `closed` on GitHub with its specific walkthrough comment.
 
 ---
 
@@ -85,10 +88,17 @@ This skill coordinates the development flow of subagents handling issue tickets.
 * **Concurrent Typechecks & Tests**: Subagents may run `npm run typecheck` (`tsc --noEmit`) and unit tests concurrently within their respective worktrees, as typechecks are read-only and source files are worktree-isolated.
 * **Plan Review**: Subagents must submit implementation plans to the orchestrator before editing code. Check plans against `CONTEXT.md` terminology, parent spec constraints, and test seams. Provide feedback if incomplete; once approved, post the plan to the GitHub issue (`gh issue comment <n> --body "..."`) and release the subagent.
 
-### Step 5: Merge Commits Once Complete
+### Step 5: Merge Commits & Update DAG
 * When a subagent closes its ticket, verify that its branch builds clean (`npm run typecheck`) and tests pass.
 * Merge the ticket's feature branch into the target integration branch (`develop`).
 * Recalculate the DAG, unblock downstream tickets whose dependencies are now closed, and populate the next frontier.
+
+### Step 6: Post Primary Issue Walkthrough & Close Parent
+* When operating on a primary issue with subissues (Parent Issue Mode), the orchestrator holds high-level responsibility for the primary issue.
+* Once all child sub-issues are closed and merged:
+  1. Aggregate the walkthroughs, code review results, and verification metrics from all child sub-issues into one unified, high-level summary walkthrough.
+  2. Post this aggregated walkthrough as a comment on the **primary parent issue** (`gh issue comment <parent-number> --body "..."`).
+  3. Close the primary parent issue (`gh issue close <parent-number> --comment "All sub-issues completed and verified"`).
 
 ---
 
@@ -98,14 +108,14 @@ This skill coordinates the development flow of subagents handling issue tickets.
 * Check `CONTEXT.md` (per `docs/agents/domain.md`) to align all naming with domain vocabulary.
 * Read the assigned ticket body, comments, and the **parent issue / spec** for surrounding architectural context.
 * Formulate an implementation plan and submit it to the orchestrator for review.
-* **Post Plan Comment**: Once approved by the orchestrator, post the plan as a comment to the GitHub issue (`gh issue comment <number> --body "..."`). Scrub sensitive information (tokens, credentials, local user paths).
+* **Post Plan Comment**: Once approved by the orchestrator, post the plan as a comment to the assigned GitHub issue (`gh issue comment <number> --body "..."`). Scrub sensitive information (tokens, credentials, local user paths).
 
 ### Step 2: Implement Assigned Issue
 * Use `/implement` with `/tdd` to write tests first, make them pass, and refactor while running `npm run typecheck` regularly.
 
 ### Step 3: Post Implementation Walkthrough
 * After implementation completes and tests pass, summarize the changes made, files touched, and test results into a walkthrough document.
-* **Post Walkthrough Comment**: Post the walkthrough as a comment on the GitHub issue (`gh issue comment <number> --body "..."`), scrubbing sensitive information.
+* **Post Walkthrough Comment**: Post the walkthrough as a comment on the assigned GitHub issue (`gh issue comment <number> --body "..."`), scrubbing sensitive information.
 
 ### Step 4 & 5: Code Review Execution & Comment Posting
 * **Mandatory Subagent Spawning for `/code-review`**: You MUST NOT perform code reviews inline within your own context window. In strict accordance with `/code-review` (Step 4), spawn two separate parallel subagents via `invoke_subagent`:
@@ -125,7 +135,7 @@ This skill coordinates the development flow of subagents handling issue tickets.
 * **Post Updated Code Review Comment**: Post each updated review report as a comment on the issue.
 * Repeat the `/code-review` (via subagents) ➔ post review comment ➔ fix defects cycle until `/code-review` returns zero direct defects on both Standards and Spec axes.
 
-### Step 8: Post Final Walkthrough & Close Issue
-* Compile a final completion walkthrough summarizing the overall resolution, final test suite results, and closed defect state.
-* Scrub sensitive data and post the final walkthrough as a comment on the issue.
-* Close the issue on GitHub (`gh issue close <number> --comment "Completed via orchestrate-implement"`).
+### Step 8: Post Ticket Walkthrough & Close Child Issue
+* Compile a ticket completion walkthrough summarizing the overall resolution, final test suite results, and closed defect state for the assigned issue.
+* Scrub sensitive data and post the walkthrough as a comment on the assigned issue.
+* Close the assigned issue on GitHub (`gh issue close <number> --comment "Completed via orchestrate-implement"`).
