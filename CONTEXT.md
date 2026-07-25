@@ -23,3 +23,17 @@ The dependencies (like LogSettings, valid tags, valid vendors) passed into the p
 
 **ValidationResult**:
 A discriminated union that represents the three universal outcomes of validating a RawDocument: `success` (with the ValidatedDocument and any non-fatal warnings), `error` (fatal failures), or `interaction_required` (when the UI must prompt the user before continuing).
+
+**RowInsertionPlan**:
+The pure calculation output describing the target row index and structural modifications (like inserting blank separator rows or leading gaps) required to place a new log entry in the spreadsheet.
+_Avoid_: InsertionIndex, RowActionResult
+
+**LogRepository**:
+The abstract storage interface used by the application core to save validated documents, fetch settings, and manage tags without knowing the underlying storage technology.
+_Avoid_: StorageAdapter, SheetManager
+
+**GoogleSheetsLogRepository**:
+The concrete implementation of LogRepository that persists documents, settings, and tags using the Google Sheets API.
+_Avoid_: SheetHelper
+
+
