@@ -27,18 +27,22 @@ import assert from "node:assert";
   })
 };
 
+const { FakePdfDocumentService, defaultPdfDocumentService } = require("../src/PdfDocumentService");
+
 (globalThis as any).buildMainCard = (e: any, d: any, tag: any, flashData: any) => ({ cardType: "MainCard", flashData });
 (globalThis as any).buildSuccessCard = (...args: any[]) => ({ cardType: "SuccessCard", args });
 (globalThis as any).getOrCreateFilingFolder = () => "folder-closed-id";
 (globalThis as any).getLocalDrivePath = (id: string) => `G:\\My Drive\\${id}`;
-(globalThis as any).manipulatePdf = async () => ({ setName: () => {} });
+
+const mockFakePdfService = new FakePdfDocumentService();
+(globalThis as any).defaultPdfDocumentService = mockFakePdfService;
 
 const mockFile = {
   moveTo: () => {},
   setName: () => {},
   getUrl: () => "http://drive.google.com/file1",
   getId: () => "file-1",
-  getBlob: () => ({ copyBlob: () => ({ setName: () => {} }) }),
+  getBlob: () => ({ copyBlob: () => ({ setName: () => {} }), setName: () => {} }),
   getParents: () => ({ hasNext: () => false })
 };
 

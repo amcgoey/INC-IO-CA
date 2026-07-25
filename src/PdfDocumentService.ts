@@ -55,7 +55,53 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
     if (!options || !options.templateId || options.templateId === "") {
       throw new Error("TEMPLATE_MISSING");
     }
-    return sourceBlob;
+
+    const { PDFDocument } = getPdfLib();
+
+    const toUint8 = (b: GoogleAppsScript.Base.Blob): Uint8Array => {
+      let bytes = b.getBytes(), u = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) u[i] = bytes[i] & 0xFF;
+      return u;
+    };
+
+    const pdfMime = typeof MimeType !== "undefined" ? (MimeType as any).PDF : "application/pdf";
+    const templateBlob = DriveApp.getFileById(options.templateId).getAs(pdfMime);
+    const pdfDoc = await PDFDocument.load(toUint8(templateBlob));
+    const form = pdfDoc.getForm();
+
+    const fill = (names: string[], val: string) => {
+      for (let n of names) {
+        try {
+          let f = form.getTextField(n);
+          if (f) { f.setText(val); return; }
+        } catch (e) {}
+      }
+    };
+
+    fill(['Submittal No', 'Submittal No.', 'Submittal Number'], options.stampSubmittalNo);
+
+    const act = data && data.action ? String(data.action) : "";
+    const cbMap = typeof PDF_CHECKBOX_MAP !== "undefined" ? PDF_CHECKBOX_MAP : {};
+
+    if (act) {
+      try {
+        let rg = form.getRadioGroup('Submittal Response'), opts = rg.getOptions();
+        if (opts.includes(act)) rg.select(act);
+        else if (opts.includes(act.toUpperCase())) rg.select(act.toUpperCase());
+        else if (cbMap[act] && opts.includes(cbMap[act])) rg.select(cbMap[act]);
+      } catch (e) {
+        let box = cbMap[act] || (act ? cbMap[act.toUpperCase()] : null);
+        if (box) {
+          try { form.getCheckBox(box).check(); } catch (err) {}
+        }
+      }
+    }
+
+    const sourcePdf = await PDFDocument.load(toUint8(sourceBlob));
+    const copied = await pdfDoc.copyPages(sourcePdf, sourcePdf.getPageIndices());
+    copied.forEach((p: any) => pdfDoc.addPage(p));
+
+    return Utilities.newBlob(await pdfDoc.save(), 'application/pdf', options.newFileName + ".pdf");
   }
 }
 

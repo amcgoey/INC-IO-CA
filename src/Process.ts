@@ -149,7 +149,11 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
   if (blob) {
     const templateId = (form.incomingRouting === "To Refer") ? CONFIG.TRANSMITTAL_TEMPLATE_ID : CONFIG.PDF_TEMPLATE_ID;
     try {
-      const stamped = await manipulatePdf(blob, form, appendResult.newFileName, appendResult.targetKey, templateId);
+      const stamped = await defaultPdfDocumentService.stampSubmittal(blob, form, {
+        newFileName: appendResult.newFileName,
+        stampSubmittalNo: appendResult.targetKey,
+        templateId: templateId
+      });
       stamped.setName(CONFIG.STAMPED_FILE_PREFIX + appendResult.newFileName + ".pdf");
       root.createFile(stamped);
     } catch (err: any) {
