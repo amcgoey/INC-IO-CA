@@ -141,7 +141,7 @@ function computeRowInsertionPlan(
     }
 
     let insertBlankAfter = false;
-    let dataRowBelow = boundedData[insertAfterRow1Based];
+    let dataRowBelow = insertAfterRow1Based < boundedData.length ? boundedData[insertAfterRow1Based] : null;
     let isRowBelowBlank = false;
     if (!dataRowBelow || isRowBlank(dataRowBelow)) {
       isRowBelowBlank = true;

@@ -256,7 +256,7 @@ class GoogleSheetsLogRepository implements LogRepository {
     sheet.insertRowAfter(plan.targetRowIndex);
 
     if (plan.insertBlankBefore) {
-      sheet.insertRowBefore(plan.finalRowIndex);
+      sheet.insertRowBefore(plan.targetRowIndex + 1);
     }
     if (plan.insertBlankAfter) {
       sheet.insertRowAfter(plan.finalRowIndex);
