@@ -1,5 +1,7 @@
 // src/RowPositionCalculator.ts
 
+type RowKeyExtractor = (row: any[], headers: string[]) => string;
+
 function padNum(val: any, len: number): string {
   return String(val || "").trim().padStart(len, '0');
 }
@@ -74,10 +76,19 @@ function computeRowInsertionPlan(
   boundedData: any[][],
   headers: string[],
   rowData: any[],
-  discipline: string
+  disciplineOrGroupKeyExtractor: string | RowKeyExtractor,
+  sortKeyExtractor?: RowKeyExtractor
 ): RowInsertionPlan {
-  const normalizedTargetGroupKey = getRowGroupKey(rowData, discipline, headers);
-  const targetSortKey = getRowSortKey(rowData, discipline, headers);
+  const getGroupKeyFn: RowKeyExtractor = typeof disciplineOrGroupKeyExtractor === "function"
+    ? disciplineOrGroupKeyExtractor
+    : (row, h) => getRowGroupKey(row, disciplineOrGroupKeyExtractor, h);
+
+  const getSortKeyFn: RowKeyExtractor = sortKeyExtractor
+    ? sortKeyExtractor
+    : (row, h) => getRowSortKey(row, typeof disciplineOrGroupKeyExtractor === "string" ? disciplineOrGroupKeyExtractor : "", h);
+
+  const normalizedTargetGroupKey = getGroupKeyFn(rowData, headers);
+  const targetSortKey = getSortKeyFn(rowData, headers);
 
   let groups: Array<{ val: string; start: number; end: number; rows: Array<{ index: number; key: string }> }> = [];
   let currentGroup: { val: string; start: number; end: number; rows: Array<{ index: number; key: string }> } | null = null;
@@ -94,7 +105,7 @@ function computeRowInsertionPlan(
       continue;
     }
 
-    let rowGroupVal = getRowGroupKey(row, discipline, headers);
+    let rowGroupVal = getGroupKeyFn(row, headers);
     if (rowGroupVal && rowGroupVal !== "-") {
       if (firstDataRowIdx === -1) firstDataRowIdx = i;
       if (!currentGroup) {
@@ -105,7 +116,7 @@ function computeRowInsertionPlan(
       } else {
         currentGroup.end = i;
       }
-      currentGroup.rows.push({ index: i, key: getRowSortKey(row, discipline, headers) });
+      currentGroup.rows.push({ index: i, key: getSortKeyFn(row, headers) });
     } else if (currentGroup) {
       groups.push(currentGroup);
       currentGroup = null;

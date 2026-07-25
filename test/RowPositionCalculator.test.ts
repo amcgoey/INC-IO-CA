@@ -126,3 +126,45 @@ test("computeRowInsertionPlan creates new FF&E group with gap formatting", () =>
   assert.strictEqual(plan.insertBlankBefore, true);
   assert.strictEqual(plan.finalRowIndex, 6);
 });
+
+test("computeRowInsertionPlan accepts generic key extractors for custom document types", () => {
+  const headers = ["DocID", "Seq", "Title"];
+  const boundedData = [
+    ["Banner"],
+    ["Subtitle"],
+    headers,
+    ["DOC-100", "01", "Initial Draft"],
+    ["DOC-100", "02", "Revised Draft"],
+    ["DOC-300", "01", "Final Release"]
+  ];
+  const newRow = ["DOC-200", "01", "Midterm Report"];
+
+  const customGroupKey = (row: any[]) => String(row[0] || "").toLowerCase();
+  const customSortKey = (row: any[]) => `${customGroupKey(row)}-${row[1] || ""}`;
+
+  const plan = computeRowInsertionPlan(boundedData, headers, newRow, customGroupKey, customSortKey);
+  assert.strictEqual(plan.targetRowIndex, 5);
+  assert.strictEqual(plan.insertBlankBefore, true);
+  assert.strictEqual(plan.insertBlankAfter, true);
+});
+
+test("computeRowInsertionPlan places new entry inside existing custom group", () => {
+  const headers = ["RFI-ID", "Revision", "Subject"];
+  const boundedData = [
+    ["Banner"],
+    ["Subtitle"],
+    headers,
+    ["RFI-001", "A", "Foundation Concern"],
+    ["RFI-001", "B", "Foundation Resolved"]
+  ];
+  const newRow = ["RFI-001", "C", "Foundation Clarification"];
+
+  const getGroup = (row: any[]) => String(row[0] || "").toLowerCase();
+  const getSort = (row: any[]) => `${getGroup(row)}-${row[1] || ""}`;
+
+  const plan = computeRowInsertionPlan(boundedData, headers, newRow, getGroup, getSort);
+  assert.strictEqual(plan.targetRowIndex, 5);
+  assert.strictEqual(plan.finalRowIndex, 6);
+  assert.strictEqual(plan.insertBlankBefore, false);
+  assert.strictEqual(plan.insertBlankAfter, false);
+});
