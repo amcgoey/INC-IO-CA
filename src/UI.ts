@@ -1,10 +1,12 @@
-function buildMainCard(e, initialData = null, isTagChange = false, flashMessage = null) {
+
+
+function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null = null, isTagChange = false, flashMessage: any = null): GoogleAppsScript.Card_Service.Card {
   const header = CardService.newCardHeader().setTitle(MESSAGES.MAIN_CARD_TITLE);
   if (CONFIG.LOGO_URL) header.setImageUrl(CONFIG.LOGO_URL);
   const card = CardService.newCardBuilder().setHeader(header);
 
   const missing = (flashMessage && flashMessage.missingFields) || [];
-  const getTitle = (name, defaultTitle) => missing.includes(name) ? `❌ ${defaultTitle}` : defaultTitle;
+  const getTitle = (name: string, defaultTitle: string) => missing.includes(name) ? `❌ ${defaultTitle}` : defaultTitle;
 
   if (flashMessage && flashMessage.error) {
     card.addSection(CardService.newCardSection().addWidget(
@@ -23,16 +25,16 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
   const messageId = e.gmail ? e.gmail.messageId : (p.messageId || null);
   const driveFileId = p.driveFileId || formInput.driveFileId || (flashMessage && flashMessage.newDriveFileId) || "";
 
-  const getActionParams = () => {
-    let res = {};
+  const getActionParams = (): Record<string, string> => {
+    let res: Record<string, string> = {};
     if (messageId) res.messageId = messageId;
     if (driveFileId) res.driveFileId = driveFileId;
     return res;
   };
 
   let fallbackDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyMMdd");
-  let extractedUrls = [];
-  let pdfAttachments = [];
+  let extractedUrls: Array<{ url: string; text: string }> = [];
+  let pdfAttachments: GoogleAppsScript.Gmail.GmailAttachment[] = [];
   
   try {
     if (messageId) {
@@ -43,8 +45,8 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
 
       const htmlBody = msg.getBody();
       const linkRegex = /<a[^>]+href=["'](https?:\/\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-      let match;
-      const urlMap = new Map();
+      let match: RegExpExecArray | null;
+      const urlMap = new Map<string, string>();
 
       while ((match = linkRegex.exec(htmlBody)) !== null) {
         let url = match[1];
@@ -99,7 +101,7 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
   };
 
   if (flashMessage && flashMessage.targetKey) {
-    const draftParams = {
+    const draftParams: Record<string, string> = {
       fileId: flashMessage.fileId || "",
       url: flashMessage.url || "",
       localPath: flashMessage.localPath || "",
@@ -160,7 +162,7 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
   if (!state.driveName) {
     let lookupId = (initialData && initialData.driveId) || null;
     if (!lookupId && driveFileId) {
-      try { lookupId = Drive.Files.get(driveFileId, {supportsAllDrives: true}).driveId; } catch (err) {}
+      try { lookupId = (globalThis as any).Drive.Files.get(driveFileId, {supportsAllDrives: true}).driveId; } catch (err) {}
     }
     if (lookupId) {
       const matched = drives.find(d => d.id === lookupId);
@@ -175,13 +177,13 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
   if (drives.length > 0) driveInput.setSuggestions(CardService.newSuggestions().addSuggestions(drives.map(d => d.name)));
   section1.addWidget(driveInput);
 
-  let logSettings = { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, logFileId: "", targetFolderId: "", projectAbbr: "" };
+  let logSettings: any = { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, logFileId: "", targetFolderId: "", projectAbbr: "" };
 
   if (state.driveId) {
-    let logs = [];
+    let logs: Array<{ id: string; title: string }> = [];
     const cache = CacheService.getUserCache();
     const logSearchKey = `log_search_${state.driveId}`;
-    const cachedLogs = cache.get(logSearchKey);
+    const cachedLogs = cache ? cache.get(logSearchKey) : null;
 
     // Task 3: Load logs from Cache if available
     if (cachedLogs) {
@@ -190,10 +192,10 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
 
     if (logs.length === 0) {
       try {
-        const resp = Drive.Files.list({ q: `title contains '${CONFIG.LOG_FILE_SEARCH_TERM}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`, corpora: 'drive', driveId: state.driveId, supportsAllDrives: true, includeItemsFromAllDrives: true });
+        const resp = (globalThis as any).Drive.Files.list({ q: `title contains '${CONFIG.LOG_FILE_SEARCH_TERM}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`, corpora: 'drive', driveId: state.driveId, supportsAllDrives: true, includeItemsFromAllDrives: true });
         if (resp && resp.items) {
-          logs = resp.items.map(l => ({ id: l.id, title: l.title }));
-          try { cache.put(logSearchKey, JSON.stringify(logs), 3600); } catch(e) {}
+          logs = resp.items.map((l: any) => ({ id: l.id, title: l.title }));
+          try { if (cache) cache.put(logSearchKey, JSON.stringify(logs), 3600); } catch(e) {}
         }
       } catch (err) {}
     }
@@ -265,7 +267,7 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
   
   const showAiBtn = state.fileSource === "Email Attachment" || state.fileSource === "Google Drive URL" || state.fileSource === "Selected Drive File";
   if (showAiBtn) {
-     const aiParams = { ...getActionParams(), logFileId: logSettings.logFileId, discipline: state.discipline };
+     const aiParams: Record<string, string> = { ...getActionParams(), logFileId: logSettings.logFileId, discipline: state.discipline };
      section3.addWidget(CardService.newButtonSet().addButton(
        CardService.newTextButton().setText(MESSAGES.BTN_ANALYZE)
          .setOnClickAction(CardService.newAction().setFunctionName("handleDeepAnalysis").setParameters(aiParams))
@@ -287,7 +289,7 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
       .setTitle(getTitle("Related Tags", "Related Tags"))
       .setFieldName("relatedTag");
     
-    logSettings.ffeTags.tags.forEach(tag => {
+    logSettings.ffeTags.tags.forEach((tag: string) => {
       const isSelected = state.relatedTag.includes(tag);
       relatedTagDrop.addItem(tag, tag, isSelected);
     });
@@ -306,12 +308,12 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
   section3.addWidget(CardService.newTextInput().setFieldName("date").setTitle(getTitle("Date", "Date (YYMMDD)")).setValue(state.date));
 
   const conDrop = CardService.newSelectionInput().setType(CardService.SelectionInputType.DROPDOWN).setTitle(getTitle("Contact", "Contact")).setFieldName("contact");
-  logSettings.contacts.forEach(c => conDrop.addItem(`${c.abbr} - ${c.name}`, c.abbr, state.contact === c.abbr));
+  logSettings.contacts.forEach((c: any) => conDrop.addItem(`${c.abbr} - ${c.name}`, c.abbr, state.contact === c.abbr));
   section3.addWidget(conDrop);
 
   const actDrop = CardService.newSelectionInput().setType(CardService.SelectionInputType.DROPDOWN).setTitle(getTitle("Action", "Action")).setFieldName("action").setOnChangeAction(CardService.newAction().setFunctionName("onStateChange").setParameters(getActionParams()));
   if (state.action === "") actDrop.addItem("", "", true);
-  logSettings.actions.forEach(a => actDrop.addItem(a.action, a.action, state.action === a.action));
+  logSettings.actions.forEach((a: any) => actDrop.addItem(a.action, a.action, state.action === a.action));
   section3.addWidget(actDrop);
 
   if (state.action === "Received") {
@@ -322,15 +324,15 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
 
   section3.addWidget(CardService.newTextInput().setFieldName("notes").setTitle("Notes").setMultiline(true).setValue(state.notes));
 
-  const subParams = { ...getActionParams(), logFileId: logSettings.logFileId, targetFolderId: logSettings.targetFolderId, projectAbbr: logSettings.projectAbbr || state.driveName || "" };
+  const subParams: Record<string, string> = { ...getActionParams(), logFileId: logSettings.logFileId, targetFolderId: logSettings.targetFolderId, projectAbbr: logSettings.projectAbbr || state.driveName || "" };
   const buttonSet = CardService.newButtonSet();
   buttonSet.addButton(CardService.newTextButton().setText("File & Log").setOnClickAction(CardService.newAction().setFunctionName("processSubmission").setParameters(subParams)).setTextButtonStyle(CardService.TextButtonStyle.FILLED));
   
   if (flashMessage && flashMessage.promptAddTag) {
-    const tagParams = { ...subParams, newTag: state.specTag, newTitle: state.specTitle };
+    const tagParams: Record<string, string> = { ...subParams, newTag: state.specTag, newTitle: state.specTitle };
     buttonSet.addButton(CardService.newTextButton().setText("Add New Tag, File & Log").setOnClickAction(CardService.newAction().setFunctionName("processSubmissionWithNewTag").setParameters(tagParams)).setTextButtonStyle(CardService.TextButtonStyle.OUTLINED));
   } else if (flashMessage && flashMessage.promptAddVendor) {
-    const vendorParams = { ...subParams, newVendor: state.vendor };
+    const vendorParams: Record<string, string> = { ...subParams, newVendor: state.vendor };
     buttonSet.addButton(CardService.newTextButton().setText("Add New Vendor, File & Log").setOnClickAction(CardService.newAction().setFunctionName("processSubmissionWithNewVendor").setParameters(vendorParams)).setTextButtonStyle(CardService.TextButtonStyle.OUTLINED));
   }
   
@@ -343,7 +345,7 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
     .setHeader("⚙️ Advanced Options")
     .setCollapsible(true);
 
-  const refreshParams = { ...getActionParams() };
+  const refreshParams: Record<string, string> = { ...getActionParams() };
   if (state.driveId) refreshParams.driveId = state.driveId;
   if (logSettings.logFileId) refreshParams.logFileId = logSettings.logFileId;
 
@@ -361,7 +363,7 @@ function buildMainCard(e, initialData = null, isTagChange = false, flashMessage 
 /**
  * Handle manual invalidation of local Cache parameters.
  */
-function handleRefreshCache(e) {
+function handleRefreshCache(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse {
   const cache = CacheService.getUserCache();
   const keysToClear = ["cached_shared_drives"];
 
@@ -373,7 +375,7 @@ function handleRefreshCache(e) {
     keysToClear.push(`log_settings_${p.logFileId}_FF&E`);
   }
 
-  cache.removeAll(keysToClear);
+  if (cache) cache.removeAll(keysToClear);
 
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e)))
@@ -381,9 +383,9 @@ function handleRefreshCache(e) {
     .build();
 }
 
-async function handleDeepAnalysis(e) {
-  const p = e.parameters;
-  const form = e.formInput;
+async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsScript.Card_Service.ActionResponse> {
+  const p = e.parameters || {};
+  const form = e.formInput || {};
 
   // Task 1: Fetch Bypass Validation
   if (form.fileSource && form.fileSource.startsWith("http") && form.fileSource !== form.driveFileUrl) {
@@ -392,7 +394,7 @@ async function handleDeepAnalysis(e) {
       .build();
   }
 
-  let sourceBlob = null;
+  let sourceBlob: GoogleAppsScript.Base.Blob | null = null;
   try {
     if (form.fileSource === "Email Attachment") {
       if (!form.attachmentName) return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_NO_ATTACHMENT)).build();
@@ -407,7 +409,7 @@ async function handleDeepAnalysis(e) {
       const fId = p.driveFileId || form.driveFileId;
       if (fId) sourceBlob = DriveApp.getFileById(fId).getBlob();
     }
-  } catch (err) {
+  } catch (err: any) {
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GETTING_FILE(err.message))).build();
   }
 
@@ -431,6 +433,7 @@ async function handleDeepAnalysis(e) {
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(notifyMsg)).build();
   }
 
+  e.formInput = e.formInput || {};
   if (p.discipline === "Architecture") {
     if (result.predictedSection) e.formInput.section = result.predictedSection;
     if (result.predictedNumber) e.formInput.number = result.predictedNumber;
@@ -450,8 +453,8 @@ async function handleDeepAnalysis(e) {
     .build();
 }
 
-function handleFetchUrl(e) {
-  const p = e.parameters;
+function handleFetchUrl(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse {
+  const p = e.parameters || {};
   if (!p.targetFolderId) return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_TARGET_FOLDER)).build();
   const result = fetchAndSaveFile(p.url, p.targetFolderId);
   if (!result.success) {
@@ -460,13 +463,14 @@ function handleFetchUrl(e) {
     else if (result.error === "NOT_WHITELISTED") msg = MESSAGES.WARNING_NOT_WHITELISTED;
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(msg)).build();
   }
-  const flashMessage = { debugPhase2: MESSAGES.DEBUG_SAVED_TO_DRIVE(result.fileName, result.fileId), newDriveFileId: result.fileId };
+  const flashMessage = { debugPhase2: MESSAGES.DEBUG_SAVED_TO_DRIVE(result.fileName || "", result.fileId || ""), newDriveFileId: result.fileId };
+  e.formInput = e.formInput || {};
   e.formInput.fileSource = "Selected Drive File";
-  e.formInput.driveFileId = result.fileId;
+  e.formInput.driveFileId = result.fileId || "";
   return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, flashMessage))).setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_FETCHED)).build();
 }
 
-function buildSuccessCard(fileId, newFileName, fileUrl, localPath, targetKey, itemTitle, discipline, section, specTag, targetFolderId, logFileId, isFiled = false, projectAbbr = "", action = "", incomingRouting = "", draftUrl = null, directRowUrl = null, failedColumns = [], emptyFallbacks = []) {
+function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled = false, projectAbbr = "", action = "", incomingRouting = "", draftUrl: string | null = null, directRowUrl: string | null = null, failedColumns: string[] = [], emptyFallbacks: string[] = []): GoogleAppsScript.Card_Service.Card {
   const header = CardService.newCardHeader().setTitle(MESSAGES.SUCCESS_CARD_TITLE);
   if (CONFIG.LOGO_URL) header.setImageUrl(CONFIG.LOGO_URL);
   const card = CardService.newCardBuilder().setHeader(header);
@@ -488,7 +492,7 @@ function buildSuccessCard(fileId, newFileName, fileUrl, localPath, targetKey, it
   sec.addWidget(CardService.newTextInput().setFieldName("localPath").setTitle("G:\\ Path").setValue(localPath));
 
   // Task 4: Fix setParameters Invalid Argument via string fallback
-  const draftParams = { 
+  const draftParams: Record<string, string> = { 
     fileId: fileId || "", url: fileUrl || "", localPath: localPath || "", targetKey: targetKey || "", title: itemTitle || "", 
     action: action || "", incomingRouting: incomingRouting || "", projectAbbr: projectAbbr || "", newFileName: newFileName || "", 
     discipline: discipline || "", section: section || "", specTag: specTag || "", targetFolderId: targetFolderId || "", 
@@ -518,13 +522,13 @@ function buildSuccessCard(fileId, newFileName, fileUrl, localPath, targetKey, it
   return card.build();
 }
 
-function createDraftEmail(e) {
-  const p = e.parameters;
+function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse {
+  const p = e.parameters || {};
   try { if (p.fileId) DriveApp.getFileById(p.fileId).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(err) {}
   let signature = "";
   try {
-    const configs = Gmail.Users.Settings.SendAs.list('me');
-    const primary = configs.sendAs.find(c => c.isPrimary);
+    const configs = (globalThis as any).Gmail.Users.Settings.SendAs.list('me');
+    const primary = configs.sendAs.find((c: any) => c.isPrimary);
     if (primary && primary.signature) signature = "\n\n" + primary.signature;
   } catch (err) {}
   let templateData = (p.action === "Referred") ? EMAIL_TEMPLATES.toRefer(p) : (p.action === "Rejected" ? EMAIL_TEMPLATES.rejectedOutgoing(p) : EMAIL_TEMPLATES.standardOutgoing(p));
@@ -538,31 +542,38 @@ function createDraftEmail(e) {
   return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(updated)).setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_DRAFT_CREATED)).build();
 }
 
-function onStateChange(e) { return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(buildMainCard(e))).build(); }
-function onSpecTagChange(e) { return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, true))).build(); }
+function onStateChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse { 
+  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(buildMainCard(e))).build(); 
+}
 
-function processSubmissionWithNewTag(e) {
+function onSpecTagChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse { 
+  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, true))).build(); 
+}
+
+function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};
     addNewTagToTagList(p.logFileId, p.newTag, p.newTitle);
     const cache = CacheService.getUserCache();
-    cache.remove(`log_settings_${p.logFileId}_FF&E`);
+    if (cache) cache.remove(`log_settings_${p.logFileId}_FF&E`);
+    e.parameters = e.parameters || {};
     e.parameters.bypassTagValidation = "true";
     return processSubmission(e);
-  } catch (err) {
+  } catch (err: any) {
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText("Error adding tag: " + err.message)).build();
   }
 }
 
-function processSubmissionWithNewVendor(e) {
+function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};
     addNewVendorToTagList(p.logFileId, p.newVendor);
     const cache = CacheService.getUserCache();
-    cache.remove(`log_settings_${p.logFileId}_FF&E`);
+    if (cache) cache.remove(`log_settings_${p.logFileId}_FF&E`);
+    e.parameters = e.parameters || {};
     e.parameters.bypassVendorValidation = "true";
     return processSubmission(e);
-  } catch (err) {
+  } catch (err: any) {
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText("Error adding vendor: " + err.message)).build();
   }
 }
