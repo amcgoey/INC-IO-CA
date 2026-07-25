@@ -53,95 +53,55 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const settings = getLogSettings(p.logFileId, disc);  
     const selectedAction = settings.actions.find(a => a.action === form.action) || { action: "", abbr: "", status: "" };
 
-    // Validate required fields
-    const missingFields: string[] = [];
-    if (!form.date || !form.date.trim()) missingFields.push("Date");
-    if (!form.contact || !form.contact.trim()) missingFields.push("Contact");
-    if (!form.action || !form.action.trim()) missingFields.push("Action");
-    if (form.action === "Received" && (!form.incomingRouting || !form.incomingRouting.trim())) {
-      missingFields.push("Incoming Routing");
-    }
+    // Validate form inputs using pure validation module
+    const rawDoc: RawDocument = form;
+    const validationContext: ValidationContext = {
+      ffeTags: settings.ffeTags,
+      bypassTagValidation: p.bypassTagValidation === "true",
+      bypassVendorValidation: p.bypassVendorValidation === "true"
+    };
 
-    if (disc === "Architecture") {
-      if (!form.title || !form.title.trim()) missingFields.push("Title");
-    } else {
-      if (!form.specTag || !form.specTag.trim()) missingFields.push("Spec Tag");
-      if (!form.specTitle || !form.specTitle.trim()) missingFields.push("Spec Title");
-      if (!form.vendor || !form.vendor.trim()) missingFields.push("Vendor");
-    }
+    const validationResult = validateDocument(rawDoc, validationContext);
 
-    if (missingFields.length > 0) {
+    if (validationResult.status === "error") {
       return CardService.newActionResponseBuilder()
         .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
-          error: "Missing required fields: " + missingFields.join(", "),
-          missingFields: missingFields
+          error: validationResult.errors.join("\n"),
+          missingFields: validationResult.errors[0]?.startsWith("Missing required fields: ") 
+            ? validationResult.errors[0].replace("Missing required fields: ", "").split(", ")
+            : []
         })))
         .build();
     }
 
-    // Related Tags Validation
-    if (disc === "FF&E" && form.relatedTag) {
-      const inputRelatedTags = String(form.relatedTag).split(",").map(t => t.trim()).filter(Boolean);
-      const invalidRelatedTags = inputRelatedTags.filter(t => !settings.ffeTags.tags.some(validTag => validTag.toLowerCase() === t.toLowerCase()));
-      if (invalidRelatedTags.length > 0) {
-        return CardService.newActionResponseBuilder()
-          .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
-            error: `Invalid Related Tags: ${invalidRelatedTags.join(", ")}. Only valid options from the tag list are accepted.`,
-            missingFields: ["Related Tags"]
-          })))
-          .build();
+    if (validationResult.status === "interaction_required") {
+      const flash: FlashMessage = {};
+      if (validationResult.interactionType === "ADD_TAG") {
+        flash.promptAddTag = true;
+        flash.warning = validationResult.message;
+      } else if (validationResult.interactionType === "ADD_VENDOR") {
+        flash.promptAddVendor = true;
+        flash.warning = validationResult.message;
       }
+      return CardService.newActionResponseBuilder()
+        .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, flash)))
+        .build();
     }
 
-    // Spec Tag & Vendor Exist Validation (with bypass check)
-    if (disc === "FF&E") {
-      const bypassTag = p.bypassTagValidation === "true";
-      const bypassVendor = p.bypassVendorValidation === "true";
-      
-      const tagExists = settings.ffeTags.tags.some(t => t.toLowerCase() === (form.specTag || "").trim().toLowerCase());
-      if (!tagExists && !bypassTag) {
-        return CardService.newActionResponseBuilder()
-          .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
-            promptAddTag: true,
-            warning: `Spec Tag "${form.specTag}" is not in the Tag List. Would you like to add it?`
-          })))
-          .build();
-      }
-      
-      const vendorExists = settings.ffeTags.vendors.some(v => v.toLowerCase() === (form.vendor || "").trim().toLowerCase());
-      if (!vendorExists && !bypassVendor) {
-        return CardService.newActionResponseBuilder()
-          .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
-            promptAddVendor: true,
-            warning: `Vendor "${form.vendor}" is not in the Tag List. Would you like to add it?`
-          })))
-          .build();
-      }
-    }
+    const validatedDoc = validationResult.data;
+    const emptyFallbacks = validationResult.warnings;
+    const details = validatedDoc.disciplineDetails;
 
-    // Graceful Fallbacks: Section, Number, Revision
-    const emptyFallbacks: string[] = [];
     let sectionVal = "";
     let numberVal = "";
     let revisionVal = "";
 
-    if (disc === "Architecture") {
-      sectionVal = (form.section || "").trim();
-      if (!sectionVal) {
-        sectionVal = "";
-        emptyFallbacks.push("Section");
-      }
-      numberVal = (form.number || "").trim();
-      if (!numberVal) {
-        numberVal = "";
-        emptyFallbacks.push("Number");
-      }
-    }
-
-    revisionVal = (form.revision || "").trim();
-    if (!revisionVal) {
-      revisionVal = "";
-      emptyFallbacks.push("Revision");
+    if (details.discipline === "Architecture") {
+      sectionVal = details.section;
+      numberVal = details.number;
+      revisionVal = details.revision;
+    } else {
+      revisionVal = details.revision;
     }
 
     const logData = logSheet.getDataRange().getValues();  
