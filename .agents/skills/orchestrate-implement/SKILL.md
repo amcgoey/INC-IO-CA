@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Code Implementation Orchestrator
 
-This skill coordinates the development flow of subagents handling issue tickets. The **Orchestrator Agent** coordinates activities, manages the issue queue/frontier, reviews subagent plans, and merges branches, but does **not** write code. **Subagents** perform planning, implementation using `/implement` and `/tdd`, post-implementation `/code-review`, defect breakdown, and ticket closure.
+This skill coordinates the development flow of subagents handling issue tickets. The **Orchestrator Agent** coordinates activities, manages the issue queue/frontier, reviews subagent plans, and merges branches, but does **not** write code. **Subagents** perform planning, implementation using `/implement` and `/tdd`, post-implementation `/code-review` (by spawning dedicated review subagents), defect breakdown, and ticket closure.
 
 ---
 
@@ -18,8 +18,8 @@ This skill coordinates the development flow of subagents handling issue tickets.
 2. **Identify frontier issues**: Query the DAG for open issues that have no open blockers and no assignees.
    * *Completion Criterion*: A list of unblocked, unassigned frontier issues ready for immediate work.
 
-3. **Manage the queue & spawn subagents**: Assign each frontier issue (`gh issue edit <n> --add-assignee @me`) and spawn subagents using `invoke_subagent` with `Workspace: "share"` (Git worktrees).
-   * *Completion Criterion*: Subagents spawned on isolated Git branches (`ticket-<number>`) for all available frontier slots.
+3. **Manage the queue & spawn subagents**: Assign each frontier issue (`gh issue edit <n> --add-assignee @me`) and spawn subagents using `invoke_subagent` with `Workspace: "share"` (Git worktrees). Direct subagents to spawn separate review subagents when running `/code-review`.
+   * *Completion Criterion*: Subagents spawned on isolated Git branches (`ticket-<number>`) for all available frontier slots with strict subagent-spawning directives for code review.
 
 4. **Manage resources & review plans**: Enforce subagent concurrency caps (2–4 active agents). Review subagent implementation plans against `CONTEXT.md` and repository standards. Provide feedback until satisfied, then approve the plan and release the subagent.
    * *Completion Criterion*: Approved plan attached to the GitHub issue as a comment and subagent released for development.
@@ -37,17 +37,17 @@ This skill coordinates the development flow of subagents handling issue tickets.
 2. **Add result artifacts as comments**: Post all result artifacts (implementation plans, post-implementation walkthroughs, and code review reports) as comments directly on the GitHub issue (`gh issue comment <number> --body "..."`), removing any sensitive information (tokens, credentials, internal paths).
    * *Completion Criterion*: Cleaned artifact posted as a comment on the target GitHub issue.
 
-3. **Code Review**: Once implemented, perform a `/code-review` on the ticket branch:
-   - **3.1. Add comment**: Post the full `/code-review` results (Standards & Spec axes) as a comment on the issue.
+3. **Code Review via Spawned Subagents**: Once implemented, execute `/code-review` by **spawning separate parallel subagents** via `invoke_subagent` (one for Standards review and one for Spec review). **Do NOT perform the code review inline within your own conversation.**
+   - **3.1. Add comment**: Collect the reports from both review subagents and post the aggregated two-axis `/code-review` report (Standards & Spec) as a comment on the issue.
    - **3.2. Human review tickets**: If judgement calls (design smells, architectural choices) are needed, create a sub-issue with the `ready-for-human` (or `wayfinder:grilling`) label per `docs/agents/triage-labels.md`.
    - **3.3. Defect classification**: For defects ready for agent implementation (`ready-for-agent`), determine if multiple tickets are needed:
      - **3.3.1. Multiple tickets**: Run `/to-tickets` to publish tracer-bullet subissues on the current ticket.
      - **3.3.2. Single ticket/comment**: Add the defect description and fix task directly as a comment to the issue.
    - **3.4. Implement defects**: Run `/implement` to resolve all direct defects (from comments or subissues).
-   * *Completion Criterion*: Code review posted, judgement call tickets created if needed, and direct defects identified and implemented.
+   * *Completion Criterion*: Parallel review subagents spawned, two-axis review report posted, judgement call tickets created if needed, and direct defects identified and implemented.
 
-4. **Repeat Code Review steps**: Re-run Step 3 (Code Review) after implementing defect fixes until the branch is completely defect-free (0 direct defects).
-   * *Completion Criterion*: `/code-review` returns zero direct defects on both Standards and Spec axes.
+4. **Repeat Code Review steps**: Re-run Step 3 (spawning new parallel review subagents for `/code-review`) after implementing defect fixes until the branch is completely defect-free (0 direct defects).
+   * *Completion Criterion*: `/code-review` from spawned review subagents returns zero direct defects on both Standards and Spec axes.
 
 5. **Close issue**: Post the final walkthrough comment and close the issue (`gh issue close <number>`) once defect-free and all blocking human review tickets are accounted for.
    * *Completion Criterion*: Issue state updated to `closed` on GitHub with a final walkthrough comment.
@@ -70,6 +70,7 @@ This skill coordinates the development flow of subagents handling issue tickets.
 ### Step 3: Manage Queue & Spawn Subagents
 * Claim each frontier issue before spawning (`gh issue edit <n> --add-assignee @me`).
 * Spawn a subagent via `invoke_subagent` using the `implement` skill with `Workspace: "share"`. This provisions an isolated Git worktree so subagents work on dedicated branches (`ticket-<number>`) without workspace collisions.
+* **Directives to Subagent**: Explicitly instruct the spawned subagent: *"When implementation is complete, you MUST spawn separate parallel subagents to run `/code-review` (Standards and Spec axes). Do NOT perform the code review yourself inline."*
 
 ### Step 4: Manage Resources & Review Plans
 * **Concurrency Cap**: Maintain 2–4 active subagents maximum to prevent system CPU/memory exhaustion.
@@ -95,7 +96,10 @@ This skill coordinates the development flow of subagents handling issue tickets.
 * **Sanitization**: Before posting, scrub all sensitive information, including API tokens, private credentials, local file system user paths, and internal secrets.
 
 ### Step 3: Code Review Execution & Defect Routing
-* **3.1 Code Review Comment**: Run `/code-review` on the diff (`git diff develop...HEAD`). Post the two-axis report (Standards & Spec) verbatim as an issue comment.
+* **Mandatory Subagent Spawning for `/code-review`**: You MUST NOT perform code reviews inline within your own context window. Self-review in the same conversation context leads to confirmation bias and missed defects. In strict accordance with `/code-review` (Step 4), you MUST spawn two separate parallel subagents via `invoke_subagent`:
+  1. **Standards Subagent**: Evaluates diff against documented repo standards and Fowler code smells.
+  2. **Spec Subagent**: Evaluates diff against requirements in the assigned ticket and parent spec.
+* **3.1 Code Review Comment**: Collect the outputs from both subagents and post the aggregated two-axis report (Standards & Spec) verbatim as an issue comment (`gh issue comment <number> --body "..."`).
 * **3.2 Human Review Tickets**: Identify subjective design smells, architectural ambiguities, or scope trade-offs. Create linked sub-issues labeled `ready-for-human` (or `wayfinder:grilling`) per `docs/agents/triage-labels.md`. Post a reference comment on the parent issue.
 * **3.3 Defect Breakdown**:
   - *Multi-ticket defects (3.3.1)*: If defects span multiple distinct components or tracer bullets, run `/to-tickets` to break them into sub-issues attached to the current ticket.
@@ -103,9 +107,9 @@ This skill coordinates the development flow of subagents handling issue tickets.
 * **3.4 Implement Defects**: Execute `/implement` on the defect tasks (from subissues or comment checklist) on the ticket branch.
 
 ### Step 4: Repeat Code Review Loop Until Defect-Free
-* After committing defect fixes, re-run `/code-review`.
+* After committing defect fixes, **spawn new parallel subagents** to re-run `/code-review`. Do NOT skip spawning subagents on repeat review loops.
 * Post the updated review report as a comment on the issue.
-* Repeat the `/code-review` -> fix -> `/code-review` cycle until `/code-review` returns zero direct defects on both Standards and Spec axes.
+* Repeat the `/code-review` (via subagents) -> fix -> `/code-review` (via subagents) cycle until `/code-review` returns zero direct defects on both Standards and Spec axes.
 
 ### Step 5: Close Issue
 * Compile a post-implementation walkthrough summarizing changes made, tests run, and verification results.
