@@ -201,8 +201,9 @@ interface ValidationContext {
 
 type ValidationResult =
   | { status: "success"; data: ValidatedDocument; warnings: string[] }
-  | { status: "error"; errors: string[] }
+  | { status: "error"; errors: string[]; missingFields?: string[] }
   | { status: "interaction_required"; interactionType: "ADD_TAG" | "ADD_VENDOR"; message: string };
+
 
 
 // Global Ambient Function Declarations

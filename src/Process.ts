@@ -67,9 +67,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
       return CardService.newActionResponseBuilder()
         .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
           error: validationResult.errors.join("\n"),
-          missingFields: validationResult.errors[0]?.startsWith("Missing required fields: ") 
-            ? validationResult.errors[0].replace("Missing required fields: ", "").split(", ")
-            : []
+          missingFields: validationResult.missingFields || []
         })))
         .build();
     }
@@ -95,18 +93,20 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     let sectionVal = "";
     let numberVal = "";
     let revisionVal = "";
+    let specTagVal = "";
 
     if (details.discipline === "Architecture") {
       sectionVal = details.section;
       numberVal = details.number;
       revisionVal = details.revision;
     } else {
+      specTagVal = details.specTag;
       revisionVal = details.revision;
     }
 
     const logData = logSheet.getDataRange().getValues();  
-    let targetKey = (disc === "Architecture") ? `${sectionVal}-${numberVal}-${revisionVal}` : `${form.specTag}-${revisionVal}`;  
-    const groupKey = (disc === "Architecture") ? sectionVal : form.specTag;
+    let targetKey = (details.discipline === "Architecture") ? `${sectionVal}-${numberVal}-${revisionVal}` : `${specTagVal}-${revisionVal}`;  
+    const groupKey = (details.discipline === "Architecture") ? sectionVal : specTagVal;
 
     // Establish boundaries of existing data for smart insertion
     let boundedData: any[][] = [];  

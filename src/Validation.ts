@@ -35,7 +35,8 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
   if (missingFields.length > 0) {
     return {
       status: "error",
-      errors: [`Missing required fields: ${missingFields.join(", ")}`]
+      errors: [`Missing required fields: ${missingFields.join(", ")}`],
+      missingFields
     };
   }
 
