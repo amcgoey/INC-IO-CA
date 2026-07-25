@@ -74,7 +74,7 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
     if (fileMeta.driveId) parsedData.driveId = fileMeta.driveId;
   } catch (err) { }
 
-  const actionFromPdf = await extractActionFromPdfForm(fileId);
+  const actionFromPdf = await defaultPdfDocumentService.extractFormAction(fileId);
   if (actionFromPdf) parsedData.action = actionFromPdf;
 
   e.parameters = e.parameters || {};
@@ -83,3 +83,4 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
   return buildMainCard(e, parsedData);
 }
 // END FILE: Main.ts
+
