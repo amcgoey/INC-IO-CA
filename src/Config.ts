@@ -29,8 +29,8 @@ const CONFIG = {
   DEFAULT_REVISION: "0",
   DEFAULT_FILE_SOURCE: "Email Attachment",
 
-  GEMINI_API_URL_TRIAGE: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent",
-  GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
+  GEMINI_API_URL_TRIAGE: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+  GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent"
 };
 
 const CSI_DIVISIONS: Record<string, string> = {
