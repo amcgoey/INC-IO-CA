@@ -229,6 +229,7 @@ test("executeIncomingWorkflow for FF&E delegates logging to defaultLogRepository
   assert.strictEqual(passedOptions.actionAbbr, " Rec");
   assert.strictEqual(passedOptions.link, "http://drive.google.com/file-1");
 
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[mockDriveFilingRepo.filedDocuments.length - 1].options.subfolderPath, ["Closed", "CH"]);
   assert.strictEqual(result.navigation.card.flashData.targetKey, "CH-01-001");
   assert.strictEqual(result.navigation.card.flashData.newFileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec");
   assert.ok(result.navigation.card.flashData.directRowUrl.includes("range=A7"));

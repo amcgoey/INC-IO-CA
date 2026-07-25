@@ -121,7 +121,7 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
 
   const filingResult = defaultDriveFilingRepository.fileDocument(
     { fileId: p.driveFileId, blob: blob || undefined },
-    { targetFolderId: p.targetFolderId, subfolderPath: (discipline === "Architecture" && strategy.getFilingSubfolders) ? subfolderPath : undefined }
+    { targetFolderId: p.targetFolderId, subfolderPath: strategy.getFilingSubfolders ? subfolderPath : undefined }
   );
 
   const appendResult = defaultLogRepository.appendDocument(

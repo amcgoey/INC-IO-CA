@@ -114,6 +114,17 @@ test("FakeDriveFilingRepository.fileDocument records invocation and returns dete
   assert.deepStrictEqual(repo.filedDocuments[0].options, options);
 });
 
+test("FakeDriveFilingRepository.fileDocument handles FF&E subfolder structure", () => {
+  const repo = new FakeDriveFilingRepository();
+  const options = { targetFolderId: "target-123", subfolderPath: ["Closed", "CH"] };
+  const res = repo.fileDocument({ fileId: "file-ffe-123" }, options);
+
+  assert.strictEqual(res.fileId, "file-ffe-123");
+  assert.strictEqual(res.folderId, "folder-Closed-CH");
+  assert.strictEqual(repo.filedDocuments.length, 1);
+  assert.deepStrictEqual(repo.filedDocuments[0].options, options);
+});
+
 test("GoogleDriveFilingRepository.fileDocument traverses subfolder path and moves existing fileId", () => {
   let movedToFolderId = "";
   let renamedTo = "";

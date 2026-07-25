@@ -179,6 +179,19 @@ class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
     const suffix = actionAbbr ? actionAbbr : "";
     return `${targetKey} ${details.vendor} - ${doc.date} ${contactHistory}${suffix}`;
   }
+
+  getFilingSubfolders(doc: ValidatedDocument): string[] {
+    const details = doc.disciplineDetails as FFEDetails;
+    const specTag = String(details && details.specTag ? details.specTag : "").trim();
+    const closedFolder = (typeof CONFIG !== "undefined" && CONFIG.CLOSED_FOLDER_NAME) ? CONFIG.CLOSED_FOLDER_NAME : "Closed";
+    if (specTag) {
+      const prefix = specTag.substring(0, 2);
+      if (prefix) {
+        return [closedFolder, prefix];
+      }
+    }
+    return [closedFolder];
+  }
 }
 
 declare var module: any;

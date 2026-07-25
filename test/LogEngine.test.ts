@@ -224,8 +224,7 @@ test("FFESubmittalStrategy extracts keys, formats filename and payload", () => {
   const fileName = strategy.getFileName(doc, "Vendor A", " Rec");
   assert.strictEqual(fileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec");
 
-  const payload = strategy.formatRowPayload(doc, {
- link: "http://example.com/ffe.pdf", contactHistory: "Vendor A", status: "Under Review" });
+  const payload = strategy.formatRowPayload(doc, { link: "http://example.com/ffe.pdf", contactHistory: "Vendor A", status: "Under Review" });
   assert.strictEqual(payload["Spec Tag"], "CH-01");
   assert.strictEqual(payload["Related Tag"], "CH-01A");
   assert.strictEqual(payload["Spec Title"], "Side Chair");
@@ -362,7 +361,7 @@ test("ArchitectureSubmittalStrategy resolves subfolder path segments from CSI di
     }
   };
 
-  const subfolders = strategy.getFilingSubfolders(docConcrete);
+  const subfolders = strategy.getFilingSubfolders!(docConcrete);
   assert.deepStrictEqual(subfolders, ["Closed", "03-Concrete"]);
 
   const docFallback: ValidatedDocument = {
@@ -379,6 +378,46 @@ test("ArchitectureSubmittalStrategy resolves subfolder path segments from CSI di
     }
   };
 
-  const fallbackSubfolders = strategy.getFilingSubfolders(docFallback);
+  const fallbackSubfolders = strategy.getFilingSubfolders!(docFallback);
+  assert.deepStrictEqual(fallbackSubfolders, ["Closed"]);
+});
+
+test("FFESubmittalStrategy resolves subfolder path segments from spec tag prefix", () => {
+  (globalThis as any).CONFIG = { CLOSED_FOLDER_NAME: "Closed" };
+
+  const strategy = new FFESubmittalStrategy();
+
+  const docWithTag: ValidatedDocument = {
+    documentType: "Submittal",
+    date: "2026-07-25",
+    contact: "Vendor A",
+    action: "Received",
+    disciplineDetails: {
+      discipline: "FF&E",
+      specTag: "CH-01",
+      specTitle: "Side Chair",
+      vendor: "Furniture Co",
+      revision: "001"
+    }
+  };
+
+  const subfolders = strategy.getFilingSubfolders!(docWithTag);
+  assert.deepStrictEqual(subfolders, ["Closed", "CH"]);
+
+  const docFallback: ValidatedDocument = {
+    documentType: "Submittal",
+    date: "2026-07-25",
+    contact: "Vendor A",
+    action: "Received",
+    disciplineDetails: {
+      discipline: "FF&E",
+      specTag: "",
+      specTitle: "Side Chair",
+      vendor: "Furniture Co",
+      revision: "001"
+    }
+  };
+
+  const fallbackSubfolders = strategy.getFilingSubfolders!(docFallback);
   assert.deepStrictEqual(fallbackSubfolders, ["Closed"]);
 });
