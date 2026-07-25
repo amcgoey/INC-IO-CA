@@ -94,7 +94,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
 
     for (let i = boundedData.length - 1; i >= CONFIG.LOG_HEADER_ROW; i--) {   
         let row = boundedData[i];   
-        let rowKey = (disc === "Architecture") ? `${row[getColIdx("Section")]}-${row[getColIdx("Number")]}-${row[getColIdx("Revision")]}` : `${row[getColIdx("Spec Tag")]}-${row[getColIdx("Revision")]}`;   
+        let rowKey = getRowSortKey(row, disc, headers);   
         if (rowKey === targetKey) {   
             let histVal = (historyColIdx !== -1) ? String(row[historyColIdx] || "").trim() : "";  
             let calcVal = (calcChainColIdx !== -1) ? String(row[calcChainColIdx] || "").trim() : "";  

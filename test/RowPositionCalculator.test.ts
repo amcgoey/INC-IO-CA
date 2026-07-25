@@ -63,3 +63,20 @@ test("computeRowInsertionPlan creates new group with gap formatting", () => {
   assert.strictEqual(plan.insertBlankBefore, true);
   assert.strictEqual(plan.finalRowIndex, 6);
 });
+
+test("computeRowInsertionPlan inserts new group between existing groups with gap formatting", () => {
+  const headers = ["Section", "Number", "Revision", "Date", "Title"];
+  const boundedData = [
+    ["Banner"],
+    ["Subtitle"],
+    headers,
+    ["010000", "001", "001", "240101", "Submittal 1"],
+    ["030000", "001", "001", "240101", "Submittal 3"]
+  ];
+  const newRow = ["020000", "001", "001", "240101", "Submittal 2"];
+
+  const plan = computeRowInsertionPlan(boundedData, headers, newRow, "Architecture");
+  assert.strictEqual(plan.targetRowIndex, 4);
+  assert.strictEqual(plan.insertBlankBefore, true);
+  assert.strictEqual(plan.insertBlankAfter, true);
+});
