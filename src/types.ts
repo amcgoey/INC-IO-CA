@@ -271,7 +271,6 @@ declare function buildMainCard(e: GoogleAppsScriptEvent, initialData?: ParsedDat
 declare function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled?: boolean, projectAbbr?: string, action?: string, incomingRouting?: string, draftUrl?: string | null, directRowUrl?: string | null, failedColumns?: string[], emptyFallbacks?: string[]): GoogleAppsScript.Card_Service.Card;
 declare function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData;
 declare function parseDriveFilename(filename: string): ParsedData;
-declare function extractActionFromPdfForm(fileId: string): Promise<string | null>;
 declare function getCachedPrediction(messageId: string): AIPrediction | null;
 declare function setCachedPrediction(messageId: string, predictionObj: AIPrediction): void;
 declare function getCachedDrives(): SharedDriveInfo[];
@@ -279,13 +278,28 @@ declare function getAvailableDriveNames(): string[];
 declare function predictProjectAndDiscipline(emailData: EmailData, driveNames: string[]): AIPrediction;
 declare function analyzeSubmittalDeep(sourceBlob: GoogleAppsScript.Base.Blob, emailText: string, contextObj: any): Promise<any>;
 declare function fetchAndSaveFile(url: string, folderId: string): { success: boolean; error?: string; fileId?: string; fileName?: string };
-declare function manipulatePdf(sourceBlob: GoogleAppsScript.Base.Blob, data: ParsedData, newFileName: string, stampSubmittalNo: string, templateId: string): Promise<GoogleAppsScript.Base.Blob>;
 declare function getBoundedData(logData: any[][]): any[][];
 declare function getRowGroupKey(row: any[], discipline: string, headers: string[]): string;
 declare function getRowSortKey(row: any[], discipline: string, headers: string[]): string;
 declare function computeRowInsertionPlan(boundedData: any[][], headers: string[], rowData: any[], disciplineOrGroupKeyFn: string | RowKeyFn, sortKeyFn?: RowKeyFn): RowInsertionPlan;
 
+interface StampOptions {
+  newFileName: string;
+  stampSubmittalNo: string;
+  templateId: string;
+}
+
+interface PdfDocumentService {
+  extractFormAction(fileId: string): Promise<string | null>;
+  stampSubmittal(
+    sourceBlob: GoogleAppsScript.Base.Blob,
+    data: ParsedData,
+    options: StampOptions
+  ): Promise<GoogleAppsScript.Base.Blob>;
+}
+
 declare var defaultLogRepository: LogRepository;
+declare var defaultPdfDocumentService: PdfDocumentService;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 declare function getLocalDrivePath(fileId: string): string;
 declare function getOrCreateFilingFolder(parentFolderId: string, discipline: string, section?: string, specTag?: string): string;
@@ -315,3 +329,5 @@ declare class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocum
   formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
   getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string;
 }
+
+

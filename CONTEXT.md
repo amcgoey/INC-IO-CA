@@ -48,5 +48,30 @@ _Avoid_: LogProcessor, LogManager
 The low-level infrastructure adapter that executes physical spreadsheet operations without any business logic or document-type assumptions.
 _Avoid_: SheetHelper
 
+**PdfDocumentService**:
+The module responsible for reading form field responses from PDF documents and stamping submittal approval metadata onto cover sheets.
+_Avoid_: PdfUtils, PdfParser
+
+**DriveFilingRepository**:
+The abstract interface for resolving target Google Drive folder hierarchies, filing physical document blobs/files, and converting Google Drive file IDs into local G:\ drive paths without exposing underlying Drive APIs. Receives relative subfolder path segments from document strategies.
+_Avoid_: DriveHelper, FolderManager
+
+**GoogleDriveFilingRepository**:
+The concrete implementation of DriveFilingRepository that interacts with Google Apps Script's DriveApp and Drive Advanced Service APIs.
+_Avoid_: GoogleDriveAdapter
+
+**FakeDriveFilingRepository**:
+The in-memory test implementation of DriveFilingRepository that records filing actions without making Google API calls.
+
+**FilingOptions**:
+
+The contextual parameters (target folder ID, discipline/document details, destination target folder rules) passed into DriveFilingRepository to direct document storage.
+
+**FilingResult**:
+The structured outcome of filing a document in Drive, containing the file ID, web URL, Windows G:\ local path, and destination folder ID.
+
+
+
+
 
 
