@@ -228,10 +228,7 @@ declare function predictProjectAndDiscipline(emailData: EmailData, driveNames: s
 declare function analyzeSubmittalDeep(sourceBlob: GoogleAppsScript.Base.Blob, emailText: string, contextObj: any): Promise<any>;
 declare function fetchAndSaveFile(url: string, folderId: string): { success: boolean; error?: string; fileId?: string; fileName?: string };
 declare function manipulatePdf(sourceBlob: GoogleAppsScript.Base.Blob, data: ParsedData, newFileName: string, stampSubmittalNo: string, templateId: string): Promise<GoogleAppsScript.Base.Blob>;
-declare function getLogSettings(spreadsheetId: string, discipline: string): LogSettings;
-declare function verifyAndFormatLogSheet(sheet: GoogleAppsScript.Spreadsheet.Sheet): string[];
-declare function addNewTagToTagList(spreadsheetId: string, newTag: string, newTitle: string): void;
-declare function addNewVendorToTagList(spreadsheetId: string, newVendor: string): void;
+declare var defaultLogRepository: LogRepository;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 declare function getLocalDrivePath(fileId: string): string;
 declare function getOrCreateFilingFolder(parentFolderId: string, discipline: string, section?: string, specTag?: string): string;

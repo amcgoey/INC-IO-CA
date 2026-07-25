@@ -31,8 +31,8 @@ class GoogleSheetsLogRepository implements LogRepository {
         }
 
         if (headerRowIdx !== -1) {
-          const headers = data[headerRowIdx];
-          const projAbbrIdx = headers.findIndex((h: any) => String(h).trim() === "Project Abbreviation" || String(h).trim() === "Project Abbrevation");
+          const headers = data[headerRowIdx].map((h: any) => String(h).trim());
+          const projAbbrIdx = headers.findIndex((h: string) => h === "Project Abbreviation" || h === "Project Abbrevation");
           
           if (projAbbrIdx !== -1 && data.length > headerRowIdx + 1) { 
             result.projectAbbr = String(data[headerRowIdx + 1][projAbbrIdx] || "").trim(); 
@@ -42,8 +42,8 @@ class GoogleSheetsLogRepository implements LogRepository {
           
           for (let i = headerRowIdx + 1; i < data.length; i++) {
             const row = data[i]; 
-            if (aIdx !== -1 && row[aIdx]) result.actions.push({ action: row[aIdx], abbr: row[bIdx] || "", status: row[sIdx] || "" });
-            if (dIdx !== -1 && cIdx !== -1 && row[dIdx] && row[cIdx]) result.contacts.push({ abbr: row[dIdx], name: row[cIdx] });
+            if (aIdx !== -1 && row[aIdx]) result.actions.push({ action: String(row[aIdx]).trim(), abbr: String(row[bIdx] || "").trim(), status: String(row[sIdx] || "").trim() });
+            if (dIdx !== -1 && cIdx !== -1 && row[dIdx] && row[cIdx]) result.contacts.push({ abbr: String(row[dIdx]).trim(), name: String(row[cIdx]).trim() });
           }
         }
       }
@@ -53,7 +53,8 @@ class GoogleSheetsLogRepository implements LogRepository {
         if (tagSheet) {
           const tagData = tagSheet.getDataRange().getValues();
           if (tagData.length > 2) {
-            const tHeaders = tagData[2], specTagIdx = tHeaders.indexOf("Spec Tag"), specTitleIdx = tHeaders.indexOf("Spec Title");
+            const tHeaders = tagData[2].map((h: any) => String(h).trim());
+            const specTagIdx = tHeaders.indexOf("Spec Tag"), specTitleIdx = tHeaders.indexOf("Spec Title");
             let vendorIdx = tHeaders.indexOf("Vendor Names");
             if (vendorIdx === -1) vendorIdx = tHeaders.indexOf("Vendor");
             const vendorSet = new Set<string>(), tagSet = new Set<string>();
@@ -156,31 +157,38 @@ class GoogleSheetsLogRepository implements LogRepository {
     const tagData = tagSheet.getDataRange().getValues();
     if (tagData.length <= 2) {
       tagSheet.appendRow([newTag, newTitle]);
-      return;
-    }
-    
-    const tHeaders = tagData[2];
-    const specTagIdx = tHeaders.indexOf("Spec Tag");
-    const specTitleIdx = tHeaders.indexOf("Spec Title");
-    
-    if (specTagIdx === -1 || specTitleIdx === -1) {
-      throw new Error("Spec Tag or Spec Title columns not found in Tag List.");
-    }
-    
-    let insertRow = -1;
-    for (let i = 3; i < tagData.length; i++) {
-      const currentTag = String(tagData[i][specTagIdx] || "").trim();
-      if (newTag.localeCompare(currentTag, undefined, { numeric: true, sensitivity: 'base' }) < 0) {
-        insertRow = i + 1; // 1-based index
-        break;
+    } else {
+      const tHeaders = tagData[2].map((h: any) => String(h).trim());
+      const specTagIdx = tHeaders.indexOf("Spec Tag");
+      const specTitleIdx = tHeaders.indexOf("Spec Title");
+      
+      if (specTagIdx === -1 || specTitleIdx === -1) {
+        throw new Error("Spec Tag or Spec Title columns not found in Tag List.");
       }
+      
+      let insertRow = -1;
+      for (let i = 3; i < tagData.length; i++) {
+        const currentTag = String(tagData[i][specTagIdx] || "").trim();
+        if (newTag.localeCompare(currentTag, undefined, { numeric: true, sensitivity: 'base' }) < 0) {
+          insertRow = i + 1; // 1-based index
+          break;
+        }
+      }
+      
+      if (insertRow === -1) insertRow = tagData.length + 1;
+      
+      tagSheet.insertRowBefore(insertRow);
+      tagSheet.getRange(insertRow, specTagIdx + 1).setValue(newTag);
+      tagSheet.getRange(insertRow, specTitleIdx + 1).setValue(newTitle);
     }
-    
-    if (insertRow === -1) insertRow = tagData.length + 1;
-    
-    tagSheet.insertRowBefore(insertRow);
-    tagSheet.getRange(insertRow, specTagIdx + 1).setValue(newTag);
-    tagSheet.getRange(insertRow, specTitleIdx + 1).setValue(newTitle);
+
+    // Invalidate cached log settings for FF&E
+    try {
+      const cache = CacheService.getUserCache();
+      if (cache) cache.remove(`log_settings_${spreadsheetId}_FF&E`);
+    } catch (e: any) {
+      console.warn("Failed to invalidate cache: " + e.message);
+    }
   }
 
   addNewVendorToTagList(spreadsheetId: string, newVendor: string): void {
@@ -189,7 +197,7 @@ class GoogleSheetsLogRepository implements LogRepository {
     if (!tagSheet) throw new Error("Tag List sheet not found.");
     
     const tagData = tagSheet.getDataRange().getValues();
-    const tHeaders = tagData.length > 2 ? tagData[2] : [];
+    const tHeaders = tagData.length > 2 ? tagData[2].map((h: any) => String(h).trim()) : [];
     let vendorIdx = tHeaders.indexOf("Vendor Names");
     if (vendorIdx === -1) vendorIdx = tHeaders.indexOf("Vendor");
     
@@ -205,8 +213,16 @@ class GoogleSheetsLogRepository implements LogRepository {
     
     if (insertRow === -1) insertRow = tagData.length + 1;
     tagSheet.getRange(insertRow, vendorIdx + 1).setValue(newVendor);
+
+    // Invalidate cached log settings for FF&E
+    try {
+      const cache = CacheService.getUserCache();
+      if (cache) cache.remove(`log_settings_${spreadsheetId}_FF&E`);
+    } catch (e: any) {
+      console.warn("Failed to invalidate cache: " + e.message);
+    }
   }
 }
 
 // Global default repository instance
-const defaultLogRepository: LogRepository = new GoogleSheetsLogRepository();
+var defaultLogRepository: LogRepository = new GoogleSheetsLogRepository();

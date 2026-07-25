@@ -554,8 +554,6 @@ function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};
     defaultLogRepository.addNewTagToTagList(p.logFileId, p.newTag, p.newTitle);
-    const cache = CacheService.getUserCache();
-    if (cache) cache.remove(`log_settings_${p.logFileId}_FF&E`);
     e.parameters = e.parameters || {};
     e.parameters.bypassTagValidation = "true";
     return processSubmission(e);
@@ -568,8 +566,6 @@ function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};
     defaultLogRepository.addNewVendorToTagList(p.logFileId, p.newVendor);
-    const cache = CacheService.getUserCache();
-    if (cache) cache.remove(`log_settings_${p.logFileId}_FF&E`);
     e.parameters = e.parameters || {};
     e.parameters.bypassVendorValidation = "true";
     return processSubmission(e);
