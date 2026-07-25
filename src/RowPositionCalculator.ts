@@ -63,20 +63,11 @@ function getRowSortKey(row: any[], discipline: string, headers: string[]): strin
       dateStr = `${yy}${mm}${dd}`;
     }
   } else {
-    dateStr = String(rawDate || "").replace(/\D/g, '').padEnd(6, '0');
+    dateStr = String(rawDate || "").replace(/\D/g, '').padStart(6, '0');
   }
 
-  if (discipline === "Architecture") {
-    const secIdx = headers.indexOf("Section");
-    const numIdx = headers.indexOf("Number");
-    let sec = padNum(secIdx !== -1 ? row[secIdx] : "", 6);
-    let num = padNum(numIdx !== -1 ? row[numIdx] : "", 3);
-    return `${sec}-${num}-${rev}-${dateStr}`;
-  } else {
-    const tagIdx = headers.indexOf("Spec Tag");
-    let tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim().toLowerCase();
-    return `${tag}-${rev}-${dateStr}`;
-  }
+  const groupKey = getRowGroupKey(row, discipline, headers);
+  return `${groupKey}-${rev}-${dateStr}`;
 }
 
 function computeRowInsertionPlan(
@@ -92,7 +83,7 @@ function computeRowInsertionPlan(
   let currentGroup: { val: string; start: number; end: number; rows: Array<{ index: number; key: string }> } | null = null;
   let firstDataRowIdx = -1;
 
-  for (let i = CONFIG.LOG_HEADER_ROW; i < boundedData.length; i++) {
+  for (let i = CONFIG.LOG_HEADER_ROW + 1; i < boundedData.length; i++) {
     let row = boundedData[i];
     if (String(row[0] || "").toLowerCase().includes("formula row")) continue;
     if (isRowBlank(row)) {
