@@ -4,6 +4,10 @@ function padNum(val: any, len: number): string {
   return String(val || "").trim().padStart(len, '0');
 }
 
+function isRowBlank(row: any[]): boolean {
+  return row.slice(0, 8).every((cell: any) => String(cell || "").trim() === "");
+}
+
 function getBoundedData(logData: any[][]): any[][] {
   const boundedData: any[][] = [];
   let emptyGapCount = 0;
@@ -11,11 +15,11 @@ function getBoundedData(logData: any[][]): any[][] {
   for (let i = 0; i < logData.length; i++) {
     boundedData.push(logData[i]);
     if (i >= CONFIG.LOG_HEADER_ROW) {
-      let isRowBlank = logData[i].slice(0, 8).every((cell: any) => String(cell || "").trim() === "");
+      let blank = isRowBlank(logData[i]);
       if (String(logData[i][0] || "").toLowerCase().includes("formula row")) {
-        isRowBlank = false;
+        blank = false;
       }
-      if (isRowBlank) {
+      if (blank) {
         emptyGapCount++;
         if (emptyGapCount >= 3) break;
       } else {
@@ -91,8 +95,7 @@ function computeRowInsertionPlan(
   for (let i = CONFIG.LOG_HEADER_ROW; i < boundedData.length; i++) {
     let row = boundedData[i];
     if (String(row[0] || "").toLowerCase().includes("formula row")) continue;
-    let isRowBlank = row.slice(0, 8).every((cell: any) => String(cell || "").trim() === "");
-    if (isRowBlank) {
+    if (isRowBlank(row)) {
       if (currentGroup) {
         groups.push(currentGroup);
         currentGroup = null;
@@ -133,14 +136,15 @@ function computeRowInsertionPlan(
       finalRowIndex: insertAfterIdx + 2
     };
   } else {
-    let insertAfterRow1Based = firstDataRowIdx !== -1 ? firstDataRowIdx : CONFIG.LOG_HEADER_ROW;
+    const firstDataRow1Based = firstDataRowIdx !== -1 ? firstDataRowIdx + 1 : -1;
+    let insertAfterRow1Based = firstDataRow1Based !== -1 ? firstDataRow1Based - 1 : CONFIG.LOG_HEADER_ROW;
     for (let g of groups) {
       if (normalizedTargetGroupKey.localeCompare(g.val) > 0) insertAfterRow1Based = g.end + 1;
     }
 
     let newRowIndex = insertAfterRow1Based + 1;
     let insertBlankBefore = false;
-    if (insertAfterRow1Based >= firstDataRowIdx && firstDataRowIdx !== -1) {
+    if (insertAfterRow1Based >= firstDataRow1Based && firstDataRow1Based !== -1) {
       insertBlankBefore = true;
       newRowIndex++;
     }
@@ -148,7 +152,7 @@ function computeRowInsertionPlan(
     let insertBlankAfter = false;
     let dataRowBelow = boundedData[insertAfterRow1Based];
     let isRowBelowBlank = false;
-    if (!dataRowBelow || dataRowBelow.slice(0, 8).every((cell: any) => String(cell || "").trim() === "")) {
+    if (!dataRowBelow || isRowBlank(dataRowBelow)) {
       isRowBelowBlank = true;
     }
     if (!isRowBelowBlank) {
