@@ -7,7 +7,7 @@ function buildAddOn(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.Car
     GmailApp.setCurrentMessageAccessToken(accessToken);
   }
   const message = messageId ? GmailApp.getMessageById(messageId) : null;
-  const parsedData = parseEmailData(message);
+  const parsedData = DocumentPipeline.parseEmail(message);
 
   let aiPrediction = messageId ? getCachedPrediction(messageId) : null;
   let flashMessage: FlashMessage | null = null;
