@@ -1,3 +1,4 @@
+import { MockDriveState, MockDriveApp } from "./MockDrive";
 /**
  * @file GasMockHarness.ts
  * @description Centralized testing infrastructure harness managing globalThis stubs for CONFIG, CacheService, PropertiesService, and SpreadsheetApp with explicit lifecycle methods.
@@ -15,6 +16,7 @@ try {
     DEFAULT_CONFIG = CONFIG as Record<string, unknown>;
   }
 }
+
 
 export interface CallLog {
   method: string;
@@ -518,6 +520,24 @@ export interface HarnessInstallOptions {
   configOverrides?: Record<string, unknown>;
 }
 
+
+let cachedDefaultConfig: Record<string, unknown> | null = null;
+
+function getDefaultConfig(): Record<string, unknown> {
+  if (cachedDefaultConfig) return cachedDefaultConfig;
+  try {
+    const loaded = require("../../src/Config");
+    cachedDefaultConfig = loaded.CONFIG || {};
+  } catch (_err) {
+    if (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG) {
+      cachedDefaultConfig = { ...(globalThis as any).CONFIG };
+    } else {
+      cachedDefaultConfig = {};
+    }
+  }
+  return cachedDefaultConfig!;
+}
+
 export class GasMockHarness {
   private static instance: GasMockHarness | null = null;
   private static originalGlobals: Map<string, unknown> = new Map();
@@ -525,6 +545,7 @@ export class GasMockHarness {
   public propertiesService: MockPropertiesService = new MockPropertiesService();
   public cacheService: MockCacheService = new MockCacheService();
   public sheetsService: MockSheetsService = new MockSheetsService();
+  public driveState: MockDriveState = new MockDriveState();
   public config: Record<string, unknown> = {};
   private configOverrides: Record<string, unknown> = {};
 
@@ -534,7 +555,7 @@ export class GasMockHarness {
   }
 
   private resetConfig(): void {
-    const defaultDescriptors = Object.getOwnPropertyDescriptors(DEFAULT_CONFIG || {});
+    const defaultDescriptors = Object.getOwnPropertyDescriptors(getDefaultConfig());
     const overrideDescriptors: Record<string, PropertyDescriptor> = {};
 
     for (const [key, val] of Object.entries(this.configOverrides)) {
@@ -553,7 +574,7 @@ export class GasMockHarness {
   }
 
   public static install(options?: HarnessInstallOptions): GasMockHarness {
-    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "SpreadsheetApp"];
+    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "SpreadsheetApp", "DriveApp"];
     for (const name of globalsToStub) {
       if (!GasMockHarness.originalGlobals.has(name)) {
         GasMockHarness.originalGlobals.set(name, (globalThis as any)[name]);
@@ -573,6 +594,7 @@ export class GasMockHarness {
     (globalThis as any).CacheService = GasMockHarness.instance.cacheService;
     (globalThis as any).SpreadsheetApp = GasMockHarness.instance.sheetsService;
     (globalThis as any).CONFIG = GasMockHarness.instance.config;
+    (globalThis as any).DriveApp = new MockDriveApp(GasMockHarness.instance.driveState);
 
     return GasMockHarness.instance;
   }
@@ -584,6 +606,7 @@ export class GasMockHarness {
     GasMockHarness.instance!.propertiesService.reset();
     GasMockHarness.instance!.cacheService.reset();
     GasMockHarness.instance!.sheetsService.reset();
+    GasMockHarness.instance!.driveState.reset();
     GasMockHarness.instance!.configOverrides = {};
     GasMockHarness.instance!.resetConfig();
     (globalThis as any).CONFIG = GasMockHarness.instance!.config;
@@ -619,6 +642,10 @@ export class GasMockHarness {
 
   public get scriptCache(): MockCacheStore {
     return this.cacheService.getScriptCache();
+  }
+
+  public getDriveState(): MockDriveState {
+    return this.driveState;
   }
 
   public get documentCache(): MockCacheStore {

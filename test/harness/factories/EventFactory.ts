@@ -2,6 +2,7 @@
 
 /// <reference path="../../../src/types.ts" />
 
+
 export type EventInputs = Record<
   string,
   string | string[] | number | boolean | undefined
