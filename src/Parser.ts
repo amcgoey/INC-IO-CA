@@ -72,9 +72,11 @@ const DRIVE_FILENAME_PATTERNS: FilenamePattern[] = [
 ];
 
 function parseDriveFilename(filename: string): ParsedData {
+  if (typeof DocumentPipeline !== "undefined" && typeof DocumentPipeline.parseFilename === "function") {
+    return DocumentPipeline.parseFilename(filename);
+  }
   let data: ParsedData = { discipline: "Architecture", specSection: undefined, submittalNum: undefined, revNum: undefined, title: undefined, specTag: undefined, vendor: undefined, date: undefined };
 
-  // Evaluate Drive filename against modular patterns
   for (const pattern of DRIVE_FILENAME_PATTERNS) {
     const match = filename.match(pattern.regex);
     if (match) {

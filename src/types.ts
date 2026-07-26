@@ -281,12 +281,17 @@ interface LogRepository {
 
 
 // Global Ambient Function Declarations
+declare class DriveFilenameIntakeParser {
+  static parse(filename: string): RawDocument;
+}
+
 declare class FormIntakeParser {
   static parse(formInput: Record<string, string>): RawDocument;
 }
 
 declare class DocumentPipeline {
   static parseFormIntake(formInput: Record<string, string>): RawDocument;
+  static parseFilename(filename: string): RawDocument;
   static validate(rawDoc: RawDocument, context?: ValidationContext): ValidationResult;
   static processFormIntake(formInput: Record<string, string>, context?: ValidationContext): ValidationResult;
 }

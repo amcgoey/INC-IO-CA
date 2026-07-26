@@ -46,9 +46,81 @@ export class FormIntakeParser {
   }
 }
 
+interface DriveFilenamePattern {
+  id: string;
+  regex: RegExp;
+  extract: (match: RegExpMatchArray) => Record<string, string>;
+}
+
+const DRIVE_FILENAME_PATTERNS: DriveFilenamePattern[] = [
+  {
+    id: 'ArchitectureStandard',
+    regex: /^[^A-Za-z0-9]*(\d[A-Za-z0-9\.]*)-([A-Za-z0-9\.]+)-([A-Za-z0-9]+)\s+(.*?)\s+-\s+(\d{6})/i,
+    extract: (match: RegExpMatchArray) => ({
+      discipline: "Architecture",
+      section: match[1],
+      specSection: match[1],
+      number: match[2],
+      submittalNum: match[2],
+      revision: match[3],
+      revNum: match[3],
+      title: match[4].trim(),
+      date: match[5]
+    })
+  },
+  {
+    id: 'FFEStandard',
+    regex: /^[^A-Za-z0-9]*([A-Za-z0-9]+-[A-Za-z0-9]+)-([A-Za-z0-9]+)\s+(.*?)\s+-\s+(\d{6})/i,
+    extract: (match: RegExpMatchArray) => ({
+      discipline: "FF&E",
+      specTag: match[1],
+      revision: match[2],
+      revNum: match[2],
+      vendor: match[3].trim(),
+      date: match[4]
+    })
+  }
+];
+
+export class DriveFilenameIntakeParser {
+  static parse(filename: string = ""): RawDocument {
+    const rawDoc: RawDocument = {
+      discipline: "Architecture",
+      fileSource: "Drive",
+      section: "",
+      specSection: "",
+      number: "",
+      submittalNum: "",
+      revision: "",
+      revNum: "",
+      title: "",
+      date: "",
+      specTag: "",
+      vendor: ""
+    };
+
+    const cleanFilename = getTrimmed(filename);
+    if (!cleanFilename) return rawDoc;
+
+    for (const pattern of DRIVE_FILENAME_PATTERNS) {
+      const match = cleanFilename.match(pattern.regex);
+      if (match) {
+        Object.assign(rawDoc, pattern.extract(match));
+        break;
+      }
+    }
+
+    return rawDoc;
+  }
+}
+
 export class DocumentPipeline {
   static parseFormIntake(formInput: Record<string, string>): RawDocument {
     return FormIntakeParser.parse(formInput);
+  }
+
+  static parseFilename(filename: string): RawDocument {
+    return DriveFilenameIntakeParser.parse(filename);
   }
 
   static validate(rawDoc: RawDocument, context?: ValidationContext): ValidationResult {
@@ -67,6 +139,7 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     FormIntakeParser,
+    DriveFilenameIntakeParser,
     DocumentPipeline,
     validateDocument: typeof validateDocument !== "undefined" ? validateDocument : validateDocFn
   };
