@@ -280,6 +280,40 @@ test('DocumentPipeline.processFormIntake - end-to-end success path for common & 
     assert.equal(result.data.contact, 'John Smith');
     assert.equal(result.data.action, 'Received');
     assert.equal(result.data.incomingRouting, 'To Refer');
+    assert.equal(result.warnings.length, 0);
+    assert.equal(result.data.disciplineDetails.discipline, 'Architecture');
+    if (result.data.disciplineDetails.discipline === 'Architecture') {
+      assert.equal(result.data.disciplineDetails.section, '230000');
+      assert.equal(result.data.disciplineDetails.number, '001');
+      assert.equal(result.data.disciplineDetails.title, 'HVAC Submittal');
+      assert.equal(result.data.disciplineDetails.revision, '01');
+    }
+  }
+});
+
+
+
+test('DocumentPipeline.processFormIntake - Architecture warnings for missing section, number, revision', () => {
+  const formInput = {
+    date: '2026-07-25',
+    contact: 'John Smith',
+    action: 'Approved',
+    title: 'HVAC Submittal',
+    discipline: 'Architecture'
+  };
+
+  const result = DocumentPipeline.processFormIntake(formInput);
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.deepEqual(result.warnings, ['Section', 'Number', 'Revision']);
+    assert.equal(result.data.disciplineDetails.discipline, 'Architecture');
+    if (result.data.disciplineDetails.discipline === 'Architecture') {
+      assert.equal(result.data.disciplineDetails.section, '');
+      assert.equal(result.data.disciplineDetails.number, '');
+      assert.equal(result.data.disciplineDetails.title, 'HVAC Submittal');
+      assert.equal(result.data.disciplineDetails.revision, '');
+    }
   }
 });
 
