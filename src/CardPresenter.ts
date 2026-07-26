@@ -30,6 +30,41 @@ class CardPresenter {
 
     return this.buildUpdateCardResponse(card);
   }
+
+  presentCacheRefresh(
+    e: GoogleAppsScriptEvent
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    const card = buildMainCard(e);
+
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card))
+      .setNotification(CardService.newNotification().setText("✅ Cache cleared. Data reloaded."))
+      .build();
+  }
+
+  presentFetchUrlResult(
+    e: GoogleAppsScriptEvent,
+    flashMessage?: any,
+    notificationText?: string
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    const card = buildMainCard(e, null, false, flashMessage);
+    const builder = CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card));
+
+    if (notificationText) {
+      builder.setNotification(CardService.newNotification().setText(notificationText));
+    }
+
+    return builder.build();
+  }
+
+  presentNotification(
+    notificationText: string
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification().setText(notificationText))
+      .build();
+  }
 }
 
 var defaultCardPresenter: CardPresenter = new CardPresenter();
