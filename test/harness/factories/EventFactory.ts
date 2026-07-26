@@ -16,27 +16,6 @@ export interface DriveContextOptions extends Partial<GoogleAppsScriptEvent> {
   selectedItems?: DriveItem[];
 }
 
-function isGmailOptions(obj: unknown): obj is GmailContextOptions {
-  if (!obj || typeof obj !== "object") return false;
-  const o = obj as Record<string, unknown>;
-  return (
-    "gmail" in o ||
-    "messageId" in o ||
-    "accessToken" in o ||
-    "parameters" in o
-  );
-}
-
-function isDriveOptions(obj: unknown): obj is DriveContextOptions {
-  if (!obj || typeof obj !== "object") return false;
-  const o = obj as Record<string, unknown>;
-  return (
-    "drive" in o ||
-    "selectedItems" in o ||
-    "parameters" in o
-  );
-}
-
 export class EventFactory {
   /**
    * Generates a Card submit event payload with automatic dual-form
@@ -77,36 +56,19 @@ export class EventFactory {
    * Generates a Workspace Add-on Gmail contextual trigger event payload.
    */
   static createGmailContextEvent(
-    inputsOrOverrides?: EventInputs | GmailContextOptions,
-    explicitOverrides?: GmailContextOptions
+    inputs: EventInputs = {},
+    overrides: GmailContextOptions = {}
   ): GoogleAppsScriptEvent {
-    let inputs: EventInputs = {};
-    let options: GmailContextOptions = {};
-
-    if (explicitOverrides !== undefined) {
-      inputs = (inputsOrOverrides as EventInputs) || {};
-      options = explicitOverrides;
-    } else if (isGmailOptions(inputsOrOverrides)) {
-      options = inputsOrOverrides;
-    } else if (inputsOrOverrides) {
-      inputs = inputsOrOverrides as EventInputs;
-    }
-
     const messageId =
-      options.gmail?.messageId ?? options.messageId ?? "msg-test-123";
+      overrides.gmail?.messageId ?? overrides.messageId ?? "msg-test-123";
     const accessToken =
-      options.gmail?.accessToken ?? options.accessToken ?? "mock-access-token";
+      overrides.gmail?.accessToken ?? overrides.accessToken ?? "mock-access-token";
 
-    const {
-      messageId: unusedMessageId,
-      accessToken: unusedAccessToken,
-      ...restOverrides
-    } = options;
+    const baseOverrides: Partial<GoogleAppsScriptEvent> = { ...overrides };
+    delete (baseOverrides as GmailContextOptions).messageId;
+    delete (baseOverrides as GmailContextOptions).accessToken;
 
-    const baseEvent = EventFactory.createCardSubmitEvent(
-      inputs,
-      restOverrides as Partial<GoogleAppsScriptEvent>
-    );
+    const baseEvent = EventFactory.createCardSubmitEvent(inputs, baseOverrides);
 
     return {
       ...baseEvent,
@@ -121,24 +83,12 @@ export class EventFactory {
    * Generates a Workspace Add-on Drive contextual trigger event payload.
    */
   static createDriveContextEvent(
-    inputsOrOverrides?: EventInputs | DriveContextOptions,
-    explicitOverrides?: DriveContextOptions
+    inputs: EventInputs = {},
+    overrides: DriveContextOptions = {}
   ): GoogleAppsScriptEvent {
-    let inputs: EventInputs = {};
-    let options: DriveContextOptions = {};
-
-    if (explicitOverrides !== undefined) {
-      inputs = (inputsOrOverrides as EventInputs) || {};
-      options = explicitOverrides;
-    } else if (isDriveOptions(inputsOrOverrides)) {
-      options = inputsOrOverrides;
-    } else if (inputsOrOverrides) {
-      inputs = inputsOrOverrides as EventInputs;
-    }
-
     const selectedItems: DriveItem[] =
-      options.drive?.selectedItems ??
-      options.selectedItems ?? [
+      overrides.drive?.selectedItems ??
+      overrides.selectedItems ?? [
         {
           id: "drive-file-123",
           title: "Test_Submittal.pdf",
@@ -146,12 +96,10 @@ export class EventFactory {
         }
       ];
 
-    const { selectedItems: unusedSelectedItems, ...restOverrides } = options;
+    const baseOverrides: Partial<GoogleAppsScriptEvent> = { ...overrides };
+    delete (baseOverrides as DriveContextOptions).selectedItems;
 
-    const baseEvent = EventFactory.createCardSubmitEvent(
-      inputs,
-      restOverrides as Partial<GoogleAppsScriptEvent>
-    );
+    const baseEvent = EventFactory.createCardSubmitEvent(inputs, baseOverrides);
 
     return {
       ...baseEvent,
