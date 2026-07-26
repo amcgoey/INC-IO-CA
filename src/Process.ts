@@ -1,3 +1,14 @@
+if (typeof require !== "undefined") {
+  try {
+    const cardPresenterModule = eval('require("./CardPresenter")');
+    if (cardPresenterModule) {
+      if (cardPresenterModule.defaultCardPresenter && typeof defaultCardPresenter === "undefined") {
+        (globalThis as any).defaultCardPresenter = cardPresenterModule.defaultCardPresenter;
+      }
+    }
+  } catch (e) {}
+}
+
 declare var require: any;
 
 if (typeof require !== "undefined") {
@@ -129,36 +140,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
         .build();
     }
 
-    const details = validatedDoc.disciplineDetails;
-    const isArchitecture = details.discipline === "Architecture";
-    const isFFE = details.discipline === "FF&E";
-    const sectionVal = isArchitecture ? details.section : "";
-    const specTagVal = isFFE ? details.specTag : (form.specTag || "");
-    const itemTitle = result.title || form.title || (isFFE ? details.specTitle : "");
-
-    return CardService.newActionResponseBuilder()
-      .setNavigation(CardService.newNavigation().pushCard(buildSuccessCard(
-        result.fileId,
-        result.newFileName,
-        result.url,
-        result.localPath,
-        result.targetKey,
-        itemTitle,
-        details.discipline,
-        sectionVal,
-        specTagVal,
-        p.targetFolderId,
-        p.logFileId,
-        false,
-        result.projectAbbr || p.projectAbbr,
-        result.action || form.action,
-        result.incomingRouting || form.incomingRouting,
-        null,
-        result.directRowUrl,
-        result.failedColumns,
-        result.emptyFallbacks
-      )))
-      .build();
+    return defaultCardPresenter.presentOutgoingSuccess(e, result, p);
 
   } catch (err: any) {
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build();
@@ -203,7 +185,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
       p.targetFolderId, p.logFileId, true, p.projectAbbr, p.action, p.incomingRouting, null,
       p.directRowUrl, failedCols, emptyFalls
     );
-    return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(updated)).setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_MOVED(destName))).build();
+    return defaultCardPresenter.presentMoveToClosedSuccess(e, updated, destName);
   } catch (err: any) { return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build(); }
 }
 

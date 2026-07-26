@@ -102,6 +102,7 @@ const defaultRepoMock = {
 };
 (globalThis as any).defaultLogRepository = defaultRepoMock;
 
+const { CardPresenter, defaultCardPresenter } = require("../src/CardPresenter");
 const { processSubmission, moveSubmittalToClosed } = require("../src/Process");
 
 test("processSubmission for Architecture incoming action delegates to DocumentWorkflowModule and updates main card", async () => {
@@ -429,5 +430,101 @@ test("processSubmission delegates execution directly to DocumentWorkflowModule.e
     assert.strictEqual(result.navigation.card.flashData.projectAbbr, "TESTPROJ");
   } finally {
     DocumentWorkflowModule.executeWorkflow = originalExecuteWorkflow;
+  }
+});
+
+test("processSubmission for outgoing action delegates success response to defaultCardPresenter.presentOutgoingSuccess", async () => {
+  let presenterCalled = false;
+  let passedResult: any = null;
+  const originalPresentOutgoingSuccess = (globalThis as any).defaultCardPresenter.presentOutgoingSuccess;
+
+  (globalThis as any).defaultCardPresenter.presentOutgoingSuccess = (e: any, result: any, params: any) => {
+    presenterCalled = true;
+    passedResult = result;
+    return { mockResponse: "presentOutgoingSuccess" } as any;
+  };
+
+  try {
+    (globalThis as any).defaultLogRepository = {
+      ...defaultRepoMock,
+      appendDocument: () => ({
+        targetKey: "033000-001-002",
+        newFileName: "033000-001-002 Concrete - 2026-07-25 Architect Rev",
+        contactHistory: "GC Architect",
+        rowIndex: 6,
+        failedColumns: [],
+        previousRowUpdated: true
+      })
+    };
+
+    const event = {
+      formInput: {
+        action: "Approved",
+        discipline: "Architecture",
+        section: "033000",
+        submittalNum: "001",
+        revNum: "002",
+        title: "Concrete",
+        date: "2026-07-25",
+        contact: "Architect"
+      },
+      parameters: {
+        logFileId: "log-ss-456",
+        targetFolderId: "folder-target",
+        driveFileId: "file-1",
+        projectAbbr: "PROJ"
+      }
+    };
+
+    const res = await processSubmission(event as any);
+    
+    assert.strictEqual(presenterCalled, true);
+    assert.strictEqual(passedResult.targetKey, "033000-001-002");
+    assert.deepStrictEqual(res, { mockResponse: "presentOutgoingSuccess" });
+  } finally {
+    (globalThis as any).defaultCardPresenter.presentOutgoingSuccess = originalPresentOutgoingSuccess;
+  }
+});
+
+test("moveSubmittalToClosed delegates success response creation to defaultCardPresenter.presentMoveToClosedSuccess", () => {
+  let presenterCalled = false;
+  let passedDestName = "";
+  const originalPresentMoveToClosedSuccess = defaultCardPresenter.presentMoveToClosedSuccess;
+
+  defaultCardPresenter.presentMoveToClosedSuccess = (e: any, updatedCard: any, destName: string) => {
+    presenterCalled = true;
+    passedDestName = destName;
+    return { mockResponse: "presentMoveToClosedSuccess" } as any;
+  };
+
+  try {
+    mockDriveFilingRepo.filedDocuments = [];
+    const event = {
+      parameters: {
+        targetFolderId: "target-folder-1",
+        discipline: "Architecture",
+        section: "033000",
+        specTag: "",
+        fileId: "file-closed-123",
+        newFileName: "033000-001 Concrete",
+        fileUrl: "http://drive.google.com/file-closed-123",
+        stampSubNo: "033000-001-001",
+        itemTitle: "Concrete",
+        logFileId: "log-123",
+        projectAbbr: "PROJ",
+        action: "Approved",
+        incomingRouting: "To Review",
+        directRowUrl: "http://docs.google.com/sheet",
+        failedColumns: "[]",
+        emptyFallbacks: "[]"
+      }
+    };
+
+    const res = moveSubmittalToClosed(event as any);
+    assert.strictEqual(presenterCalled, true);
+    assert.strictEqual(passedDestName, "Closed");
+    assert.deepStrictEqual(res, { mockResponse: "presentMoveToClosedSuccess" });
+  } finally {
+    defaultCardPresenter.presentMoveToClosedSuccess = originalPresentMoveToClosedSuccess;
   }
 });

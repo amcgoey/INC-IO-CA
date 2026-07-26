@@ -7,6 +7,12 @@ class CardPresenter {
       .build();
   }
 
+  private buildPushCardResponse(card: any): GoogleAppsScript.Card_Service.ActionResponse {
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().pushCard(card))
+      .build();
+  }
+
   presentValidationError(
     e: GoogleAppsScriptEvent,
     errors: string[],
@@ -29,6 +35,57 @@ class CardPresenter {
     const card = buildMainCard(e, null, isTagChange || false);
 
     return this.buildUpdateCardResponse(card);
+  }
+
+  presentOutgoingSuccess(
+    e: GoogleAppsScriptEvent,
+    result: DocumentWorkflowResult,
+    params: Record<string, string>
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    const form = (e && e.formInput) || {};
+    const p = params || (e && e.parameters) || {};
+
+    const discipline = form.discipline || p.discipline || (typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture");
+    const isArchitecture = discipline === "Architecture";
+    const isFFE = discipline === "FF&E";
+    const sectionVal = isArchitecture ? (form.section || p.section || "") : "";
+    const specTagVal = isFFE ? (form.specTag || p.specTag || "") : (form.specTag || p.specTag || "");
+    const itemTitle = result.title || form.title || p.itemTitle || p.title || (isFFE ? form.specTitle : "") || "";
+
+    const card = buildSuccessCard(
+      result.fileId,
+      result.newFileName,
+      result.url,
+      result.localPath,
+      result.targetKey,
+      itemTitle,
+      discipline,
+      sectionVal,
+      specTagVal,
+      p.targetFolderId,
+      p.logFileId,
+      false,
+      result.projectAbbr || p.projectAbbr,
+      result.action || form.action,
+      result.incomingRouting || form.incomingRouting,
+      null,
+      result.directRowUrl,
+      result.failedColumns,
+      result.emptyFallbacks
+    );
+
+    return this.buildPushCardResponse(card);
+  }
+
+  presentMoveToClosedSuccess(
+    e: GoogleAppsScriptEvent,
+    updatedCard: GoogleAppsScript.Card_Service.Card,
+    destName: string
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(updatedCard))
+      .setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_MOVED(destName)))
+      .build();
   }
 }
 

@@ -12,6 +12,9 @@ import assert from "node:assert/strict";
     };
     return builder;
   },
+  newNotification: () => ({
+    setText: (t: string) => t
+  }),
   newNavigation: () => ({
     updateCard: (card: any) => ({ card, action: "updateCard" }),
     pushCard: (card: any) => ({ card, action: "pushCard" })
@@ -19,6 +22,15 @@ import assert from "node:assert/strict";
 };
 
 let lastBuildMainCardArgs: any = null;
+let lastBuildSuccessCardArgs: any = null;
+(globalThis as any).buildSuccessCard = (...args: any[]) => {
+  lastBuildSuccessCardArgs = args;
+  return { cardType: "SuccessCard", args };
+};
+
+(globalThis as any).MESSAGES = {
+  SUCCESS_MOVED: (f: string) => `Moved to ${f}`
+};
 (globalThis as any).buildMainCard = (e: any, initialData: any, isTagChange: any, flashData: any) => {
   lastBuildMainCardArgs = { e, initialData, isTagChange, flashData };
   return { cardType: "MainCard", flashData };
@@ -148,4 +160,104 @@ test("UI.ts - onSpecTagChange delegates navigation update to defaultCardPresente
   } finally {
     defaultCardPresenter.presentCardReload = originalPresentCardReload;
   }
+});
+
+test("CardPresenter - presentOutgoingSuccess builds pushed SuccessCard ActionResponse for Architecture", () => {
+  const presenter = new CardPresenter();
+  const mockEvent: any = {
+    formInput: {
+      discipline: "Architecture",
+      section: "033000",
+      title: "Concrete Submittal",
+      action: "Approved"
+    }
+  };
+  const mockResult: any = {
+    fileId: "file-123",
+    newFileName: "033000-001 Concrete",
+    url: "http://drive.google.com/file-123",
+    localPath: "G:\\My Drive\\file-123",
+    targetKey: "033000-001",
+    title: "Concrete Submittal",
+    projectAbbr: "PROJ",
+    action: "Approved",
+    incomingRouting: "To Review",
+    directRowUrl: "http://docs.google.com/sheet?range=A5",
+    failedColumns: ["ColA"],
+    emptyFallbacks: ["ColB"]
+  };
+  const mockParams: any = {
+    targetFolderId: "folder-456",
+    logFileId: "log-789",
+    projectAbbr: "PROJ"
+  };
+
+  const response = presenter.presentOutgoingSuccess(mockEvent, mockResult, mockParams);
+
+  assert.ok(response);
+  assert.equal(response.navigation.action, "pushCard");
+  assert.equal(response.navigation.card.cardType, "SuccessCard");
+  assert.equal(lastBuildSuccessCardArgs[0], "file-123"); // fileId
+  assert.equal(lastBuildSuccessCardArgs[1], "033000-001 Concrete"); // newFileName
+  assert.equal(lastBuildSuccessCardArgs[2], "http://drive.google.com/file-123"); // url
+  assert.equal(lastBuildSuccessCardArgs[3], "G:\\My Drive\\file-123"); // localPath
+  assert.equal(lastBuildSuccessCardArgs[4], "033000-001"); // targetKey
+  assert.equal(lastBuildSuccessCardArgs[5], "Concrete Submittal"); // itemTitle
+  assert.equal(lastBuildSuccessCardArgs[6], "Architecture"); // discipline
+  assert.equal(lastBuildSuccessCardArgs[7], "033000"); // section
+  assert.equal(lastBuildSuccessCardArgs[9], "folder-456"); // targetFolderId
+  assert.equal(lastBuildSuccessCardArgs[10], "log-789"); // logFileId
+  assert.equal(lastBuildSuccessCardArgs[11], false); // isFiled
+});
+
+test("CardPresenter - presentOutgoingSuccess builds pushed SuccessCard ActionResponse for FF&E", () => {
+  const presenter = new CardPresenter();
+  const mockEvent: any = {
+    formInput: {
+      discipline: "FF&E",
+      specTag: "CH-01",
+      specTitle: "Side Chair",
+      action: "Approved"
+    }
+  };
+  const mockResult: any = {
+    fileId: "file-ffe-123",
+    newFileName: "CH-01 Side Chair",
+    url: "http://drive.google.com/file-ffe-123",
+    localPath: "G:\\My Drive\\file-ffe-123",
+    targetKey: "CH-01-001",
+    title: "Side Chair",
+    projectAbbr: "PROJ",
+    action: "Approved",
+    incomingRouting: "",
+    directRowUrl: "http://docs.google.com/sheet?range=A8",
+    failedColumns: [],
+    emptyFallbacks: []
+  };
+  const mockParams: any = {
+    targetFolderId: "folder-ffe",
+    logFileId: "log-ffe",
+    projectAbbr: "PROJ"
+  };
+
+  const response = presenter.presentOutgoingSuccess(mockEvent, mockResult, mockParams);
+
+  assert.ok(response);
+  assert.equal(response.navigation.action, "pushCard");
+  assert.equal(lastBuildSuccessCardArgs[6], "FF&E");
+  assert.equal(lastBuildSuccessCardArgs[8], "CH-01");
+});
+
+test("CardPresenter - presentMoveToClosedSuccess updates card with toast notification", () => {
+  const presenter = new CardPresenter();
+  const mockEvent: any = {};
+  const mockUpdatedCard: any = { cardType: "SuccessCardUpdated" };
+  const destName = "Closed/Concrete";
+
+  const response = presenter.presentMoveToClosedSuccess(mockEvent, mockUpdatedCard, destName);
+
+  assert.ok(response);
+  assert.equal(response.navigation.action, "updateCard");
+  assert.deepEqual(response.navigation.card, mockUpdatedCard);
+  assert.equal(response.notification, "Moved to Closed/Concrete");
 });

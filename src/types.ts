@@ -389,6 +389,8 @@ interface DriveNameProvider {
   getSharedDrives(): SharedDriveInfo[];
 }
 
+declare var defaultCardPresenter: CardPresenter;
+declare function buildSuccessCard(...args: any[]): GoogleAppsScript.Card_Service.Card;
 declare var defaultLogRepository: LogRepository;
 declare var defaultDriveFilingRepository: DriveFilingRepository;
 declare var defaultPdfDocumentService: PdfDocumentService;
