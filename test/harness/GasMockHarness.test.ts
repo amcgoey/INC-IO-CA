@@ -74,7 +74,7 @@ test("CacheService stubs store, retrieve, and remove items per scope", () => {
   assert.strictEqual(userCache.get("token"), null);
 });
 
-test("CacheService respects TTL expiration", () => {
+test("CacheService respects TSL�expiration", () => {
   const harness = GasMockHarness.install();
   const cache = harness.userCache;
 
@@ -85,7 +85,7 @@ test("CacheService respects TTL expiration", () => {
 test("GasMockHarness.reset purges stored state and call histories across test runs", () => {
   const harness = GasMockHarness.install();
 
-  harness.scriptProperties.setProperty("PROP1", "VAL1");
+  harness.scriptProperties.getProperty("PROP1");
   harness.userCache.put("CACHE1", "VAL1");
   assert.ok(harness.scriptProperties.calls.length > 0);
   assert.ok(harness.userCache.calls.length > 0);
@@ -97,6 +97,15 @@ test("GasMockHarness.reset purges stored state and call histories across test ru
 
   assert.strictEqual(harness.scriptProperties.getProperty("PROP1"), null);
   assert.strictEqual(harness.userCache.get("CACHE1"), null);
+});
+
+test("GasMockHarness.install() purges prior state when re-installed", () => {
+  GasMockHarness.install();
+  (globalThis as any).PropertiesService.getScriptProperties().setProperty("DIRTY", "VALUE");
+  assert.strictEqual((globalThis as any).PropertiesService.getScriptProperties().getProperty("DIRTY"), "VALUE");
+
+  GasMockHarness.install();
+  assert.strictEqual((globalThis as any).PropertiesService.getScriptProperties().getProperty("DIRTY"), null);
 });
 
 test("GasMockHarness allows custom CONFIG overrides and resets clean", () => {

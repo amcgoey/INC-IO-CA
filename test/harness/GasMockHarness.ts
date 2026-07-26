@@ -3,19 +3,19 @@
  * @description Centralized testing infrastructure harness managing globalThis stubs for CONFIG, CacheService, and PropertiesService with explicit lifecycle methods.
 */
 
-const { CONFIG: DEFAULT_CONFIG } = require("../../src/Config");
+import { CONFIG as DEFAULT_CONFIG } from "../../src/Config";
 
 export interface CallLog {
   method: string;
-  args: any[];
-  timestamp: number;
+  args: unknown[];
+  timestamp: nuner;
 }
 
 export class MockPropertiesStore {
   private store: Map<string, string> = new Map();
   public calls: CallLog[] = [];
 
-  private recordCall(method: string, args: any[]): void {
+  private recordCall(method: string, args: unknown[]): void {
     this.calls.push({ method, args, timestamp: Date.now() });
   }
 
@@ -24,7 +24,8 @@ export class MockPropertiesStore {
     return this.store.get(key) ?? null;
   }
 
-  public setProperty(key: string, value: string): this {
+
+ public setProperty(key: string, value: string): this {
     this.recordCall("setProperty", [key, value]);
     this.store.set(key, String(value));
     return this;
@@ -51,17 +52,20 @@ export class MockPropertiesStore {
     return this;
   }
 
-  public deleteProperty(key: string): this {
+
+ public deleteProperty(key: string): this {
     this.recordCall("deleteProperty", [key]);
     this.store.delete(key);
     return this;
   }
 
-  public deleteAllProperties(): this {
+
+ public deleteAllProperties(): this {
     this.recordCall("deleteAllProperties", []);
     this.store.clear();
     return this;
   }
+
 
   public getKeys(): string[] {
     this.recordCall("getKeys", []);
@@ -83,7 +87,8 @@ export class MockPropertiesService {
     return this.scriptProperties;
   }
 
-  public getUserProperties(): MockPropertiesStore {
+
+ public getUserProperties(): MockPropertiesStore {
     return this.userProperties;
   }
 
@@ -91,7 +96,8 @@ export class MockPropertiesService {
     return this.documentProperties;
   }
 
-  public reset(): void {
+
+ public reset(): void {
     this.scriptProperties.reset();
     this.userProperties.reset();
     this.documentProperties.reset();
@@ -107,9 +113,10 @@ export class MockCacheStore {
   private store: Map<string, CacheEntry> = new Map();
   public calls: CallLog[] = [];
 
-  private recordCall(method: string, args: any[]): void {
+  private recordCall(method: string, args: unknown[]): void {
     this.calls.push({ method, args, timestamp: Date.now() });
   }
+
 
   public get(key: string): string | null {
     this.recordCall("get", [key]);
@@ -121,6 +128,7 @@ export class MockCacheStore {
     }
     return entry.value;
   }
+
 
   public put(key: string, value: string, expirationInSeconds?: number): void {
     this.recordCall("put", [key, value, expirationInSeconds]);
@@ -135,19 +143,22 @@ export class MockCacheStore {
     this.store.set(key, { value: String(value), expiresAt });
   }
 
-  public remove(key: string): void {
+
+ public remove(key: string): void {
     this.recordCall("remove", [key]);
     this.store.delete(key);
   }
 
-  public removeAll(keys: string[]): void {
+
+ public removeAll(keys: string[]): void {
     this.recordCall("removeAll", [keys]);
     for (const key of keys) {
       this.store.delete(key);
     }
   }
 
-  public getAll(keys: string[]): Record<string, string> {
+
+ public getAll(keys: string[]): Record<string, string> {
     this.recordCall("getAll", [keys]);
     const result: Record<string, string> = {};
     for (const key of keys) {
@@ -159,6 +170,7 @@ export class MockCacheStore {
     return result;
   }
 
+
   public putAll(values: Record<string, string>, expirationInSeconds?: number): void {
     this.recordCall("putAll", [values, expirationInSeconds]);
     for (const [k, v] of Object.entries(values)) {
@@ -166,7 +178,8 @@ export class MockCacheStore {
     }
   }
 
-  public reset(): void {
+
+ public reset(): void {
     this.store.clear();
     this.calls = [];
   }
@@ -181,6 +194,7 @@ export class MockCacheService {
     return this.userCache;
   }
 
+
   public getScriptCache(): MockCacheStore {
     return this.scriptCache;
   }
@@ -189,7 +203,8 @@ export class MockCacheService {
     return this.documentCache;
   }
 
-  public reset(): void {
+
+ public reset(): void {
     this.userCache.reset();
     this.scriptCache.reset();
     this.documentCache.reset();
@@ -197,17 +212,17 @@ export class MockCacheService {
 }
 
 export interface HarnessInstallOptions {
-  configOverrides?: Record<string, any>;
+  configOverrides?: Record<string, unknown>;
 }
 
 export class GasMockHarness {
   private static instance: GasMockHarness | null = null;
-  private static originalGlobals: Map<string, any> = new Map();
+  private static originalGlobals: Map<string, unknown> = new Map();
 
   public propertiesService: MockPropertiesService = new MockPropertiesService();
   public cacheService: MockCacheService = new MockCacheService();
-  public config: any = {};
-  private configOverrides: Record<string, any> = {};
+  public config: Record<string, unknown> = {};
+  private configOverrides: Record<string, unknown> = {};
 
   private constructor(options?: HarnessInstallOptions) {
     this.configOverrides = options?.configOverrides || {};
@@ -236,9 +251,11 @@ export class GasMockHarness {
   public static install(options?: HarnessInstallOptions): GasMockHarness {
     if (!GasMockHarness.instance) {
       GasMockHarness.instance = new GasMockHarness(options);
-    } else if (options?.configOverrides) {
-      GasMockHarness.instance.configOverrides = options.configOverrides;
-      GasMockHarness.instance.resetConfig();
+    } else {
+      if (options?.configOverrides) {
+        GasMockHarness.instance.configOverrides = options.configOverrides;
+      }
+      GasMockHarness.reset();
     }
 
     const globalsToStub = ["CONFIG", "CacheService", "PropertiesService"];
@@ -255,7 +272,8 @@ export class GasMockHarness {
     return GasMockHarness.instance;
   }
 
-  public static reset(): void {
+
+ public static reset(): void {
     if (!GasMockHarness.instance) {
       GasMockHarness.install();
     }
@@ -278,11 +296,13 @@ export class GasMockHarness {
     GasMockHarness.instance = null;
   }
 
-  public get scriptProperties(): MockPropertiesStore {
+
+ public get scriptProperties(): MockPropertiesStore {
     return this.propertiesService.getScriptProperties();
   }
 
-  public get userProperties(): MockPropertiesStore {
+
+ public get userProperties(): MockPropertiesStore {
     return this.propertiesService.getUserProperties();
   }
 
@@ -290,11 +310,13 @@ export class GasMockHarness {
     return this.propertiesService.getDocumentProperties();
   }
 
-  public get userCache(): MockCacheStore {
+
+ public get userCache(): MockCacheStore {
     return this.cacheService.getUserCache();
   }
 
-  public get scriptCache(): MockCacheStore {
+
+ public get scriptCache(): MockCacheStore {
     return this.cacheService.getScriptCache();
   }
 
