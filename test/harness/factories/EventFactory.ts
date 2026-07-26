@@ -7,6 +7,36 @@ export type EventInputs = Record<
   string | string[] | number | boolean | undefined
 >;
 
+export interface GmailContextOptions extends Partial<GoogleAppsScriptEvent> {
+  messageId?: string;
+  accessToken?: string;
+}
+
+export interface DriveContextOptions extends Partial<GoogleAppsScriptEvent> {
+  selectedItems?: DriveItem[];
+}
+
+function isGmailOptions(obj: unknown): obj is GmailContextOptions {
+  if (!obj || typeof obj !== "object") return false;
+  const o = obj as Record<string, unknown>;
+  return (
+    "gmail" in o ||
+    "messageId" in o ||
+    "accessToken" in o ||
+    "parameters" in o
+  );
+}
+
+function isDriveOptions(obj: unknown): obj is DriveContextOptions {
+  if (!obj || typeof obj !== "object") return false;
+  const o = obj as Record<string, unknown>;
+  return (
+    "drive" in o ||
+    "selectedItems" in o ||
+    "parameters" in o
+  );
+}
+
 export class EventFactory {
   /**
    * Generates a Card submit event payload with automatic dual-form
@@ -26,7 +56,9 @@ export class EventFactory {
       if (Array.isArray(value)) {
         const stringArray = value.map(item => String(item));
         formInputs[key] = stringArray;
-        formInput[key] = stringArray.length > 0 ? stringArray[0] : "";
+        if (stringArray.length > 0) {
+          formInput[key] = stringArray[0];
+        }
       } else {
         const stringValue = String(value);
         formInput[key] = stringValue;
@@ -45,20 +77,34 @@ export class EventFactory {
    * Generates a Workspace Add-on Gmail contextual trigger event payload.
    */
   static createGmailContextEvent(
-    overrides?: Partial<GoogleAppsScriptEvent> & {
-      messageId?: string;
-      accessToken?: string;
-    }
+    inputsOrOverrides?: EventInputs | GmailContextOptions,
+    explicitOverrides?: GmailContextOptions
   ): GoogleAppsScriptEvent {
-    const messageId =
-      overrides?.gmail?.messageId ?? overrides?.messageId ?? "msg-test-123";
-    const accessToken =
-      overrides?.gmail?.accessToken ?? overrides?.accessToken ?? "mock-access-token";
+    let inputs: EventInputs = {};
+    let options: GmailContextOptions = {};
 
-    const { messageId: _m, accessToken: _a, ...restOverrides } = overrides || {};
+    if (explicitOverrides !== undefined) {
+      inputs = (inputsOrOverrides as EventInputs) || {};
+      options = explicitOverrides;
+    } else if (isGmailOptions(inputsOrOverrides)) {
+      options = inputsOrOverrides;
+    } else if (inputsOrOverrides) {
+      inputs = inputsOrOverrides as EventInputs;
+    }
+
+    const messageId =
+      options.gmail?.messageId ?? options.messageId ?? "msg-test-123";
+    const accessToken =
+      options.gmail?.accessToken ?? options.accessToken ?? "mock-access-token";
+
+    const {
+      messageId: unusedMessageId,
+      accessToken: unusedAccessToken,
+      ...restOverrides
+    } = options;
 
     const baseEvent = EventFactory.createCardSubmitEvent(
-      {},
+      inputs,
       restOverrides as Partial<GoogleAppsScriptEvent>
     );
 
@@ -75,13 +121,24 @@ export class EventFactory {
    * Generates a Workspace Add-on Drive contextual trigger event payload.
    */
   static createDriveContextEvent(
-    overrides?: Partial<GoogleAppsScriptEvent> & {
-      selectedItems?: DriveItem[];
-    }
+    inputsOrOverrides?: EventInputs | DriveContextOptions,
+    explicitOverrides?: DriveContextOptions
   ): GoogleAppsScriptEvent {
+    let inputs: EventInputs = {};
+    let options: DriveContextOptions = {};
+
+    if (explicitOverrides !== undefined) {
+      inputs = (inputsOrOverrides as EventInputs) || {};
+      options = explicitOverrides;
+    } else if (isDriveOptions(inputsOrOverrides)) {
+      options = inputsOrOverrides;
+    } else if (inputsOrOverrides) {
+      inputs = inputsOrOverrides as EventInputs;
+    }
+
     const selectedItems: DriveItem[] =
-      overrides?.drive?.selectedItems ??
-      overrides?.selectedItems ?? [
+      options.drive?.selectedItems ??
+      options.selectedItems ?? [
         {
           id: "drive-file-123",
           title: "Test_Submittal.pdf",
@@ -89,10 +146,10 @@ export class EventFactory {
         }
       ];
 
-    const { selectedItems: _s, ...restOverrides } = overrides || {};
+    const { selectedItems: unusedSelectedItems, ...restOverrides } = options;
 
     const baseEvent = EventFactory.createCardSubmitEvent(
-      {},
+      inputs,
       restOverrides as Partial<GoogleAppsScriptEvent>
     );
 

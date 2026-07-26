@@ -10,7 +10,7 @@ import {
 } from "./EventFactory";
 
 test("EventFactory - createCardSubmitEvent normalizes scalar string inputs into dual formInput and formInputs", () => {
-  const event = createCardSubmitEvent({
+  const event = EventFactory.createCardSubmitEvent({
     section: "01 33 00",
     title: "Concrete Formwork"
   });
@@ -40,8 +40,17 @@ test("EventFactory - createCardSubmitEvent normalizes string array inputs into d
   });
 });
 
+test("EventFactory - createCardSubmitEvent handles empty arrays without setting formInput scalar", () => {
+  const event = EventFactory.createCardSubmitEvent({
+    emptyTags: []
+  });
+
+  assert.strictEqual(event.formInput?.emptyTags, undefined);
+  assert.deepStrictEqual(event.formInputs?.emptyTags, []);
+});
+
 test("EventFactory - createCardSubmitEvent normalizes numbers and booleans into string representations", () => {
-  const event = createCardSubmitEvent({
+  const event = EventFactory.createCardSubmitEvent({
     revision: 2,
     isApproved: true
   });
@@ -58,7 +67,7 @@ test("EventFactory - createCardSubmitEvent normalizes numbers and booleans into 
 });
 
 test("EventFactory - createCardSubmitEvent merges overrides and custom parameters", () => {
-  const event = createCardSubmitEvent(
+  const event = EventFactory.createCardSubmitEvent(
     { section: "01 33 00" },
     { parameters: { action: "save" } }
   );
@@ -68,8 +77,8 @@ test("EventFactory - createCardSubmitEvent merges overrides and custom parameter
   assert.deepStrictEqual(event.formInputs, { section: ["01 33 00"] });
 });
 
-test("EventFactory - createGmailContextEvent creates valid Gmail trigger payload with defaults and overrides", () => {
-  const defaultEvent = createGmailContextEvent();
+test("EventFactory - createGmailContextEvent creates valid Gmail trigger payload with defaults, inputs, and overrides", () => {
+  const defaultEvent = EventFactory.createGmailContextEvent();
 
   assert.deepStrictEqual(defaultEvent.gmail, {
     messageId: "msg-test-123",
@@ -78,18 +87,20 @@ test("EventFactory - createGmailContextEvent creates valid Gmail trigger payload
   assert.deepStrictEqual(defaultEvent.formInput, {});
   assert.deepStrictEqual(defaultEvent.formInputs, {});
 
-  const customEvent = EventFactory.createGmailContextEvent({
-    messageId: "custom-msg-999",
-    parameters: { source: "inbox" }
-  });
+  const customEvent = EventFactory.createGmailContextEvent(
+    { section: "01 33 00" },
+    { messageId: "custom-msg-999", parameters: { source: "inbox" } }
+  );
 
   assert.strictEqual(customEvent.gmail?.messageId, "custom-msg-999");
   assert.strictEqual(customEvent.gmail?.accessToken, "mock-access-token");
   assert.deepStrictEqual(customEvent.parameters, { source: "inbox" });
+  assert.deepStrictEqual(customEvent.formInput, { section: "01 33 00" });
+  assert.deepStrictEqual(customEvent.formInputs, { section: ["01 33 00"] });
 });
 
-test("EventFactory - createDriveContextEvent creates valid Drive trigger payload with defaults and overrides", () => {
-  const defaultEvent = createDriveContextEvent();
+test("EventFactory - createDriveContextEvent creates valid Drive trigger payload with defaults, inputs, and overrides", () => {
+  const defaultEvent = EventFactory.createDriveContextEvent();
 
   assert.deepStrictEqual(defaultEvent.drive, {
     selectedItems: [
@@ -106,7 +117,23 @@ test("EventFactory - createDriveContextEvent creates valid Drive trigger payload
   const customItems = [
     { id: "file-abc", title: "Spec.pdf", mimeType: "application/pdf" }
   ];
-  const customEvent = createDriveContextEvent({ selectedItems: customItems });
+  const customEvent = EventFactory.createDriveContextEvent(
+    { specTag: "TAG-001" },
+    { selectedItems: customItems }
+  );
 
   assert.deepStrictEqual(customEvent.drive?.selectedItems, customItems);
+  assert.deepStrictEqual(customEvent.formInput, { specTag: "TAG-001" });
+  assert.deepStrictEqual(customEvent.formInputs, { specTag: ["TAG-001"] });
+});
+
+test("EventFactory - exported standalone functions function identically to static methods", () => {
+  const cardEvt = createCardSubmitEvent({ k: "v" });
+  assert.deepStrictEqual(cardEvt.formInput, { k: "v" });
+
+  const gmailEvt = createGmailContextEvent();
+  assert.strictEqual(gmailEvt.gmail?.messageId, "msg-test-123");
+
+  const driveEvt = createDriveContextEvent();
+  assert.strictEqual(driveEvt.drive?.selectedItems[0].id, "drive-file-123");
 });
