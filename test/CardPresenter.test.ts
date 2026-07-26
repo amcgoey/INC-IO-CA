@@ -25,6 +25,7 @@ let lastBuildMainCardArgs: any = null;
 };
 
 const { CardPresenter, defaultCardPresenter } = require("../src/CardPresenter");
+const { onStateChange, onSpecTagChange } = require("../src/UI");
 
 test("CardPresenter - presentValidationError formats error flash and returns ActionResponse updateCard", () => {
   const presenter = new CardPresenter();
@@ -107,4 +108,44 @@ test("CardPresenter - presentCardReload propagates isTagChange true flag", () =>
   assert.ok(response);
   assert.equal(response.navigation.action, "updateCard");
   assert.equal(response.navigation.card.cardType, "MainCard");
+});
+
+test("UI.ts - onStateChange delegates navigation update to defaultCardPresenter.presentCardReload", () => {
+  let reloadCalledWith: any = null;
+  const originalPresentCardReload = defaultCardPresenter.presentCardReload;
+
+  defaultCardPresenter.presentCardReload = (e: any, isTagChange?: boolean) => {
+    reloadCalledWith = { e, isTagChange };
+    return { mockResponse: "onStateChange" } as any;
+  };
+
+  try {
+    const mockEvent: any = { formInput: { discipline: "Architecture" } };
+    const response = onStateChange(mockEvent);
+
+    assert.deepEqual(reloadCalledWith, { e: mockEvent, isTagChange: undefined });
+    assert.deepEqual(response, { mockResponse: "onStateChange" });
+  } finally {
+    defaultCardPresenter.presentCardReload = originalPresentCardReload;
+  }
+});
+
+test("UI.ts - onSpecTagChange delegates navigation update to defaultCardPresenter.presentCardReload with isTagChange true", () => {
+  let reloadCalledWith: any = null;
+  const originalPresentCardReload = defaultCardPresenter.presentCardReload;
+
+  defaultCardPresenter.presentCardReload = (e: any, isTagChange?: boolean) => {
+    reloadCalledWith = { e, isTagChange };
+    return { mockResponse: "onSpecTagChange" } as any;
+  };
+
+  try {
+    const mockEvent: any = { formInput: { specTag: "A-101" } };
+    const response = onSpecTagChange(mockEvent);
+
+    assert.deepEqual(reloadCalledWith, { e: mockEvent, isTagChange: true });
+    assert.deepEqual(response, { mockResponse: "onSpecTagChange" });
+  } finally {
+    defaultCardPresenter.presentCardReload = originalPresentCardReload;
+  }
 });

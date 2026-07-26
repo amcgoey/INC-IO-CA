@@ -576,3 +576,14 @@ function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText("Error adding vendor: " + err.message)).build();
   }
 }
+
+declare var module: any;
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    onStateChange,
+    onSpecTagChange,
+    processSubmissionWithNewTag,
+    processSubmissionWithNewVendor
+  };
+}
