@@ -7,7 +7,12 @@
     "noEmit": true,
     "skipLibCheck": true,
     "allowJs": false,
-    "types": ["google-apps-script"]
+    "types": [
+      "google-apps-script"
+    ]
   },
-  "include": ["src/**/*"]
+  "include": [
+    "src/**/*",
+    "test/harness/factories/DocumentFactory.ts"
+  ]
 }
