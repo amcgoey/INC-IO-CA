@@ -68,6 +68,8 @@ const mockFolder: any = {
   getFileById: () => mockFile
 };
 
+const { DocumentWorkflowModule } = require("../src/DocumentWorkflowModule");
+(globalThis as any).DocumentWorkflowModule = DocumentWorkflowModule;
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
 const { executeIncomingWorkflow, executeOutgoingWorkflow, moveSubmittalToClosed } = require("../src/Process");
 
@@ -342,4 +344,61 @@ test("moveSubmittalToClosed delegates file move and subfolder path resolution to
   assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
   assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "CH"]);
   assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-ffe-456");
+});
+
+test("executeIncomingWorkflow delegates execution directly to DocumentWorkflowModule.executeWorkflow", async () => {
+  const originalExecuteWorkflow = DocumentWorkflowModule.executeWorkflow;
+  let executeWorkflowCalled = false;
+  let receivedInput: any = null;
+
+  (DocumentWorkflowModule as any).executeWorkflow = async (input: any) => {
+    executeWorkflowCalled = true;
+    receivedInput = input;
+    return {
+      fileId: "file-mod-123",
+      targetKey: "033000-001-001",
+      url: "http://drive.google.com/file-mod-123",
+      localPath: "G:\\My Drive\\file-mod-123",
+      title: "Mock Title",
+      action: "Received",
+      incomingRouting: "To Review",
+      projectAbbr: "TESTPROJ",
+      directRowUrl: "http://docs.google.com/sheet?range=A10",
+      failedColumns: [],
+      emptyFallbacks: [],
+      newFileName: "Mock File Name"
+    };
+  };
+
+  try {
+    const fakeSheet = { getSheetId: () => 505 };
+    const ctx = {
+      e: {},
+      form: { action: "Received", title: "Mock Title", incomingRouting: "To Review" },
+      p: { logFileId: "log-ss-test", targetFolderId: "target-folder-test", driveFileId: "drive-file-test", projectAbbr: "TESTPROJ" },
+      discipline: "Architecture",
+      logSheet: fakeSheet,
+      selectedAction: { action: "Received", status: "Under Review", abbr: " Rec" },
+      emptyFallbacks: [],
+      validatedDoc: {
+        documentType: "Submittal",
+        date: "2026-07-25",
+        contact: "GC",
+        action: "Received",
+        disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Mock Title", revision: "001" }
+      }
+    };
+
+    const result = await executeIncomingWorkflow(ctx);
+
+    assert.strictEqual(executeWorkflowCalled, true);
+    assert.strictEqual(receivedInput.logFileId, "log-ss-test");
+    assert.strictEqual(receivedInput.targetFolderId, "target-folder-test");
+    assert.strictEqual(receivedInput.driveFileId, "drive-file-test");
+    assert.strictEqual(result.navigation.card.flashData.fileId, "file-mod-123");
+    assert.strictEqual(result.navigation.card.flashData.title, "Mock Title");
+    assert.strictEqual(result.navigation.card.flashData.projectAbbr, "TESTPROJ");
+  } finally {
+    DocumentWorkflowModule.executeWorkflow = originalExecuteWorkflow;
+  }
 });
