@@ -445,3 +445,119 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl even when fil
   await DocumentWorkflowModule.executeWorkflow(input as any);
   assert.ok(fetchedFileIds.includes("9876543210abcdefghijklmnopqrstuv"));
 });
+
+test("DocumentWorkflowModule.executeWorkflow handles Architecture outgoing review actions", async () => {
+  const mockDriveFilingRepo = new FakeDriveFilingRepository();
+  const mockPdfService = new FakePdfDocumentService();
+
+  let appendCalled = false;
+  let passedOptions: any = null;
+  const mockLogRepo = {
+    appendDocument: (ssId: string, doc: any, strategy: any, options: any) => {
+      appendCalled = true;
+      passedOptions = options;
+      return {
+        targetKey: "033000-001-001",
+        newFileName: "033000-001-001 Concrete - 2026-07-25 GC App",
+        contactHistory: "GC",
+        rowIndex: 6,
+        failedColumns: [],
+        previousRowUpdated: true
+      };
+    }
+  };
+
+  const input = {
+    validatedDoc: {
+      documentType: "Submittal",
+      date: "2026-07-25",
+      contact: "GC",
+      action: "Approved",
+      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
+    },
+    logFileId: "log-ss-123",
+    targetFolderId: "folder-target",
+    driveFileId: "file-1",
+    selectedAction: { action: "Approved", abbr: " App", status: "Approved" },
+    logRepository: mockLogRepo as any,
+    driveFilingRepository: mockDriveFilingRepo as any,
+    pdfDocumentService: mockPdfService as any
+  };
+
+  const result = await DocumentWorkflowModule.executeWorkflow(input as any);
+
+  assert.strictEqual(appendCalled, true);
+  assert.strictEqual(passedOptions.status, "Approved");
+  assert.strictEqual(passedOptions.actionAbbr, " App");
+  assert.strictEqual(passedOptions.updatePreviousStatus, true);
+  assert.strictEqual(passedOptions.previousRowStatus, "Closed");
+
+  assert.strictEqual(result.fileId, "file-1");
+  assert.strictEqual(result.targetKey, "033000-001-001");
+  assert.strictEqual(result.title, "Concrete");
+  assert.strictEqual(result.action, "Approved");
+
+  // Outgoing actions file directly to targetFolderId without subfolderPath
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, undefined);
+
+  // Outgoing actions skip PDF stamping
+  assert.strictEqual(mockPdfService.stampCalls.length, 0);
+});
+
+test("DocumentWorkflowModule.executeWorkflow handles FF&E outgoing review actions", async () => {
+  const mockDriveFilingRepo = new FakeDriveFilingRepository();
+  const mockPdfService = new FakePdfDocumentService();
+
+  let appendCalled = false;
+  let passedOptions: any = null;
+  const mockLogRepo = {
+    appendDocument: (ssId: string, doc: any, strategy: any, options: any) => {
+      appendCalled = true;
+      passedOptions = options;
+      return {
+        targetKey: "CH-01-001",
+        newFileName: "CH-01-001 Side Chair - 2026-07-25 Vendor R&R",
+        contactHistory: "Vendor",
+        rowIndex: 10,
+        failedColumns: [],
+        previousRowUpdated: true
+      };
+    }
+  };
+
+  const input = {
+    validatedDoc: {
+      documentType: "Submittal",
+      date: "2026-07-25",
+      contact: "Vendor",
+      action: "Revise & Resubmit",
+      disciplineDetails: { discipline: "FF&E", specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", revision: "001" }
+    },
+    logFileId: "log-ss-ffe",
+    targetFolderId: "folder-target",
+    driveFileId: "file-ffe-1",
+    selectedAction: { action: "Revise & Resubmit", abbr: " R&R", status: "Revise & Resubmit" },
+    logRepository: mockLogRepo as any,
+    driveFilingRepository: mockDriveFilingRepo as any,
+    pdfDocumentService: mockPdfService as any
+  };
+
+  const result = await DocumentWorkflowModule.executeWorkflow(input as any);
+
+  assert.strictEqual(appendCalled, true);
+  assert.strictEqual(passedOptions.status, "Revise & Resubmit");
+  assert.strictEqual(passedOptions.actionAbbr, " R&R");
+  assert.strictEqual(passedOptions.updatePreviousStatus, true);
+  assert.strictEqual(passedOptions.previousRowStatus, "Closed");
+
+  assert.strictEqual(result.targetKey, "CH-01-001");
+  assert.strictEqual(result.title, "Side Chair");
+  assert.strictEqual(result.action, "Revise & Resubmit");
+
+  // Outgoing actions file directly to targetFolderId without subfolderPath
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, undefined);
+
+  // Outgoing actions skip PDF stamping
+  assert.strictEqual(mockPdfService.stampCalls.length, 0);
+});
