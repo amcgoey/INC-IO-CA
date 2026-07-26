@@ -1,6 +1,6 @@
 /**
  * @file index.ts
- * @description Centralized domain test harness re-exporting pure in-memory test doubles.
+ * @description Centralized domain test harness re-exporting pure in-memory test doubles and context setup.
  */
 
 export * from "./fakes/FakeLogRepository";
@@ -10,6 +10,7 @@ export * from "./fakes/FakeAiAnalysisAdapter";
 export * from "./fakes/FakeDriveNameProvider";
 export * from "./fakes/FakeCacheAdapter";
 export * from "./fakes/InMemorySheetStorageAdapter";
+export * from "./TestContext";
 
 const { FakeLogRepository } = require("./fakes/FakeLogRepository");
 const { FakeDriveFilingRepository } = require("./fakes/FakeDriveFilingRepository");
@@ -18,7 +19,7 @@ const { FakeAiAnalysisAdapter } = require("./fakes/FakeAiAnalysisAdapter");
 const { FakeDriveNameProvider } = require("./fakes/FakeDriveNameProvider");
 const { InMemoryCacheAdapter, FakeCacheAdapter } = require("./fakes/FakeCacheAdapter");
 const { InMemorySheetStorageAdapter, FakeSheetStorageAdapter } = require("./fakes/InMemorySheetStorageAdapter");
-
+const { TestContext, createTestContext } = require("./TestContext");
 
 declare var module: any;
 
@@ -32,6 +33,8 @@ if (typeof module !== "undefined" && module.exports) {
     InMemoryCacheAdapter,
     FakeCacheAdapter,
     InMemorySheetStorageAdapter,
-    FakeSheetStorageAdapter
+    FakeSheetStorageAdapter,
+    TestContext,
+    createTestContext
   };
 }
