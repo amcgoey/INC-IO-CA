@@ -4,6 +4,12 @@ Validates and records incoming or outgoing project submittals into the log sheet
 
 ## Language
 
+**Document**:
+The core domain concept representing a formal project correspondence or record (such as a Submittal, RFI, ASI, Bulletin, etc.) processed through the system.
+
+**Submittal**:
+A specific document type representing shop drawings, product data, samples, or mockups submitted for architect/engineer review.
+
 **RawDocument**:
 The untrusted, string-heavy data coming directly from the UI form submission for any document type (Submittals, RFIs, etc).
 _Avoid_: FormInput, RawSubmittal
@@ -27,6 +33,14 @@ A discriminated union that represents the three universal outcomes of validating
 **DocumentPipeline**:
 The pure application service that ingests raw intake data (email subjects, filenames, or UI form inputs as RawDocument) and coordinates parsing, normalization, and validation rules to produce a ValidationResult.
 _Avoid_: IntakeManager, FormValidator, DataProcessor
+
+**DocumentWorkflowModule**:
+The application workflow service that orchestrates file retrieval, PDF stamping, drive filing, spreadsheet logging, and direct spreadsheet URL generation for any document type.
+_Avoid_: ProcessManager, SubmittalWorkflowModule, WorkflowHelper
+
+**WorkflowActionPolicy**:
+Encapsulates action-specific execution policies (such as direction, filing subfolder handling, PDF stamping rules, and previous row status updates) to keep document workflow execution generic and extensible.
+_Avoid_: ActionRules, FlowConfig
 
 
 **RowInsertionPlan**:
