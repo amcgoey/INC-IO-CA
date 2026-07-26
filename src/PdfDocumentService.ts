@@ -15,14 +15,20 @@ function getPdfLib(): any {
   return pdfLibInstance;
 }
 
+function blobToUint8Array(b: GoogleAppsScript.Base.Blob): Uint8Array {
+  const bytes = b.getBytes();
+  const u = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) u[i] = bytes[i] & 0xFF;
+  return u;
+}
+
 class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
   async extractFormAction(fileId: string): Promise<string | null> {
     try {
       const { PDFDocument } = getPdfLib();
 
-      const bytes = DriveApp.getFileById(fileId).getBlob().getBytes();
-      const unsigned = new Uint8Array(bytes.length);
-      for (let i = 0; i < bytes.length; i++) unsigned[i] = bytes[i] & 0xFF;
+      const blob = DriveApp.getFileById(fileId).getBlob();
+      const unsigned = blobToUint8Array(blob);
 
       const pdfDoc = await PDFDocument.load(unsigned);
       const form = pdfDoc.getForm();
@@ -58,15 +64,9 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
 
     const { PDFDocument } = getPdfLib();
 
-    const toUint8 = (b: GoogleAppsScript.Base.Blob): Uint8Array => {
-      let bytes = b.getBytes(), u = new Uint8Array(bytes.length);
-      for (let i = 0; i < bytes.length; i++) u[i] = bytes[i] & 0xFF;
-      return u;
-    };
-
     const pdfMime = typeof MimeType !== "undefined" ? (MimeType as any).PDF : "application/pdf";
     const templateBlob = DriveApp.getFileById(options.templateId).getAs(pdfMime);
-    const pdfDoc = await PDFDocument.load(toUint8(templateBlob));
+    const pdfDoc = await PDFDocument.load(blobToUint8Array(templateBlob));
     const form = pdfDoc.getForm();
 
     const fill = (names: string[], val: string) => {
@@ -97,7 +97,7 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
       }
     }
 
-    const sourcePdf = await PDFDocument.load(toUint8(sourceBlob));
+    const sourcePdf = await PDFDocument.load(blobToUint8Array(sourceBlob));
     const copied = await pdfDoc.copyPages(sourcePdf, sourcePdf.getPageIndices());
     copied.forEach((p: any) => pdfDoc.addPage(p));
 
@@ -109,9 +109,7 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
     maxPages: number
   ): Promise<string> {
     const { PDFDocument } = getPdfLib();
-    const bytes = sourceBlob.getBytes();
-    const unsigned = new Uint8Array(bytes.length);
-    for (let i = 0; i < bytes.length; i++) unsigned[i] = bytes[i] & 0xFF;
+    const unsigned = blobToUint8Array(sourceBlob);
 
     const srcDoc = await PDFDocument.load(unsigned);
     const pageCount = Math.min(srcDoc.getPageCount(), maxPages);
@@ -159,8 +157,8 @@ class FakePdfDocumentService implements PdfDocumentService {
     this.stampResultBlob = blob;
   }
 
-  setSliceResultBase64(str: string): void {
-    this.sliceResultBase64 = str;
+  setSliceResultBase64(base64String: string): void {
+    this.sliceResultBase64 = base64String;
   }
 
   async extractFormAction(fileId: string): Promise<string | null> {
