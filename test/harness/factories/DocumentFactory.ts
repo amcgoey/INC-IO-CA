@@ -8,6 +8,26 @@
 
 /// <reference path="../../../src/types.ts" />
 
+const DEFAULT_DATE = "2026-07-25";
+const DEFAULT_CONTACT_ARCH = "John Doe";
+const DEFAULT_CONTACT_FFE = "Jane Smith";
+const DEFAULT_ACTION_RECEIVED = "Received";
+const DEFAULT_ACTION_APPROVED = "Approved";
+
+/**
+ * Merges default discipline details with optional partial overrides.
+ *
+ * @param defaults - Baseline discipline details object.
+ * @param overrides - Partial discipline details object.
+ * @returns Fully populated merged discipline details object.
+ */
+function mergeDisciplineDetails<T>(defaults: T, overrides?: Partial<T>): T {
+  return {
+    ...defaults,
+    ...(overrides || {})
+  };
+}
+
 /**
  * Creates a raw submittal data dictionary with defaults and optional partial overrides.
  *
@@ -18,9 +38,9 @@ export function createRawSubmittal(overrides: Partial<RawDocument> = {}): RawDoc
   return {
     documentType: "Submittal",
     discipline: "Architecture",
-    date: "2026-07-25",
-    contact: "John Doe",
-    action: "Received",
+    date: DEFAULT_DATE,
+    contact: DEFAULT_CONTACT_ARCH,
+    action: DEFAULT_ACTION_RECEIVED,
     incomingRouting: "To Refer",
     title: "Door Schedule",
     section: "081100",
@@ -46,16 +66,16 @@ export function createValidatedArchitectureSubmittal(overrides: Partial<Validate
     revision: "01"
   };
 
-  const disciplineDetails: ArchitectureDetails = {
-    ...defaultArchDetails,
-    ...(overrides.disciplineDetails ? (overrides.disciplineDetails as Partial<ArchitectureDetails>) : {})
-  };
+  const disciplineDetails = mergeDisciplineDetails(
+    defaultArchDetails,
+    overrides.disciplineDetails as Partial<ArchitectureDetails>
+  );
 
   return {
     documentType: "Submittal",
-    date: "2026-07-25",
-    contact: "John Doe",
-    action: "Received",
+    date: DEFAULT_DATE,
+    contact: DEFAULT_CONTACT_ARCH,
+    action: DEFAULT_ACTION_RECEIVED,
     incomingRouting: "To Refer",
     notes: "Sample submittal notes",
     ...overrides,
@@ -79,16 +99,16 @@ export function createValidatedFFESubmittal(overrides: Partial<ValidatedDocument
     relatedTag: "CH-02"
   };
 
-  const disciplineDetails: FFEDetails = {
-    ...defaultFFEDetails,
-    ...(overrides.disciplineDetails ? (overrides.disciplineDetails as Partial<FFEDetails>) : {})
-  };
+  const disciplineDetails = mergeDisciplineDetails(
+    defaultFFEDetails,
+    overrides.disciplineDetails as Partial<FFEDetails>
+  );
 
   return {
     documentType: "Submittal",
-    date: "2026-07-25",
-    contact: "Jane Smith",
-    action: "Approved",
+    date: DEFAULT_DATE,
+    contact: DEFAULT_CONTACT_FFE,
+    action: DEFAULT_ACTION_APPROVED,
     notes: "Sample FF&E notes",
     ...overrides,
     disciplineDetails
@@ -105,9 +125,9 @@ export function createRawRfi(overrides: Partial<RawDocument> = {}): RawDocument 
   return {
     documentType: "RFI",
     discipline: "Architecture",
-    date: "2026-07-25",
-    contact: "John Doe",
-    action: "Received",
+    date: DEFAULT_DATE,
+    contact: DEFAULT_CONTACT_ARCH,
+    action: DEFAULT_ACTION_RECEIVED,
     incomingRouting: "To Architect",
     title: "Foundation Wall Detail",
     number: "001",
@@ -132,16 +152,16 @@ export function createValidatedRfi(overrides: Partial<ValidatedDocument> = {}): 
     revision: "00"
   };
 
-  const disciplineDetails: ArchitectureDetails = {
-    ...defaultArchDetails,
-    ...(overrides.disciplineDetails ? (overrides.disciplineDetails as Partial<ArchitectureDetails>) : {})
-  };
+  const disciplineDetails = mergeDisciplineDetails(
+    defaultArchDetails,
+    overrides.disciplineDetails as Partial<ArchitectureDetails>
+  );
 
   return {
     documentType: "RFI",
-    date: "2026-07-25",
-    contact: "John Doe",
-    action: "Received",
+    date: DEFAULT_DATE,
+    contact: DEFAULT_CONTACT_ARCH,
+    action: DEFAULT_ACTION_RECEIVED,
     incomingRouting: "To Architect",
     notes: "Sample RFI notes",
     ...overrides,

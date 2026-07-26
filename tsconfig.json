@@ -8,11 +8,12 @@
     "skipLibCheck": true,
     "allowJs": false,
     "types": [
-      "google-apps-script"
+      "google-apps-script",
+      "node"
     ]
   },
   "include": [
     "src/**/*",
-    "test/harness/factories/DocumentFactory.ts"
+    "test/harness/**/*"
   ]
 }
