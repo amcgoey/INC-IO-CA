@@ -398,3 +398,50 @@ test("DocumentWorkflowModule.executeWorkflow returns stamped fileId when PDF is 
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
   assert.strictEqual(result.fileId, "stamped-file-id-999");
 });
+
+test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl even when fileSource is omitted", async () => {
+  const mockDriveFilingRepo = new FakeDriveFilingRepository();
+  const mockPdfService = new FakePdfDocumentService();
+
+  const fetchedFileIds: string[] = [];
+  const customDriveApp = {
+    getFileById: (id: string) => {
+      fetchedFileIds.push(id);
+      return mockFile;
+    },
+    getFolderById: () => mockFolder
+  };
+
+  const mockLogRepo = {
+    appendDocument: () => ({
+      targetKey: "033000-001-001",
+      newFileName: "033000-001-001 Concrete",
+      contactHistory: "GC",
+      rowIndex: 5,
+      failedColumns: [],
+      previousRowUpdated: false
+    })
+  };
+
+  const input = {
+    validatedDoc: {
+      documentType: "Submittal",
+      date: "2026-07-25",
+      contact: "GC",
+      action: "Received",
+      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
+    },
+    logFileId: "log-ss-123",
+    targetFolderId: "folder-target",
+    driveFileUrl: "https://drive.google.com/file/d/9876543210abcdefghijklmnopqrstuv/view",
+    incomingRouting: "To Review",
+    selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
+    logRepository: mockLogRepo as any,
+    driveFilingRepository: mockDriveFilingRepo as any,
+    pdfDocumentService: mockPdfService as any,
+    driveApp: customDriveApp
+  };
+
+  await DocumentWorkflowModule.executeWorkflow(input as any);
+  assert.ok(fetchedFileIds.includes("9876543210abcdefghijklmnopqrstuv"));
+});

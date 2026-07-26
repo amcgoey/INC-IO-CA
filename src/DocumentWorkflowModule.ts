@@ -65,7 +65,7 @@ export class DocumentWorkflowModule {
         const msg = gmailApp.getMessageById(input.messageId);
         const att = msg ? msg.getAttachments().find((a: any) => a.getName() === input.attachmentName) : null;
         if (att) blob = att.copyBlob();
-      } else if (input.fileSource === "Google Drive URL" && input.driveFileUrl && driveApp) {
+      } else if (input.driveFileUrl && driveApp) {
         const urlMatch = input.driveFileUrl.match(/\/d\/([a-zA-Z0-9_-]{25,})/) ||
                          input.driveFileUrl.match(/[?&]id=([a-zA-Z0-9_-]{25,})/) ||
                          input.driveFileUrl.match(/([a-zA-Z0-9_-]{25,})/);
