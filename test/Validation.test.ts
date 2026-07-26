@@ -296,3 +296,109 @@ test('DocumentPipeline.validate - validates RawDocument directly', () => {
 
   assert.equal(result.status, 'success');
 });
+
+test('FormIntakeParser.parse - extracts FF&E form fields into RawDocument dictionary with trimming', () => {
+  const formInput = {
+    discipline: ' FF&E ',
+    date: ' 2026-07-25 ',
+    contact: ' Jane Smith ',
+    action: ' Approved ',
+    specTag: ' CH-01 ',
+    specTitle: ' Dining Chair ',
+    vendor: ' Herman Miller ',
+    revision: ' 02 ',
+    relatedTag: ' CH-02, CH-03 '
+  };
+
+  const raw = FormIntakeParser.parse(formInput);
+
+  assert.equal(raw.discipline, 'FF&E');
+  assert.equal(raw.date, '2026-07-25');
+  assert.equal(raw.contact, 'Jane Smith');
+  assert.equal(raw.action, 'Approved');
+  assert.equal(raw.specTag, 'CH-01');
+  assert.equal(raw.specTitle, 'Dining Chair');
+  assert.equal(raw.vendor, 'Herman Miller');
+  assert.equal(raw.revision, '02');
+  assert.equal(raw.relatedTag, 'CH-02, CH-03');
+  assert.equal(raw.documentType, 'Submittal');
+});
+
+test('DocumentPipeline.processFormIntake - enforces required fields (specTag, specTitle, vendor) for FF&E discipline', () => {
+  const formInput = {
+    discipline: 'FF&E',
+    date: '2026-07-25',
+    contact: 'Jane Smith',
+    action: 'Approved'
+  };
+
+  const result = DocumentPipeline.processFormIntake(formInput);
+
+  assert.equal(result.status, 'error');
+  if (result.status === 'error') {
+    assert.deepEqual(result.missingFields, ['Spec Tag', 'Spec Title', 'Vendor']);
+    assert.match(result.errors[0], /Missing required fields: Spec Tag, Spec Title, Vendor/);
+  }
+});
+
+test('DocumentPipeline.processFormIntake - validates comma-separated relatedTag against ffeTags.tags and returns error status for invalid tags', () => {
+  const formInput = {
+    discipline: 'FF&E',
+    date: '2026-07-25',
+    contact: 'Jane Smith',
+    action: 'Approved',
+    specTag: 'CH-01',
+    specTitle: 'Dining Chair',
+    vendor: 'Herman Miller',
+    relatedTag: 'CH-02, BAD-TAG-1, BAD-TAG-2'
+  };
+
+  const context = {
+    ffeTags: {
+      tags: ['CH-01', 'CH-02', 'CH-03'],
+      vendors: ['Herman Miller']
+    }
+  };
+
+  const result = DocumentPipeline.processFormIntake(formInput, context);
+
+  assert.equal(result.status, 'error');
+  if (result.status === 'error') {
+    assert.match(result.errors[0], /Invalid Related Tags: BAD-TAG-1, BAD-TAG-2/);
+  }
+});
+
+test('DocumentPipeline.processFormIntake - end-to-end success path for FF&E returning FFEDetails', () => {
+  const formInput = {
+    discipline: 'FF&E',
+    date: '2026-07-25',
+    contact: 'Jane Smith',
+    action: 'Approved',
+    specTag: 'CH-01',
+    specTitle: 'Dining Chair',
+    vendor: 'Herman Miller',
+    revision: '01',
+    relatedTag: 'CH-02'
+  };
+
+  const context = {
+    ffeTags: {
+      tags: ['CH-01', 'CH-02'],
+      vendors: ['Herman Miller']
+    }
+  };
+
+  const result = DocumentPipeline.processFormIntake(formInput, context);
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.equal(result.data.disciplineDetails.discipline, 'FF&E');
+    if (result.data.disciplineDetails.discipline === 'FF&E') {
+      assert.equal(result.data.disciplineDetails.specTag, 'CH-01');
+      assert.equal(result.data.disciplineDetails.specTitle, 'Dining Chair');
+      assert.equal(result.data.disciplineDetails.vendor, 'Herman Miller');
+      assert.equal(result.data.disciplineDetails.revision, '01');
+      assert.equal(result.data.disciplineDetails.relatedTag, 'CH-02');
+    }
+  }
+});
