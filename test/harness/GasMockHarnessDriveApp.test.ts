@@ -87,7 +87,7 @@ test("GasMockHarness DriveApp - GoogleDriveFilingRepository integration with vir
   const harness = GasMockHarness.install();
   const repo = new GoogleDriveFilingRepository();
 
-  const blob = new MockBlob("Submittal text content", "application/pdf", "RawSubmittal.pdf");
+  const blob = new MockBlob("Submittal text content", "application/pdf", "RawDocument.pdf");
   const result = repo.fileDocument(
     { blob },
     {
