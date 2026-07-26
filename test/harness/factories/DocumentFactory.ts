@@ -14,6 +14,18 @@ const DEFAULT_CONTACT_FFE = "Jane Smith";
 const DEFAULT_ACTION_RECEIVED = "Received";
 const DEFAULT_ACTION_APPROVED = "Approved";
 
+export type ValidatedArchitectureOverride = Partial<Omit<ValidatedDocument, "disciplineDetails">> & {
+  disciplineDetails?: Partial<ArchitectureDetails>;
+};
+
+export type ValidatedFFEOverride = Partial<Omit<ValidatedDocument, "disciplineDetails">> & {
+  disciplineDetails?: Partial<FFEDetails>;
+};
+
+export type ValidatedRfiOverride = Partial<Omit<ValidatedDocument, "disciplineDetails">> & {
+  disciplineDetails?: Partial<ArchitectureDetails>;
+};
+
 /**
  * Merges default discipline details with optional partial overrides.
  *
@@ -54,10 +66,10 @@ export function createRawSubmittal(overrides: Partial<RawDocument> = {}): RawDoc
 /**
  * Creates a validated Architecture submittal document with defaults and optional partial overrides.
  *
- * @param overrides - Optional partial ValidatedDocument overrides.
+ * @param overrides - Optional partial ValidatedDocument overrides allowing partial disciplineDetails.
  * @returns Fully populated ValidatedDocument for Architecture discipline.
  */
-export function createValidatedArchitectureSubmittal(overrides: Partial<ValidatedDocument> = {}): ValidatedDocument {
+export function createValidatedArchitectureSubmittal(overrides: ValidatedArchitectureOverride = {}): ValidatedDocument {
   const defaultArchDetails: ArchitectureDetails = {
     discipline: "Architecture",
     section: "081100",
@@ -68,7 +80,7 @@ export function createValidatedArchitectureSubmittal(overrides: Partial<Validate
 
   const disciplineDetails = mergeDisciplineDetails(
     defaultArchDetails,
-    overrides.disciplineDetails as Partial<ArchitectureDetails>
+    overrides.disciplineDetails
   );
 
   return {
@@ -86,10 +98,10 @@ export function createValidatedArchitectureSubmittal(overrides: Partial<Validate
 /**
  * Creates a validated FF&E submittal document with defaults and optional partial overrides.
  *
- * @param overrides - Optional partial ValidatedDocument overrides.
+ * @param overrides - Optional partial ValidatedDocument overrides allowing partial disciplineDetails.
  * @returns Fully populated ValidatedDocument for FF&E discipline.
  */
-export function createValidatedFFESubmittal(overrides: Partial<ValidatedDocument> = {}): ValidatedDocument {
+export function createValidatedFFESubmittal(overrides: ValidatedFFEOverride = {}): ValidatedDocument {
   const defaultFFEDetails: FFEDetails = {
     discipline: "FF&E",
     specTag: "CH-01",
@@ -101,7 +113,7 @@ export function createValidatedFFESubmittal(overrides: Partial<ValidatedDocument
 
   const disciplineDetails = mergeDisciplineDetails(
     defaultFFEDetails,
-    overrides.disciplineDetails as Partial<FFEDetails>
+    overrides.disciplineDetails
   );
 
   return {
@@ -140,10 +152,10 @@ export function createRawRfi(overrides: Partial<RawDocument> = {}): RawDocument 
 /**
  * Creates a validated RFI document with defaults and optional partial overrides.
  *
- * @param overrides - Optional partial ValidatedDocument overrides.
+ * @param overrides - Optional partial ValidatedDocument overrides allowing partial disciplineDetails.
  * @returns Fully populated ValidatedDocument for RFI.
  */
-export function createValidatedRfi(overrides: Partial<ValidatedDocument> = {}): ValidatedDocument {
+export function createValidatedRfi(overrides: ValidatedRfiOverride = {}): ValidatedDocument {
   const defaultArchDetails: ArchitectureDetails = {
     discipline: "Architecture",
     section: "033000",
@@ -154,7 +166,7 @@ export function createValidatedRfi(overrides: Partial<ValidatedDocument> = {}): 
 
   const disciplineDetails = mergeDisciplineDetails(
     defaultArchDetails,
-    overrides.disciplineDetails as Partial<ArchitectureDetails>
+    overrides.disciplineDetails
   );
 
   return {

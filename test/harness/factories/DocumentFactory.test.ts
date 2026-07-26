@@ -58,11 +58,8 @@ test('createValidatedArchitectureSubmittal - applies top-level and disciplineDet
   const doc = createValidatedArchitectureSubmittal({
     contact: 'Jane Smith',
     disciplineDetails: {
-      discipline: 'Architecture',
       title: 'Window Schedule',
-      section: '085113',
-      number: '002',
-      revision: '02'
+      section: '085113'
     }
   });
   assert.equal(doc.contact, 'Jane Smith');
@@ -71,8 +68,8 @@ test('createValidatedArchitectureSubmittal - applies top-level and disciplineDet
   if (doc.disciplineDetails.discipline === 'Architecture') {
     assert.equal(doc.disciplineDetails.title, 'Window Schedule');
     assert.equal(doc.disciplineDetails.section, '085113');
-    assert.equal(doc.disciplineDetails.number, '002');
-    assert.equal(doc.disciplineDetails.revision, '02');
+    assert.equal(doc.disciplineDetails.number, '001');
+    assert.equal(doc.disciplineDetails.revision, '01');
   }
 });
 
@@ -97,20 +94,17 @@ test('createValidatedFFESubmittal - applies partial overrides', () => {
   const doc = createValidatedFFESubmittal({
     action: 'Rejected',
     disciplineDetails: {
-      discipline: 'FF&E',
       specTag: 'PL-05',
-      specTitle: 'Pendant Light',
-      vendor: 'Artemide',
-      revision: '00'
+      vendor: 'Artemide'
     }
   });
   assert.equal(doc.action, 'Rejected');
   assert.equal(doc.disciplineDetails.discipline, 'FF&E');
   if (doc.disciplineDetails.discipline === 'FF&E') {
     assert.equal(doc.disciplineDetails.specTag, 'PL-05');
-    assert.equal(doc.disciplineDetails.specTitle, 'Pendant Light');
+    assert.equal(doc.disciplineDetails.specTitle, 'Dining Chair');
     assert.equal(doc.disciplineDetails.vendor, 'Artemide');
-    assert.equal(doc.disciplineDetails.revision, '00');
+    assert.equal(doc.disciplineDetails.revision, '01');
   }
 });
 
@@ -160,11 +154,8 @@ test('createValidatedRfi - applies partial overrides', () => {
   const doc = createValidatedRfi({
     contact: 'Alex Rivera',
     disciplineDetails: {
-      discipline: 'Architecture',
       section: '051200',
-      number: '010',
-      title: 'Beams Connection',
-      revision: '01'
+      title: 'Beams Connection'
     }
   });
   assert.equal(doc.contact, 'Alex Rivera');
@@ -172,9 +163,9 @@ test('createValidatedRfi - applies partial overrides', () => {
   assert.equal(doc.disciplineDetails.discipline, 'Architecture');
   if (doc.disciplineDetails.discipline === 'Architecture') {
     assert.equal(doc.disciplineDetails.section, '051200');
-    assert.equal(doc.disciplineDetails.number, '010');
+    assert.equal(doc.disciplineDetails.number, '001');
     assert.equal(doc.disciplineDetails.title, 'Beams Connection');
-    assert.equal(doc.disciplineDetails.revision, '01');
+    assert.equal(doc.disciplineDetails.revision, '00');
   }
 });
 
