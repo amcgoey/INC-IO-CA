@@ -224,14 +224,14 @@ function getDefaultConfig(): Record<string, unknown> {
   try {
     const loaded = require("../../src/Config");
     cachedDefaultConfig = loaded.CONFIG || {};
-    return cachedDefaultConfig;
   } catch (_err) {
     if (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG) {
       cachedDefaultConfig = { ...(globalThis as any).CONFIG };
-      return cachedDefaultConfig;
+    } else {
+      cachedDefaultConfig = {};
     }
-    return {};
   }
+  return cachedDefaultConfig!;
 }
 
 export class GasMockHarness {

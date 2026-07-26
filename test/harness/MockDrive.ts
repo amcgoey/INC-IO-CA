@@ -402,6 +402,7 @@ export class MockDriveState {
     if (!targetFolder.childFileIds.includes(fileId)) {
       targetFolder.childFileIds.push(fileId);
     }
+    file.isFiled = true;
     this.filedFileIds.add(fileId);
   }
 
