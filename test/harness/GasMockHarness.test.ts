@@ -6,12 +6,13 @@ test.afterEach(() => {
   GasMockHarness.uninstall();
 });
 
-test("GasMockHarness.install attaches CONFIG, CacheService, and PropertiesService to globalThis", () => {
+test("GasMockHarness.install attaches CONFIG, CacheService, PropertiesService, and SpreadsheetApp to globalThis", () => {
   GasMockHarness.install();
 
   assert.ok((globalThis as any).CONFIG, "globalThis.CONFIG should be attached");
   assert.ok((globalThis as any).CacheService, "globalThis.CacheService should be attached");
   assert.ok((globalThis as any).PropertiesService, "globalThis.PropertiesService should be attached");
+  assert.ok((globalThis as any).SpreadsheetApp, "globalThis.SpreadsheetApp should be attached");
 
   assert.strictEqual(typeof (globalThis as any).CacheService.getUserCache, "function");
   assert.strictEqual(typeof (globalThis as any).CacheService.getScriptCache, "function");
@@ -20,6 +21,8 @@ test("GasMockHarness.install attaches CONFIG, CacheService, and PropertiesServic
   assert.strictEqual(typeof (globalThis as any).PropertiesService.getScriptProperties, "function");
   assert.strictEqual(typeof (globalThis as any).PropertiesService.getUserProperties, "function");
   assert.strictEqual(typeof (globalThis as any).PropertiesService.getDocumentProperties, "function");
+
+  assert.strictEqual(typeof (globalThis as any).SpreadsheetApp.openById, "function");
 });
 
 test("PropertiesService stubs store and retrieve properties per scope", () => {
@@ -74,7 +77,7 @@ test("CacheService stubs store, retrieve, and remove items per scope", () => {
   assert.strictEqual(userCache.get("token"), null);
 });
 
-test("CacheService respects TSL�expiration", () => {
+test("CacheService respects TSL expiration", () => {
   const harness = GasMockHarness.install();
   const cache = harness.userCache;
 
@@ -82,13 +85,91 @@ test("CacheService respects TSL�expiration", () => {
   assert.strictEqual(cache.get("expiringKey"), null);
 });
 
+test("SpreadsheetApp.openById returns mock spreadsheet with 2D array data grid", () => {
+  GasMockHarness.install();
+
+  const ss = (globalThis as any).SpreadsheetApp.openById("ss-123");
+  assert.ok(ss, "Spreadsheet object should be returned");
+  assert.strictEqual(ss.getId(), "ss-123");
+
+  const sheet = ss.getSheetByName("Sheet1");
+  assert.ok(sheet, "Default Sheet1 should exist");
+
+  sheet.getRange("A1:B2").setValues([
+    ["Header 1", "Header 2"],
+    ["Val 1", "Val 2"]
+  ]);
+
+  assert.deepStrictEqual(sheet.getDataRange().getValues(), [
+    ["Header 1", "Header 2"],
+    ["Val 1", "Val 2"]
+  ]);
+});
+
+test("harness.getSheetsState().getRangeValues(rangeNotation) returns cell grid data", () => {
+  const harness = GasMockHarness.install();
+
+  const ss = (globalThis as any).SpreadsheetApp.openById("default-ss");
+  const sheet = ss.getSheetByName("Sheet1");
+  sheet.getRange("A1:C2").setValues([
+    ["Date", "Contact", "Action"],
+    ["2026-07-26", "John", "Received"]
+  ]);
+
+  const state = harness.getSheetsState();
+  assert.deepStrictEqual(state.getRangeValues("A1:C2"), [
+    ["Date", "Contact", "Action"],
+    ["2026-07-26", "John", "Received"]
+  ]);
+
+  assert.deepStrictEqual(state.getRangeValues("Sheet1!A1:B2"), [
+    ["Date", "Contact"],
+    ["2026-07-26", "John"]
+  ]);
+});
+
+test("Unit tests verify row insertion, headers parsing, and cell updating", () => {
+  const harness = GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById("ss-test");
+  const sheet = ss.insertSheet("Log");
+
+  sheet.getRange("A1:C1").setValues([["ColA", "ColB", "ColC"]]);
+  sheet.getRange("A2:C2").setValues([["Row1A", "Row1B", "Row1C"]]);
+  sheet.getRange("A3:C3").setValues([["Row3A", "Row3B", "Row3C"]]);
+
+  // Verify headers parsing
+  const headers = sheet.getRange("A1:C1").getValues()[0];
+  assert.deepStrictEqual(headers, ["ColA", "ColB", "ColC"]);
+
+  // Verify single cell updating
+  sheet.getRange(2, 2).setValue("Row1B-Updated");
+  assert.strictEqual(sheet.getRange(2, 2).getValue(), "Row1B-Updated");
+
+  // Verify insertRowBefore at row 2 (shifts row 2 down to row 3)
+  sheet.insertRowBefore(2);
+  const updatedGrid = harness.getSheetsState("ss-test").getRangeValues("Log!A1:C4");
+  assert.deepStrictEqual(updatedGrid, [
+    ["ColA", "ColB", "ColC"],
+    ["", "", ""],
+    ["Row1A", "Row1B-Updated", "Row1C"],
+    ["Row3A", "Row3B", "Row3C"]
+  ]);
+
+  // Populate inserted row
+  sheet.getRange("A2:C2").setValues([["Row2A", "Row2B", "Row2C"]]);
+  assert.deepStrictEqual(sheet.getRange(2, 1, 1, 3).getValues()[0], ["Row2A", "Row2B", "Row2C"]);
+});
+
 test("GasMockHarness.reset purges stored state and call histories across test runs", () => {
   const harness = GasMockHarness.install();
 
   harness.scriptProperties.getProperty("PROP1");
   harness.userCache.put("CACHE1", "VAL1");
+  (globalThis as any).SpreadsheetApp.openById("ss-1").getSheetByName("Sheet1").getRange("A1").setValue("X");
+
   assert.ok(harness.scriptProperties.calls.length > 0);
   assert.ok(harness.userCache.calls.length > 0);
+  assert.strictEqual(harness.getSheetsState("ss-1").getRangeValues("A1")[0][0], "X");
 
   GasMockHarness.reset();
 
@@ -97,15 +178,19 @@ test("GasMockHarness.reset purges stored state and call histories across test ru
 
   assert.strictEqual(harness.scriptProperties.getProperty("PROP1"), null);
   assert.strictEqual(harness.userCache.get("CACHE1"), null);
+  assert.strictEqual(harness.getSheetsState("ss-1").getRangeValues("A1")[0][0], "");
 });
 
 test("GasMockHarness.install() purges prior state when re-installed", () => {
   GasMockHarness.install();
   (globalThis as any).PropertiesService.getScriptProperties().setProperty("DIRTY", "VALUE");
+  (globalThis as any).SpreadsheetApp.openById("ss-dirty").getSheetByName("Sheet1").getRange("A1").setValue("DIRTY");
+
   assert.strictEqual((globalThis as any).PropertiesService.getScriptProperties().getProperty("DIRTY"), "VALUE");
 
-  GasMockHarness.install();
+  const harness = GasMockHarness.install();
   assert.strictEqual((globalThis as any).PropertiesService.getScriptProperties().getProperty("DIRTY"), null);
+  assert.strictEqual(harness.getSheetsState("ss-dirty").getRangeValues("A1")[0][0], "");
 });
 
 test("GasMockHarness allows custom CONFIG overrides and resets clean", () => {
@@ -124,10 +209,13 @@ test("GasMockHarness allows custom CONFIG overrides and resets clean", () => {
 
 test("GasMockHarness.uninstall restores original globalThis bindings", () => {
   (globalThis as any).PropertiesService = "original-properties-service";
+  (globalThis as any).SpreadsheetApp = "original-spreadsheet-app";
 
   GasMockHarness.install();
   assert.notStrictEqual((globalThis as any).PropertiesService, "original-properties-service");
+  assert.notStrictEqual((globalThis as any).SpreadsheetApp, "original-spreadsheet-app");
 
   GasMockHarness.uninstall();
   assert.strictEqual((globalThis as any).PropertiesService, "original-properties-service");
+  assert.strictEqual((globalThis as any).SpreadsheetApp, "original-spreadsheet-app");
 });
