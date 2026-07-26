@@ -1,12 +1,12 @@
 /**
  * @file FakeAiAnalysisAdapter.ts
- * @description In-memory fake implementation of `AiAnialysisService` for testing.
+ * @description In-memory fake implementation of `AiAnalysisService` for testing.
  */
 
 export class FakeAiAnalysisAdapter implements AiAnalysisService {
   /** Recorded triage calls. */
   public triageCalls: Array<{ emailData: EmailData; messageId?: string; }> = [];
- /** Recorded analyze calls. */
+  /** Recorded analyze calls. */
   public analyzeCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; emailText: string; contextObj: DeepAnalysisContext }> = [];
   private triageResult: AiPredictionResult = {
     success: true,
@@ -16,6 +16,11 @@ export class FakeAiAnalysisAdapter implements AiAnalysisService {
     success: true,
     analysis: {}
   };
+
+  reset(): void {
+    this.triageCalls = [];
+    this.analyzeCalls = [];
+  }
 
   setTriageResult(result: AiPredictionResult): void {
     this.triageResult = result;

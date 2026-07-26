@@ -28,20 +28,10 @@ export class TestContext {
   }
 
   resetAll(): void {
-    this.logRepository.calls = [];
-    this.logRepository.insertedRows = [];
-    this.logRepository.appendedDocuments = [];
-
-    this.driveFilingRepository.calls = [];
-    this.driveFilingRepository.filedDocuments = [];
-
-    this.pdfDocumentService.extractCalls = [];
-    this.pdfDocumentService.stampCalls = [];
-    this.pdfDocumentService.sliceCalls = [];
-    this.pdfDocumentService.calls = [];
-
-    this.aiAnalysisAdapter.triageCalls = [];
-    this.aiAnalysisAdapter.analyzeCalls = [];
+    this.logRepository.reset();
+    this.driveFilingRepository.reset();
+    this.pdfDocumentService.reset();
+    this.aiAnalysisAdapter.reset();
   }
 
   getFiledDocuments() {

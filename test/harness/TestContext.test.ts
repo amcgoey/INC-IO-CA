@@ -19,10 +19,11 @@ test("createTestContext propagates custom options to domain fakes", () => {
   const context = createTestContext({
     logRepositorySettings: {
       "sheet-1": {
-        logFileId: "sheet-1",
-        submittalTabName: "CustomSubmittals",
-        incomingTabName: "CustomIncoming",
-        outgoingTabName: "CustomOutgoing"
+        contacts: [],
+        actions: [],
+        ffeTags: { tags: [], vendors: [], tagMap: {} },
+        projectAbbr: "PROJ-1",
+        logSheetId: 100
       }
     },
     driveFilingCustomPaths: {
@@ -33,7 +34,7 @@ test("createTestContext propagates custom options to domain fakes", () => {
     }
   });
 
-  assert.strictEqual(context.logRepository.getLogSettings("sheet-1", "Arch").submittalTabName, "CustomSubmittals");
+  assert.strictEqual(context.logRepository.getLogSettings("sheet-1", "Arch").projectAbbr, "PROJ-1");
   assert.strictEqual(context.driveFilingRepository.getLocalPath("file-123"), "G:\\Custom\\Path\\file-123.pdf");
 });
 
@@ -43,8 +44,16 @@ test("getLoggedRows and getFiledDocuments convenience getters reflect state of f
   assert.deepStrictEqual(context.getLoggedRows(), []);
   assert.deepStrictEqual(context.getFiledDocuments(), []);
 
-  context.logRepository.insertLogRow("sheet-1", ["Col1"], ["Val1"], { finalRowIndex: 5, action: "insert", insertedBlankCount: 0 });
-  context.driveFilingRepository.fileDocument({ fileId: "file-1" }, { subfolderPath: ["Closed"] });
+  context.logRepository.insertLogRow(
+    "sheet-1",
+    ["Col1"],
+    ["Val1"],
+    { targetRowIndex: 5, insertBlankBefore: false, insertBlankAfter: false, finalRowIndex: 5 }
+  );
+  context.driveFilingRepository.fileDocument(
+    { fileId: "file-1" },
+    { targetFolderId: "folder-123", subfolderPath: ["Closed"] }
+  );
 
   assert.strictEqual(context.getLoggedRows().length, 1);
   assert.strictEqual(context.getLoggedRows()[0].spreadsheetId, "sheet-1");
@@ -57,13 +66,30 @@ test("resetAll clears recorded state across all domain fakes", () => {
   const context = createTestContext();
 
   context.logRepository.getLogSettings("sheet-1", "Arch");
-  context.logRepository.insertLogRow("sheet-1", ["Col1"], ["Val1"], { finalRowIndex: 5, action: "insert", insertedBlankCount: 0 });
+  context.logRepository.insertLogRow(
+    "sheet-1",
+    ["Col1"],
+    ["Val1"],
+    { targetRowIndex: 5, insertBlankBefore: false, insertBlankAfter: false, finalRowIndex: 5 }
+  );
 
-  context.driveFilingRepository.fileDocument({ fileId: "file-1" }, { subfolderPath: ["Closed"] });
+  context.driveFilingRepository.fileDocument(
+    { fileId: "file-1" },
+    { targetFolderId: "folder-123", subfolderPath: ["Closed"] }
+  );
 
   context.pdfDocumentService.extractFormAction("file-1");
 
-  context.aiAnalysisAdapter.triageEmail({ subject: "Test Email", body: "Test Body" });
+  context.aiAnalysisAdapter.triageEmail({
+    subject: "Test Email",
+    sender: "sender@example.com",
+    replyTo: "sender@example.com",
+    to: "to@example.com",
+    cc: "",
+    labels: [],
+    attachmentNames: [],
+    body: "Test Body"
+  });
 
   assert.ok(context.logRepository.calls.length > 0);
   assert.ok(context.getLoggedRows().length > 0);

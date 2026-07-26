@@ -12,6 +12,11 @@ export class FakeDriveFilingRepository implements DriveFilingRepository {
     this.customPaths = customPaths;
   }
 
+  reset(): void {
+    this.calls = [];
+    this.filedDocuments = [];
+  }
+
   getLocalPath(fileId: string): string {
     this.calls.push(fileId);
     if (this.customPaths[fileId]) {
