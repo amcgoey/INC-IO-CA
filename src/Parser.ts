@@ -95,8 +95,8 @@ function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): P
   }
   const defaultResult: ParsedData = {
     driveName: "",
-    discipline: CONFIG.DEFAULT_DISCIPLINE,
-    action: CONFIG.DEFAULT_ACTION
+    discipline: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture",
+    action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
   };
 
   if (!message) return defaultResult;
@@ -120,6 +120,7 @@ function parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
   if (typeof EmailIntakeParser !== "undefined" && EmailIntakeParser.parseFormaEmail_) {
     return EmailIntakeParser.parseFormaEmail_(subject, body);
   }
+  const defaultAction = typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
   const result: Partial<ParsedData> = {};
   const projectMatch = subject.match(/^([^-]+)-/);
   if (projectMatch) result.driveName = projectMatch[1].trim();
@@ -136,7 +137,7 @@ function parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
   if (actionMatch) {
     const intent = actionMatch[1].toLowerCase().trim();
     if (intent.includes("provided for your information") || intent.includes("submitted") || intent.includes("forwarded")) {
-      result.action = CONFIG.DEFAULT_ACTION;
+      result.action = defaultAction;
     } else {
       result.action = actionMatch[1].trim();
     }
@@ -162,7 +163,7 @@ function parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> 
   if (/returned/i.test(subject) || /reviewed/i.test(subject)) {
     result.action = "Reviewed";
   } else if (/submitted/i.test(subject)) {
-    result.action = CONFIG.DEFAULT_ACTION;
+    result.action = typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
   }
   return result;
 }
