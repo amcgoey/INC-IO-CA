@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert";
 
-const { GoogleAppsScriptPdfDocumentService, FakePdfDocumentService, defaultPdfDocumentService, getPdfLib } = require("../src/PdfDocumentService");
+const { GoogleAppsScriptPdfDocumentService, defaultPdfDocumentService, getPdfLib } = require("../src/PdfDocumentService");
+const { FakePdfDocumentService } = require("./harness/index");
 
 test("FakePdfDocumentService extracts configured form action and records calls", async () => {
   const service = new FakePdfDocumentService({

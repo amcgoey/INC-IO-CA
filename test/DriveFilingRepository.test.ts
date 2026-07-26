@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
-const { FakeDriveFilingRepository, GoogleDriveFilingRepository, defaultDriveFilingRepository } = require("../src/DriveFilingRepository");
+const { GoogleDriveFilingRepository, defaultDriveFilingRepository } = require("../src/DriveFilingRepository");
+const { FakeDriveFilingRepository } = require("./harness/index");
 
 test("FakeDriveFilingRepository records calls and returns deterministic path", () => {
   const repo = new FakeDriveFilingRepository();

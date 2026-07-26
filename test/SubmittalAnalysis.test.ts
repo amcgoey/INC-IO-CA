@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert";
 
-const { GeminiAiAnalysisAdapter, FakeAiAnalysisAdapter, defaultAiAnalysisService } = require("../src/AiAnalysisService");
-const { FakePdfDocumentService } = require("../src/PdfDocumentService");
+const { GeminiAiAnalysisAdapter, defaultAiAnalysisService } = require("../src/AiAnalysisService");
+const { FakeAiAnalysisAdapter } = require("./harness/index");
+const { FakePdfDocumentService } = require("./harness/index");
 
 function createMockBlob(bytesLength: number, name = "test.pdf"): any {
   const bytes = new Int8Array(bytesLength);

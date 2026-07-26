@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
 
-const { InMemorySheetStorageAdapter } = require("../src/SheetStorageAdapter");
+const { InMemorySheetStorageAdapter } = require("./harness/index");
 
 test("InMemorySheetStorageAdapter initializes with initial sheets data", () => {
   const initialData = {

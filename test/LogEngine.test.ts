@@ -7,7 +7,7 @@ import assert from "node:assert";
   LOG_SHEET_NAME: "Submittals Log"
 };
 
-const { InMemorySheetStorageAdapter } = require("../src/SheetStorageAdapter");
+const { InMemorySheetStorageAdapter } = require("./harness/index");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
 const { LogEngine } = require("../src/LogEngine");
 

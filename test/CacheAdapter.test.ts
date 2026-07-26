@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
-const { InMemoryCacheAdapter, GoogleScriptCacheAdapter, defaultCacheAdapter } = require("../src/CacheAdapter");
+const { GoogleScriptCacheAdapter, defaultCacheAdapter } = require("../src/CacheAdapter");
+const { InMemoryCacheAdapter } = require("./harness/index");
 
 test("InMemoryCacheAdapter returns null for non-existent key", () => {
   const cache = new InMemoryCacheAdapter();

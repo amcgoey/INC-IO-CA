@@ -44,8 +44,9 @@ const mockSheet = { getSheetId: () => 101 };
   })
 };
 
-const { FakePdfDocumentService, defaultPdfDocumentService } = require("../src/PdfDocumentService");
-const { FakeDriveFilingRepository } = require("../src/DriveFilingRepository");
+const { defaultPdfDocumentService } = require("../src/PdfDocumentService");
+const { FakePdfDocumentService } = require("./harness/index");
+const { FakeDriveFilingRepository } = require("./harness/index");
 
 (globalThis as any).buildMainCard = (e: any, d: any, tag: any, flashData: any) => ({ cardType: "MainCard", flashData });
 (globalThis as any).buildSuccessCard = (...args: any[]) => ({ cardType: "SuccessCard", args });

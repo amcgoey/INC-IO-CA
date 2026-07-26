@@ -197,84 +197,6 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
   }
 }
 
-/**
- * In-memory test mock implementation of `PdfDocumentService`.
- */
-class FakePdfDocumentService implements PdfDocumentService {
-  /** Recorded extract form action calls. */
-  public extractCalls: string[] = [];
-  /** Recorded stamp calls. */
-  public stampCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; data: ParsedData; options: StampOptions }> = [];
-  /** Recorded slice calls. */
-  public sliceCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; maxPages: number }> = [];
-  private actionMap: Map<string, string | null> = new Map();
-  private defaultAction: string | null = null;
-  private stampResultBlob: GoogleAppsScript.Base.Blob | null = null;
-  private sliceResultBase64: string = "";
-
-  /**
-   * Constructs a `FakePdfDocumentService` instance.
-   *
-   * @param initialActions - Optional initial file ID to action mappings.
-   */
-  constructor(initialActions?: Record<string, string | null>) {
-    if (initialActions) {
-      for (const [fileId, action] of Object.entries(initialActions)) {
-        this.actionMap.set(fileId, action);
-      }
-    }
-  }
-
-  setFormAction(fileId: string, action: string | null): void {
-    this.actionMap.set(fileId, action);
-  }
-
-  setDefaultAction(action: string | null): void {
-    this.defaultAction = action;
-  }
-
-  setStampResultBlob(blob: GoogleAppsScript.Base.Blob): void {
-    this.stampResultBlob = blob;
-  }
-
-  setSliceResultBase64(base64String: string): void {
-    this.sliceResultBase64 = base64String;
-  }
-
-  /** @override */
-  async extractFormAction(fileId: string): Promise<string | null> {
-    this.extractCalls.push(fileId);
-    if (this.actionMap.has(fileId)) {
-      return this.actionMap.get(fileId)!;
-    }
-    return this.defaultAction;
-  }
-
-  /** @override */
-  async stampSubmittal(
-    sourceBlob: GoogleAppsScript.Base.Blob,
-    data: ParsedData,
-    options: StampOptions
-  ): Promise<GoogleAppsScript.Base.Blob> {
-    if (!options || !options.templateId || options.templateId === "") {
-      throw new Error("TEMPLATE_MISSING");
-    }
-    this.stampCalls.push({ sourceBlob, data, options });
-    if (this.stampResultBlob) {
-      return this.stampResultBlob;
-    }
-    return sourceBlob;
-  }
-
-  /** @override */
-  async slicePagesToBase64(
-    sourceBlob: GoogleAppsScript.Base.Blob,
-    maxPages: number
-  ): Promise<string> {
-    this.sliceCalls.push({ sourceBlob, maxPages });
-    return this.sliceResultBase64;
-  }
-}
 
 /** Global default instance seam for PDF document service. */
 var defaultPdfDocumentService: PdfDocumentService = new GoogleAppsScriptPdfDocumentService();
@@ -284,7 +206,6 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     GoogleAppsScriptPdfDocumentService,
-    FakePdfDocumentService,
     defaultPdfDocumentService,
     getPdfLib
   };

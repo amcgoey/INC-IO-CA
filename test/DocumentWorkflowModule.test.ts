@@ -11,8 +11,8 @@ import assert from "node:assert";
   PDF_TEMPLATE_ID: "tmpl-pdf"
 };
 
-const { FakePdfDocumentService } = require("../src/PdfDocumentService");
-const { FakeDriveFilingRepository } = require("../src/DriveFilingRepository");
+const { FakePdfDocumentService } = require("./harness/index");
+const { FakeDriveFilingRepository } = require("./harness/index");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
 const { getActionPolicy, getDocumentLogStrategy, getDocumentTitle, DocumentWorkflowModule } = require("../src/DocumentWorkflowModule");
 

@@ -6,51 +6,6 @@
  * `FakeDriveFilingRepository` for unit testing.
  */
 
-/**
- * In-memory test implementation of `DriveFilingRepository`.
- * Records filing calls and returns stubbed `FilingResult` outcomes without invoking Google Drive APIs.
- */
-class FakeDriveFilingRepository implements DriveFilingRepository {
-  /** Array tracking file IDs passed to getLocalPath. */
-  public calls: string[] = [];
-  /** Recorded filing executions containing source files, filing options, and results. */
-  public filedDocuments: Array<{ file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob }; options: FilingOptions; result: FilingResult }> = [];
-  /** Custom mapped local paths for testing. */
-  public customPaths: Record<string, string>;
-
-  /**
-   * Constructs a new `FakeDriveFilingRepository` instance.
-   *
-   * @param customPaths - Dictionary mapping file IDs to custom mock local paths.
-   */
-  constructor(customPaths: Record<string, string> = {}) {
-    this.customPaths = customPaths;
-  }
-
-  /** @override */
-  getLocalPath(fileId: string): string {
-    this.calls.push(fileId);
-    if (this.customPaths[fileId]) {
-      return this.customPaths[fileId];
-    }
-    return "G:\\My Drive\\FakePath\\" + fileId;
-  }
-
-  /** @override */
-  fileDocument(
-    file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob },
-    options: FilingOptions
-  ): FilingResult {
-    const id = file.fileId || "fake-file-id";
-    const subfolders = options.subfolderPath || ["Closed"];
-    const folderId = "folder-" + subfolders.join("-");
-    const url = "http://drive.google.com/" + id;
-    const localPath = this.getLocalPath(id);
-    const result: FilingResult = { fileId: id, url, localPath, folderId };
-    this.filedDocuments.push({ file, options, result });
-    return result;
-  }
-}
 
 /**
  * Production implementation of `DriveFilingRepository` using Google Apps Script's `DriveApp` and `Drive` Advanced Service.
@@ -158,7 +113,6 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     GoogleDriveFilingRepository,
-    FakeDriveFilingRepository,
     defaultDriveFilingRepository
   };
 }

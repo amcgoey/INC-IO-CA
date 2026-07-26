@@ -310,7 +310,7 @@ test('Main.ts onDriveItemsSelected - handles invalid selection when non-PDF or m
 });
 
 test('Main.ts buildAddOn - populates parsedData with Forma submittal notification email details', async () => {
-  const { FakeAiAnalysisAdapter } = require("../src/AiAnalysisService");
+  const { FakeAiAnalysisAdapter } = require("./harness/index");
   const fakeAi = new FakeAiAnalysisAdapter();
   fakeAi.setTriageResult({ success: true, prediction: { predictedProjectName: "Project Gamma", predictedDiscipline: "Architecture" } });
   (globalThis as any).defaultAiAnalysisService = fakeAi;
