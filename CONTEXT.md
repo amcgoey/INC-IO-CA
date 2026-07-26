@@ -75,8 +75,13 @@ The contextual parameters (target folder ID, discipline/document details, destin
 **FilingResult**:
 The structured outcome of filing a document in Drive, containing the file ID, web URL, Windows G:\ local path, and destination folder ID.
 
+**AiAnalysisService**:
+The abstract service interface encapsulating AI predictions, triage, and deep document analysis across varying document types.
+_Avoid_: AiTriageModule, AiUtils, AIHelper
 
+**GeminiAiAnalysisAdapter**:
+The concrete implementation of AiAnalysisService that formats prompts, handles Gemini API retries, error masking, and caching.
+_Avoid_: GeminiTriageAdapter
 
-
-
-
+**FakeAiAnalysisAdapter**:
+The in-memory test implementation of AiAnalysisService that returns deterministic predictions without network or script property dependencies.
