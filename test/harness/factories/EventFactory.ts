@@ -1,20 +1,27 @@
 // test/harness/factories/EventFactory.ts
 
-import { GoogleAppsScriptEvent, DriveItem } from "../../../src/types";
+/// <reference path="../../../src/types.ts" />
 
 export type EventInputs = Record<
   string,
   string | string[] | number | boolean | undefined
 >;
 
-export interface GmailContextOptions extends Partial<GoogleAppsScriptEvent> {
+export type GmailContextOptions = Omit<Partial<GoogleAppsScriptEvent>, "gmail"> & {
   messageId?: string;
   accessToken?: string;
-}
+  gmail?: {
+    messageId?: string;
+    accessToken?: string;
+  };
+};
 
-export interface DriveContextOptions extends Partial<GoogleAppsScriptEvent> {
+export type DriveContextOptions = Omit<Partial<GoogleAppsScriptEvent>, "drive"> & {
   selectedItems?: DriveItem[];
-}
+  drive?: {
+    selectedItems?: DriveItem[];
+  };
+};
 
 export class EventFactory {
   /**
@@ -64,9 +71,10 @@ export class EventFactory {
     const accessToken =
       overrides.gmail?.accessToken ?? overrides.accessToken ?? "mock-access-token";
 
-    const baseOverrides: Partial<GoogleAppsScriptEvent> = { ...overrides };
-    delete (baseOverrides as GmailContextOptions).messageId;
-    delete (baseOverrides as GmailContextOptions).accessToken;
+    const baseOverrides: Record<string, any> = { ...overrides };
+    delete baseOverrides.messageId;
+    delete baseOverrides.accessToken;
+    delete baseOverrides.gmail;
 
     const baseEvent = EventFactory.createCardSubmitEvent(inputs, baseOverrides);
 
@@ -96,8 +104,9 @@ export class EventFactory {
         }
       ];
 
-    const baseOverrides: Partial<GoogleAppsScriptEvent> = { ...overrides };
-    delete (baseOverrides as DriveContextOptions).selectedItems;
+    const baseOverrides: Record<string, any> = { ...overrides };
+    delete baseOverrides.selectedItems;
+    delete baseOverrides.drive;
 
     const baseEvent = EventFactory.createCardSubmitEvent(inputs, baseOverrides);
 

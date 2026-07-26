@@ -1,14 +1,25 @@
 /**
  * @file GasMockHarness.ts
- * @description Centralized testing infrastructure harness managing globalThis stubs for CONFIG, CacheService, and PropertiesService with explicit lifecycle methods.
-*/
+ * @description Centralized testing infrastructure harness managing globalThis stubs for CONFIG, CacheService, PropertiesService, and SpreadsheetApp with explicit lifecycle methods.
+ */
 
-import { CONFIG as DEFAULT_CONFIG } from "../../src/Config";
+/// <reference path="../../src/Config.ts" />
+declare var CONFIG: any;
+
+let DEFAULT_CONFIG: Record<string, unknown> = {};
+try {
+  const req = require("../../src/Config");
+  DEFAULT_CONFIG = req.CONFIG || {};
+} catch (e) {
+  if (typeof CONFIG !== "undefined") {
+    DEFAULT_CONFIG = CONFIG as Record<string, unknown>;
+  }
+}
 
 export interface CallLog {
   method: string;
   args: unknown[];
-  timestamp: nuner;
+  timestamp: number;
 }
 
 export class MockPropertiesStore {
@@ -24,13 +35,11 @@ export class MockPropertiesStore {
     return this.store.get(key) ?? null;
   }
 
-
- public setProperty(key: string, value: string): this {
+  public setProperty(key: string, value: string): this {
     this.recordCall("setProperty", [key, value]);
     this.store.set(key, String(value));
     return this;
   }
-
 
   public getProperties(): Record<string, string> {
     this.recordCall("getProperties", []);
@@ -52,20 +61,17 @@ export class MockPropertiesStore {
     return this;
   }
 
-
- public deleteProperty(key: string): this {
+  public deleteProperty(key: string): this {
     this.recordCall("deleteProperty", [key]);
     this.store.delete(key);
     return this;
   }
 
-
- public deleteAllProperties(): this {
+  public deleteAllProperties(): this {
     this.recordCall("deleteAllProperties", []);
     this.store.clear();
     return this;
   }
-
 
   public getKeys(): string[] {
     this.recordCall("getKeys", []);
@@ -87,8 +93,7 @@ export class MockPropertiesService {
     return this.scriptProperties;
   }
 
-
- public getUserProperties(): MockPropertiesStore {
+  public getUserProperties(): MockPropertiesStore {
     return this.userProperties;
   }
 
@@ -96,8 +101,7 @@ export class MockPropertiesService {
     return this.documentProperties;
   }
 
-
- public reset(): void {
+  public reset(): void {
     this.scriptProperties.reset();
     this.userProperties.reset();
     this.documentProperties.reset();
@@ -117,7 +121,6 @@ export class MockCacheStore {
     this.calls.push({ method, args, timestamp: Date.now() });
   }
 
-
   public get(key: string): string | null {
     this.recordCall("get", [key]);
     const entry = this.store.get(key);
@@ -128,7 +131,6 @@ export class MockCacheStore {
     }
     return entry.value;
   }
-
 
   public put(key: string, value: string, expirationInSeconds?: number): void {
     this.recordCall("put", [key, value, expirationInSeconds]);
@@ -143,22 +145,19 @@ export class MockCacheStore {
     this.store.set(key, { value: String(value), expiresAt });
   }
 
-
- public remove(key: string): void {
+  public remove(key: string): void {
     this.recordCall("remove", [key]);
     this.store.delete(key);
   }
 
-
- public removeAll(keys: string[]): void {
+  public removeAll(keys: string[]): void {
     this.recordCall("removeAll", [keys]);
     for (const key of keys) {
       this.store.delete(key);
     }
   }
 
-
- public getAll(keys: string[]): Record<string, string> {
+  public getAll(keys: string[]): Record<string, string> {
     this.recordCall("getAll", [keys]);
     const result: Record<string, string> = {};
     for (const key of keys) {
@@ -170,7 +169,6 @@ export class MockCacheStore {
     return result;
   }
 
-
   public putAll(values: Record<string, string>, expirationInSeconds?: number): void {
     this.recordCall("putAll", [values, expirationInSeconds]);
     for (const [k, v] of Object.entries(values)) {
@@ -178,8 +176,7 @@ export class MockCacheStore {
     }
   }
 
-
- public reset(): void {
+  public reset(): void {
     this.store.clear();
     this.calls = [];
   }
@@ -194,7 +191,6 @@ export class MockCacheService {
     return this.userCache;
   }
 
-
   public getScriptCache(): MockCacheStore {
     return this.scriptCache;
   }
@@ -203,11 +199,313 @@ export class MockCacheService {
     return this.documentCache;
   }
 
-
- public reset(): void {
+  public reset(): void {
     this.userCache.reset();
     this.scriptCache.reset();
     this.documentCache.reset();
+  }
+}
+
+function columnLetterToNumber(letter: string): number {
+  let col = 0;
+  for (let i = 0; i < letter.length; i++) {
+    col = col * 26 + (letter.charCodeAt(i) - 64);
+  }
+  return col;
+}
+
+function parseA1Notation(notation: string, maxRows: number = 100): {
+  sheetName?: string;
+  startRow: number;
+  startCol: number;
+  numRows: number;
+  numCols: number;
+} {
+  let clean = notation;
+  let sheetName: string | undefined;
+  if (clean.includes("!")) {
+    const parts = clean.split("!");
+    sheetName = parts[0];
+    clean = parts[1];
+  }
+
+  const parts = clean.split(":");
+  const firstCell = parts[0];
+  const secondCell = parts.length > 1 ? parts[1] : firstCell;
+
+  const m1 = firstCell.match(/^([A-Za-z]+)(\d+)?$/);
+  if (!m1) {
+    return { sheetName, startRow: 1, startCol: 1, numRows: 1, numCols: 1 };
+  }
+
+  const startCol = columnLetterToNumber(m1[1].toUpperCase());
+  const startRow = m1[2] ? parseInt(m1[2], 10) : 1;
+
+  const m2 = secondCell.match(/^([A-Za-z]+)(\d+)?$/);
+  let endCol = startCol;
+  let endRow = startRow;
+
+  if (m2) {
+    endCol = columnLetterToNumber(m2[1].toUpperCase());
+    endRow = m2[2] ? parseInt(m2[2], 10) : Math.max(startRow, maxRows);
+  }
+
+  const numRows = Math.max(1, endRow - startRow + 1);
+  const numCols = Math.max(1, endCol - startCol + 1);
+
+  return { sheetName, startRow, startCol, numRows, numCols };
+}
+
+export class MockRange {
+  constructor(
+    private sheet: MockSheet,
+    private startRow: number,
+    private startCol: number,
+    private numRows: number,
+    private numCols: number
+  ) {}
+
+  public getValues(): any[][] {
+    return this.sheet.getGridSlice(this.startRow, this.startCol, this.numRows, this.numCols);
+  }
+
+  public setValues(values: any[][]): this {
+    this.sheet.setGridSlice(this.startRow, this.startCol, values);
+    return this;
+  }
+
+  public getValue(): any {
+    const values = this.getValues();
+    return values.length > 0 && values[0].length > 0 ? values[0][0] : "";
+  }
+
+  public setValue(value: any): this {
+    this.sheet.setGridSlice(this.startRow, this.startCol, [[value]]);
+    return this;
+  }
+}
+
+export class MockSheet {
+  private grid: any[][] = [];
+  public calls: CallLog[] = [];
+
+  constructor(public name: string, initialData: any[][] = []) {
+    this.grid = initialData.map(row => [...row]);
+  }
+
+  private recordCall(method: string, args: unknown[]): void {
+    this.calls.push({ method, args, timestamp: Date.now() });
+  }
+
+  public getName(): string {
+    this.recordCall("getName", []);
+    return this.name;
+  }
+
+  public getGrid(): any[][] {
+    return this.grid.map(row => [...row]);
+  }
+
+  public setGrid(data: any[][]): void {
+    this.grid = data.map(row => [...row]);
+  }
+
+  public getGridSlice(startRow: number, startCol: number, numRows: number, numCols: number): any[][] {
+    const result: any[][] = [];
+    for (let r = 0; r < numRows; r++) {
+      const rowIdx = startRow - 1 + r;
+      const row: any[] = [];
+      const gridRow = rowIdx >= 0 && rowIdx < this.grid.length ? this.grid[rowIdx] : [];
+      for (let c = 0; c < numCols; c++) {
+        const colIdx = startCol - 1 + c;
+        const val = colIdx >= 0 && colIdx < gridRow.length ? gridRow[colIdx] : "";
+        row.push(val);
+      }
+      result.push(row);
+    }
+    return result;
+  }
+
+  public setGridSlice(startRow: number, startCol: number, values: any[][]): void {
+    for (let r = 0; r < values.length; r++) {
+      const rowIdx = startRow - 1 + r;
+      while (this.grid.length <= rowIdx) {
+        this.grid.push([]);
+      }
+      const gridRow = this.grid[rowIdx];
+      const valRow = values[r];
+      for (let c = 0; c < valRow.length; c++) {
+        const colIdx = startCol - 1 + c;
+        while (gridRow.length <= colIdx) {
+          gridRow.push("");
+        }
+        gridRow[colIdx] = valRow[c];
+      }
+    }
+  }
+
+  public getDataRange(): MockRange {
+    this.recordCall("getDataRange", []);
+    const numRows = Math.max(1, this.grid.length);
+    const numCols = Math.max(1, ...this.grid.map(r => r.length), 1);
+    return new MockRange(this, 1, 1, numRows, numCols);
+  }
+
+  public getRange(rowOrA1: number | string, col?: number, numRows?: number, numCols?: number): MockRange {
+    this.recordCall("getRange", [rowOrA1, col, numRows, numCols]);
+    if (typeof rowOrA1 === "string") {
+      const parsed = parseA1Notation(rowOrA1, this.grid.length);
+      return new MockRange(this, parsed.startRow, parsed.startCol, parsed.numRows, parsed.numCols);
+    }
+    const r = rowOrA1;
+    const c = col || 1;
+    const nr = numRows !== undefined ? numRows : 1;
+    const nc = numCols !== undefined ? numCols : 1;
+    return new MockRange(this, r, c, nr, nc);
+  }
+
+  public clearContents(): void {
+    this.recordCall("clearContents", []);
+    this.grid = [];
+  }
+
+  public insertRowBefore(rowIndex: number): void {
+    this.recordCall("insertRowBefore", [rowIndex]);
+    const insertIdx = Math.max(0, rowIndex - 1);
+    const colCount = Math.max(1, ...this.grid.map(r => r.length), 1);
+    const safeIdx = Math.min(this.grid.length, insertIdx);
+    this.grid.splice(safeIdx, 0, new Array(colCount).fill(""));
+  }
+
+  public insertRowAfter(rowIndex: number): void {
+    this.recordCall("insertRowAfter", [rowIndex]);
+    const insertIdx = Math.max(0, rowIndex);
+    const colCount = Math.max(1, ...this.grid.map(r => r.length), 1);
+    const safeIdx = Math.min(this.grid.length, insertIdx);
+    this.grid.splice(safeIdx, 0, new Array(colCount).fill(""));
+  }
+}
+
+export class MockSpreadsheet {
+  private sheets: Map<string, MockSheet> = new Map();
+  public calls: CallLog[] = [];
+
+  constructor(public id: string, public name: string = "Mock Spreadsheet") {
+    this.insertSheet("Sheet1");
+  }
+
+  private recordCall(method: string, args: unknown[]): void {
+    this.calls.push({ method, args, timestamp: Date.now() });
+  }
+
+  public getId(): string {
+    this.recordCall("getId", []);
+    return this.id;
+  }
+
+  public getName(): string {
+    this.recordCall("getName", []);
+    return this.name;
+  }
+
+  public getSheetByName(name: string): MockSheet | null {
+    this.recordCall("getSheetByName", [name]);
+    return this.sheets.get(name) || null;
+  }
+
+  public getSheets(): MockSheet[] {
+    this.recordCall("getSheets", []);
+    return Array.from(this.sheets.values());
+  }
+
+  public insertSheet(name: string, initialData: any[][] = []): MockSheet {
+    this.recordCall("insertSheet", [name]);
+    const sheet = new MockSheet(name, initialData);
+    this.sheets.set(name, sheet);
+    return sheet;
+  }
+
+  public reset(): void {
+    this.sheets.clear();
+    this.insertSheet("Sheet1");
+    this.calls = [];
+  }
+}
+
+export class MockSheetsService {
+  private spreadsheets: Map<string, MockSpreadsheet> = new Map();
+  public calls: CallLog[] = [];
+
+  private recordCall(method: string, args: unknown[]): void {
+    this.calls.push({ method, args, timestamp: Date.now() });
+  }
+
+  public openById(id: string): MockSpreadsheet {
+    this.recordCall("openById", [id]);
+    if (!this.spreadsheets.has(id)) {
+      this.spreadsheets.set(id, new MockSpreadsheet(id));
+    }
+    return this.spreadsheets.get(id)!;
+  }
+
+  public create(name: string): MockSpreadsheet {
+    this.recordCall("create", [name]);
+    const id = `ss-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const ss = new MockSpreadsheet(id, name);
+    this.spreadsheets.set(id, ss);
+    return ss;
+  }
+
+  public getActiveSpreadsheet(): MockSpreadsheet {
+    this.recordCall("getActiveSpreadsheet", []);
+    let first = Array.from(this.spreadsheets.values())[0];
+    if (!first) {
+      first = this.openById("default-ss");
+    }
+    return first;
+  }
+
+  public reset(): void {
+    this.spreadsheets.clear();
+    this.calls = [];
+  }
+}
+
+export class MockSheetsState {
+  constructor(private harness: GasMockHarness, private spreadsheetId?: string) {}
+
+  private getSpreadsheet(): MockSpreadsheet {
+    const id = this.spreadsheetId || "default-ss";
+    return this.harness.sheetsService.openById(id);
+  }
+
+  public getSheetData(sheetName?: string): any[][] {
+    const ss = this.getSpreadsheet();
+    const sheet = sheetName ? ss.getSheetByName(sheetName) : ss.getSheets()[0];
+    if (!sheet) return [];
+    return sheet.getGrid();
+  }
+
+  public getRangeValues(rangeNotation: string, sheetName?: string): any[][] {
+    let targetSheetName = sheetName;
+    let notation = rangeNotation;
+
+    if (rangeNotation.includes("!")) {
+      const parts = rangeNotation.split("!");
+      targetSheetName = parts[0];
+      notation = parts[1];
+    }
+
+    const ss = this.getSpreadsheet();
+    const sheet = targetSheetName ? ss.getSheetByName(targetSheetName) : ss.getSheets()[0];
+    if (!sheet) return [];
+
+    return sheet.getRange(notation).getValues();
+  }
+
+  public getSheets(): string[] {
+    const ss = this.getSpreadsheet();
+    return ss.getSheets().map(s => s.getName());
   }
 }
 
@@ -221,6 +519,7 @@ export class GasMockHarness {
 
   public propertiesService: MockPropertiesService = new MockPropertiesService();
   public cacheService: MockCacheService = new MockCacheService();
+  public sheetsService: MockSheetsService = new MockSheetsService();
   public config: Record<string, unknown> = {};
   private configOverrides: Record<string, unknown> = {};
 
@@ -249,6 +548,13 @@ export class GasMockHarness {
   }
 
   public static install(options?: HarnessInstallOptions): GasMockHarness {
+    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "SpreadsheetApp"];
+    for (const name of globalsToStub) {
+      if (!GasMockHarness.originalGlobals.has(name)) {
+        GasMockHarness.originalGlobals.set(name, (globalThis as any)[name]);
+      }
+    }
+
     if (!GasMockHarness.instance) {
       GasMockHarness.instance = new GasMockHarness(options);
     } else {
@@ -258,27 +564,21 @@ export class GasMockHarness {
       GasMockHarness.reset();
     }
 
-    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService"];
-    for (const name of globalsToStub) {
-      if (!GasMockHarness.originalGlobals.has(name)) {
-        GasMockHarness.originalGlobals.set(name, (globalThis as any)[name]);
-      }
-    }
-
     (globalThis as any).PropertiesService = GasMockHarness.instance.propertiesService;
     (globalThis as any).CacheService = GasMockHarness.instance.cacheService;
+    (globalThis as any).SpreadsheetApp = GasMockHarness.instance.sheetsService;
     (globalThis as any).CONFIG = GasMockHarness.instance.config;
 
     return GasMockHarness.instance;
   }
 
-
- public static reset(): void {
+  public static reset(): void {
     if (!GasMockHarness.instance) {
       GasMockHarness.install();
     }
     GasMockHarness.instance!.propertiesService.reset();
     GasMockHarness.instance!.cacheService.reset();
+    GasMockHarness.instance!.sheetsService.reset();
     GasMockHarness.instance!.configOverrides = {};
     GasMockHarness.instance!.resetConfig();
     (globalThis as any).CONFIG = GasMockHarness.instance!.config;
@@ -296,13 +596,11 @@ export class GasMockHarness {
     GasMockHarness.instance = null;
   }
 
-
- public get scriptProperties(): MockPropertiesStore {
+  public get scriptProperties(): MockPropertiesStore {
     return this.propertiesService.getScriptProperties();
   }
 
-
- public get userProperties(): MockPropertiesStore {
+  public get userProperties(): MockPropertiesStore {
     return this.propertiesService.getUserProperties();
   }
 
@@ -310,17 +608,19 @@ export class GasMockHarness {
     return this.propertiesService.getDocumentProperties();
   }
 
-
- public get userCache(): MockCacheStore {
+  public get userCache(): MockCacheStore {
     return this.cacheService.getUserCache();
   }
 
-
- public get scriptCache(): MockCacheStore {
+  public get scriptCache(): MockCacheStore {
     return this.cacheService.getScriptCache();
   }
 
   public get documentCache(): MockCacheStore {
     return this.cacheService.getDocumentCache();
+  }
+
+  public getSheetsState(spreadsheetId?: string): MockSheetsState {
+    return new MockSheetsState(this, spreadsheetId);
   }
 }
