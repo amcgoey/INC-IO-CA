@@ -88,6 +88,9 @@ function parseDriveFilename(filename: string): ParsedData {
 
 
 function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
+  if (typeof DocumentPipeline !== "undefined" && DocumentPipeline.parseEmail) {
+    return DocumentPipeline.parseEmail(message);
+  }
   const defaultResult: ParsedData = {
     driveName: "",
     discipline: CONFIG.DEFAULT_DISCIPLINE,
@@ -137,6 +140,9 @@ function parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
 }
 
 function parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> {
+  if (typeof EmailIntakeParser !== "undefined" && EmailIntakeParser.parseProcoreEmail_) {
+    return EmailIntakeParser.parseProcoreEmail_(subject, body);
+  }
   const result: Partial<ParsedData> = {};
   const projectMatch = subject.match(/\[([^\]]+)\]/);
   if (projectMatch) result.driveName = projectMatch[1].trim();
@@ -155,5 +161,3 @@ function parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> 
   }
   return result;
 }
-
-

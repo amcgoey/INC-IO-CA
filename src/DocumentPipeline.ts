@@ -18,7 +18,7 @@ function getTrimmed(val?: string): string {
   return (val || "").trim();
 }
 
-/**
+/*
  * Form Intake Parser & Document Pipeline core service.
  */
 
@@ -46,9 +46,84 @@ export class FormIntakeParser {
   }
 }
 
+export class EmailIntakeParser {
+  static parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> {
+    const result: Partial<ParsedData> = {};
+    const projectMatch = subject.match(/\[([^\]]+)\]/);
+    if (projectMatch) result.driveName = projectMatch[1].trim();
+
+    const submittalMatch = subject.match(/(?:Submittal|Subm)\s*#?\s*([\w]+)-([\w.]+)/i);
+    if (submittalMatch) {
+      result.specSection = submittalMatch[1];
+      result.revNum = submittalMatch[2];
+      if (/^\d/.test(result.specSection)) result.discipline = "Architecture";
+    }
+
+    if (/returned/i.test(subject) || /reviewed/i.test(subject)) {
+      result.action = "Reviewed";
+    } else if (/submitted/i.test(subject)) {
+      result.action = typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
+    }
+    return result;
+  }
+
+  static parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
+    const result: Partial<ParsedData> = {};
+    const projectMatch = subject.match(/^([^-]+)-/);
+    if (projectMatch) result.driveName = projectMatch[1].trim();
+
+    const subMatch = subject.match(/#\s*(.*?)\s+was/i);
+    if (subMatch) {
+      const parts = subMatch[1].split('-');
+      result.specSection = parts[0].trim();
+      if (parts.length > 1) result.revNum = parts.slice(1).join('-').trim();
+      if (/^\d/.test(result.specSection)) result.discipline = "Architecture";
+    }
+
+    const actionMatch = subject.match(/was\s+(.+)$/i);
+    if (actionMatch) {
+      const intent = actionMatch[1].toLowerCase().trim();
+      if (intent.includes("provided for your information") || intent.includes("submitted") || intent.includes("forwarded")) {
+        result.action = typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
+      } else {
+        result.action = actionMatch[1].trim();
+      }
+    }
+    return result;
+  }
+
+  static parseEmail(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
+    const defaultResult: ParsedData = {
+      driveName: "",
+      discipline: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture",
+      action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
+    };
+
+    if (!message) return defaultResult;
+
+    const sender = message.getFrom() || "";
+    const subject = message.getSubject() || "";
+    const body = message.getPlainBody() || "";
+
+    if (sender.toLowerCase().includes("@mail.forma.autodesk.com")) {
+      return { ...defaultResult, ...EmailIntakeParser.parseFormaEmail_(subject, body) };
+    }
+
+    if (sender.toLowerCase().includes("procore.com") || sender.toLowerCase().includes("procoretech.com") || /procore/i.test(sender)) {
+      return { ...defaultResult, ...EmailIntakeParser.parseProcoreEmail_(subject, body) };
+    }
+
+    return defaultResult;
+  }
+}
+
 export class DocumentPipeline {
   static parseFormIntake(formInput: Record<string, string>): RawDocument {
     return FormIntakeParser.parse(formInput);
+  }
+
+  static parseEmail(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
+    return EmailIntakeParser.parseEmail(message);
   }
 
   static validate(rawDoc: RawDocument, context?: ValidationContext): ValidationResult {
@@ -67,6 +142,7 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     FormIntakeParser,
+    EmailIntakeParser,
     DocumentPipeline,
     validateDocument: typeof validateDocument !== "undefined" ? validateDocument : validateDocFn
   };
