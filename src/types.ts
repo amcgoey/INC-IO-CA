@@ -18,6 +18,53 @@ interface AIPrediction {
   confidence?: number;
 }
 
+type AiPredictionResult =
+  | { success: true; prediction: AIPrediction }
+  | {
+      success: false;
+      error: {
+        code: 'RATE_LIMITED' | 'MISSING_KEY' | 'API_FAILURE' | 'PARSE_FAILURE';
+        userMessage: string;
+      };
+    };
+
+interface DeepAnalysisContext {
+  discipline?: string;
+  contacts: Array<{ abbr: string; name: string }>;
+  actions: Array<{ action: string; abbr?: string; status?: string }>;
+  ffeTags?: string[];
+}
+
+interface DeepAnalysisPrediction {
+  predictedSection?: string;
+  predictedNumber?: string;
+  predictedRevision?: string;
+  predictedTitle?: string;
+  predictedSpecTag?: string;
+  predictedVendor?: string;
+  predictedContactAbbr?: string;
+  predictedAction?: string;
+}
+
+type DeepAnalysisResult =
+  | { success: true; prediction: DeepAnalysisPrediction; analysis?: DeepAnalysisPrediction }
+  | {
+      success: false;
+      error: {
+        code: "RATE_LIMITED" | "MISSING_KEY" | "API_FAILURE" | "PARSE_FAILURE" | "PDF_PROCESSING_ERROR";
+        userMessage: string;
+      };
+    };
+
+interface AiAnalysisService {
+  triageEmail(emailData: EmailData, messageId?: string): Promise<AiPredictionResult>;
+  analyzeSubmittal(
+    sourceBlob: GoogleAppsScript.Base.Blob,
+    emailText: string,
+    contextObj: DeepAnalysisContext
+  ): Promise<DeepAnalysisResult>;
+}
+
 interface ParsedData {
   projectAbbr?: string;
   discipline?: string;
@@ -348,6 +395,7 @@ interface DriveFilingRepository {
 declare var defaultLogRepository: LogRepository;
 declare var defaultDriveFilingRepository: DriveFilingRepository;
 declare var defaultPdfDocumentService: PdfDocumentService;
+declare var defaultAiAnalysisService: AiAnalysisService;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 
 // Global declaration for pdf-lib evaluated at runtime
