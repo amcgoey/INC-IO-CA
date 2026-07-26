@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 // Global mock configuration for GAS environment before requiring DocumentPipeline & Parser
 (globalThis as any).CONFIG = {
   DEFAULT_ACTION: "Received",
-  DEFAULT_DISCIPLINE: "Architecture"
+  DEFAULT_DISCIPLINE: "Architecture",
+  SUPPORTED_DISCIPLINES: ["Architecture", "FF&E"]
 };
 
 const { EmailIntakeParser, DriveFilenameIntakeParser, DocumentPipeline } = require("../src/DocumentPipeline");
@@ -58,13 +59,23 @@ const { EmailIntakeParser, DriveFilenameIntakeParser, DocumentPipeline } = requi
   extractFormAction: async (fileId: string) => 'Received'
 };
 
-(globalThis as any).buildMainCard = (e: any, parsedData: any) => ({
+(globalThis as any).buildMainCard = (e: any, parsedData: any, isTagChange?: boolean, flashMessage?: any) => ({
   cardType: 'MainCard',
   e,
-  parsedData
+  parsedData,
+  isTagChange,
+  flashMessage
 });
 
-const { onDriveItemsSelected } = require('../src/Main');
+(globalThis as any).getCachedPrediction = (messageId: string) => null;
+(globalThis as any).setCachedPrediction = (messageId: string, pred: any) => {};
+(globalThis as any).getAvailableDriveNames = () => ["Project Gamma", "Skyline Tower"];
+(globalThis as any).predictProjectAndDiscipline = (emailData: any, driveNames: string[]) => ({
+  predictedProjectName: "Project Gamma",
+  predictedDiscipline: "Architecture"
+});
+
+const { onDriveItemsSelected, buildAddOn } = require('../src/Main');
 
 test("EmailIntakeParser.parseProcoreEmail_ extracts project driveName, spec section, revision, discipline, and action from subject", () => {
   const subject = "[Project Alpha] Submittal # 033000-001 has been submitted";
@@ -103,6 +114,31 @@ test("EmailIntakeParser.parseFormaEmail_ extracts project driveName, spec sectio
   assert.equal(result.revNum, "01");
   assert.equal(result.discipline, "Architecture");
   assert.equal(result.action, "Received");
+});
+
+test("EmailIntakeParser.parseFormaEmail_ handles provided for information and forwarded intents", () => {
+  const subject1 = "Project Gamma - Submittal # 081100-02 was provided for your information";
+  const result1 = EmailIntakeParser.parseFormaEmail_(subject1, "");
+  assert.equal(result1.driveName, "Project Gamma");
+  assert.equal(result1.specSection, "081100");
+  assert.equal(result1.revNum, "02");
+  assert.equal(result1.action, "Received");
+
+  const subject2 = "Project Delta - # 092900-03 was forwarded";
+  const result2 = EmailIntakeParser.parseFormaEmail_(subject2, "");
+  assert.equal(result2.driveName, "Project Delta");
+  assert.equal(result2.specSection, "092900");
+  assert.equal(result2.revNum, "03");
+  assert.equal(result2.action, "Received");
+});
+
+test("EmailIntakeParser.parseFormaEmail_ preserves non-default action intents like reviewed", () => {
+  const subject = "Project Epsilon - # 055000-01 was Reviewed";
+  const result = EmailIntakeParser.parseFormaEmail_(subject, "");
+  assert.equal(result.driveName, "Project Epsilon");
+  assert.equal(result.specSection, "055000");
+  assert.equal(result.revNum, "01");
+  assert.equal(result.action, "Reviewed");
 });
 
 test("EmailIntakeParser.parseEmail handles null or undefined message cleanly", () => {
@@ -278,4 +314,39 @@ test('Main.ts onDriveItemsSelected - handles invalid selection when non-PDF or m
 
   assert.equal(card.cardType, 'Card');
   assert.equal(card.header.title, 'Invalid Selection');
+});
+
+test('Main.ts buildAddOn - populates parsedData with Forma submittal notification email details', () => {
+  (globalThis as any).GmailApp = {
+    setCurrentMessageAccessToken: (token: string) => {},
+    getMessageById: (id: string) => ({
+      getId: () => id,
+      getFrom: () => "notifications@mail.forma.autodesk.com",
+      getSubject: () => "Project Gamma - # 033000-01 was submitted",
+      getPlainBody: () => "Submittal notification details...",
+      getThread: () => ({
+        getLabels: () => []
+      }),
+      getReplyTo: () => "",
+      getTo: () => "",
+      getCc: () => "",
+      getAttachments: () => []
+    })
+  };
+
+  const event = {
+    gmail: {
+      messageId: "msg-forma-001",
+      accessToken: "token-abc"
+    }
+  };
+
+  const card: any = buildAddOn(event);
+
+  assert.equal(card.cardType, 'MainCard');
+  assert.equal(card.parsedData.driveName, "Project Gamma");
+  assert.equal(card.parsedData.specSection, "033000");
+  assert.equal(card.parsedData.revNum, "01");
+  assert.equal(card.parsedData.discipline, "Architecture");
+  assert.equal(card.parsedData.action, "Received");
 });

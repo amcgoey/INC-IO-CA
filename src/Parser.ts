@@ -117,11 +117,14 @@ function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): P
 }
 
 function parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
+  if (typeof EmailIntakeParser !== "undefined" && EmailIntakeParser.parseFormaEmail_) {
+    return EmailIntakeParser.parseFormaEmail_(subject, body);
+  }
   const result: Partial<ParsedData> = {};
   const projectMatch = subject.match(/^([^-]+)-/);
   if (projectMatch) result.driveName = projectMatch[1].trim();
 
-  const subMatch = subject.match(/#\s*(.*?)\s+was/i);
+  const subMatch = subject.match(/(?:Submittal\s*)?#\s*(.*?)\s+was/i);
   if (subMatch) {
     const parts = subMatch[1].split('-');
     result.specSection = parts[0].trim();
