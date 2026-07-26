@@ -1,5 +1,7 @@
 // START FILE: Main.ts
 
+declare var defaultAiAnalysisService: AiAnalysisService;
+
 function buildAddOn(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.Card {
   const messageId = e.gmail ? e.gmail.messageId : "";
   const accessToken = e.gmail ? e.gmail.accessToken : "";

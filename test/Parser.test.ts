@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 };
 
 const { EmailIntakeParser, DriveFilenameIntakeParser, DocumentPipeline } = require("../src/DocumentPipeline");
+require("../src/AiAnalysisService");
 
 (globalThis as any).DocumentPipeline = DocumentPipeline;
 (globalThis as any).DriveFilenameIntakeParser = DriveFilenameIntakeParser;
