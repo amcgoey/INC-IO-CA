@@ -2,13 +2,13 @@ declare var require: any;
 
 if (typeof require !== "undefined") {
   try {
-    const _dp = eval('require("./DocumentPipeline")');
-    if (_dp) {
-      if (_dp.FormIntakeParser && typeof FormIntakeParser === "undefined") {
-        (globalThis as any).FormIntakeParser = _dp.FormIntakeParser;
+    const documentPipelineModule = eval('require("./DocumentPipeline")');
+    if (documentPipelineModule) {
+      if (documentPipelineModule.FormIntakeParser && typeof FormIntakeParser === "undefined") {
+        (globalThis as any).FormIntakeParser = documentPipelineModule.FormIntakeParser;
       }
-      if (_dp.DocumentPipeline && typeof DocumentPipeline === "undefined") {
-        (globalThis as any).DocumentPipeline = _dp.DocumentPipeline;
+      if (documentPipelineModule.DocumentPipeline && typeof DocumentPipeline === "undefined") {
+        (globalThis as any).DocumentPipeline = documentPipelineModule.DocumentPipeline;
       }
     }
   } catch (e) {}
@@ -16,13 +16,27 @@ if (typeof require !== "undefined") {
 
 if (typeof require !== "undefined") {
   try {
-    const _dls = eval('require("./DocumentLogStrategy")');
-    if (_dls) {
-      if (_dls.ArchitectureSubmittalStrategy && typeof ArchitectureSubmittalStrategy === "undefined") {
-        (globalThis as any).ArchitectureSubmittalStrategy = _dls.ArchitectureSubmittalStrategy;
+    const documentLogStrategyModule = eval('require("./DocumentLogStrategy")');
+    if (documentLogStrategyModule) {
+      if (documentLogStrategyModule.ArchitectureSubmittalStrategy && typeof ArchitectureSubmittalStrategy === "undefined") {
+        (globalThis as any).ArchitectureSubmittalStrategy = documentLogStrategyModule.ArchitectureSubmittalStrategy;
       }
-      if (_dls.FFESubmittalStrategy && typeof FFESubmittalStrategy === "undefined") {
-        (globalThis as any).FFESubmittalStrategy = _dls.FFESubmittalStrategy;
+      if (documentLogStrategyModule.FFESubmittalStrategy && typeof FFESubmittalStrategy === "undefined") {
+        (globalThis as any).FFESubmittalStrategy = documentLogStrategyModule.FFESubmittalStrategy;
+      }
+    }
+  } catch (e) {}
+}
+
+if (typeof require !== "undefined") {
+  try {
+    const documentWorkflowModule = eval('require("./DocumentWorkflowModule")');
+    if (documentWorkflowModule) {
+      if (documentWorkflowModule.DocumentWorkflowModule && typeof DocumentWorkflowModule === "undefined") {
+        (globalThis as any).DocumentWorkflowModule = documentWorkflowModule.DocumentWorkflowModule;
+      }
+      if (documentWorkflowModule.getActionPolicy && typeof getActionPolicy === "undefined") {
+        (globalThis as any).getActionPolicy = documentWorkflowModule.getActionPolicy;
       }
     }
   } catch (e) {}
@@ -52,8 +66,6 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const logSheet = openSs.getSheetByName(CONFIG.LOG_SHEET_NAME);  
     if (!logSheet) throw new Error("Log sheet not found in spreadsheet");
 
-    const headers = defaultLogRepository.verifyAndFormatLogSheet(p.logFileId);  
-    const getColIdx = (n: string) => headers.indexOf(n);  
     const settings = defaultLogRepository.getLogSettings(p.logFileId, disc);  
     const selectedAction = settings.actions.find(a => a.action === form.action) || { action: "", abbr: "", status: "" };
 
@@ -91,102 +103,68 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
 
     const validatedDoc = validationResult.data;
     const emptyFallbacks = validationResult.warnings;
-    const details = validatedDoc.disciplineDetails;
-    const sectionVal = (details.discipline === "Architecture") ? details.section : "";
+    const logSheetId = logSheet && typeof logSheet.getSheetId === "function" ? logSheet.getSheetId() : undefined;
 
-    const ctx = { 
-      e, form, p, discipline: disc, logSheet, headers, getColIdx, selectedAction, 
-      sectionVal, emptyFallbacks, validatedDoc
-    };  
-    
-    // Branch logic based on whether the action is "Received" (Incoming) or a Review status (Outgoing)
-    return form.action === "Received" ? await executeIncomingWorkflow(ctx) : await executeOutgoingWorkflow(ctx);
+    const input: DocumentWorkflowInput = {
+      validatedDoc,
+      logFileId: p.logFileId,
+      logSheetId,
+      targetFolderId: p.targetFolderId,
+      driveFileId: p.driveFileId,
+      fileSource: form.fileSource,
+      messageId: p.messageId,
+      attachmentName: form.attachmentName,
+      driveFileUrl: form.driveFileUrl,
+      incomingRouting: form.incomingRouting,
+      projectAbbr: p.projectAbbr,
+      emptyFallbacks,
+      selectedAction
+    };
+
+    const result: DocumentWorkflowResult = await DocumentWorkflowModule.executeWorkflow(input);
+    const policy = getActionPolicy(result.action);
+
+    if (policy.direction === "incoming") {
+      return CardService.newActionResponseBuilder()
+        .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, result)))
+        .build();
+    }
+
+    const details = validatedDoc.disciplineDetails;
+    const isArchitecture = details.discipline === "Architecture";
+    const isFFE = details.discipline === "FF&E";
+    const sectionVal = isArchitecture ? details.section : "";
+    const specTagVal = isFFE ? details.specTag : (form.specTag || "");
+    const itemTitle = result.title || form.title || (isFFE ? details.specTitle : "");
+
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().pushCard(buildSuccessCard(
+        result.fileId,
+        result.newFileName,
+        result.url,
+        result.localPath,
+        result.targetKey,
+        itemTitle,
+        details.discipline,
+        sectionVal,
+        specTagVal,
+        p.targetFolderId,
+        p.logFileId,
+        false,
+        result.projectAbbr || p.projectAbbr,
+        result.action || form.action,
+        result.incomingRouting || form.incomingRouting,
+        null,
+        result.directRowUrl,
+        result.failedColumns,
+        result.emptyFallbacks
+      )))
+      .build();
 
   } catch (err: any) {
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build();
   }
 }
-
-async function executeIncomingWorkflow(ctx: any): Promise<any> {
-  const { e, form, p, logSheet, selectedAction, emptyFallbacks, validatedDoc } = ctx;
-
-  const logSheetId = logSheet && typeof logSheet.getSheetId === "function" ? logSheet.getSheetId() : undefined;
-
-  const input: DocumentWorkflowInput = {
-    validatedDoc,
-    logFileId: p.logFileId,
-    logSheetId,
-    targetFolderId: p.targetFolderId,
-    driveFileId: p.driveFileId,
-    fileSource: form.fileSource,
-    messageId: p.messageId,
-    attachmentName: form.attachmentName,
-    driveFileUrl: form.driveFileUrl,
-    incomingRouting: form.incomingRouting,
-    projectAbbr: p.projectAbbr,
-    emptyFallbacks,
-    selectedAction
-  };
-
-  const result: DocumentWorkflowResult = await DocumentWorkflowModule.executeWorkflow(input);
-
-  return CardService.newActionResponseBuilder()
-    .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, result)))
-    .build();
-}
-
-async function executeOutgoingWorkflow(ctx: any): Promise<any> {
-  const { form, p, discipline, logSheet, selectedAction, sectionVal, emptyFallbacks, validatedDoc } = ctx;
-
-  let blob: GoogleAppsScript.Base.Blob | null = null;
-  if (!p.driveFileId) {
-    if (form.fileSource === "Email Attachment") {
-      const msg = GmailApp.getMessageById(p.messageId);
-      const att = msg.getAttachments().find(a => a.getName() === form.attachmentName);
-      if (att) blob = att.copyBlob();
-    } else if (form.fileSource === "Google Drive URL") {
-      const match = form.driveFileUrl ? form.driveFileUrl.match(/[-\w]{25,}/) : null;
-      if (match) blob = DriveApp.getFileById(match[0]).getAs((MimeType as any).PDF);
-    }
-  }
-
-  const filingResult = defaultDriveFilingRepository.fileDocument(
-    { fileId: p.driveFileId, blob: blob || undefined },
-    { targetFolderId: p.targetFolderId }
-  );
-
-  const strategy: DocumentLogStrategy = (discipline === "Architecture")
-    ? new ArchitectureSubmittalStrategy()
-    : new FFESubmittalStrategy();
-
-  const appendResult = defaultLogRepository.appendDocument(
-    p.logFileId,
-    validatedDoc,
-    strategy,
-    {
-      link: filingResult.url,
-      status: selectedAction.status,
-      actionAbbr: selectedAction.abbr,
-      updatePreviousStatus: true,
-      previousRowStatus: "Closed"
-    }
-  );
-
-  if (filingResult.fileId) {
-    DriveApp.getFileById(filingResult.fileId).setName(appendResult.newFileName + ".pdf");
-  }
-
-  const logSheetId = logSheet.getSheetId();
-  const directRowUrl = `https://docs.google.com/spreadsheets/d/${p.logFileId}/edit#gid=${logSheetId}&range=A${appendResult.rowIndex}`;
-
-  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().pushCard(buildSuccessCard(
-    filingResult.fileId, appendResult.newFileName, filingResult.url, filingResult.localPath, appendResult.targetKey, form.title || form.specTitle, discipline, sectionVal, form.specTag, 
-    p.targetFolderId, p.logFileId, false, p.projectAbbr, form.action, form.incomingRouting, null,
-    directRowUrl, appendResult.failedColumns, emptyFallbacks
-  ))).build();
-}
-
-
 
 /**
  * Handles moving a file to its final destination after logging.
@@ -235,8 +213,6 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     processSubmission,
-    executeIncomingWorkflow,
-    executeOutgoingWorkflow,
     moveSubmittalToClosed
   };
 }

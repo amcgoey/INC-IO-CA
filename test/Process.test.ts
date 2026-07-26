@@ -8,12 +8,14 @@ import assert from "node:assert";
   LOG_SHEET_NAME: "Submittals Log",
   STAMPED_FILE_PREFIX: "STAMPED_",
   TRANSMITTAL_TEMPLATE_ID: "tmpl-1",
-  PDF_TEMPLATE_ID: "tmpl-2"
+  PDF_TEMPLATE_ID: "tmpl-2",
+  DEFAULT_DISCIPLINE: "Architecture"
 };
 
 (globalThis as any).MESSAGES = {
   ERROR_GENERAL: (m: string) => `Error: ${m}`,
-  SUCCESS_MOVED: (f: string) => `Moved to ${f}`
+  SUCCESS_MOVED: (f: string) => `Moved to ${f}`,
+  ERROR_NO_LOG: "No log file specified"
 };
 
 (globalThis as any).CardService = {
@@ -32,6 +34,13 @@ import assert from "node:assert";
   newNavigation: () => ({
     updateCard: (card: any) => ({ card, action: "updateCard" }),
     pushCard: (card: any) => ({ card, action: "pushCard" })
+  })
+};
+
+const mockSheet = { getSheetId: () => 101 };
+(globalThis as any).SpreadsheetApp = {
+  openById: () => ({
+    getSheetByName: () => mockSheet
   })
 };
 
@@ -68,16 +77,39 @@ const mockFolder: any = {
   getFileById: () => mockFile
 };
 
-const { DocumentWorkflowModule } = require("../src/DocumentWorkflowModule");
+const { DocumentWorkflowModule, getActionPolicy } = require("../src/DocumentWorkflowModule");
 (globalThis as any).DocumentWorkflowModule = DocumentWorkflowModule;
+(globalThis as any).getActionPolicy = getActionPolicy;
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
-const { executeIncomingWorkflow, executeOutgoingWorkflow, moveSubmittalToClosed } = require("../src/Process");
 
-test("executeIncomingWorkflow for Architecture delegates logging to defaultLogRepository.appendDocument", async () => {
+const defaultRepoMock = {
+  verifyAndFormatLogSheet: () => ["Section", "Number", "Title", "Link"],
+  getLogSettings: () => ({
+    actions: [
+      { action: "Received", abbr: " Rec", status: "Under Review" },
+      { action: "Approved", abbr: " Rev", status: "Closed" }
+    ],
+    ffeTags: { tags: ["CH-01"], vendors: ["Furniture Co"], tagMap: {} }
+  }),
+  appendDocument: (ssId: string, doc: any, strategy: any, options: any) => ({
+    targetKey: "033000-001-001",
+    newFileName: "033000-001-001 Concrete - 2026-07-25 GC Rec",
+    contactHistory: "GC",
+    rowIndex: 5,
+    failedColumns: [],
+    previousRowUpdated: false
+  })
+};
+(globalThis as any).defaultLogRepository = defaultRepoMock;
+
+const { processSubmission, moveSubmittalToClosed } = require("../src/Process");
+
+test("processSubmission for Architecture incoming action delegates to DocumentWorkflowModule and updates main card", async () => {
   let appendCalled = false;
   let passedOptions: any = null;
 
   (globalThis as any).defaultLogRepository = {
+    ...defaultRepoMock,
     appendDocument: (ssId: string, doc: any, strategy: any, options: any) => {
       appendCalled = true;
       passedOptions = options;
@@ -94,46 +126,44 @@ test("executeIncomingWorkflow for Architecture delegates logging to defaultLogRe
     }
   };
 
-  const fakeSheet = { getSheetId: () => 101 };
-
-  const ctx = {
-    e: {},
-    form: { action: "Received", title: "Concrete", date: "2026-07-25" },
-    p: { logFileId: "log-ss-123", targetFolderId: "folder-target", driveFileId: "file-1", projectAbbr: "PROJ" },
-    discipline: "Architecture",
-    logSheet: fakeSheet,
-    headers: ["Section", "Number", "Title", "Link"],
-    getColIdx: (name: string) => 0,
-    selectedAction: { status: "Under Review", abbr: " Rec" },
-    sectionVal: "033000",
-    numberVal: "001",
-    revisionVal: "001",
-    emptyFallbacks: [],
-    validatedDoc: {
-      documentType: "Submittal",
+  const event = {
+    formInput: {
+      action: "Received",
+      discipline: "Architecture",
+      section: "033000",
+      submittalNum: "001",
+      revNum: "001",
+      title: "Concrete",
       date: "2026-07-25",
       contact: "GC",
-      action: "Received",
-      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
+      incomingRouting: "To Review"
+    },
+    parameters: {
+      logFileId: "log-ss-123",
+      targetFolderId: "folder-target",
+      driveFileId: "file-1",
+      projectAbbr: "PROJ"
     }
   };
 
-  const result = await executeIncomingWorkflow(ctx);
+  const result = await processSubmission(event as any);
   assert.strictEqual(appendCalled, true);
   assert.strictEqual(passedOptions.status, "Under Review");
   assert.strictEqual(passedOptions.actionAbbr, " Rec");
   assert.strictEqual(passedOptions.link, "http://drive.google.com/file-1");
 
+  assert.strictEqual(result.navigation.action, "updateCard");
   assert.strictEqual(result.navigation.card.flashData.targetKey, "033000-001-001");
   assert.strictEqual(result.navigation.card.flashData.newFileName, "033000-001-001 Concrete - 2026-07-25 GC Rec");
   assert.ok(result.navigation.card.flashData.directRowUrl.includes("range=A5"));
 });
 
-test("executeOutgoingWorkflow for Architecture delegates logging to defaultLogRepository.appendDocument with status update", async () => {
+test("processSubmission for Architecture outgoing action delegates to DocumentWorkflowModule and pushes success card", async () => {
   let appendCalled = false;
   let passedOptions: any = null;
 
   (globalThis as any).defaultLogRepository = {
+    ...defaultRepoMock,
     appendDocument: (ssId: string, doc: any, strategy: any, options: any) => {
       appendCalled = true;
       passedOptions = options;
@@ -150,44 +180,43 @@ test("executeOutgoingWorkflow for Architecture delegates logging to defaultLogRe
     }
   };
 
-  const fakeSheet = { getSheetId: () => 202 };
-
-  const ctx = {
-    form: { action: "Approved", title: "Concrete", date: "2026-07-25" },
-    p: { logFileId: "log-ss-456", targetFolderId: "folder-target", driveFileId: "file-1", projectAbbr: "PROJ" },
-    discipline: "Architecture",
-    logSheet: fakeSheet,
-    headers: ["Section", "Number", "Title", "Link"],
-    getColIdx: (name: string) => 0,
-    selectedAction: { status: "Closed", abbr: " Rev" },
-    sectionVal: "033000",
-    numberVal: "001",
-    revisionVal: "002",
-    emptyFallbacks: [],
-    validatedDoc: {
-      documentType: "Submittal",
-      date: "2026-07-25",
-      contact: "Architect",
+  const event = {
+    formInput: {
       action: "Approved",
-      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "002" }
+      discipline: "Architecture",
+      section: "033000",
+      submittalNum: "001",
+      revNum: "002",
+      title: "Concrete",
+      date: "2026-07-25",
+      contact: "Architect"
+    },
+    parameters: {
+      logFileId: "log-ss-456",
+      targetFolderId: "folder-target",
+      driveFileId: "file-1",
+      projectAbbr: "PROJ"
     }
   };
 
-  const result = await executeOutgoingWorkflow(ctx);
+  const result = await processSubmission(event as any);
   assert.strictEqual(appendCalled, true);
   assert.strictEqual(passedOptions.status, "Closed");
   assert.strictEqual(passedOptions.actionAbbr, " Rev");
   assert.strictEqual(passedOptions.updatePreviousStatus, true);
   assert.strictEqual(passedOptions.previousRowStatus, "Closed");
   assert.strictEqual(result.navigation.action, "pushCard");
-  assert.strictEqual(mockDriveFilingRepo.filedDocuments[mockDriveFilingRepo.filedDocuments.length - 1].result.fileId, "file-1");
+  assert.strictEqual(result.navigation.card.args[0], "file-1");
+  assert.strictEqual(result.navigation.card.args[1], "033000-001-002 Concrete - 2026-07-25 Architect Rev");
+  assert.strictEqual(result.navigation.card.args[4], "033000-001-002");
 });
 
-test("executeIncomingWorkflow for FF&E delegates logging to defaultLogRepository.appendDocument", async () => {
+test("processSubmission for FF&E incoming action delegates to DocumentWorkflowModule and updates main card", async () => {
   let appendCalled = false;
   let passedOptions: any = null;
 
   (globalThis as any).defaultLogRepository = {
+    ...defaultRepoMock,
     appendDocument: (ssId: string, doc: any, strategy: any, options: any) => {
       appendCalled = true;
       passedOptions = options;
@@ -204,44 +233,43 @@ test("executeIncomingWorkflow for FF&E delegates logging to defaultLogRepository
     }
   };
 
-  const fakeSheet = { getSheetId: () => 303 };
-
-  const ctx = {
-    e: {},
-    form: { action: "Received", specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", date: "2026-07-25" },
-    p: { logFileId: "log-ss-789", targetFolderId: "folder-target", driveFileId: "file-1", projectAbbr: "PROJ" },
-    discipline: "FF&E",
-    logSheet: fakeSheet,
-    headers: ["Spec Tag", "Spec Title", "Vendor", "Link"],
-    getColIdx: (name: string) => 0,
-    selectedAction: { status: "Under Review", abbr: " Rec" },
-    emptyFallbacks: [],
-    validatedDoc: {
-      documentType: "Submittal",
+  const event = {
+    formInput: {
+      action: "Received",
+      discipline: "FF&E",
+      specTag: "CH-01",
+      specTitle: "Side Chair",
+      vendor: "Furniture Co",
       date: "2026-07-25",
       contact: "Vendor A",
-      action: "Received",
-      disciplineDetails: { discipline: "FF&E", specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", revision: "001" }
+      incomingRouting: "To Review"
+    },
+    parameters: {
+      logFileId: "log-ss-789",
+      targetFolderId: "folder-target",
+      driveFileId: "file-1",
+      projectAbbr: "PROJ"
     }
   };
 
-  const result = await executeIncomingWorkflow(ctx);
+  const result = await processSubmission(event as any);
   assert.strictEqual(appendCalled, true);
   assert.strictEqual(passedOptions.status, "Under Review");
   assert.strictEqual(passedOptions.actionAbbr, " Rec");
   assert.strictEqual(passedOptions.link, "http://drive.google.com/file-1");
 
-  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[mockDriveFilingRepo.filedDocuments.length - 1].options.subfolderPath, ["Closed", "CH"]);
+  assert.strictEqual(result.navigation.action, "updateCard");
   assert.strictEqual(result.navigation.card.flashData.targetKey, "CH-01-001");
   assert.strictEqual(result.navigation.card.flashData.newFileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec");
   assert.ok(result.navigation.card.flashData.directRowUrl.includes("range=A7"));
 });
 
-test("executeOutgoingWorkflow for FF&E delegates logging to defaultLogRepository.appendDocument with status update", async () => {
+test("processSubmission for FF&E outgoing action delegates to DocumentWorkflowModule and pushes success card", async () => {
   let appendCalled = false;
   let passedOptions: any = null;
 
   (globalThis as any).defaultLogRepository = {
+    ...defaultRepoMock,
     appendDocument: (ssId: string, doc: any, strategy: any, options: any) => {
       appendCalled = true;
       passedOptions = options;
@@ -258,34 +286,33 @@ test("executeOutgoingWorkflow for FF&E delegates logging to defaultLogRepository
     }
   };
 
-  const fakeSheet = { getSheetId: () => 404 };
-
-  const ctx = {
-    form: { action: "Approved", specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", date: "2026-07-25" },
-    p: { logFileId: "log-ss-999", targetFolderId: "folder-target", driveFileId: "file-1", projectAbbr: "PROJ" },
-    discipline: "FF&E",
-    logSheet: fakeSheet,
-    headers: ["Spec Tag", "Spec Title", "Vendor", "Link"],
-    getColIdx: (name: string) => 0,
-    selectedAction: { status: "Approved", abbr: " Appr" },
-    emptyFallbacks: [],
-    validatedDoc: {
-      documentType: "Submittal",
-      date: "2026-07-25",
-      contact: "Designer",
+  const event = {
+    formInput: {
       action: "Approved",
-      disciplineDetails: { discipline: "FF&E", specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", revision: "001" }
+      discipline: "FF&E",
+      specTag: "CH-01",
+      specTitle: "Side Chair",
+      vendor: "Furniture Co",
+      date: "2026-07-25",
+      contact: "Designer"
+    },
+    parameters: {
+      logFileId: "log-ss-999",
+      targetFolderId: "folder-target",
+      driveFileId: "file-1",
+      projectAbbr: "PROJ"
     }
   };
 
-  const result = await executeOutgoingWorkflow(ctx);
+  const result = await processSubmission(event as any);
   assert.strictEqual(appendCalled, true);
-  assert.strictEqual(passedOptions.status, "Approved");
-  assert.strictEqual(passedOptions.actionAbbr, " Appr");
+  assert.strictEqual(passedOptions.status, "Closed");
+  assert.strictEqual(passedOptions.actionAbbr, " Rev");
   assert.strictEqual(passedOptions.updatePreviousStatus, true);
   assert.strictEqual(passedOptions.previousRowStatus, "Closed");
   assert.strictEqual(result.navigation.action, "pushCard");
-  assert.strictEqual(mockDriveFilingRepo.filedDocuments[mockDriveFilingRepo.filedDocuments.length - 1].result.fileId, "file-1");
+  assert.strictEqual(result.navigation.card.args[0], "file-1");
+  assert.strictEqual(result.navigation.card.args[4], "CH-01-001");
 });
 
 test("moveSubmittalToClosed delegates file move and subfolder path resolution to defaultDriveFilingRepository for Architecture", () => {
@@ -346,7 +373,7 @@ test("moveSubmittalToClosed delegates file move and subfolder path resolution to
   assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-ffe-456");
 });
 
-test("executeIncomingWorkflow delegates execution directly to DocumentWorkflowModule.executeWorkflow", async () => {
+test("processSubmission delegates execution directly to DocumentWorkflowModule.executeWorkflow", async () => {
   const originalExecuteWorkflow = DocumentWorkflowModule.executeWorkflow;
   let executeWorkflowCalled = false;
   let receivedInput: DocumentWorkflowInput | null = null;
@@ -371,25 +398,27 @@ test("executeIncomingWorkflow delegates execution directly to DocumentWorkflowMo
   };
 
   try {
-    const fakeSheet = { getSheetId: () => 505 };
-    const ctx = {
-      e: {},
-      form: { action: "Received", title: "Mock Title", incomingRouting: "To Review" },
-      p: { logFileId: "log-ss-test", targetFolderId: "target-folder-test", driveFileId: "drive-file-test", projectAbbr: "TESTPROJ" },
-      discipline: "Architecture",
-      logSheet: fakeSheet,
-      selectedAction: { action: "Received", status: "Under Review", abbr: " Rec" },
-      emptyFallbacks: [],
-      validatedDoc: {
-        documentType: "Submittal",
+    const event = {
+      formInput: {
+        action: "Received",
+        discipline: "Architecture",
+        section: "033000",
+        submittalNum: "001",
+        revNum: "001",
+        title: "Mock Title",
         date: "2026-07-25",
         contact: "GC",
-        action: "Received",
-        disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Mock Title", revision: "001" }
+        incomingRouting: "To Review"
+      },
+      parameters: {
+        logFileId: "log-ss-test",
+        targetFolderId: "target-folder-test",
+        driveFileId: "drive-file-test",
+        projectAbbr: "TESTPROJ"
       }
     };
 
-    const result = await executeIncomingWorkflow(ctx);
+    const result = await processSubmission(event as any);
 
     assert.strictEqual(executeWorkflowCalled, true);
     assert.strictEqual(receivedInput.logFileId, "log-ss-test");
