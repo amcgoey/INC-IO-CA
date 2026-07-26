@@ -2,54 +2,52 @@
 
 declare var defaultAiAnalysisService: AiAnalysisService;
 
-function buildAddOn(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.Card {
+async function buildAddOn(e: GoogleAppsScriptEvent): Promise<GoogleAppsScript.Card_Service.Card> {
   const messageId = e.gmail ? e.gmail.messageId : "";
   const accessToken = e.gmail ? e.gmail.accessToken : "";
-  if (accessToken) {
+  if (accessToken && typeof GmailApp !== "undefined" && GmailApp.setCurrentMessageAccessToken) {
     GmailApp.setCurrentMessageAccessToken(accessToken);
   }
-  const message = messageId ? GmailApp.getMessageById(messageId) : null;
+  const message = messageId && typeof GmailApp !== "undefined" && GmailApp.getMessageById ? GmailApp.getMessageById(messageId) : null;
   const parsedData = DocumentPipeline.parseEmail(message);
 
-  let aiPrediction = messageId ? getCachedPrediction(messageId) : null;
   let flashMessage: FlashMessage | null = null;
 
-  if (!aiPrediction && message) {
-    const driveNames = getAvailableDriveNames();
-    const thread = message.getThread();
-    const labels = thread.getLabels().map(l => l.getName());
+  if (message) {
+    const thread = message.getThread ? message.getThread() : null;
+    const labels = thread && thread.getLabels ? thread.getLabels().map((l: any) => l.getName()) : [];
 
     const emailData: EmailData = {
-      subject: message.getSubject(),
-      sender: message.getFrom(),
-      replyTo: message.getReplyTo(),
-      to: message.getTo(),
-      cc: message.getCc(),
+      subject: message.getSubject ? message.getSubject() : "",
+      sender: message.getFrom ? message.getFrom() : "",
+      replyTo: message.getReplyTo ? message.getReplyTo() : "",
+      to: message.getTo ? message.getTo() : "",
+      cc: message.getCc ? message.getCc() : "",
       labels: labels,
-      attachmentNames: message.getAttachments().map(a => a.getName()),
-      body: message.getPlainBody()
+      attachmentNames: message.getAttachments ? message.getAttachments().map((a: any) => a.getName()) : [],
+      body: message.getPlainBody ? message.getPlainBody() : ""
     };
 
-    aiPrediction = predictProjectAndDiscipline(emailData, driveNames);
+    if (typeof defaultAiAnalysisService !== "undefined" && defaultAiAnalysisService.triageEmail) {
+      const triageResult = await defaultAiAnalysisService.triageEmail(emailData, messageId);
 
-    if (aiPrediction && !aiPrediction.error && messageId) {
-      setCachedPrediction(messageId, aiPrediction);
-    }
-  }
+      if (triageResult.success) {
+        const pred = triageResult.prediction;
+        if (pred) {
+          parsedData.driveName = pred.predictedProjectName || parsedData.driveName || "";
 
-  if (aiPrediction) {
-    if (aiPrediction.error) {
-      flashMessage = { warning: aiPrediction.error };
-    } else {
-      parsedData.driveName = aiPrediction.predictedProjectName || parsedData.driveName || "";
-
-      // --- Strict Validation & Config Fallback ---
-      if (aiPrediction.predictedDiscipline && CONFIG.SUPPORTED_DISCIPLINES.includes(aiPrediction.predictedDiscipline)) {
-        parsedData.discipline = aiPrediction.predictedDiscipline;
-      } else {
+          // --- Strict Validation & Config Fallback ---
+          if (pred.predictedDiscipline && CONFIG.SUPPORTED_DISCIPLINES.includes(pred.predictedDiscipline)) {
+            parsedData.discipline = pred.predictedDiscipline;
+          } else {
+            parsedData.discipline = CONFIG.DEFAULT_DISCIPLINE;
+          }
+          // ------------------------------------------
+        }
+      } else if (triageResult.error) {
+        flashMessage = { warning: triageResult.error.userMessage };
         parsedData.discipline = CONFIG.DEFAULT_DISCIPLINE;
       }
-      // ------------------------------------------
     }
   }
 

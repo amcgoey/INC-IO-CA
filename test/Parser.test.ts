@@ -317,7 +317,12 @@ test('Main.ts onDriveItemsSelected - handles invalid selection when non-PDF or m
   assert.equal(card.header.title, 'Invalid Selection');
 });
 
-test('Main.ts buildAddOn - populates parsedData with Forma submittal notification email details', () => {
+test('Main.ts buildAddOn - populates parsedData with Forma submittal notification email details', async () => {
+  const { FakeAiAnalysisAdapter } = require("../src/AiAnalysisService");
+  const fakeAi = new FakeAiAnalysisAdapter();
+  fakeAi.setTriageResult({ success: true, prediction: { predictedProjectName: "Project Gamma", predictedDiscipline: "Architecture" } });
+  (globalThis as any).defaultAiAnalysisService = fakeAi;
+
   (globalThis as any).GmailApp = {
     setCurrentMessageAccessToken: (token: string) => {},
     getMessageById: (id: string) => ({
@@ -342,7 +347,7 @@ test('Main.ts buildAddOn - populates parsedData with Forma submittal notificatio
     }
   };
 
-  const card: any = buildAddOn(event);
+  const card: any = await buildAddOn(event);
 
   assert.equal(card.cardType, 'MainCard');
   assert.equal(card.parsedData.driveName, "Project Gamma");
