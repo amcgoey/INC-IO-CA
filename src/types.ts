@@ -29,10 +29,8 @@ type AiPredictionResult =
     };
 
 interface DeepAnalysisContext {
-  discipline?: string;
   contacts: Array<{ abbr: string; name: string }>;
-  actions: Array<{ action: string; abbr?: string; status?: string }>;
-  ffeTags?: string[];
+  actions: Array<{ action: string }>;
 }
 
 interface DeepAnalysisPrediction {
@@ -57,7 +55,7 @@ type DeepAnalysisResult =
     };
 
 interface AiAnalysisService {
-  triageEmail(emailData: EmailData, messageId?: string): Promise<AiPredictionResult>;
+  triageEmail?(emailData: EmailData, messageId?: string): Promise<AiPredictionResult>;
   analyzeSubmittal(
     sourceBlob: GoogleAppsScript.Base.Blob,
     emailText: string,
