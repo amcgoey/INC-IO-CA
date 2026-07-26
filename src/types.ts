@@ -421,6 +421,10 @@ interface DocumentWorkflowInput {
   logRepository?: LogRepository;
   driveFilingRepository?: DriveFilingRepository;
   pdfDocumentService?: PdfDocumentService;
+  strategy?: DocumentLogStrategy;
+  driveApp?: any;
+  gmailApp?: any;
+  spreadsheetApp?: any;
 }
 
 interface DocumentWorkflowResult {
@@ -439,6 +443,8 @@ interface DocumentWorkflowResult {
 }
 
 declare function getActionPolicy(action: string): WorkflowActionPolicy;
+declare function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy;
+declare function getDocumentTitle(doc: ValidatedDocument): string;
 
 declare class DocumentWorkflowModule {
   static executeWorkflow(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult>;

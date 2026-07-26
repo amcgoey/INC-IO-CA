@@ -34,28 +34,43 @@ export function getActionPolicy(action: string): WorkflowActionPolicy {
   };
 }
 
+export function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy {
+  const details = doc ? doc.disciplineDetails : null;
+  if (details && details.discipline === "FF&E") {
+    return new FFESubmittalStrategy();
+  }
+  return new ArchitectureSubmittalStrategy();
+}
+
+export function getDocumentTitle(doc: ValidatedDocument): string {
+  const details = doc ? doc.disciplineDetails : null;
+  if (!details) return "";
+  return details.discipline === "Architecture" ? details.title : details.specTitle;
+}
+
 export class DocumentWorkflowModule {
   static async executeWorkflow(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult> {
     const action = input.validatedDoc.action || (input.selectedAction ? input.selectedAction.action : "");
     const policy = getActionPolicy(action);
 
-    const discDetails = input.validatedDoc.disciplineDetails;
-    const strategy: DocumentLogStrategy = (discDetails.discipline === "Architecture")
-      ? new ArchitectureSubmittalStrategy()
-      : new FFESubmittalStrategy();
+    const strategy = input.strategy || getDocumentLogStrategy(input.validatedDoc);
+
+    const driveApp = input.driveApp || (typeof DriveApp !== "undefined" ? DriveApp : null);
+    const gmailApp = input.gmailApp || (typeof GmailApp !== "undefined" ? GmailApp : null);
+    const spreadsheetApp = input.spreadsheetApp || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp : null);
 
     let blob: GoogleAppsScript.Base.Blob | null = null;
     if (!input.driveFileId) {
-      if (input.fileSource === "Email Attachment" && input.messageId && input.attachmentName) {
-        const msg = GmailApp.getMessageById(input.messageId);
-        const att = msg.getAttachments().find(a => a.getName() === input.attachmentName);
+      if (input.fileSource === "Email Attachment" && input.messageId && input.attachmentName && gmailApp) {
+        const msg = gmailApp.getMessageById(input.messageId);
+        const att = msg ? msg.getAttachments().find((a: any) => a.getName() === input.attachmentName) : null;
         if (att) blob = att.copyBlob();
-      } else if (input.fileSource === "Google Drive URL" && input.driveFileUrl) {
-        const match = input.driveFileUrl.match(/[-w]{25,}/);
-        if (match) blob = DriveApp.getFileById(match[0]).getAs((MimeType as any).PDF);
+      } else if (input.fileSource === "Google Drive URL" && input.driveFileUrl && driveApp) {
+        const match = input.driveFileUrl.match(/([a-zA-Z0-9_-]{25,})/);
+        if (match) blob = driveApp.getFileById(match[0]).getAs((typeof MimeType !== "undefined" ? MimeType : (globalThis as any).MimeType || {}).PDF || "application/pdf");
       }
-    } else {
-      blob = DriveApp.getFileById(input.driveFileId).getBlob();
+    } else if (driveApp) {
+      blob = driveApp.getFileById(input.driveFileId).getBlob();
     }
 
     const subfolderPath = (policy.useCsiSubfolder && strategy.getFilingSubfolders)
@@ -82,18 +97,19 @@ export class DocumentWorkflowModule {
       }
     );
 
-    if (filingResult.fileId) {
-      DriveApp.getFileById(filingResult.fileId).setName(appendResult.newFileName + ".pdf");
+    if (filingResult.fileId && driveApp) {
+      driveApp.getFileById(filingResult.fileId).setName(appendResult.newFileName + ".pdf");
     }
 
-    if (policy.stampPdf && blob) {
+    if (policy.stampPdf && blob && driveApp) {
       const pdfService = input.pdfDocumentService || defaultPdfDocumentService;
-      const root = DriveApp.getFolderById(input.targetFolderId);
+      const destinationFolderId = filingResult.folderId || input.targetFolderId;
+      const targetFolder = driveApp.getFolderById(destinationFolderId);
       const templateId = (input.incomingRouting === "To Refer")
-        ? CONFIG.TRANSMITTAL_TEMPLATE_ID
-        : CONFIG.PDF_TEMPLATE_ID;
+        ? (typeof CONFIG !== "undefined" ? CONFIG.TRANSMITTAL_TEMPLATE_ID : "")
+        : (typeof CONFIG !== "undefined" ? CONFIG.PDF_TEMPLATE_ID : "");
 
-      const titleVal = discDetails.discipline === "Architecture" ? discDetails.title : discDetails.specTitle;
+      const titleVal = getDocumentTitle(input.validatedDoc);
 
       try {
         const stamped = await pdfService.stampSubmittal(
@@ -105,11 +121,13 @@ export class DocumentWorkflowModule {
             templateId: templateId
           }
         );
-        stamped.setName(CONFIG.STAMPED_FILE_PREFIX + appendResult.newFileName + ".pdf");
-        root.createFile(stamped);
+        const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
+        stamped.setName(stampedPrefix + appendResult.newFileName + ".pdf");
+        targetFolder.createFile(stamped);
       } catch (err: any) {
         if (err.message === "TEMPLATE_MISSING") {
-          root.createFile(blob.copyBlob().setName(CONFIG.STAMPED_FILE_PREFIX + appendResult.newFileName + ".pdf"));
+          const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
+          targetFolder.createFile(blob.copyBlob().setName(stampedPrefix + appendResult.newFileName + ".pdf"));
         } else {
           throw err;
         }
@@ -117,18 +135,21 @@ export class DocumentWorkflowModule {
     }
 
     let sheetId = input.logSheetId;
-    if (sheetId === undefined || sheetId === null) {
+    if ((sheetId === undefined || sheetId === null) && spreadsheetApp) {
       try {
-        const openSs = SpreadsheetApp.openById(input.logFileId);
-        const logSheet = openSs.getSheetByName(CONFIG.LOG_SHEET_NAME);
+        const openSs = spreadsheetApp.openById(input.logFileId);
+        const sheetName = typeof CONFIG !== "undefined" && CONFIG.LOG_SHEET_NAME ? CONFIG.LOG_SHEET_NAME : "Submittals Log";
+        const logSheet = openSs ? openSs.getSheetByName(sheetName) : null;
         sheetId = logSheet ? logSheet.getSheetId() : 0;
       } catch (e) {
         sheetId = 0;
       }
+    } else if (sheetId === undefined || sheetId === null) {
+      sheetId = 0;
     }
 
     const directRowUrl = `https://docs.google.com/spreadsheets/d/${input.logFileId}/edit#gid=${sheetId}&range=A${appendResult.rowIndex}`;
-    const itemTitle = discDetails.discipline === "Architecture" ? discDetails.title : discDetails.specTitle;
+    const itemTitle = getDocumentTitle(input.validatedDoc);
 
     return {
       fileId: filingResult.fileId,
@@ -152,6 +173,8 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     getActionPolicy,
+    getDocumentLogStrategy,
+    getDocumentTitle,
     DocumentWorkflowModule
   };
 }
