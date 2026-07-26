@@ -396,6 +396,54 @@ declare var defaultAiAnalysisService: AiAnalysisService;
 declare var defaultDriveNameProvider: DriveNameProvider;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 
+interface WorkflowActionPolicy {
+  direction: "incoming" | "outgoing";
+  useCsiSubfolder: boolean;
+  stampPdf: boolean;
+  updatePreviousStatus: boolean;
+  previousRowStatus?: string;
+}
+
+interface DocumentWorkflowInput {
+  validatedDoc: ValidatedDocument;
+  logFileId: string;
+  logSheetId?: number;
+  targetFolderId: string;
+  driveFileId?: string;
+  fileSource?: string;
+  messageId?: string;
+  attachmentName?: string;
+  driveFileUrl?: string;
+  incomingRouting?: string;
+  projectAbbr?: string;
+  emptyFallbacks?: string[];
+  selectedAction: { action: string; abbr: string; status: string };
+  logRepository?: LogRepository;
+  driveFilingRepository?: DriveFilingRepository;
+  pdfDocumentService?: PdfDocumentService;
+}
+
+interface DocumentWorkflowResult {
+  fileId: string;
+  targetKey: string;
+  url: string;
+  localPath: string;
+  title: string;
+  action: string;
+  incomingRouting?: string;
+  projectAbbr?: string;
+  directRowUrl: string;
+  failedColumns: string[];
+  emptyFallbacks: string[];
+  newFileName: string;
+}
+
+declare function getActionPolicy(action: string): WorkflowActionPolicy;
+
+declare class DocumentWorkflowModule {
+  static executeWorkflow(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult>;
+}
+
 // Global declaration for pdf-lib evaluated at runtime
 declare const PDFLib: any;
 
