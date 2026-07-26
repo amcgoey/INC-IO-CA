@@ -260,7 +260,7 @@ test('DocumentPipeline.processFormIntake - requires incomingRouting when action 
 });
 
 test('DocumentPipeline.processFormIntake - end-to-end success path for common & discipline fields', () => {
-  const formInput = {
+  const rawDoc = {
     date: '2026-07-25',
     contact: 'John Smith',
     action: 'Received',
@@ -272,7 +272,7 @@ test('DocumentPipeline.processFormIntake - end-to-end success path for common & 
     revision: '01'
   };
 
-  const result = DocumentPipeline.processFormIntake(formInput);
+  const result = DocumentPipeline.processFormIntake(rawDoc);
 
   assert.equal(result.status, 'success');
   if (result.status === 'success') {
@@ -281,12 +281,13 @@ test('DocumentPipeline.processFormIntake - end-to-end success path for common & 
     assert.equal(result.data.action, 'Received');
     assert.equal(result.data.incomingRouting, 'To Refer');
     assert.equal(result.warnings.length, 0);
-    assert.equal(result.data.disciplineDetails.discipline, 'Architecture');
-    if (result.data.disciplineDetails.discipline === 'Architecture') {
-      assert.equal(result.data.disciplineDetails.section, '230000');
-      assert.equal(result.data.disciplineDetails.number, '001');
-      assert.equal(result.data.disciplineDetails.title, 'HVAC Submittal');
-      assert.equal(result.data.disciplineDetails.revision, '01');
+    const details = result.data.disciplineDetails;
+    assert.equal(details.discipline, 'Architecture');
+    if (details.discipline === 'Architecture') {
+      assert.equal(details.section, '230000');
+      assert.equal(details.number, '001');
+      assert.equal(details.title, 'HVAC Submittal');
+      assert.equal(details.revision, '01');
     }
   }
 });
@@ -294,7 +295,7 @@ test('DocumentPipeline.processFormIntake - end-to-end success path for common & 
 
 
 test('DocumentPipeline.processFormIntake - Architecture warnings for missing section, number, revision', () => {
-  const formInput = {
+  const rawDoc = {
     date: '2026-07-25',
     contact: 'John Smith',
     action: 'Approved',
@@ -302,17 +303,18 @@ test('DocumentPipeline.processFormIntake - Architecture warnings for missing sec
     discipline: 'Architecture'
   };
 
-  const result = DocumentPipeline.processFormIntake(formInput);
+  const result = DocumentPipeline.processFormIntake(rawDoc);
 
   assert.equal(result.status, 'success');
   if (result.status === 'success') {
     assert.deepEqual(result.warnings, ['Section', 'Number', 'Revision']);
-    assert.equal(result.data.disciplineDetails.discipline, 'Architecture');
-    if (result.data.disciplineDetails.discipline === 'Architecture') {
-      assert.equal(result.data.disciplineDetails.section, '');
-      assert.equal(result.data.disciplineDetails.number, '');
-      assert.equal(result.data.disciplineDetails.title, 'HVAC Submittal');
-      assert.equal(result.data.disciplineDetails.revision, '');
+    const details = result.data.disciplineDetails;
+    assert.equal(details.discipline, 'Architecture');
+    if (details.discipline === 'Architecture') {
+      assert.equal(details.section, '');
+      assert.equal(details.number, '');
+      assert.equal(details.title, 'HVAC Submittal');
+      assert.equal(details.revision, '');
     }
   }
 });
