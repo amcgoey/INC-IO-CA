@@ -277,7 +277,29 @@ interface LogRepository {
   ): AppendDocumentResult;
 }
 
+declare class FormIntakeParser {
+  static parse(formInput?: Record<string, string>): RawDocument;
+}
 
+declare class EmailIntakeParser {
+  static parseProcoreEmail_(subject: string, body: string): Partial<ParsedData>;
+  static parseFormaEmail_(subject: string, body: string): Partial<ParsedData>;
+  static parseEmail(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData;
+}
+
+declare class DriveFilenameIntakeParser {
+  static parse(filename?: string): RawDocument;
+}
+
+declare class DocumentPipeline {
+  static parseFormIntake(formInput: Record<string, string>): RawDocument;
+  static parseEmail(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData;
+  static parseFilename(filename: string): RawDocument;
+  static validate(rawDoc: RawDocument, context?: ValidationContext): ValidationResult;
+  static processFormIntake(formInput: Record<string, string>, context?: ValidationContext): ValidationResult;
+}
+
+declare function validateDocument(rawDoc: RawDocument, context?: ValidationContext): ValidationResult;
 
 
 // Global Ambient Function Declarations
@@ -285,6 +307,8 @@ declare function buildMainCard(e: GoogleAppsScriptEvent, initialData?: ParsedDat
 declare function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled?: boolean, projectAbbr?: string, action?: string, incomingRouting?: string, draftUrl?: string | null, directRowUrl?: string | null, failedColumns?: string[], emptyFallbacks?: string[]): GoogleAppsScript.Card_Service.Card;
 declare function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData;
 declare function parseDriveFilename(filename: string): ParsedData;
+declare function parseFormaEmail_(subject: string, body: string): Partial<ParsedData>;
+declare function parseProcoreEmail_(subject: string, body: string): Partial<ParsedData>;
 declare function getCachedPrediction(messageId: string): AIPrediction | null;
 declare function setCachedPrediction(messageId: string, predictionObj: AIPrediction): void;
 declare function getCachedDrives(): SharedDriveInfo[];
@@ -348,5 +372,3 @@ declare class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocum
   formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
   getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string;
 }
-
-

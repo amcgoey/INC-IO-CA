@@ -24,6 +24,11 @@ The dependencies (like LogSettings, valid tags, valid vendors) passed into the p
 **ValidationResult**:
 A discriminated union that represents the three universal outcomes of validating a RawDocument: `success` (with the ValidatedDocument and any non-fatal warnings), `error` (fatal failures), or `interaction_required` (when the UI must prompt the user before continuing).
 
+**DocumentPipeline**:
+The pure application service that ingests raw intake data (email subjects, filenames, or UI form inputs as RawDocument) and coordinates parsing, normalization, and validation rules to produce a ValidationResult.
+_Avoid_: IntakeManager, FormValidator, DataProcessor
+
+
 **RowInsertionPlan**:
 The pure calculation output describing the target row index and structural modifications (like inserting blank separator rows or leading gaps) required to place a new log entry in the spreadsheet.
 _Avoid_: InsertionIndex, RowActionResult

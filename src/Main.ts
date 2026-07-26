@@ -7,7 +7,7 @@ function buildAddOn(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.Car
     GmailApp.setCurrentMessageAccessToken(accessToken);
   }
   const message = messageId ? GmailApp.getMessageById(messageId) : null;
-  const parsedData = parseEmailData(message);
+  const parsedData = DocumentPipeline.parseEmail(message);
 
   let aiPrediction = messageId ? getCachedPrediction(messageId) : null;
   let flashMessage: FlashMessage | null = null;
@@ -67,7 +67,7 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
 
   const fileId = items[0].id;
   const fileName = items[0].title;
-  const parsedData = parseDriveFilename(fileName);
+  const parsedData = DocumentPipeline.parseFilename(fileName);
 
   try {
     const fileMeta = (Drive as any).Files.get(fileId, { supportsAllDrives: true });
@@ -84,3 +84,12 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
 }
 // END FILE: Main.ts
 
+
+declare var module: any;
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    onDriveItemsSelected,
+    buildAddOn
+  };
+}

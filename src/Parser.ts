@@ -72,9 +72,11 @@ const DRIVE_FILENAME_PATTERNS: FilenamePattern[] = [
 ];
 
 function parseDriveFilename(filename: string): ParsedData {
+  if (typeof DocumentPipeline !== "undefined" && typeof DocumentPipeline.parseFilename === "function") {
+    return DocumentPipeline.parseFilename(filename);
+  }
   let data: ParsedData = { discipline: "Architecture", specSection: undefined, submittalNum: undefined, revNum: undefined, title: undefined, specTag: undefined, vendor: undefined, date: undefined };
 
-  // Evaluate Drive filename against modular patterns
   for (const pattern of DRIVE_FILENAME_PATTERNS) {
     const match = filename.match(pattern.regex);
     if (match) {
@@ -88,6 +90,9 @@ function parseDriveFilename(filename: string): ParsedData {
 
 
 function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
+  if (typeof DocumentPipeline !== "undefined" && DocumentPipeline.parseEmail) {
+    return DocumentPipeline.parseEmail(message);
+  }
   const defaultResult: ParsedData = {
     driveName: "",
     discipline: CONFIG.DEFAULT_DISCIPLINE,
@@ -112,31 +117,16 @@ function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): P
 }
 
 function parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
-  const result: Partial<ParsedData> = {};
-  const projectMatch = subject.match(/^([^-]+)-/);
-  if (projectMatch) result.driveName = projectMatch[1].trim();
-
-  const subMatch = subject.match(/#\s*(.*?)\s+was/i);
-  if (subMatch) {
-    const parts = subMatch[1].split('-');
-    result.specSection = parts[0].trim();
-    if (parts.length > 1) result.revNum = parts.slice(1).join('-').trim();
-    if (/^\d/.test(result.specSection)) result.discipline = "Architecture";
+  if (typeof EmailIntakeParser !== "undefined" && EmailIntakeParser.parseFormaEmail_) {
+    return EmailIntakeParser.parseFormaEmail_(subject, body);
   }
-
-  const actionMatch = subject.match(/was\s+(.+)$/i);
-  if (actionMatch) {
-    const intent = actionMatch[1].toLowerCase().trim();
-    if (intent.includes("provided for your information") || intent.includes("submitted") || intent.includes("forwarded")) {
-      result.action = CONFIG.DEFAULT_ACTION;
-    } else {
-      result.action = actionMatch[1].trim();
-    }
-  }
-  return result;
+  return {};
 }
 
 function parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> {
+  if (typeof EmailIntakeParser !== "undefined" && EmailIntakeParser.parseProcoreEmail_) {
+    return EmailIntakeParser.parseProcoreEmail_(subject, body);
+  }
   const result: Partial<ParsedData> = {};
   const projectMatch = subject.match(/\[([^\]]+)\]/);
   if (projectMatch) result.driveName = projectMatch[1].trim();
@@ -155,5 +145,3 @@ function parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> 
   }
   return result;
 }
-
-
