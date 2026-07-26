@@ -1,4 +1,4 @@
-﻿// src/PdfDocumentService.ts
+// src/PdfDocumentService.ts
 
 let pdfLibInstance: any = null;
 
@@ -103,14 +103,41 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
 
     return Utilities.newBlob(await pdfDoc.save(), 'application/pdf', options.newFileName + ".pdf");
   }
+
+  async slicePagesToBase64(
+    sourceBlob: GoogleAppsScript.Base.Blob,
+    maxPages: number
+  ): Promise<string> {
+    const { PDFDocument } = getPdfLib();
+    const bytes = sourceBlob.getBytes();
+    const unsigned = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) unsigned[i] = bytes[i] & 0xFF;
+
+    const srcDoc = await PDFDocument.load(unsigned);
+    const pageCount = Math.min(srcDoc.getPageCount(), maxPages);
+    const slicedDoc = await PDFDocument.create();
+
+    const pageIndices: number[] = [];
+    for (let i = 0; i < pageCount; i++) {
+      pageIndices.push(i);
+    }
+
+    const copiedPages = await slicedDoc.copyPages(srcDoc, pageIndices);
+    copiedPages.forEach((p: any) => slicedDoc.addPage(p));
+
+    const pdfBytes = await slicedDoc.save();
+    return Utilities.base64Encode(pdfBytes);
+  }
 }
 
 class FakePdfDocumentService implements PdfDocumentService {
   public extractCalls: string[] = [];
   public stampCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; data: ParsedData; options: StampOptions }> = [];
+  public sliceCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; maxPages: number }> = [];
   private actionMap: Map<string, string | null> = new Map();
   private defaultAction: string | null = null;
   private stampResultBlob: GoogleAppsScript.Base.Blob | null = null;
+  private sliceResultBase64: string = "";
 
   constructor(initialActions?: Record<string, string | null>) {
     if (initialActions) {
@@ -130,6 +157,10 @@ class FakePdfDocumentService implements PdfDocumentService {
 
   setStampResultBlob(blob: GoogleAppsScript.Base.Blob): void {
     this.stampResultBlob = blob;
+  }
+
+  setSliceResultBase64(str: string): void {
+    this.sliceResultBase64 = str;
   }
 
   async extractFormAction(fileId: string): Promise<string | null> {
@@ -153,6 +184,14 @@ class FakePdfDocumentService implements PdfDocumentService {
       return this.stampResultBlob;
     }
     return sourceBlob;
+  }
+
+  async slicePagesToBase64(
+    sourceBlob: GoogleAppsScript.Base.Blob,
+    maxPages: number
+  ): Promise<string> {
+    this.sliceCalls.push({ sourceBlob, maxPages });
+    return this.sliceResultBase64;
   }
 }
 

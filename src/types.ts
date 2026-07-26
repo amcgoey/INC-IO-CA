@@ -334,6 +334,10 @@ interface PdfDocumentService {
     data: ParsedData,
     options: StampOptions
   ): Promise<GoogleAppsScript.Base.Blob>;
+  slicePagesToBase64(
+    sourceBlob: GoogleAppsScript.Base.Blob,
+    maxPages: number
+  ): Promise<string>;
 }
 
 interface DriveFilingRepository {

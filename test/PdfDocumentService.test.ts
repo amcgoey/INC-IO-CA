@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert";
 
 const { GoogleAppsScriptPdfDocumentService, FakePdfDocumentService, defaultPdfDocumentService, getPdfLib } = require("../src/PdfDocumentService");
@@ -284,3 +284,80 @@ test("GoogleAppsScriptPdfDocumentService.stampSubmittal stamps submittal PDF usi
   assert.strictEqual(checkedBoxName, "APPROVED_BOX");
   assert.strictEqual(result.getName(), "Output_Doc.pdf");
 });
+
+test("FakePdfDocumentService slicePagesToBase64 records calls and returns configured base64 string", async () => {
+  const service = new FakePdfDocumentService();
+  const mockBlob = { name: "source.pdf" } as any;
+
+  const defaultResult = await service.slicePagesToBase64(mockBlob, 3);
+  assert.strictEqual(defaultResult, "");
+  assert.deepStrictEqual(service.sliceCalls, [{ sourceBlob: mockBlob, maxPages: 3 }]);
+
+  service.setSliceResultBase64("SGVsbG8gV29ybGQ=");
+  const customResult = await service.slicePagesToBase64(mockBlob, 5);
+  assert.strictEqual(customResult, "SGVsbG8gV29ybGQ=");
+  assert.deepStrictEqual(service.sliceCalls, [
+    { sourceBlob: mockBlob, maxPages: 3 },
+    { sourceBlob: mockBlob, maxPages: 5 }
+  ]);
+});
+
+test("GoogleAppsScriptPdfDocumentService.slicePagesToBase64 loads blob, copies up to maxPages, and returns base64", async () => {
+  let loadedBytes: Uint8Array | null = null;
+  let copiedPageIndices: number[] = [];
+  let addedPagesCount = 0;
+  let savedBytes: Uint8Array | null = null;
+  let base64EncodedInput: Uint8Array | null = null;
+
+  const mockSrcPdfDoc = {
+    getPageCount: () => 5
+  };
+
+  const mockSlicedPdfDoc = {
+    copyPages: async (srcDoc: any, indices: number[]) => {
+      copiedPageIndices = indices;
+      return indices.map(i => `page_${i}`);
+    },
+    addPage: (p: any) => { addedPagesCount++; },
+    save: async () => {
+      savedBytes = new Uint8Array([70, 65, 75, 69]);
+      return savedBytes;
+    }
+  };
+
+  (globalThis as any).PDFLib = {
+    PDFDocument: {
+      load: async (bytes: Uint8Array) => {
+        loadedBytes = bytes;
+        return mockSrcPdfDoc;
+      },
+      create: async () => mockSlicedPdfDoc
+    }
+  };
+
+  (globalThis as any).Utilities = {
+    base64Encode: (bytes: Uint8Array) => {
+      base64EncodedInput = bytes;
+      return "RkFLRQ==";
+    }
+  };
+
+  const service = new GoogleAppsScriptPdfDocumentService();
+  const mockBlob = { getBytes: () => [1, 2, 3, 4] } as any;
+
+  // Test 1: maxPages (2) < total pages (5)
+  const base64Result1 = await service.slicePagesToBase64(mockBlob, 2);
+  assert.strictEqual(base64Result1, "RkFLRQ==");
+  assert.deepStrictEqual(Array.from(loadedBytes!), [1, 2, 3, 4]);
+  assert.deepStrictEqual(copiedPageIndices, [0, 1]);
+  assert.strictEqual(addedPagesCount, 2);
+  assert.deepStrictEqual(base64EncodedInput, savedBytes);
+
+  // Test 2: maxPages (10) > total pages (5) -> caps at 5 pages
+  addedPagesCount = 0;
+  const base64Result2 = await service.slicePagesToBase64(mockBlob, 10);
+  assert.strictEqual(base64Result2, "RkFLRQ==");
+  assert.deepStrictEqual(copiedPageIndices, [0, 1, 2, 3, 4]);
+  assert.strictEqual(addedPagesCount, 5);
+});
+
