@@ -1,7 +1,13 @@
 ﻿import test from "node:test";
 import assert from "node:assert";
-const { InMemoryCacheAdapter } = require("../src/CacheAdapter");
+const { InMemoryCacheAdapter, FakeCacheAdapter } = require("../src/CacheAdapter");
 const { FakeDriveNameProvider, GoogleDriveNameProvider, defaultDriveNameProvider } = require("../src/DriveNameProvider");
+
+test("FakeCacheAdapter alias is exported and equivalent to InMemoryCacheAdapter", () => {
+  const fakeCache = new FakeCacheAdapter();
+  fakeCache.put("a", "b", 60);
+  assert.strictEqual(fakeCache.get("a"), "b");
+});
 
 test("FakeDriveNameProvider returns default empty array or initial names", () => {
   const fake1 = new FakeDriveNameProvider();
@@ -60,6 +66,32 @@ test("GoogleDriveNameProvider fetches drives from Drive.Drives.list and caches r
   const names2 = provider.getAvailableDriveNames();
   assert.deepStrictEqual(names2, ["Drive Alpha", "Drive Beta", "Drive Gamma"]);
   assert.strictEqual(listCalls, 2);
+
+  delete (globalThis as any).Drive;
+});
+
+test("GoogleDriveNameProvider caches empty drive lists on successful API call", () => {
+  let listCalls = 0;
+  (globalThis as any).Drive = {
+    Drives: {
+      list: () => {
+        listCalls++;
+        return { items: [] };
+      }
+    }
+  };
+
+  const cache = new InMemoryCacheAdapter();
+  const provider = new GoogleDriveNameProvider(cache);
+
+  const names1 = provider.getAvailableDriveNames();
+  assert.deepStrictEqual(names1, []);
+  assert.strictEqual(listCalls, 1);
+
+  // Subsequent call should use cached empty array without re-querying API
+  const names2 = provider.getAvailableDriveNames();
+  assert.deepStrictEqual(names2, []);
+  assert.strictEqual(listCalls, 1);
 
   delete (globalThis as any).Drive;
 });

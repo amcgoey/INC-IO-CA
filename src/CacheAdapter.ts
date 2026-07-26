@@ -6,31 +6,35 @@ interface CacheAdapter {
 }
 
 class GoogleScriptCacheAdapter implements CacheAdapter {
-  get(key: string): string | null {
+  private getCache(): GoogleAppsScript.Cache.Cache | null {
     try {
       if (typeof CacheService !== "undefined" && CacheService.getUserCache) {
-        const cache = CacheService.getUserCache();
-        if (cache) {
-          const val = cache.get(key);
-          return val !== null ? val : null;
-        }
+        return CacheService.getUserCache();
       }
     } catch (e) {
-      // Fail silently if CacheService fails or is inaccessible
+      // Fail silently if CacheService is inaccessible
     }
     return null;
   }
 
-  put(key: string, value: string, ttlSeconds: number): void {
+  get(key: string): string | null {
+    const cache = this.getCache();
+    if (!cache) return null;
     try {
-      if (typeof CacheService !== "undefined" && CacheService.getUserCache) {
-        const cache = CacheService.getUserCache();
-        if (cache) {
-          cache.put(key, value, ttlSeconds);
-        }
-      }
+      const val = cache.get(key);
+      return val !== null ? val : null;
     } catch (e) {
-      // Fail silently if CacheService fails
+      return null;
+    }
+  }
+
+  put(key: string, value: string, ttlSeconds: number): void {
+    const cache = this.getCache();
+    if (!cache) return;
+    try {
+      cache.put(key, value, ttlSeconds);
+    } catch (e) {
+      // Fail silently if put fails
     }
   }
 }
@@ -56,6 +60,7 @@ class InMemoryCacheAdapter implements CacheAdapter {
   }
 }
 
+var FakeCacheAdapter = InMemoryCacheAdapter;
 var defaultCacheAdapter: CacheAdapter = new GoogleScriptCacheAdapter();
 
 declare var module: any;
@@ -64,6 +69,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     GoogleScriptCacheAdapter,
     InMemoryCacheAdapter,
+    FakeCacheAdapter,
     defaultCacheAdapter
   };
 }

@@ -6,6 +6,8 @@ interface DriveNameProvider {
 
 class GoogleDriveNameProvider implements DriveNameProvider {
   private cacheAdapter: CacheAdapter;
+  private readonly CACHE_KEY = "cached_shared_drives";
+  private readonly CACHE_TTL_SECONDS = 21600; // 6 hours
 
   constructor(cacheAdapter?: CacheAdapter) {
     if (cacheAdapter) {
@@ -13,17 +15,12 @@ class GoogleDriveNameProvider implements DriveNameProvider {
     } else if (typeof defaultCacheAdapter !== "undefined") {
       this.cacheAdapter = defaultCacheAdapter;
     } else {
-      try {
-        const { defaultCacheAdapter: importedDefault, GoogleScriptCacheAdapter: ImportedGoogleAdapter } = require("./CacheAdapter");
-        this.cacheAdapter = importedDefault || new ImportedGoogleAdapter();
-      } catch (e) {
-        this.cacheAdapter = new GoogleScriptCacheAdapter();
-      }
+      this.cacheAdapter = require("./CacheAdapter").defaultCacheAdapter;
     }
   }
 
   getAvailableDriveNames(): string[] {
-    const cached = this.cacheAdapter.get("cached_shared_drives");
+    const cached = this.cacheAdapter.get(this.CACHE_KEY);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
@@ -36,6 +33,8 @@ class GoogleDriveNameProvider implements DriveNameProvider {
     }
 
     let names: string[] = [];
+    let querySuccess = false;
+
     try {
       if (typeof Drive !== "undefined" && (Drive as any).Drives && (Drive as any).Drives.list) {
         let pageToken: string | undefined;
@@ -50,16 +49,17 @@ class GoogleDriveNameProvider implements DriveNameProvider {
           }
           pageToken = resp ? resp.nextPageToken : undefined;
         } while (pageToken);
+        querySuccess = true;
       }
     } catch (err: any) {
       // Fail gracefully on Drive API errors
     }
 
-    if (names.length > 0) {
+    if (querySuccess) {
       try {
-        this.cacheAdapter.put("cached_shared_drives", JSON.stringify(names), 21600);
+        this.cacheAdapter.put(this.CACHE_KEY, JSON.stringify(names), this.CACHE_TTL_SECONDS);
       } catch (e) {
-        // Ignore cache errors
+        // Ignore cache write errors
       }
     }
 
