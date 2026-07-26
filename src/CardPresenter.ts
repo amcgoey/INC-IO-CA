@@ -19,7 +19,7 @@ class CardPresenter {
     missingFields?: string[]
   ): GoogleAppsScript.Card_Service.ActionResponse {
     const flashData = {
-      error: errors.join("\n"),
+      error: errors.join('\n'),
       missingFields: missingFields || []
     };
 
@@ -43,14 +43,14 @@ class CardPresenter {
     params: Record<string, string>
   ): GoogleAppsScript.Card_Service.ActionResponse {
     const form = (e && e.formInput) || {};
-    const p = params || (e && e.parameters) || {};
+    const eventParams = params || (e && e.parameters) || {};
 
-    const discipline = form.discipline || p.discipline || (typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture");
+    const discipline = form.discipline || eventParams.discipline || (typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture");
     const isArchitecture = discipline === "Architecture";
     const isFFE = discipline === "FF&E";
-    const sectionVal = isArchitecture ? (form.section || p.section || "") : "";
-    const specTagVal = isFFE ? (form.specTag || p.specTag || "") : (form.specTag || p.specTag || "");
-    const itemTitle = result.title || form.title || p.itemTitle || p.title || (isFFE ? form.specTitle : "") || "";
+    const sectionVal = isArchitecture ? (form.section || eventParams.section || "") : "";
+    const specTagVal = isFFE ? (form.specTag || eventParams.specTag || "") : "";
+    const itemTitle = result.title || form.title || (isFFE ? form.specTitle : "") || eventParams.itemTitle || eventParams.title || "";
 
     const card = buildSuccessCard(
       result.fileId,
@@ -62,10 +62,10 @@ class CardPresenter {
       discipline,
       sectionVal,
       specTagVal,
-      p.targetFolderId,
-      p.logFileId,
+      eventParams.targetFolderId,
+      eventParams.logFileId,
       false,
-      result.projectAbbr || p.projectAbbr,
+      result.projectAbbr || eventParams.projectAbbr,
       result.action || form.action,
       result.incomingRouting || form.incomingRouting,
       null,
