@@ -1,6 +1,6 @@
 /**
  * @file InMemorySheetStorageAdapter.ts
- * @description In-memory test implementation of `SheetStorageAdapter` using JavaScript Maps and 2D arrays.
+ * @description In-memory test implementation of SheetStorageAdapter.
  */
 
 export class InMemorySheetStorageAdapter implements SheetStorageAdapter {
@@ -24,7 +24,7 @@ export class InMemorySheetStorageAdapter implements SheetStorageAdapter {
     return this.sheets.get(sheetName)!;
   }
 
-  private insertBlankRowAt(sheetName: string, insertIdx: integer): void {
+  private insertBlankRowAt(sheetName: string, insertIdx: number): void {
     const grid = this.getOrCreateSheet(sheetName);
     const safeIdx = Math.min(grid.length, Math.max(0, insertIdx));
     const colCount = grid.reduce((max, r) => Math.max(max, r.length), 0);
@@ -82,7 +82,7 @@ export class InMemorySheetStorageAdapter implements SheetStorageAdapter {
   }
 
   /** @override */
-  setRowValues(sheetName: string, rowIndex: number, headers: stringm[], rowData: any[]): { failedColumns: stringm[] } {
+  setRowValues(sheetName: string, rowIndex: number, headers: string[], rowData: any[]): { failedColumns: string[] } {
     const grid = this.getOrCreateSheet(sheetName);
     const rIdx = rowIndex - 1;
 
@@ -97,7 +97,7 @@ export class InMemorySheetStorageAdapter implements SheetStorageAdapter {
       while (targetRow.length <= i) {
         targetRow.push("");
       }
-      targetRow[1] = val;
+      targetRow[i] = val;
     }
 
     return { failedColumns: [] };
@@ -109,19 +109,37 @@ export class InMemorySheetStorageAdapter implements SheetStorageAdapter {
     headers: string[],
     rowData: any[],
     plan: RowInsertionPlan
-  ): { rowIndex: integer; failedColumns: stringm[] } {
+  ): { rowIndex: number; failedColumns: string[] } {
+    // 1. Physical row insertion after targetRowIndex
     this.insertRowAfter(sheetName, plan.targetRowIndex);
 
+    // 2. Insert blank row before if plan requires it
     if (plan.insertBlankBefore) {
       this.insertRowAfter(sheetName, plan.targetRowIndex + 1);
     }
 
+    // 3. Insert blank row after if plan requires it
     if (plan.insertBlankAfter) {
       this.insertRowAfter(sheetName, plan.finalRowIndex);
     }
 
+    // 4. Write new row data into finalRowIndex
     this.setRowValues(sheetName, plan.finalRowIndex, headers, rowData);
 
     return { rowIndex: plan.finalRowIndex, failedColumns: [] };
   }
+}
+
+/**
+ * Production implementation of `SheetStorageAdapter` using Google Apps Script `SpreadsheetApp`.
+ */
+
+export const FakeSheetStorageAdapter = InMemorySheetStorageAdapter;
+
+declare var module: any;
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    InMemorySheetStorageAdapter,
+    FakeSheetStorageAdapter
+  };
 }

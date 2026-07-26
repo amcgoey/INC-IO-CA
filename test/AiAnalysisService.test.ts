@@ -9,10 +9,11 @@ import assert from "node:assert";
   GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
 };
 
-const { InMemoryCacheAdapter } = require("../src/CacheAdapter");
-const { FakeDriveNameProvider } = require("../src/DriveNameProvider");
-const { FakePdfDocumentService } = require("../src/PdfDocumentService");
-const { GeminiAiAnalysisAdapter, FakeAiAnalysisAdapter } = require("../src/AiAnalysisService");
+const { InMemoryCacheAdapter } = require("./harness/index");
+const { FakeDriveNameProvider } = require("./harness/index");
+const { FakePdfDocumentService } = require("./harness/index");
+const { GeminiAiAnalysisAdapter } = require("../src/AiAnalysisService");
+const { FakeAiAnalysisAdapter } = require("./harness/index");
 
 function setupPropertiesService(apiKey: string | null = "test-gemini-api-key") {
   (globalThis as any).PropertiesService = {

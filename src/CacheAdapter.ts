@@ -54,34 +54,6 @@ class GoogleScriptCacheAdapter implements CacheAdapter {
   }
 }
 
-/**
- * In-memory implementation of `CacheAdapter` using Map and timestamp-based TTL checks.
- */
-class InMemoryCacheAdapter implements CacheAdapter {
-  private store: Map<string, { value: string; expiresAt: number }> = new Map();
-
-  /** @override */
-  get(key: string): string | null {
-    const entry = this.store.get(key);
-    if (!entry) {
-      return null;
-    }
-    if (Date.now() >= entry.expiresAt) {
-      this.store.delete(key);
-      return null;
-    }
-    return entry.value;
-  }
-
-  /** @override */
-  put(key: string, value: string, ttlSeconds: number): void {
-    const expiresAt = Date.now() + ttlSeconds * 1000;
-    this.store.set(key, { value, expiresAt });
-  }
-}
-
-/** Alias for `InMemoryCacheAdapter` for unit testing context. */
-var FakeCacheAdapter = InMemoryCacheAdapter;
 
 /** Global default cache adapter instance seam. */
 var defaultCacheAdapter: CacheAdapter = new GoogleScriptCacheAdapter();
@@ -91,8 +63,6 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     GoogleScriptCacheAdapter,
-    InMemoryCacheAdapter,
-    FakeCacheAdapter,
     defaultCacheAdapter
   };
 }

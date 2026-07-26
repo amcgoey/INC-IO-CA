@@ -27,3 +27,11 @@ export class InMemoryCacheAdapter implements CacheAdapter {
 }
 
 export var FakeCacheAdapter = InMemoryCacheAdapter;
+
+declare var module: any;
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    InMemoryCacheAdapter,
+    FakeCacheAdapter
+  };
+}

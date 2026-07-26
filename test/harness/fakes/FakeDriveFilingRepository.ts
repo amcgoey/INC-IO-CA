@@ -34,3 +34,10 @@ export class FakeDriveFilingRepository implements DriveFilingRepository {
     return result;
   }
 }
+
+declare var module: any;
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    FakeDriveFilingRepository
+  };
+}

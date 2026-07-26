@@ -71,3 +71,10 @@ export class FakePdfDocumentService implements PdfDocumentService {
     return this.sliceResultBase64;
   }
 }
+
+declare var module: any;
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    FakePdfDocumentService
+  };
+}

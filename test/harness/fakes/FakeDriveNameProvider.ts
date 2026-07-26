@@ -35,3 +35,10 @@ export class FakeDriveNameProvider implements DriveNameProvider {
     return this.drives.map(d => d.name);
   }
 }
+
+declare var module: any;
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    FakeDriveNameProvider
+  };
+}
