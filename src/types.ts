@@ -476,3 +476,13 @@ declare class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocum
   formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
   getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string;
 }
+
+declare class CardPresenter {
+  presentValidationError(
+    e: GoogleAppsScriptEvent,
+    errors: string[],
+    missingFields?: string[]
+  ): GoogleAppsScript.Card_Service.ActionResponse;
+}
+
+declare var defaultCardPresenter: CardPresenter;

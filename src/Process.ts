@@ -79,12 +79,11 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const validationResult = DocumentPipeline.processFormIntake(form, validationContext);
 
     if (validationResult.status === "error") {
-      return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, {
-          error: validationResult.errors.join("\n"),
-          missingFields: validationResult.missingFields || []
-        })))
-        .build();
+      return defaultCardPresenter.presentValidationError(
+        e,
+        validationResult.errors,
+        validationResult.missingFields
+      );
     }
 
     if (validationResult.status === "interaction_required") {
