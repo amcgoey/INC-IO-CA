@@ -72,3 +72,39 @@ test("CardPresenter - defaultCardPresenter is exported and functional", () => {
   assert.ok(defaultCardPresenter);
   assert.ok(defaultCardPresenter instanceof CardPresenter);
 });
+
+test("CardPresenter - presentCardReload updates main card with default isTagChange false", () => {
+  const presenter = new CardPresenter();
+  const mockEvent: any = { formInput: { discipline: "Architecture" } };
+
+  const response = presenter.presentCardReload(mockEvent);
+
+  assert.deepEqual(lastBuildMainCardArgs, {
+    e: mockEvent,
+    initialData: null,
+    isTagChange: false,
+    flashData: undefined
+  });
+
+  assert.ok(response);
+  assert.equal(response.navigation.action, "updateCard");
+  assert.equal(response.navigation.card.cardType, "MainCard");
+});
+
+test("CardPresenter - presentCardReload propagates isTagChange true flag", () => {
+  const presenter = new CardPresenter();
+  const mockEvent: any = { formInput: { specTag: "A-101" } };
+
+  const response = presenter.presentCardReload(mockEvent, true);
+
+  assert.deepEqual(lastBuildMainCardArgs, {
+    e: mockEvent,
+    initialData: null,
+    isTagChange: true,
+    flashData: undefined
+  });
+
+  assert.ok(response);
+  assert.equal(response.navigation.action, "updateCard");
+  assert.equal(response.navigation.card.cardType, "MainCard");
+});

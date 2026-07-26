@@ -17,6 +17,17 @@ class CardPresenter {
       .setNavigation(CardService.newNavigation().updateCard(card))
       .build();
   }
+
+  presentCardReload(
+    e: GoogleAppsScriptEvent,
+    isTagChange?: boolean
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    const card = buildMainCard(e, null, isTagChange || false);
+
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card))
+      .build();
+  }
 }
 
 var defaultCardPresenter: CardPresenter = new CardPresenter();

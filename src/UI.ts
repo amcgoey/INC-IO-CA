@@ -546,11 +546,11 @@ function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servi
 }
 
 function onStateChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse { 
-  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(buildMainCard(e))).build(); 
+  return defaultCardPresenter.presentCardReload(e);
 }
 
 function onSpecTagChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse { 
-  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, true))).build(); 
+  return defaultCardPresenter.presentCardReload(e, true);
 }
 
 function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
