@@ -319,6 +319,24 @@ test('DocumentPipeline.processFormIntake - Architecture warnings for missing sec
   }
 });
 
+
+
+test('DocumentPipeline.processFormIntake - Architecture validation fails when title is missing', () => {
+  const rawDoc = {
+    date: '2026-07-25',
+    contact: 'John Smith',
+    action: 'Approved',
+    discipline: 'Architecture'
+  };
+
+  const result = DocumentPipeline.processFormIntake(rawDoc);
+
+  assert.equal(result.status, 'error');
+  if (result.status === 'error') {
+    assert.deepEqual(result.missingFields, ['Title']);
+  }
+});
+
 test('DocumentPipeline.validate - validates RawDocument directly', () => {
   const raw = {
     date: '2026-07-25',
