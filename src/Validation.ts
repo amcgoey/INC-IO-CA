@@ -85,7 +85,7 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
     const relatedTag = getTrimmed(raw.relatedTag);
 
     // Related Tags Validation
-    if (relatedTag && validTags.length > 0) {
+    if (relatedTag) {
       const inputRelatedTags = relatedTag.split(",").map(t => t.trim()).filter(Boolean);
       const invalidRelatedTags = inputRelatedTags.filter(
         t => !validTags.some(valid => valid.toLowerCase() === t.toLowerCase())
