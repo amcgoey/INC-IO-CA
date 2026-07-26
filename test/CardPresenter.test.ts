@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 // Global GAS mocks
+(globalThis as any).CONFIG = { LOGO_URL: "" };
 (globalThis as any).CardService = {
   newActionResponseBuilder: () => {
     let resNav: any = null, resNotif: any = null;
@@ -23,6 +24,67 @@ import assert from "node:assert/strict";
       getText: () => textVal
     };
     return notif;
+  },
+  newCardBuilder: () => {
+    const builder: any = {
+      setHeader: () => builder,
+      addSection: () => builder,
+      build: () => ({ cardType: "SuccessCard" })
+    };
+    return builder;
+  },
+  newCardHeader: () => {
+    const header: any = {
+      setTitle: () => header,
+      setImageUrl: () => header
+    };
+    return header;
+  },
+  newCardSection: () => {
+    const section: any = {
+      addWidget: () => section
+    };
+    return section;
+  },
+  newTextParagraph: () => ({
+    setText: () => ({})
+  }),
+  newButtonSet: () => {
+    const btnSet: any = {
+      addButton: () => btnSet
+    };
+    return btnSet;
+  },
+  newTextButton: () => {
+    const btn: any = {
+      setText: () => btn,
+      setOpenLink: () => btn,
+      setOnClickAction: () => btn,
+      setTextButtonStyle: () => btn
+    };
+    return btn;
+  },
+  newOpenLink: () => ({
+    setUrl: () => ({})
+  }),
+  newTextInput: () => {
+    const input: any = {
+      setFieldName: () => input,
+      setTitle: () => input,
+      setValue: () => input
+    };
+    return input;
+  },
+  newAction: () => {
+    const action: any = {
+      setFunctionName: () => action,
+      setParameters: () => action
+    };
+    return action;
+  },
+  TextButtonStyle: {
+    FILLED: "FILLED",
+    OUTLINED: "OUTLINED"
   }
 };
 
@@ -57,11 +119,21 @@ let removedKeys: string[] = [];
   WARNING_NOT_WHITELISTED: "⚠️ Domain not whitelisted. Please manually download the file and use 'Google Drive URL'.",
   ERROR_FETCH_FAILED: (err: any) => `❌ Fetch failed: ${err}`,
   SUCCESS_FETCHED: "✅ Fetched successfully!",
-  DEBUG_SAVED_TO_DRIVE: (fileName: string, fileId: string) => `✅ Saved ${fileName} to Drive.\nDriveFileId: ${fileId}`
+  DEBUG_SAVED_TO_DRIVE: (fileName: string, fileId: string) => `✅ Saved ${fileName} to Drive.\nDriveFileId: ${fileId}`,
+  SUCCESS_CARD_TITLE: "Submittal Processed Successfully",
+  SUCCESS_OUTGOING: (k: string) => `Logged submittal ${k}`,
+  SUCCESS_ANALYSIS: "✅ Analysis complete!",
+  SUCCESS_DRAFT_CREATED: "✅ Draft created.",
+  ERROR_NO_ATTACHMENT: "❌ Attachment not found.",
+  ERROR_NO_URL: "❌ Drive URL missing.",
+  ERROR_GETTING_FILE: (m: string) => `❌ Error file: ${m}`,
+  ERROR_RESOLVING_FILE: "❌ Cannot resolve file.",
+  ERROR_AI_GENERAL: (m: string) => `❌ AI Error: ${m}`,
+  ERROR_AI_BUSY: "⚠️ AI Busy."
 };
 
 const { CardPresenter, defaultCardPresenter } = require("../src/CardPresenter");
-const { onStateChange, onSpecTagChange, handleRefreshCache, handleFetchUrl } = require("../src/UI");
+const { onStateChange, onSpecTagChange, handleRefreshCache, handleFetchUrl, handleDeepAnalysis, createDraftEmail, processSubmissionWithNewTag, processSubmissionWithNewVendor } = require("../src/UI");
 
 test("CardPresenter - presentValidationError formats error flash and returns ActionResponse updateCard", () => {
   const presenter = new CardPresenter();
@@ -418,5 +490,188 @@ test("UI.ts - handleFetchUrl delegates successful result to defaultCardPresenter
     assert.deepEqual(response, { mockResponse: "presentFetchUrlResult" });
   } finally {
     defaultCardPresenter.presentFetchUrlResult = originalPresentFetchUrlResult;
+  }
+});
+
+test("CardPresenter - presentDeepAnalysisResult updates main card with navigation and SUCCESS_ANALYSIS notification on success analysisResult", () => {
+  const presenter = new CardPresenter();
+  const mockEvent: any = { parameters: { discipline: "Architecture" }, formInput: {} };
+  const mockResult: any = {
+    success: true,
+    analysis: { predictedSection: "033000", predictedTitle: "Cast-in-Place Concrete" }
+  };
+
+  const response = presenter.presentDeepAnalysisResult(mockEvent, mockResult);
+
+  assert.equal(mockEvent.formInput.section, "033000");
+  assert.equal(mockEvent.formInput.title, "Cast-in-Place Concrete");
+  assert.ok(response);
+  assert.equal(response.navigation.action, "updateCard");
+  assert.equal(response.navigation.card.cardType, "MainCard");
+  assert.ok(response.notification);
+  assert.equal(response.notification.getText(), "✅ Analysis complete!");
+});
+
+test("CardPresenter - presentDeepAnalysisResult returns error notification toast on failed analysisResult", () => {
+  const presenter = new CardPresenter();
+  const mockEvent: any = { formInput: {} };
+  const mockErrorResult: any = {
+    success: false,
+    error: { code: "RATE_LIMITED", userMessage: "Quota exceeded" }
+  };
+
+  const response = presenter.presentDeepAnalysisResult(mockEvent, mockErrorResult);
+
+  assert.ok(response);
+  assert.equal(response.navigation, null);
+  assert.ok(response.notification);
+  assert.equal(response.notification.getText(), "⚠️ AI Busy.");
+});
+
+test("CardPresenter - presentDraftEmailSuccess returns updateCard with updated success card and SUCCESS_DRAFT_CREATED notification", () => {
+  const presenter = new CardPresenter();
+  const mockEvent: any = {};
+  const mockUpdatedSuccessCard: any = { cardType: "SuccessCardWithDraftUrl" };
+
+  const response = presenter.presentDraftEmailSuccess(mockEvent, mockUpdatedSuccessCard);
+
+  assert.ok(response);
+  assert.equal(response.navigation.action, "updateCard");
+  assert.deepEqual(response.navigation.card, mockUpdatedSuccessCard);
+  assert.ok(response.notification);
+  assert.equal(response.notification.getText(), "✅ Draft created.");
+});
+
+test("UI.ts - handleDeepAnalysis delegates presentational response to defaultCardPresenter.presentDeepAnalysisResult on success", async () => {
+  let deepAnalysisCalledWith: any = null;
+  const originalPresentDeepAnalysisResult = defaultCardPresenter.presentDeepAnalysisResult;
+
+  defaultCardPresenter.presentDeepAnalysisResult = (e: any, result: any) => {
+    deepAnalysisCalledWith = { e, result };
+    return { mockResponse: "presentDeepAnalysisResult" } as any;
+  };
+
+  (globalThis as any).DriveApp = {
+    getFileById: (id: string) => ({
+      getBlob: () => ({ getBytes: () => new Uint8Array([1, 2, 3]), getContentType: () => "application/pdf" })
+    })
+  };
+
+  (globalThis as any).defaultLogRepository = {
+    getLogSettings: () => ({ contacts: [], actions: [] }),
+    addNewTagToTagList: () => {},
+    addNewVendorToTagList: () => {}
+  };
+
+  (globalThis as any).defaultAiAnalysisService = {
+    analyzeSubmittal: async () => ({
+      success: true,
+      analysis: { predictedSection: "033000", predictedTitle: "Concrete" }
+    })
+  };
+
+  try {
+    const mockEvent: any = {
+      parameters: { driveFileId: "file123", discipline: "Architecture" },
+      formInput: {}
+    };
+
+    const response = await handleDeepAnalysis(mockEvent);
+
+    assert.equal(deepAnalysisCalledWith.e, mockEvent);
+    assert.equal(deepAnalysisCalledWith.result.analysis.predictedSection, "033000");
+    assert.equal(deepAnalysisCalledWith.result.analysis.predictedTitle, "Concrete");
+    assert.deepEqual(response, { mockResponse: "presentDeepAnalysisResult" });
+  } finally {
+    defaultCardPresenter.presentDeepAnalysisResult = originalPresentDeepAnalysisResult;
+  }
+});
+
+test("UI.ts - handleDeepAnalysis delegates error notifications to defaultCardPresenter.presentNotification", async () => {
+  let notificationCalledWith: string | null = null;
+  const originalPresentNotification = defaultCardPresenter.presentNotification;
+
+  defaultCardPresenter.presentNotification = (text: string) => {
+    notificationCalledWith = text;
+    return { mockResponse: "presentNotification" } as any;
+  };
+
+  try {
+    const mockEvent: any = {
+      formInput: { fileSource: "http://example.com/doc.pdf", driveFileUrl: "http://drive.google.com/doc.pdf" }
+    };
+
+    const response = await handleDeepAnalysis(mockEvent);
+
+    assert.equal(notificationCalledWith, "⚠️ Please click 'Fetch & Save to Drive' before analyzing.");
+    assert.deepEqual(response, { mockResponse: "presentNotification" });
+  } finally {
+    defaultCardPresenter.presentNotification = originalPresentNotification;
+  }
+});
+
+test("UI.ts - createDraftEmail delegates presentational response to defaultCardPresenter.presentDraftEmailSuccess", () => {
+  let draftSuccessCalledWith: any = null;
+  const originalPresentDraftEmailSuccess = defaultCardPresenter.presentDraftEmailSuccess;
+
+  defaultCardPresenter.presentDraftEmailSuccess = (e: any, card: any) => {
+    draftSuccessCalledWith = { e, card };
+    return { mockResponse: "presentDraftEmailSuccess" } as any;
+  };
+
+  (globalThis as any).DriveApp = {
+    getFileById: () => ({ setSharing: () => {} })
+  };
+  (globalThis as any).Gmail = {
+    Users: { Settings: { SendAs: { list: () => ({ sendAs: [] }) } } }
+  };
+  (globalThis as any).EMAIL_TEMPLATES = {
+    standardOutgoing: () => ({ subject: "Submittal Review", body: "Please see attached" })
+  };
+  (globalThis as any).GmailApp = {
+    createDraft: () => ({ getMessage: () => ({ getId: () => "draft123" }) })
+  };
+
+  try {
+    const mockEvent: any = {
+      parameters: { fileId: "f1", title: "Test", action: "Approved" }
+    };
+
+    const response = createDraftEmail(mockEvent);
+
+    assert.equal(draftSuccessCalledWith.e, mockEvent);
+    assert.equal(draftSuccessCalledWith.card.cardType, "SuccessCard");
+    assert.deepEqual(response, { mockResponse: "presentDraftEmailSuccess" });
+  } finally {
+    defaultCardPresenter.presentDraftEmailSuccess = originalPresentDraftEmailSuccess;
+  }
+});
+
+test("UI.ts - processSubmissionWithNewTag / processSubmissionWithNewVendor delegate errors to defaultCardPresenter.presentNotification", () => {
+  let notificationCalledWith: string | null = null;
+  const originalPresentNotification = defaultCardPresenter.presentNotification;
+
+  defaultCardPresenter.presentNotification = (text: string) => {
+    notificationCalledWith = text;
+    return { mockResponse: "presentNotification" } as any;
+  };
+
+  (globalThis as any).defaultLogRepository = {
+    addNewTagToTagList: () => { throw new Error("Tag fail"); },
+    addNewVendorToTagList: () => { throw new Error("Vendor fail"); }
+  };
+
+  try {
+    const mockEventTag: any = { parameters: { logFileId: "l1", newTag: "t1", newTitle: "n1" } };
+    const resTag = processSubmissionWithNewTag(mockEventTag);
+    assert.equal(notificationCalledWith, "Error adding tag: Tag fail");
+    assert.deepEqual(resTag, { mockResponse: "presentNotification" });
+
+    const mockEventVendor: any = { parameters: { logFileId: "l1", newVendor: "v1" } };
+    const resVendor = processSubmissionWithNewVendor(mockEventVendor);
+    assert.equal(notificationCalledWith, "Error adding vendor: Vendor fail");
+    assert.deepEqual(resVendor, { mockResponse: "presentNotification" });
+  } finally {
+    defaultCardPresenter.presentNotification = originalPresentNotification;
   }
 });

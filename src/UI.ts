@@ -388,20 +388,18 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
 
   // Task 1: Fetch Bypass Validation
   if (form.fileSource && form.fileSource.startsWith("http") && form.fileSource !== form.driveFileUrl) {
-    return CardService.newActionResponseBuilder()
-      .setNotification(CardService.newNotification().setText("⚠️ Please click 'Fetch & Save to Drive' before analyzing."))
-      .build();
+    return defaultCardPresenter.presentNotification("⚠️ Please click 'Fetch & Save to Drive' before analyzing.");
   }
 
   let sourceBlob: GoogleAppsScript.Base.Blob | null = null;
   try {
     if (form.fileSource === "Email Attachment") {
-      if (!form.attachmentName) return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_NO_ATTACHMENT)).build();
+      if (!form.attachmentName) return defaultCardPresenter.presentNotification(MESSAGES.ERROR_NO_ATTACHMENT);
       const msg = GmailApp.getMessageById(p.messageId);
       const att = msg.getAttachments().find(a => a.getName() === form.attachmentName);
       if (att) sourceBlob = att.copyBlob();
     } else if (form.fileSource === "Google Drive URL") {
-      if (!form.driveFileUrl) return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_NO_URL)).build();
+      if (!form.driveFileUrl) return defaultCardPresenter.presentNotification(MESSAGES.ERROR_NO_URL);
       const match = form.driveFileUrl.match(/[-\w]{25,}/);
       if (match) sourceBlob = DriveApp.getFileById(match[0]).getBlob();
     } else {
@@ -409,10 +407,10 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
       if (fId) sourceBlob = DriveApp.getFileById(fId).getBlob();
     }
   } catch (err: any) {
-    return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GETTING_FILE(err.message))).build();
+    return defaultCardPresenter.presentNotification(MESSAGES.ERROR_GETTING_FILE(err.message));
   }
 
-  if (!sourceBlob) return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_RESOLVING_FILE)).build();
+  if (!sourceBlob) return defaultCardPresenter.presentNotification(MESSAGES.ERROR_RESOLVING_FILE);
 
   let emailText = "";
   if (p.messageId) {
@@ -426,31 +424,7 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
   const contextObj = { contacts: logSettings.contacts, actions: logSettings.actions };
   const result = await defaultAiAnalysisService.analyzeSubmittal(sourceBlob, emailText, contextObj);
   
-  if (!result.success) {
-    let notifyMsg = MESSAGES.ERROR_AI_GENERAL(result.error.userMessage);
-    if (result.error.code === "RATE_LIMITED") notifyMsg = MESSAGES.ERROR_AI_BUSY;
-    return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(notifyMsg)).build();
-  }
-
-  const analysis = result.analysis;
-  e.formInput = e.formInput || {};
-  if (p.discipline === "Architecture") {
-    if (analysis.predictedSection) e.formInput.section = analysis.predictedSection;
-    if (analysis.predictedNumber) e.formInput.number = analysis.predictedNumber;
-    if (analysis.predictedTitle) e.formInput.title = analysis.predictedTitle;
-  } else {
-    if (analysis.predictedSpecTag) e.formInput.specTag = analysis.predictedSpecTag;
-    if (analysis.predictedVendor) e.formInput.vendor = analysis.predictedVendor;
-  }
-  
-  if (analysis.predictedRevision) e.formInput.revision = String(analysis.predictedRevision);
-  if (analysis.predictedContactAbbr) e.formInput.contact = analysis.predictedContactAbbr;
-  if (analysis.predictedAction) e.formInput.action = analysis.predictedAction;
-
-  return CardService.newActionResponseBuilder()
-    .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e)))
-    .setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_ANALYSIS))
-    .build();
+  return defaultCardPresenter.presentDeepAnalysisResult(e, result);
 }
 
 function handleFetchUrl(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse {
@@ -539,7 +513,7 @@ function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servi
   const emptyFalls = p.emptyFallbacks ? JSON.parse(p.emptyFallbacks) : [];
 
   const updated = buildSuccessCard(p.fileId, p.newFileName, p.url, p.localPath, p.targetKey, p.title, p.discipline, p.section, p.specTag, p.targetFolderId, p.logFileId, p.isFiledStatus === "true", p.projectAbbr, p.action, p.incomingRouting, draftUrl, p.directRowUrl, failedCols, emptyFalls);
-  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(updated)).setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_DRAFT_CREATED)).build();
+  return defaultCardPresenter.presentDraftEmailSuccess(e, updated);
 }
 
 function onStateChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse { 
@@ -558,7 +532,7 @@ function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
     e.parameters.bypassTagValidation = "true";
     return processSubmission(e);
   } catch (err: any) {
-    return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText("Error adding tag: " + err.message)).build();
+    return defaultCardPresenter.presentNotification("Error adding tag: " + err.message);
   }
 }
 
@@ -570,7 +544,7 @@ function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
     e.parameters.bypassVendorValidation = "true";
     return processSubmission(e);
   } catch (err: any) {
-    return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText("Error adding vendor: " + err.message)).build();
+    return defaultCardPresenter.presentNotification("Error adding vendor: " + err.message);
   }
 }
 
@@ -583,6 +557,8 @@ if (typeof module !== "undefined" && module.exports) {
     processSubmissionWithNewTag,
     processSubmissionWithNewVendor,
     handleRefreshCache,
-    handleFetchUrl
+    handleFetchUrl,
+    handleDeepAnalysis,
+    createDraftEmail
   };
 }
