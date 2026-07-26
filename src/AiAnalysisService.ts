@@ -201,21 +201,21 @@ Your task is to logically deduce the project. Return JSON.
         let text = json.candidates[0].content.parts[0].text.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsedResponse = JSON.parse(text);
 
-        let pName = parsedResponse.predictedProjectName || "";
-        if (pName && !driveNames.includes(pName)) {
-          pName = "";
+        let projectName = parsedResponse.predictedProjectName || "";
+        if (projectName && !driveNames.includes(projectName)) {
+          projectName = "";
         }
 
-        const pred: AIPrediction = {
-          predictedProjectName: pName,
+        const triagePrediction: AIPrediction = {
+          predictedProjectName: projectName,
           predictedDiscipline: parsedResponse.predictedDiscipline || ""
         };
 
         if (messageId && this.cacheAdapter) {
-          this.cacheAdapter.put("ai_pred_" + messageId, JSON.stringify(pred), 21600);
+          this.cacheAdapter.put("ai_pred_" + messageId, JSON.stringify(triagePrediction), 21600);
         }
 
-        return { success: true, prediction: pred };
+        return { success: true, prediction: triagePrediction };
       }
 
       return {
