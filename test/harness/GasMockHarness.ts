@@ -1,14 +1,16 @@
+import { MockDriveState, MockDriveApp } from "./MockDrive";
 /**
  * @file GasMockHarness.ts
  * @description Centralized testing infrastructure harness managing globalThis stubs for CONFIG, CacheService, and PropertiesService with explicit lifecycle methods.
 */
 
-import { CONFIG as DEFAULT_CONFIG } from "../../src/Config";
+declare const CONFIG: any;
+const DEFAULT_CONFIG = typeof require !== 'undefined' ? require('../../src/Config').CONFIG : (globalThis as any).CONFIG;
 
 export interface CallLog {
   method: string;
   args: unknown[];
-  timestamp: nuner;
+  timestamp: number;
 }
 
 export class MockPropertiesStore {
@@ -221,6 +223,7 @@ export class GasMockHarness {
 
   public propertiesService: MockPropertiesService = new MockPropertiesService();
   public cacheService: MockCacheService = new MockCacheService();
+  public driveState: MockDriveState = new MockDriveState();
   public config: Record<string, unknown> = {};
   private configOverrides: Record<string, unknown> = {};
 
@@ -258,7 +261,7 @@ export class GasMockHarness {
       GasMockHarness.reset();
     }
 
-    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService"];
+    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "DriveApp"];
     for (const name of globalsToStub) {
       if (!GasMockHarness.originalGlobals.has(name)) {
         GasMockHarness.originalGlobals.set(name, (globalThis as any)[name]);
@@ -268,6 +271,7 @@ export class GasMockHarness {
     (globalThis as any).PropertiesService = GasMockHarness.instance.propertiesService;
     (globalThis as any).CacheService = GasMockHarness.instance.cacheService;
     (globalThis as any).CONFIG = GasMockHarness.instance.config;
+    (globalThis as any).DriveApp = new MockDriveApp(GasMockHarness.instance.driveState);
 
     return GasMockHarness.instance;
   }
@@ -279,6 +283,7 @@ export class GasMockHarness {
     }
     GasMockHarness.instance!.propertiesService.reset();
     GasMockHarness.instance!.cacheService.reset();
+    GasMockHarness.instance!.driveState.reset();
     GasMockHarness.instance!.configOverrides = {};
     GasMockHarness.instance!.resetConfig();
     (globalThis as any).CONFIG = GasMockHarness.instance!.config;
@@ -318,6 +323,10 @@ export class GasMockHarness {
 
  public get scriptCache(): MockCacheStore {
     return this.cacheService.getScriptCache();
+  }
+
+  public getDriveState(): MockDriveState {
+    return this.driveState;
   }
 
   public get documentCache(): MockCacheStore {
