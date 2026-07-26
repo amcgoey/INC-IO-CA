@@ -1,9 +1,6 @@
 // src/CardPresenter.ts
 
-declare var buildMainCard: any;
-declare var CardService: any;
-
-export class CardPresenter {
+class CardPresenter {
   presentValidationError(
     e: GoogleAppsScriptEvent,
     errors: string[],
@@ -22,7 +19,7 @@ export class CardPresenter {
   }
 }
 
-export const defaultCardPresenter = new CardPresenter();
+var defaultCardPresenter: CardPresenter = new CardPresenter();
 
 declare var module: any;
 
