@@ -402,3 +402,30 @@ test('DocumentPipeline.processFormIntake - end-to-end success path for FF&E retu
     }
   }
 });
+
+test('DocumentPipeline.processFormIntake - returns error status when relatedTag is provided but ffeTags.tags list is empty', () => {
+  const formInput = {
+    discipline: 'FF&E',
+    date: '2026-07-25',
+    contact: 'Jane Smith',
+    action: 'Approved',
+    specTag: 'CH-01',
+    specTitle: 'Dining Chair',
+    vendor: 'Herman Miller',
+    relatedTag: 'CH-02'
+  };
+
+  const context = {
+    ffeTags: {
+      tags: [],
+      vendors: ['Herman Miller']
+    }
+  };
+
+  const result = DocumentPipeline.processFormIntake(formInput, context);
+
+  assert.equal(result.status, 'error');
+  if (result.status === 'error') {
+    assert.match(result.errors[0], /Invalid Related Tags: CH-02/);
+  }
+});
