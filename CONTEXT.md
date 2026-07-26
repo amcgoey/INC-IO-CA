@@ -99,3 +99,8 @@ _Avoid_: GeminiTriageAdapter
 
 **FakeAiAnalysisAdapter**:
 The in-memory test implementation of AiAnalysisService that returns deterministic predictions without network or script property dependencies.
+
+**CardPresenter**:
+The application presenter module responsible for assembling Google Apps Script CardService action responses, navigation updates (card refreshes and pushes), and notification toasts.
+_Avoid_: UIHelper, CardNavigator, CardResponseBuilder
+
