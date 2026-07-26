@@ -1,7 +1,8 @@
-﻿// src/DriveNameProvider.ts
+// src/DriveNameProvider.ts
 
 interface DriveNameProvider {
   getAvailableDriveNames(): string[];
+  getSharedDrives(): SharedDriveInfo[];
 }
 
 class GoogleDriveNameProvider implements DriveNameProvider {
@@ -19,20 +20,23 @@ class GoogleDriveNameProvider implements DriveNameProvider {
     }
   }
 
-  getAvailableDriveNames(): string[] {
+  getSharedDrives(): SharedDriveInfo[] {
     const cached = this.cacheAdapter.get(this.CACHE_KEY);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
-          return parsed.map((item: any) => (typeof item === "string" ? item : item.name));
+          return parsed.map((item: any) => {
+            if (typeof item === "string") return { id: "", name: item };
+            return { id: item.id || "", name: item.name || "" };
+          });
         }
       } catch (e) {
         // Ignore parse errors
       }
     }
 
-    let names: string[] = [];
+    let drives: SharedDriveInfo[] = [];
     let querySuccess = false;
 
     try {
@@ -45,7 +49,7 @@ class GoogleDriveNameProvider implements DriveNameProvider {
             fields: "items(id,name),nextPageToken"
           });
           if (resp && resp.items) {
-            names = names.concat(resp.items.map((d: any) => d.name));
+            drives = drives.concat(resp.items.map((d: any) => ({ id: d.id, name: d.name })));
           }
           pageToken = resp ? resp.nextPageToken : undefined;
         } while (pageToken);
@@ -57,29 +61,43 @@ class GoogleDriveNameProvider implements DriveNameProvider {
 
     if (querySuccess) {
       try {
-        this.cacheAdapter.put(this.CACHE_KEY, JSON.stringify(names), this.CACHE_TTL_SECONDS);
+        this.cacheAdapter.put(this.CACHE_KEY, JSON.stringify(drives), this.CACHE_TTL_SECONDS);
       } catch (e) {
         // Ignore cache write errors
       }
     }
 
-    return names;
+    return drives;
+  }
+
+  getAvailableDriveNames(): string[] {
+    return this.getSharedDrives().map(d => d.name);
   }
 }
 
 class FakeDriveNameProvider implements DriveNameProvider {
-  private names: string[];
+  private drives: SharedDriveInfo[];
 
-  constructor(initialNames: string[] = []) {
-    this.names = [...initialNames];
+  constructor(initialDrives: (string | SharedDriveInfo)[] = []) {
+    this.drives = initialDrives.map(item =>
+      typeof item === "string" ? { id: "", name: item } : { ...item }
+    );
   }
 
   setDriveNames(names: string[]): void {
-    this.names = [...names];
+    this.drives = names.map(name => ({ id: "", name }));
+  }
+
+  setSharedDrives(drives: SharedDriveInfo[]): void {
+    this.drives = drives.map(d => ({ ...d }));
+  }
+
+  getSharedDrives(): SharedDriveInfo[] {
+    return this.drives.map(d => ({ ...d }));
   }
 
   getAvailableDriveNames(): string[] {
-    return [...this.names];
+    return this.drives.map(d => d.name);
   }
 }
 

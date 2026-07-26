@@ -155,8 +155,10 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
 
   const section1 = CardService.newCardSection().setHeader("1. Project Location");
   
-  // Refactored to utilize cached Drive listings
-  let drives = getCachedDrives();
+  // Refactored to utilize DriveNameProvider service
+  let drives = (typeof defaultDriveNameProvider !== "undefined" && defaultDriveNameProvider.getSharedDrives)
+    ? defaultDriveNameProvider.getSharedDrives()
+    : [];
   drives.sort((a,b) => a.name.localeCompare(b.name));
 
   if (!state.driveName) {
@@ -424,28 +426,29 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
   }
 
   const logSettings = defaultLogRepository.getLogSettings(p.logFileId, p.discipline);
-  const contextObj = { discipline: p.discipline, contacts: logSettings.contacts, actions: logSettings.actions, ffeTags: logSettings.ffeTags.tags };
-  const result = await analyzeSubmittalDeep(sourceBlob, emailText, contextObj);
+  const contextObj = { contacts: logSettings.contacts, actions: logSettings.actions };
+  const result = await defaultAiAnalysisService.analyzeSubmittal(sourceBlob, emailText, contextObj);
   
-  if (result.error) {
-    let notifyMsg = MESSAGES.ERROR_AI_GENERAL(result.error);
-    if (result.error.includes("503") || result.error.includes("429")) notifyMsg = MESSAGES.ERROR_AI_BUSY;
+  if (!result.success) {
+    let notifyMsg = MESSAGES.ERROR_AI_GENERAL(result.error.userMessage);
+    if (result.error.code === "RATE_LIMITED") notifyMsg = MESSAGES.ERROR_AI_BUSY;
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(notifyMsg)).build();
   }
 
+  const analysis = result.analysis;
   e.formInput = e.formInput || {};
   if (p.discipline === "Architecture") {
-    if (result.predictedSection) e.formInput.section = result.predictedSection;
-    if (result.predictedNumber) e.formInput.number = result.predictedNumber;
-    if (result.predictedTitle) e.formInput.title = result.predictedTitle;
+    if (analysis.predictedSection) e.formInput.section = analysis.predictedSection;
+    if (analysis.predictedNumber) e.formInput.number = analysis.predictedNumber;
+    if (analysis.predictedTitle) e.formInput.title = analysis.predictedTitle;
   } else {
-    if (result.predictedSpecTag) e.formInput.specTag = result.predictedSpecTag;
-    if (result.predictedVendor) e.formInput.vendor = result.predictedVendor;
+    if (analysis.predictedSpecTag) e.formInput.specTag = analysis.predictedSpecTag;
+    if (analysis.predictedVendor) e.formInput.vendor = analysis.predictedVendor;
   }
   
-  if (result.predictedRevision) e.formInput.revision = String(result.predictedRevision);
-  if (result.predictedContactAbbr) e.formInput.contact = result.predictedContactAbbr;
-  if (result.predictedAction) e.formInput.action = result.predictedAction;
+  if (analysis.predictedRevision) e.formInput.revision = String(analysis.predictedRevision);
+  if (analysis.predictedContactAbbr) e.formInput.contact = analysis.predictedContactAbbr;
+  if (analysis.predictedAction) e.formInput.action = analysis.predictedAction;
 
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e)))

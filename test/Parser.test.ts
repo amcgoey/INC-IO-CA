@@ -68,14 +68,6 @@ require("../src/AiAnalysisService");
   flashMessage
 });
 
-(globalThis as any).getCachedPrediction = (messageId: string) => null;
-(globalThis as any).setCachedPrediction = (messageId: string, pred: any) => {};
-(globalThis as any).getAvailableDriveNames = () => ["Project Gamma", "Skyline Tower"];
-(globalThis as any).predictProjectAndDiscipline = (emailData: any, driveNames: string[]) => ({
-  predictedProjectName: "Project Gamma",
-  predictedDiscipline: "Architecture"
-});
-
 const { onDriveItemsSelected, buildAddOn } = require('../src/Main');
 
 test("EmailIntakeParser.parseProcoreEmail_ extracts project driveName, spec section, revision, discipline, and action from subject", () => {

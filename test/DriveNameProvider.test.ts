@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert";
 const { InMemoryCacheAdapter, FakeCacheAdapter } = require("../src/CacheAdapter");
 const { FakeDriveNameProvider, GoogleDriveNameProvider, defaultDriveNameProvider } = require("../src/DriveNameProvider");
@@ -111,3 +111,32 @@ test("GoogleDriveNameProvider handles Drive API errors gracefully", () => {
 
   delete (globalThis as any).Drive;
 });
+
+test("GoogleDriveNameProvider getSharedDrives returns SharedDriveInfo objects", () => {
+  (globalThis as any).Drive = {
+    Drives: {
+      list: () => ({
+        items: [{ id: "id-100", name: "Drive 100" }, { id: "id-200", name: "Drive 200" }]
+      })
+    }
+  };
+
+  const cache = new InMemoryCacheAdapter();
+  const provider = new GoogleDriveNameProvider(cache);
+  const sharedDrives = provider.getSharedDrives();
+
+  assert.deepStrictEqual(sharedDrives, [
+    { id: "id-100", name: "Drive 100" },
+    { id: "id-200", name: "Drive 200" }
+  ]);
+
+  delete (globalThis as any).Drive;
+});
+
+test("FakeDriveNameProvider setSharedDrives and getSharedDrives operate on SharedDriveInfo objects", () => {
+  const fake = new FakeDriveNameProvider();
+  fake.setSharedDrives([{ id: "fake-1", name: "Fake Drive 1" }]);
+  assert.deepStrictEqual(fake.getSharedDrives(), [{ id: "fake-1", name: "Fake Drive 1" }]);
+  assert.deepStrictEqual(fake.getAvailableDriveNames(), ["Fake Drive 1"]);
+});
+
