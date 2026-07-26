@@ -221,33 +221,33 @@ function parseA1Notation(notation: string, maxRows: number = 100): {
   numRows: number;
   numCols: number;
 } {
-  let clean = notation;
+  let cleanNotation = notation;
   let sheetName: string | undefined;
-  if (clean.includes("!")) {
-    const parts = clean.split("!");
+  if (cleanNotation.includes("!")) {
+    const parts = cleanNotation.split("!");
     sheetName = parts[0];
-    clean = parts[1];
+    cleanNotation = parts[1];
   }
 
-  const parts = clean.split(":");
-  const firstCell = parts[0];
-  const secondCell = parts.length > 1 ? parts[1] : firstCell;
+  const rangeParts = cleanNotation.split(":");
+  const firstCell = rangeParts[0];
+  const secondCell = rangeParts.length > 1 ? rangeParts[1] : firstCell;
 
-  const m1 = firstCell.match(/^([A-Za-z]+)(\d+)?$/);
-  if (!m1) {
+  const firstMatch = firstCell.match(/^([A-Za-z]+)(\d+)?$/);
+  if (!firstMatch) {
     return { sheetName, startRow: 1, startCol: 1, numRows: 1, numCols: 1 };
   }
 
-  const startCol = columnLetterToNumber(m1[1].toUpperCase());
-  const startRow = m1[2] ? parseInt(m1[2], 10) : 1;
+  const startCol = columnLetterToNumber(firstMatch[1].toUpperCase());
+  const startRow = firstMatch[2] ? parseInt(firstMatch[2], 10) : 1;
 
-  const m2 = secondCell.match(/^([A-Za-z]+)(\d+)?$/);
+  const secondMatch = secondCell.match(/^([A-Za-z]+)(\d+)?$/);
   let endCol = startCol;
   let endRow = startRow;
 
-  if (m2) {
-    endCol = columnLetterToNumber(m2[1].toUpperCase());
-    endRow = m2[2] ? parseInt(m2[2], 10) : Math.max(startRow, maxRows);
+  if (secondMatch) {
+    endCol = columnLetterToNumber(secondMatch[1].toUpperCase());
+    endRow = secondMatch[2] ? parseInt(secondMatch[2], 10) : Math.max(startRow, maxRows);
   }
 
   const numRows = Math.max(1, endRow - startRow + 1);
@@ -357,11 +357,11 @@ export class MockSheet {
       const parsed = parseA1Notation(rowOrA1, this.grid.length);
       return new MockRange(this, parsed.startRow, parsed.startCol, parsed.numRows, parsed.numCols);
     }
-    const r = rowOrA1;
-    const c = col || 1;
-    const nr = numRows !== undefined ? numRows : 1;
-    const nc = numCols !== undefined ? numCols : 1;
-    return new MockRange(this, r, c, nr, nc);
+    const targetRow = rowOrA1;
+    const targetCol = col || 1;
+    const rowCount = numRows !== undefined ? numRows : 1;
+    const colCount = numCols !== undefined ? numCols : 1;
+    return new MockRange(this, targetRow, targetCol, rowCount, colCount);
   }
 
   public clearContents(): void {
@@ -369,20 +369,20 @@ export class MockSheet {
     this.grid = [];
   }
 
+  private insertBlankRowAt(insertIdx: number): void {
+    const colCount = Math.max(1, ...this.grid.map(r => r.length), 1);
+    const safeIdx = Math.min(this.grid.length, Math.max(0, insertIdx));
+    this.grid.splice(safeIdx, 0, new Array(colCount).fill(""));
+  }
+
   public insertRowBefore(rowIndex: number): void {
     this.recordCall("insertRowBefore", [rowIndex]);
-    const insertIdx = Math.max(0, rowIndex - 1);
-    const colCount = Math.max(1, ...this.grid.map(r => r.length), 1);
-    const safeIdx = Math.min(this.grid.length, insertIdx);
-    this.grid.splice(safeIdx, 0, new Array(colCount).fill(""));
+    this.insertBlankRowAt(rowIndex - 1);
   }
 
   public insertRowAfter(rowIndex: number): void {
     this.recordCall("insertRowAfter", [rowIndex]);
-    const insertIdx = Math.max(0, rowIndex);
-    const colCount = Math.max(1, ...this.grid.map(r => r.length), 1);
-    const safeIdx = Math.min(this.grid.length, insertIdx);
-    this.grid.splice(safeIdx, 0, new Array(colCount).fill(""));
+    this.insertBlankRowAt(rowIndex);
   }
 }
 
@@ -475,13 +475,19 @@ export class MockSheetsState {
   constructor(private harness: GasMockHarness, private spreadsheetId?: string) {}
 
   private getSpreadsheet(): MockSpreadsheet {
-    const id = this.spreadsheetId || "default-ss";
-    return this.harness.sheetsService.openById(id);
+    if (this.spreadsheetId) {
+      return this.harness.sheetsService.openById(this.spreadsheetId);
+    }
+    return this.harness.sheetsService.getActiveSpreadsheet();
+  }
+
+  private resolveSheet(sheetName?: string): MockSheet | null {
+    const ss = this.getSpreadsheet();
+    return sheetName ? ss.getSheetByName(sheetName) : ss.getSheets()[0] || null;
   }
 
   public getSheetData(sheetName?: string): any[][] {
-    const ss = this.getSpreadsheet();
-    const sheet = sheetName ? ss.getSheetByName(sheetName) : ss.getSheets()[0];
+    const sheet = this.resolveSheet(sheetName);
     if (!sheet) return [];
     return sheet.getGrid();
   }
@@ -496,8 +502,7 @@ export class MockSheetsState {
       notation = parts[1];
     }
 
-    const ss = this.getSpreadsheet();
-    const sheet = targetSheetName ? ss.getSheetByName(targetSheetName) : ss.getSheets()[0];
+    const sheet = this.resolveSheet(targetSheetName);
     if (!sheet) return [];
 
     return sheet.getRange(notation).getValues();
