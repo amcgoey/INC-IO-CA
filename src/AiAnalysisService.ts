@@ -349,7 +349,6 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
         const parsed: DeepAnalysisPrediction = JSON.parse(text);
         return {
           success: true,
-          prediction: parsed,
           analysis: parsed
         };
       }
@@ -381,7 +380,6 @@ class FakeAiAnalysisAdapter implements AiAnalysisService {
   };
   private analysisResult: DeepAnalysisResult = {
     success: true,
-    prediction: {},
     analysis: {}
   };
 

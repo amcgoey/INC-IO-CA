@@ -45,7 +45,7 @@ interface DeepAnalysisPrediction {
 }
 
 type DeepAnalysisResult =
-  | { success: true; prediction: DeepAnalysisPrediction; analysis?: DeepAnalysisPrediction }
+  | { success: true; analysis: DeepAnalysisPrediction }
   | {
       success: false;
       error: {
