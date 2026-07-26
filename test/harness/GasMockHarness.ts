@@ -4,8 +4,7 @@ import { MockDriveState, MockDriveApp } from "./MockDrive";
  * @description Centralized testing infrastructure harness managing globalThis stubs for CONFIG, CacheService, and PropertiesService with explicit lifecycle methods.
 */
 
-declare const CONFIG: any;
-const DEFAULT_CONFIG = typeof require !== 'undefined' ? require('../../src/Config').CONFIG : (globalThis as any).CONFIG;
+
 
 export interface CallLog {
   method: string;
@@ -217,6 +216,24 @@ export interface HarnessInstallOptions {
   configOverrides?: Record<string, unknown>;
 }
 
+
+let cachedDefaultConfig: Record<string, unknown> | null = null;
+
+function getDefaultConfig(): Record<string, unknown> {
+  if (cachedDefaultConfig) return cachedDefaultConfig;
+  try {
+    const loaded = require("../../src/Config");
+    cachedDefaultConfig = loaded.CONFIG || {};
+    return cachedDefaultConfig;
+  } catch (_err) {
+    if (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG) {
+      cachedDefaultConfig = { ...(globalThis as any).CONFIG };
+      return cachedDefaultConfig;
+    }
+    return {};
+  }
+}
+
 export class GasMockHarness {
   private static instance: GasMockHarness | null = null;
   private static originalGlobals: Map<string, unknown> = new Map();
@@ -233,7 +250,7 @@ export class GasMockHarness {
   }
 
   private resetConfig(): void {
-    const defaultDescriptors = Object.getOwnPropertyDescriptors(DEFAULT_CONFIG || {});
+    const defaultDescriptors = Object.getOwnPropertyDescriptors(getDefaultConfig());
     const overrideDescriptors: Record<string, PropertyDescriptor> = {};
 
     for (const [key, val] of Object.entries(this.configOverrides)) {

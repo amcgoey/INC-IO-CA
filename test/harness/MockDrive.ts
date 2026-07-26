@@ -1,5 +1,5 @@
-/**
-* @file MockDrive.ts
+﻿/**
+ * @file MockDrive.ts
  * @description Virtual in-memory DriveApp filesystem and state inspector for GasMockHarness.
  */
 
@@ -10,10 +10,11 @@ export interface VirtualFileMetadata {
   parentIds: string[];
   url: string;
   mimeType: string;
-  blob?: any;
+  blob?: MockBlob;
   sharingAccess?: string;
   sharingPermission?: string;
   createdAt: number;
+  isFiled?: boolean;
 }
 
 export interface VirtualFolderMetadata {
@@ -137,7 +138,7 @@ export class MockFile {
 
   public getUrl(): string {
     const meta = this.state.getRawFile(this.id);
-    return meta ? meta.url : 'https://drive.google.com/open?id=' + this.id;
+    return meta ? meta.url : "https://drive.google.com/open?id=" + this.id;
   }
 
   public getBlob(): MockBlob {
@@ -196,23 +197,23 @@ export class MockFolder {
     return new MockFolder(this.state, subId);
   }
 
-  public createFile(arg1: any, arg2?: any, arg3?: any): MockFile {
+  public createFile(blob: MockBlob): MockFile;
+  public createFile(name: string, content: string, mimeType?: string): MockFile;
+  public createFile(arg1: string | MockBlob, arg2?: string, arg3?: string): MockFile {
     let name: string;
-    let content: any;
-    let mimeType: string = "application/pdf";
-    let blob: MockBlob | undefined;
+    let blob: MockBlob;
 
-    if (arg1 && typeof arg1 === "object" && typeof arg1.getName === "function") {
-      blob = arg1;
-      name = blob!.getName();
+    if (arg1 instanceof MockBlob || (typeof arg1 === "object" && arg1 !== null && typeof (arg1 as any).getName === "function")) {
+      blob = arg1 as MockBlob;
+      name = blob.getName();
     } else if (typeof arg1 === "string") {
       name = arg1;
-      content = arg2 || "";
-      mimeType = arg3 || "application/pdf";
+      const content = arg2 || "";
+      const mimeType = arg3 || "application/pdf";
       blob = new MockBlob(content, mimeType, name);
     } else {
       name = "untitled.pdf";
-      blob = new MockBlob("", mimeType, name);
+      blob = new MockBlob("", "application/pdf", name);
     }
 
     const fileId = this.state.createFile(name, this.id, blob);
@@ -258,6 +259,7 @@ export class MockFolder {
 export class MockDriveState {
   private folders: Map<string, VirtualFolderMetadata> = new Map();
   private files: Map<string, VirtualFileMetadata> = new Map();
+  private filedFileIds: Set<string> = new Set();
   private autoIdCounter: number = 1000;
 
   constructor() {
@@ -267,6 +269,7 @@ export class MockDriveState {
   public reset(): void {
     this.folders.clear();
     this.files.clear();
+    this.filedFileIds.clear();
     this.autoIdCounter = 1000;
     this.folders.set("root", {
       id: "root",
@@ -288,7 +291,10 @@ export class MockDriveState {
   }
 
   public getFiledDocuments(): VirtualFileMetadata[] {
-    return Array.from(this.files.values()).map(f => ({ ...f }));
+    return Array.from(this.filedFileIds)
+      .map(id => this.files.get(id))
+      .filter((f): f is VirtualFileMetadata => f !== undefined)
+      .map(f => ({ ...f }));
   }
 
   public getRawFile(id: string): VirtualFileMetadata | undefined {
@@ -304,7 +310,7 @@ export class MockDriveState {
     if (!folder) {
       folder = {
         id,
-        name: name || (id === "root" ? "My Drive" : 'Folder_' + id),
+        name: name || (id === "root" ? "My Drive" : "Folder_" + id),
         parentIds: id === "root" ? [] : ["root"],
         childFolderIds: [],
         childFileIds: []
@@ -326,13 +332,14 @@ export class MockDriveState {
       const rootFolder = this.ensureFolder("root");
       file = {
         id,
-        name: name || 'File_' + id + '.pdf',
+        name: name || ("File_" + id + ".pdf"),
         folderId: rootFolder.id,
         parentIds: [rootFolder.id],
-        url: 'https://drive.google.com/open?id=' + id,
+        url: "https://drive.google.com/open?id=" + id,
         mimeType: "application/pdf",
-        blob: new MockBlob("content", "application/pdf", name || ('File_' + id + '.pdf')),
-        createdAt: Date.now()
+        blob: new MockBlob("content", "application/pdf", name || ("File_" + id + ".pdf")),
+        createdAt: Date.now(),
+        isFiled: false
       };
       this.files.set(id, file);
       if (!rootFolder.childFileIds.includes(id)) {
@@ -344,7 +351,7 @@ export class MockDriveState {
 
   public createFolder(name: string, parentId: string): string {
     const parent = this.ensureFolder(parentId);
-    const newId = 'folder_' + (++this.autoIdCounter);
+    const newId = "folder_" + (++this.autoIdCounter);
     const newFolder: VirtualFolderMetadata = {
       id: newId,
       name,
@@ -359,28 +366,30 @@ export class MockDriveState {
 
   public createFile(name: string, parentId: string, blob?: MockBlob): string {
     const parent = this.ensureFolder(parentId);
-    const newId = 'file_' + (++this.autoIdCounter);
+    const newId = "file_" + (++this.autoIdCounter);
     const fileBlob = blob || new MockBlob("content", "application/pdf", name);
     const newFile: VirtualFileMetadata = {
       id: newId,
       name,
       folderId: parent.id,
       parentIds: [parent.id],
-      url: 'https://drive.google.com/open?id=' + newId,
+      url: "https://drive.google.com/open?id=" + newId,
       mimeType: fileBlob.getContentType() || "application/pdf",
-      blob: fileBlob as any,
-      createdAt: Date.now()
+      blob: fileBlob,
+      createdAt: Date.now(),
+      isFiled: true
     };
     this.files.set(newId, newFile);
+    this.filedFileIds.add(newId);
     parent.childFileIds.push(newId);
     return newId;
   }
 
   public moveFile(fileId: string, targetFolderId: string): void {
     const file = this.ensureFile(fileId);
-    const oldFolderId = file.folderId;
+    const oldParentIds = [...file.parentIds];
 
-    if (oldFolderId) {
+    for (const oldFolderId of oldParentIds) {
       const oldFolder = this.folders.get(oldFolderId);
       if (oldFolder) {
         oldFolder.childFileIds = oldFolder.childFileIds.filter(id => id !== fileId);
@@ -393,6 +402,7 @@ export class MockDriveState {
     if (!targetFolder.childFileIds.includes(fileId)) {
       targetFolder.childFileIds.push(fileId);
     }
+    this.filedFileIds.add(fileId);
   }
 
   public updateFileName(fileId: string, name: string): void {
