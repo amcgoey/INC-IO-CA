@@ -1,3 +1,11 @@
+/**
+ * @file Process.ts
+ * @description Application event handlers for processing submittal form submissions and file movement actions.
+ *
+ * Coordinates validation via `DocumentPipeline`, delegates submittal filing, stamping, and spreadsheet logging
+ * to `DocumentWorkflowModule`, and returns formatted UI card responses via `CardPresenter`.
+ */
+
 if (typeof require !== "undefined") {
   try {
     const cardPresenterModule = eval('require("./CardPresenter")');
@@ -54,8 +62,13 @@ if (typeof require !== "undefined") {
 }
 
 /**
- * Main execution entry point for logging a submittal.
- * Triggered by the "File & Log" button in the UI.
+ * Primary action handler executed when the user clicks "File & Log" in the add-on interface.
+ *
+ * Enforces URL fetch checks, retrieves spreadsheet settings, validates form inputs against business rules,
+ * handles interaction prompts for new tags or vendors, executes the submittal workflow, and renders the result card.
+ *
+ * @param e - Google Apps Script event object containing form values and execution parameters.
+ * @returns A Promise resolving to an `ActionResponse` with card navigation or error toast notifications.
  */
 async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
   try {
@@ -148,7 +161,11 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
 }
 
 /**
- * Handles moving a file to its final destination after logging.
+ * Action handler for moving a logged submittal PDF into its final destination subfolder (e.g. Closed subfolder).
+ * Uses `DriveFilingRepository` to determine the target folder structure and file the document.
+ *
+ * @param e - Google Apps Script event object containing document parameters (file ID, discipline, section/tag).
+ * @returns ActionResponse updating the card with filing confirmation.
  */
 function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
   const p = e.parameters || {};

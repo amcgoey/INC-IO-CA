@@ -1,5 +1,23 @@
+/**
+ * @file UI.ts
+ * @description CardService user interface components and user event handlers for the Workspace Add-on.
+ *
+ * Constructs interactive Google Apps Script Cards for intake data entry, project location selection,
+ * source file resolution, submittal metadata inputs, AI analysis triggers, and workflow outcome cards.
+ */
 
-
+/**
+ * Constructs the primary UI Card for the Workspace Add-on.
+ *
+ * Assembles form sections for project location (Shared Drive lookup), file source selection,
+ * submittal metadata (discipline-specific for Architecture vs FF&E), and workflow submission triggers.
+ *
+ * @param e - Google Apps Script event object containing form input and parameters.
+ * @param initialData - Optional initial parsed data extracted from email or filename intake.
+ * @param isTagChange - Flag indicating if card build was triggered by a spec tag selection change.
+ * @param flashMessage - Optional notification message payload containing warnings, errors, or prompts.
+ * @returns A fully constructed `GoogleAppsScript.Card_Service.Card` instance.
+ */
 function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null = null, isTagChange = false, flashMessage: any = null): GoogleAppsScript.Card_Service.Card {
   const header = CardService.newCardHeader().setTitle(MESSAGES.MAIN_CARD_TITLE);
   if (CONFIG.LOGO_URL) header.setImageUrl(CONFIG.LOGO_URL);
@@ -155,7 +173,6 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
 
   const section1 = CardService.newCardSection().setHeader("1. Project Location");
   
-  // Refactored to utilize DriveNameProvider service
   let drives = (typeof defaultDriveNameProvider !== "undefined" && defaultDriveNameProvider.getSharedDrives)
     ? defaultDriveNameProvider.getSharedDrives()
     : [];
@@ -187,7 +204,6 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
     const logSearchKey = `log_search_${state.driveId}`;
     const cachedLogs = cache ? cache.get(logSearchKey) : null;
 
-    // Task 3: Load logs from Cache if available
     if (cachedLogs) {
       try { logs = JSON.parse(cachedLogs); } catch(e) {}
     }
@@ -342,7 +358,6 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
 
   card.addSection(section3);
 
-  // Task 4: Advanced Section for Manual Refresh
   const advancedSection = CardService.newCardSection()
     .setHeader("⚙️ Advanced Options")
     .setCollapsible(true);
@@ -363,7 +378,11 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
 }
 
 /**
- * Handle manual invalidation of local Cache parameters.
+ * Action handler for clearing cached user data (Shared Drives, Log Search, Log Settings)
+ * and triggering a UI card reload via CardPresenter.
+ *
+ * @param e - Google Apps Script event object containing action parameters.
+ * @returns ActionResponse updating the Card interface.
  */
 function handleRefreshCache(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse {
   const cache = CacheService.getUserCache();
@@ -382,11 +401,17 @@ function handleRefreshCache(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Ser
   return defaultCardPresenter.presentCacheRefresh(e);
 }
 
+/**
+ * Action handler for initiating AI submittal analysis on an attachment or Drive file blob.
+ * Extracts context and invokes `AiAnalysisService` to predict metadata.
+ *
+ * @param e - Google Apps Script event object containing parameters and form inputs.
+ * @returns A Promise resolving to an ActionResponse presenting the AI analysis results.
+ */
 async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsScript.Card_Service.ActionResponse> {
   const p = e.parameters || {};
   const form = e.formInput || {};
 
-  // Task 1: Fetch Bypass Validation
   if (form.fileSource && form.fileSource.startsWith("http") && form.fileSource !== form.driveFileUrl) {
     return defaultCardPresenter.presentNotification("⚠️ Please click 'Fetch & Save to Drive' before analyzing.");
   }
@@ -427,6 +452,12 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
   return defaultCardPresenter.presentDeepAnalysisResult(e, result);
 }
 
+/**
+ * Action handler to download a file from an external URL and save it to the project's target Google Drive folder.
+ *
+ * @param e - Google Apps Script event object containing URL and target folder parameters.
+ * @returns ActionResponse updating the card with the saved file context.
+ */
 function handleFetchUrl(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse {
   const p = e.parameters || {};
   if (!p.targetFolderId) return defaultCardPresenter.presentNotification(MESSAGES.ERROR_TARGET_FOLDER);
@@ -444,6 +475,31 @@ function handleFetchUrl(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service
   return defaultCardPresenter.presentFetchUrlResult(e, flashMessage, MESSAGES.SUCCESS_FETCHED);
 }
 
+/**
+ * Builds the success result UI card displayed after filing and logging a submittal document.
+ * Includes direct links to Drive files, local G:\ drive paths, spreadsheet log links, and email draft actions.
+ *
+ * @param fileId - Stamped/filed Google Drive file ID.
+ * @param newFileName - Formatted destination filename.
+ * @param fileUrl - Google Drive file Web view URL.
+ * @param localPath - Local Windows G:\ drive file path.
+ * @param targetKey - Document target identifier (e.g. Submittal number or Spec tag).
+ * @param itemTitle - Submittal or spec item title.
+ * @param discipline - Architectural or FF&E discipline string.
+ * @param section - Specification section.
+ * @param specTag - FF&E Spec tag.
+ * @param targetFolderId - Destination Google Drive folder ID.
+ * @param logFileId - Spreadsheet log file ID.
+ * @param isFiled - Flag indicating if physical file has been moved to closed folder.
+ * @param projectAbbr - Project abbreviation code.
+ * @param action - Executed workflow action string.
+ * @param incomingRouting - Routing intent for incoming submittals.
+ * @param draftUrl - Optional Gmail draft direct link.
+ * @param directRowUrl - Direct URL linking directly to the modified row in the spreadsheet.
+ * @param failedColumns - List of column headers that failed spreadsheet validation.
+ * @param emptyFallbacks - List of optional fields that fell back to empty strings.
+ * @returns Constructed `GoogleAppsScript.Card_Service.Card` instance.
+ */
 function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled = false, projectAbbr = "", action = "", incomingRouting = "", draftUrl: string | null = null, directRowUrl: string | null = null, failedColumns: string[] = [], emptyFallbacks: string[] = []): GoogleAppsScript.Card_Service.Card {
   const header = CardService.newCardHeader().setTitle(MESSAGES.SUCCESS_CARD_TITLE);
   if (CONFIG.LOGO_URL) header.setImageUrl(CONFIG.LOGO_URL);
@@ -465,7 +521,6 @@ function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, 
   );
   sec.addWidget(CardService.newTextInput().setFieldName("localPath").setTitle("G:\\ Path").setValue(localPath));
 
-  // Task 4: Fix setParameters Invalid Argument via string fallback
   const draftParams: Record<string, string> = { 
     fileId: fileId || "", url: fileUrl || "", localPath: localPath || "", targetKey: targetKey || "", title: itemTitle || "", 
     action: action || "", incomingRouting: incomingRouting || "", projectAbbr: projectAbbr || "", newFileName: newFileName || "", 
@@ -496,6 +551,13 @@ function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, 
   return card.build();
 }
 
+/**
+ * Action handler for creating a Gmail email draft populated with workflow templates and file links.
+ * Updates Gmail sharing permissions on the filed item to allow access via link.
+ *
+ * @param e - Google Apps Script event object containing document parameters.
+ * @returns ActionResponse containing the updated success card with the draft URL link.
+ */
 function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse {
   const p = e.parameters || {};
   try { if (p.fileId) DriveApp.getFileById(p.fileId).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(err) {}
@@ -516,14 +578,32 @@ function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servi
   return defaultCardPresenter.presentDraftEmailSuccess(e, updated);
 }
 
+/**
+ * Action handler for general form state changes (e.g. dropdown selections). Reloads the card.
+ *
+ * @param e - Google Apps Script event object.
+ * @returns ActionResponse instructing CardService to reload the UI card.
+ */
 function onStateChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse { 
   return defaultCardPresenter.presentCardReload(e);
 }
 
+/**
+ * Action handler triggered when an FF&E Spec Tag selection changes. Reloads the card and auto-fills spec title.
+ *
+ * @param e - Google Apps Script event object.
+ * @returns ActionResponse reloading the card with updated spec title suggestions.
+ */
 function onSpecTagChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse { 
   return defaultCardPresenter.presentCardReload(e, true);
 }
 
+/**
+ * Interactive handler to add a newly entered FF&E tag to the spreadsheet tag list before executing `processSubmission`.
+ *
+ * @param e - Google Apps Script event object containing `newTag` and `newTitle` parameters.
+ * @returns Action response or Card response from `processSubmission`.
+ */
 function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};
@@ -536,6 +616,12 @@ function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
   }
 }
 
+/**
+ * Interactive handler to add a newly entered FF&E vendor to the spreadsheet vendor list before executing `processSubmission`.
+ *
+ * @param e - Google Apps Script event object containing `newVendor` parameter.
+ * @returns Action response or Card response from `processSubmission`.
+ */
 function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};

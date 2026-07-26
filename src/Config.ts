@@ -1,38 +1,68 @@
-// START FILE: Config.ts
+/**
+ * @file Config.ts
+ * @description Centralized configuration constants, MasterFormat CSI division mappings, PDF form field dictionaries, user-facing UI messages, and email notification templates.
+ */
 
+/**
+ * System-wide configuration options, Google Script Property dynamic getters, and default values.
+ */
 const CONFIG = {
+  /** Target Google Drive subfolder name for filing submittals. */
   TARGET_FOLDER_NAME: "Submittals",
+  /** Target subfolder for filed/closed submittals. */
   CLOSED_FOLDER_NAME: "Closed",
+  /** Shared Drive search term used to discover submittal log spreadsheets. */
   LOG_FILE_SEARCH_TERM: "submittal log",
+  /** Tab name for the primary submittal log sheet. */
   LOG_SHEET_NAME: "Log",
+  /** Tab name for project settings (contacts, actions, project abbreviation). */
   SETTINGS_SHEET_NAME: "Settings",
+  /** Tab name for FF&E tag and vendor lists. */
   TAG_LIST_SHEET_NAME: "Tag List",
+  /** 1-based row index containing column headers in the submittal log. */
   LOG_HEADER_ROW: 3,
+
+  /** Gets the PDF cover sheet template file ID configured in Script Properties. */
   get PDF_TEMPLATE_ID(): string {
     return PropertiesService.getScriptProperties().getProperty('PDF_TEMPLATE_ID') || "";
   },
+  /** Gets the Transmittal cover sheet template file ID configured in Script Properties. */
   get TRANSMITTAL_TEMPLATE_ID(): string {
     return PropertiesService.getScriptProperties().getProperty('TRANSMITTAL_TEMPLATE_ID') || "";
   },
+  /** Gets the company logo image URL configured in Script Properties. */
   get LOGO_URL(): string {
     return PropertiesService.getScriptProperties().getProperty('LOGO_URL') || "";
   },
+  /** CDN URL for pdf-lib JavaScript library. */
   PDF_LIB_URL: "https://unpkg.com/pdf-lib/dist/pdf-lib.min.js",
 
   // File Naming Configuration
-  STAMPED_FILE_PREFIX: "_", // Character used to prefix stamped files in the root folder
+  /** Character prefix used for stamped PDF files saved in root target folders. */
+  STAMPED_FILE_PREFIX: "_",
 
+  /** Default workflow action. */
   DEFAULT_ACTION: "Received",
+  /** Default submittal discipline. */
   DEFAULT_DISCIPLINE: "Architecture",
+  /** Supported submittal disciplines list. */
   SUPPORTED_DISCIPLINES: ["Architecture", "FF&E"],
+  /** Default incoming routing selection. */
   DEFAULT_INCOMING_ROUTING: "To Review",
+  /** Default revision string. */
   DEFAULT_REVISION: "0",
+  /** Default intake file source selection. */
   DEFAULT_FILE_SOURCE: "Email Attachment",
 
+  /** Gemini API endpoint URL for email triage predictions. */
   GEMINI_API_URL_TRIAGE: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+  /** Gemini API endpoint URL for multimodal PDF submittal analysis. */
   GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent"
 };
 
+/**
+ * MasterFormat CSI (Construction Specifications Institute) 2-digit division code mappings to folder names.
+ */
 const CSI_DIVISIONS: Record<string, string> = {
   "00": "00 Procurement & Contracting",
   "01": "01 General Requirements",
@@ -71,6 +101,9 @@ const CSI_DIVISIONS: Record<string, string> = {
   "48": "48 Electrical Power Generation"
 };
 
+/**
+ * Mapping dictionary translating UI submittal workflow actions to PDF form field checkbox/radio names.
+ */
 const PDF_CHECKBOX_MAP: Record<string, string> = {
   'No Exceptions Taken': 'NO EXCEPTIONS TAKEN',
   'No Objection as Corrected': 'NO OBJECTIONS AS CORRECTED',
@@ -79,6 +112,9 @@ const PDF_CHECKBOX_MAP: Record<string, string> = {
   'Not Reviewed': 'NOT REVIEWED'
 };
 
+/**
+ * Centralized user-facing UI title, error, warning, and confirmation text constants.
+ */
 const MESSAGES = {
   ADDON_TITLE: "INC IO CA",
   MAIN_CARD_TITLE: "File Submittal",
@@ -118,7 +154,11 @@ const MESSAGES = {
   BTN_ANALYZE: "✨ Analyze Submittal with AI"
 };
 
+/**
+ * Standard email notification templates (subject lines and HTML body strings) generated for Gmail draft creation.
+ */
 const EMAIL_TEMPLATES = {
+  /** Template generator for standard outgoing submittal responses ("Reviewed", "Approved"). */
   standardOutgoing: ({ projectAbbr, targetKey, title, action, url, localPath }: EmailTemplateParams): EmailTemplateResult => {
     const subjPrefix = projectAbbr ? `${projectAbbr} - ` : "";
     const cleanTitle = title || "";
@@ -128,6 +168,7 @@ const EMAIL_TEMPLATES = {
     };
   },
 
+  /** Template generator for rejected outgoing submittal responses. */
   rejectedOutgoing: ({ projectAbbr, targetKey, title, action, url, localPath }: EmailTemplateParams): EmailTemplateResult => {
     const subjPrefix = projectAbbr ? `${projectAbbr} - ` : "";
     const cleanTitle = title || "";
@@ -137,6 +178,7 @@ const EMAIL_TEMPLATES = {
     };
   },
 
+  /** Template generator for forwarding submittals for external review ("To Refer"). */
   toRefer: ({ projectAbbr, targetKey, title, action, url, localPath }: EmailTemplateParams): EmailTemplateResult => {
     const subjPrefix = projectAbbr ? `${projectAbbr} - ` : "";
     const cleanTitle = title || "";

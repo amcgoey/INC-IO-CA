@@ -1,5 +1,17 @@
-// src/AiAnalysisService.ts
+/**
+ * @file AiAnalysisService.ts
+ * @description Service interface and implementations for Gemini AI email triage and submittal document deep analysis.
+ *
+ * Handles API key extraction, error string sanitization/redaction, exponential backoff retries,
+ * base64 encoding, PDF page slicing via `PdfDocumentService`, and response caching.
+ */
 
+/**
+ * Redacts sensitive API keys and Script Properties from raw error strings to prevent leaking secrets in UI toasts or logs.
+ *
+ * @param errorStr - The raw error message or exception object.
+ * @returns Redacted error string.
+ */
 const sanitizeErrorStringHelper = (errorStr: any): string => {
   if (typeof (globalThis as any).sanitizeErrorString === "function") {
     return (globalThis as any).sanitizeErrorString(errorStr);
@@ -23,6 +35,11 @@ const sanitizeErrorStringHelper = (errorStr: any): string => {
   return sanitized;
 };
 
+/**
+ * Retrieves the Gemini API key from global getter or Google Apps Script PropertiesService.
+ *
+ * @returns API key string or `null` if unconfigured.
+ */
 const getGeminiApiKeyHelper = (): string | null => {
   if (typeof (globalThis as any).getGeminiApiKey === "function") {
     const key = (globalThis as any).getGeminiApiKey();
@@ -36,6 +53,14 @@ const getGeminiApiKeyHelper = (): string | null => {
   return null;
 };
 
+/**
+ * Executes an HTTP fetch to the Gemini API with automatic retries and exponential backoff for 429 and 503 status codes.
+ *
+ * @param url - Gemini API endpoint URL including API key query param.
+ * @param options - `UrlFetchApp` request options.
+ * @param maxRetries - Maximum retry attempts (default: 2).
+ * @returns `GeminiFetchResult` object containing HTTP response or error details.
+ */
 const fetchGeminiWithRetryHelper = (
   url: string,
   options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions,
@@ -66,11 +91,19 @@ const fetchGeminiWithRetryHelper = (
   return { success: false, statusCode: "MAX_RETRIES_EXCEEDED", errorText: "Max retries exceeded" };
 };
 
+/**
+ * Production implementation of `AiAnalysisService` using the Gemini API.
+ */
 class GeminiAiAnalysisAdapter implements AiAnalysisService {
   private driveNameProvider: DriveNameProvider;
   private cacheAdapter: CacheAdapter;
   private pdfDocumentService: PdfDocumentService;
 
+  /**
+   * Constructs a `GeminiAiAnalysisAdapter` instance.
+   *
+   * @param options - Dependency injections for `driveNameProvider`, `cacheAdapter`, and `pdfDocumentService`.
+   */
   constructor(options?: {
     driveNameProvider?: DriveNameProvider;
     cacheAdapter?: CacheAdapter;
@@ -113,6 +146,14 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     }
   }
 
+  /**
+   * Analyzes email header/body context using Gemini to predict the project name and discipline (Architecture vs FF&E).
+   * Caches predictions in CacheAdapter for 6 hours (21,600 seconds).
+   *
+   * @param emailData - Extracted email details.
+   * @param messageId - Optional Gmail message ID for cache lookup.
+   * @returns A Promise resolving to `AiPredictionResult`.
+   */
   async triageEmail(emailData: EmailData, messageId?: string): Promise<AiPredictionResult> {
     if (messageId && this.cacheAdapter) {
       const cached = this.cacheAdapter.get("ai_pred_" + messageId);
@@ -236,6 +277,15 @@ Your task is to logically deduce the project. Return JSON.
     }
   }
 
+  /**
+   * Analyzes a submittal PDF document and email body using Gemini multimodal capabilities.
+   * Direct base64 encodes PDFs <= 2MB, or slices the first 3 pages via `PdfDocumentService` for larger files.
+   *
+   * @param sourceBlob - Source PDF blob.
+   * @param emailText - Extracted email body text.
+   * @param contextObj - Available contacts and actions context dictionary.
+   * @returns A Promise resolving to `DeepAnalysisResult`.
+   */
   async analyzeSubmittal(
     sourceBlob: GoogleAppsScript.Base.Blob,
     emailText: string,
@@ -371,8 +421,13 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
   }
 }
 
+/**
+ * In-memory test mock implementation of `AiAnalysisService`.
+ */
 class FakeAiAnalysisAdapter implements AiAnalysisService {
+  /** Recorded triage calls. */
   public triageCalls: Array<{ emailData: EmailData; messageId?: string }> = [];
+  /** Recorded analyze calls. */
   public analyzeCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; emailText: string; contextObj: DeepAnalysisContext }> = [];
   private triageResult: AiPredictionResult = {
     success: true,
@@ -395,11 +450,13 @@ class FakeAiAnalysisAdapter implements AiAnalysisService {
     this.analysisResult = result;
   }
 
+  /** @override */
   async triageEmail(emailData: EmailData, messageId?: string): Promise<AiPredictionResult> {
     this.triageCalls.push({ emailData, messageId });
     return this.triageResult;
   }
 
+  /** @override */
   async analyzeSubmittal(
     sourceBlob: GoogleAppsScript.Base.Blob,
     emailText: string,
@@ -410,6 +467,7 @@ class FakeAiAnalysisAdapter implements AiAnalysisService {
   }
 }
 
+/** Global default instance seam for AI analysis service. */
 var defaultAiAnalysisService: AiAnalysisService = new GeminiAiAnalysisAdapter();
 
 declare var module: any;

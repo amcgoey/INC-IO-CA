@@ -1,7 +1,18 @@
-// src/PdfDocumentService.ts
+/**
+ * @file PdfDocumentService.ts
+ * @description Service for PDF operations including cover sheet stamping, form action extraction, and PDF page slicing for AI analysis.
+ *
+ * Utilizes `pdf-lib` via lazy remote evaluation or global binding.
+ */
 
 let pdfLibInstance: any = null;
 
+/**
+ * Lazy singleton getter that returns the `pdf-lib` library instance.
+ * Fetches and evaluates the library source from `CONFIG.PDF_LIB_URL` if not already loaded.
+ *
+ * @returns `PDFLib` object.
+ */
 function getPdfLib(): any {
   if (typeof PDFLib !== "undefined") {
     return PDFLib;
@@ -15,6 +26,12 @@ function getPdfLib(): any {
   return pdfLibInstance;
 }
 
+/**
+ * Converts a Google Apps Script `Blob` into a `Uint8Array` byte array.
+ *
+ * @param b - Source Blob instance.
+ * @returns Unsigned 8-bit integer array.
+ */
 function blobToUint8Array(b: GoogleAppsScript.Base.Blob): Uint8Array {
   const bytes = b.getBytes();
   const u = new Uint8Array(bytes.length);
@@ -22,7 +39,16 @@ function blobToUint8Array(b: GoogleAppsScript.Base.Blob): Uint8Array {
   return u;
 }
 
+/**
+ * Production implementation of `PdfDocumentService` using `pdf-lib` and Google Drive APIs.
+ */
 class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
+  /**
+   * Extracts form field response actions (checkboxes or radio group selections) from a PDF document stored in Drive.
+   *
+   * @param fileId - Target Google Drive PDF file ID.
+   * @returns Form action string if found (e.g. "Reviewed", "Approved"), or `null` if none selected or unreadable.
+   */
   async extractFormAction(fileId: string): Promise<string | null> {
     try {
       const { PDFDocument } = getPdfLib();
@@ -53,6 +79,16 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
     }
   }
 
+  /**
+   * Stamps submittal approval metadata onto a PDF cover sheet using a template PDF document.
+   * Copies pages from the source PDF after the stamped cover sheet.
+   *
+   * @param sourceBlob - Source PDF blob.
+   * @param data - Parsed submittal data containing action and title.
+   * @param options - Stamp options including `templateId`, `stampSubmittalNo`, and `newFileName`.
+   * @returns A Promise resolving to the stamped PDF blob.
+   * @throws Error if `options.templateId` is missing (`"TEMPLATE_MISSING"`).
+   */
   async stampSubmittal(
     sourceBlob: GoogleAppsScript.Base.Blob,
     data: ParsedData,
@@ -104,6 +140,14 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
     return Utilities.newBlob(await pdfDoc.save(), 'application/pdf', options.newFileName + ".pdf");
   }
 
+  /**
+   * Slices up to `maxPages` from a source PDF blob and encodes the resulting PDF document to base64.
+   * Used for sending truncated PDF payloads to AI analysis services.
+   *
+   * @param sourceBlob - Source PDF blob.
+   * @param maxPages - Maximum number of pages to slice.
+   * @returns Base64 encoded string of the sliced PDF.
+   */
   async slicePagesToBase64(
     sourceBlob: GoogleAppsScript.Base.Blob,
     maxPages: number
@@ -128,15 +172,26 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
   }
 }
 
+/**
+ * In-memory test mock implementation of `PdfDocumentService`.
+ */
 class FakePdfDocumentService implements PdfDocumentService {
+  /** Recorded extract form action calls. */
   public extractCalls: string[] = [];
+  /** Recorded stamp calls. */
   public stampCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; data: ParsedData; options: StampOptions }> = [];
+  /** Recorded slice calls. */
   public sliceCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; maxPages: number }> = [];
   private actionMap: Map<string, string | null> = new Map();
   private defaultAction: string | null = null;
   private stampResultBlob: GoogleAppsScript.Base.Blob | null = null;
   private sliceResultBase64: string = "";
 
+  /**
+   * Constructs a `FakePdfDocumentService` instance.
+   *
+   * @param initialActions - Optional initial file ID to action mappings.
+   */
   constructor(initialActions?: Record<string, string | null>) {
     if (initialActions) {
       for (const [fileId, action] of Object.entries(initialActions)) {
@@ -161,6 +216,7 @@ class FakePdfDocumentService implements PdfDocumentService {
     this.sliceResultBase64 = base64String;
   }
 
+  /** @override */
   async extractFormAction(fileId: string): Promise<string | null> {
     this.extractCalls.push(fileId);
     if (this.actionMap.has(fileId)) {
@@ -169,6 +225,7 @@ class FakePdfDocumentService implements PdfDocumentService {
     return this.defaultAction;
   }
 
+  /** @override */
   async stampSubmittal(
     sourceBlob: GoogleAppsScript.Base.Blob,
     data: ParsedData,
@@ -184,6 +241,7 @@ class FakePdfDocumentService implements PdfDocumentService {
     return sourceBlob;
   }
 
+  /** @override */
   async slicePagesToBase64(
     sourceBlob: GoogleAppsScript.Base.Blob,
     maxPages: number
@@ -193,7 +251,7 @@ class FakePdfDocumentService implements PdfDocumentService {
   }
 }
 
-// Global default instance seam with fallback capability
+/** Global default instance seam for PDF document service. */
 var defaultPdfDocumentService: PdfDocumentService = new GoogleAppsScriptPdfDocumentService();
 
 declare var module: any;

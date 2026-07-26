@@ -1,7 +1,21 @@
-// START FILE: Main.ts
+/**
+ * @file Main.ts
+ * @description Primary Google Apps Script entry points for the Workspace Add-on.
+ * Serves contextual trigger callbacks for Gmail message views and Google Drive file selections,
+ * delegating intake parsing to DocumentPipeline and rendering the main user interface.
+ */
 
 declare var defaultAiAnalysisService: AiAnalysisService;
 
+/**
+ * Contextual trigger entry point invoked by Google Workspace when an email is opened in Gmail.
+ *
+ * Extracts the message context, parses email attributes via DocumentPipeline, executes optional AI triage
+ * for discipline and project prediction, and constructs the primary add-on UI card.
+ *
+ * @param e - The Google Apps Script event object containing Gmail context (message ID, access token).
+ * @returns A Promise resolving to the rendered CardService.Card UI.
+ */
 async function buildAddOn(e: GoogleAppsScriptEvent): Promise<GoogleAppsScript.Card_Service.Card> {
   const messageId = e.gmail ? e.gmail.messageId : "";
   const accessToken = e.gmail ? e.gmail.accessToken : "";
@@ -54,6 +68,15 @@ async function buildAddOn(e: GoogleAppsScriptEvent): Promise<GoogleAppsScript.Ca
   return buildMainCard(e, parsedData, false, flashMessage);
 }
 
+/**
+ * Contextual trigger entry point invoked by Google Workspace when items are selected in Google Drive.
+ *
+ * Validates that exactly one single PDF file is selected, parses document metadata from its filename,
+ * extracts form field action metadata if present, and constructs the primary add-on UI card.
+ *
+ * @param e - The Google Apps Script event object containing Google Drive selection context.
+ * @returns A Promise resolving to the rendered CardService.Card UI (or an error card if selection is invalid).
+ */
 async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleAppsScript.Card_Service.Card> {
   const items = e.drive ? e.drive.selectedItems : [];
 
@@ -82,8 +105,6 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
 
   return buildMainCard(e, parsedData);
 }
-// END FILE: Main.ts
-
 
 declare var module: any;
 

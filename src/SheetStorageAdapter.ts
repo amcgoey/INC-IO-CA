@@ -1,19 +1,44 @@
-// src/SheetStorageAdapter.ts
+/**
+ * @file SheetStorageAdapter.ts
+ * @description Low-level storage adapter interface and implementations for reading, mutating, and inserting rows in Google Sheets.
+ *
+ * Provides `GoogleSheetsStorageAdapter` for production Google Apps Script SpreadsheetApp integration and
+ * `InMemorySheetStorageAdapter` for fast, headless unit tests.
+ */
 
+/**
+ * Storage adapter interface decoupling high-level log engines from concrete spreadsheet APIs.
+ */
 interface SheetStorageAdapter {
+  /** Retrieves all cell values from a sheet as a 2D matrix array. */
   getSheetValues(sheetName: string): any[][];
+  /** Overwrites all contents of a sheet with a 2D matrix array. */
   setSheetValues(sheetName: string, values: any[][]): void;
+  /** Gets a single cell value at 1-based row and column coordinates. */
   getRangeValue(sheetName: string, rowIndex: number, colIndex: number): any;
+  /** Sets a single cell value at 1-based row and column coordinates. */
   setRangeValue(sheetName: string, rowIndex: number, colIndex: number, value: any): void;
+  /** Inserts a blank row before a 1-based row index. */
   insertRowBefore(sheetName: string, rowIndex: number): void;
+  /** Inserts a blank row after a 1-based row index. */
   insertRowAfter(sheetName: string, rowIndex: number): void;
+  /** Writes an array of row values into a target row index. */
   setRowValues(sheetName: string, rowIndex: number, headers: string[], rowData: any[]): { failedColumns: string[] };
+  /** Executes physical row insertion based on an calculated `RowInsertionPlan`. */
   insertLogRow(sheetName: string, headers: string[], rowData: any[], plan: RowInsertionPlan): { rowIndex: number; failedColumns: string[] };
 }
 
+/**
+ * In-memory test implementation of `SheetStorageAdapter` using JavaScript Maps and 2D arrays.
+ */
 class InMemorySheetStorageAdapter implements SheetStorageAdapter {
   private sheets: Map<string, any[][]> = new Map();
 
+  /**
+   * Constructs an `InMemorySheetStorageAdapter` instance initialized with optional sheets data.
+   *
+   * @param initialSheets - Dictionary mapping sheet names to initial 2D cell matrices.
+   */
   constructor(initialSheets: Record<string, any[][]> = {}) {
     for (const [name, values] of Object.entries(initialSheets)) {
       this.sheets.set(name, values.map(row => [...row]));
@@ -34,15 +59,18 @@ class InMemorySheetStorageAdapter implements SheetStorageAdapter {
     grid.splice(safeIdx, 0, new Array(colCount).fill(""));
   }
 
+  /** @override */
   getSheetValues(sheetName: string): any[][] {
     const grid = this.getOrCreateSheet(sheetName);
     return grid.map(row => [...row]);
   }
 
+  /** @override */
   setSheetValues(sheetName: string, values: any[][]): void {
     this.sheets.set(sheetName, values.map(row => [...row]));
   }
 
+  /** @override */
   getRangeValue(sheetName: string, rowIndex: number, colIndex: number): any {
     const grid = this.getOrCreateSheet(sheetName);
     const rIdx = rowIndex - 1;
@@ -53,6 +81,7 @@ class InMemorySheetStorageAdapter implements SheetStorageAdapter {
     return row[cIdx];
   }
 
+  /** @override */
   setRangeValue(sheetName: string, rowIndex: number, colIndex: number, value: any): void {
     const grid = this.getOrCreateSheet(sheetName);
     const rIdx = rowIndex - 1;
@@ -70,14 +99,17 @@ class InMemorySheetStorageAdapter implements SheetStorageAdapter {
     row[cIdx] = value;
   }
 
+  /** @override */
   insertRowBefore(sheetName: string, rowIndex: number): void {
     this.insertBlankRowAt(sheetName, Math.max(0, rowIndex - 1));
   }
 
+  /** @override */
   insertRowAfter(sheetName: string, rowIndex: number): void {
     this.insertBlankRowAt(sheetName, Math.max(0, rowIndex));
   }
 
+  /** @override */
   setRowValues(sheetName: string, rowIndex: number, headers: string[], rowData: any[]): { failedColumns: string[] } {
     const grid = this.getOrCreateSheet(sheetName);
     const rIdx = rowIndex - 1;
@@ -99,6 +131,7 @@ class InMemorySheetStorageAdapter implements SheetStorageAdapter {
     return { failedColumns: [] };
   }
 
+  /** @override */
   insertLogRow(
     sheetName: string,
     headers: string[],
@@ -125,9 +158,17 @@ class InMemorySheetStorageAdapter implements SheetStorageAdapter {
   }
 }
 
+/**
+ * Production implementation of `SheetStorageAdapter` using Google Apps Script `SpreadsheetApp`.
+ */
 class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
   private spreadsheetId: string;
 
+  /**
+   * Constructs a `GoogleSheetsStorageAdapter` instance for a specific spreadsheet ID.
+   *
+   * @param spreadsheetId - Target Google Sheets spreadsheet ID string.
+   */
   constructor(spreadsheetId: string) {
     this.spreadsheetId = spreadsheetId;
   }
@@ -139,10 +180,12 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
     return sheet;
   }
 
+  /** @override */
   getSheetValues(sheetName: string): any[][] {
     return this.getSheet(sheetName).getDataRange().getValues();
   }
 
+  /** @override */
   setSheetValues(sheetName: string, values: any[][]): void {
     const sheet = this.getSheet(sheetName);
     sheet.clearContents();
@@ -151,22 +194,27 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
     }
   }
 
+  /** @override */
   getRangeValue(sheetName: string, rowIndex: number, colIndex: number): any {
     return this.getSheet(sheetName).getRange(rowIndex, colIndex).getValue();
   }
 
+  /** @override */
   setRangeValue(sheetName: string, rowIndex: number, colIndex: number, value: any): void {
     this.getSheet(sheetName).getRange(rowIndex, colIndex).setValue(value);
   }
 
+  /** @override */
   insertRowBefore(sheetName: string, rowIndex: number): void {
     this.getSheet(sheetName).insertRowBefore(rowIndex);
   }
 
+  /** @override */
   insertRowAfter(sheetName: string, rowIndex: number): void {
     this.getSheet(sheetName).insertRowAfter(rowIndex);
   }
 
+  /** @override */
   setRowValues(sheetName: string, rowIndex: number, headers: string[], rowData: any[]): { failedColumns: string[] } {
     const sheet = this.getSheet(sheetName);
     try {
@@ -185,6 +233,7 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
     }
   }
 
+  /** @override */
   insertLogRow(
     sheetName: string,
     headers: string[],
@@ -193,16 +242,16 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
   ): { rowIndex: number; failedColumns: string[] } {
     this.insertRowAfter(sheetName, plan.targetRowIndex);
     
-        if (plan.insertBlankBefore) {
-          this.insertRowBefore(sheetName, plan.targetRowIndex + 1);
-        }
-        if (plan.insertBlankAfter) {
-          this.insertRowAfter(sheetName, plan.finalRowIndex);
-        }
-    
-        const { failedColumns } = this.setRowValues(sheetName, plan.finalRowIndex, headers, rowData);
-    
-        return { rowIndex: plan.finalRowIndex, failedColumns };
+    if (plan.insertBlankBefore) {
+      this.insertRowBefore(sheetName, plan.targetRowIndex + 1);
+    }
+    if (plan.insertBlankAfter) {
+      this.insertRowAfter(sheetName, plan.finalRowIndex);
+    }
+
+    const { failedColumns } = this.setRowValues(sheetName, plan.finalRowIndex, headers, rowData);
+
+    return { rowIndex: plan.finalRowIndex, failedColumns };
   }
 }
 

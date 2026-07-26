@@ -1,4 +1,10 @@
-// src/LogEngine.ts
+/**
+ * @file LogEngine.ts
+ * @description Application domain engine coordinating contact history chains, status transitions, row insertion plans, and spreadsheet log persistence.
+ *
+ * Utilizes `SheetStorageAdapter` for sheet reading and mutation and `DocumentLogStrategy` for target keys,
+ * sorting keys, and tabular row payload formatting.
+ */
 
 declare var require: any;
 
@@ -12,13 +18,40 @@ if (typeof require !== "undefined") {
   } catch (e) {}
 }
 
+/**
+ * Domain engine responsible for inserting validated submittals into tabular log sheets.
+ * Calculates contact history chains, handles previous row status transitions (e.g. marking previous revisions Closed),
+ * computes group/sort row insertion plans, and writes rows via the storage adapter.
+ */
 class LogEngine {
+  /** Low-level storage adapter executing spreadsheet operations. */
   private storageAdapter: SheetStorageAdapter;
 
+  /**
+   * Constructs a new `LogEngine` instance.
+   *
+   * @param storageAdapter - Concrete or test implementation of `SheetStorageAdapter`.
+   */
   constructor(storageAdapter: SheetStorageAdapter) {
     this.storageAdapter = storageAdapter;
   }
 
+  /**
+   * Appends or inserts a validated document into the specified spreadsheet log.
+   *
+   * 1. Reads current sheet values and extracts column headers.
+   * 2. Searches bounded sheet data for previous submittal instances matching the target key to compute contact history chains.
+   * 3. Optionally updates previous revision row statuses (e.g. setting status to "Closed").
+   * 4. Formats row payload and destination file name via `DocumentLogStrategy`.
+   * 5. Computes target row index and gap insertion rules via `computeRowInsertionPlan`.
+   * 6. Executes physical row insertion via `storageAdapter`.
+   *
+   * @param spreadsheetId - Target spreadsheet ID string.
+   * @param document - Validated submittal document.
+   * @param strategy - Strategy instance defining grouping, sorting, and formatting rules.
+   * @param options - Additional append parameters (headers, status, previous row update flags).
+   * @returns `AppendDocumentResult` containing row index, contact history, filename, and validation details.
+   */
   appendDocument(
     spreadsheetId: string,
     document: ValidatedDocument,

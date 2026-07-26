@@ -1,16 +1,42 @@
 /**
- * Intake parsing and validation pipeline module.
+ * @file DocumentPipeline.ts
+ * @description Ingestion, parsing, normalization, and validation application service for document intake.
+ *
+ * `DocumentPipeline` processes raw input data (email subjects/bodies, Google Drive filenames, and UI form submissions),
+ * converts them into normalized `RawDocument` payloads, and enforces domain validation rules to produce `ValidationResult`.
  */
 
+/**
+ * Trims whitespace from a given string value, returning an empty string if undefined or null.
+ *
+ * @param val - The string to trim.
+ * @returns The trimmed string or an empty string.
+ */
 function getTrimmed(val?: string): string {
   return (val || "").trim();
 }
 
+/**
+ * Checks whether a given string is empty or contains only whitespace.
+ *
+ * @param val - The string to evaluate.
+ * @returns `true` if empty/whitespace-only, `false` otherwise.
+ */
 function isEmpty(val?: string): boolean {
   return getTrimmed(val) === "";
 }
 
+/**
+ * Parses raw form key-value input maps into normalized `RawDocument` objects.
+ */
 export class FormIntakeParser {
+  /**
+   * Normalizes raw form input keys by trimming strings and applying default fallback values
+   * for discipline, action, and document type.
+   *
+   * @param formInput - Dictionary of raw form field values from UI submission.
+   * @returns Normalized `RawDocument` containing trimmed form values and applied defaults.
+   */
   static parse(formInput: Record<string, string> = {}): RawDocument {
     const rawDoc: RawDocument = {};
     const keys = Object.keys(formInput);
@@ -31,7 +57,20 @@ export class FormIntakeParser {
   }
 }
 
+/**
+ * Parses email subjects and body text from external software integrations (Procore, Autodesk Forma)
+ * into partial or full `ParsedData` intake structures.
+ */
 export class EmailIntakeParser {
+  /**
+   * Internal helper to parse Procore submittal email notification subjects.
+   * Extracts project name from square brackets `[Project]`, specification section, revision number,
+   * and inferred action (Reviewed vs Received).
+   *
+   * @param subject - Email subject line.
+   * @param body - Email body content.
+   * @returns Partial `ParsedData` extracted from Procore email context.
+   */
   static parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> {
     const result: Partial<ParsedData> = {};
     const projectMatch = subject.match(/\[([^\]]+)\]/);
@@ -52,6 +91,14 @@ export class EmailIntakeParser {
     return result;
   }
 
+  /**
+   * Internal helper to parse Autodesk Forma submittal notification emails.
+   * Extracts project name, specification section, revision number, and workflow action.
+   *
+   * @param subject - Email subject line.
+   * @param body - Email body content.
+   * @returns Partial `ParsedData` extracted from Autodesk Forma email context.
+   */
   static parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
     const result: Partial<ParsedData> = {};
     const projectMatch = subject.match(/^([^-]+)-/);
@@ -77,6 +124,13 @@ export class EmailIntakeParser {
     return result;
   }
 
+  /**
+   * Parses incoming Gmail message context to extract submittal metadata.
+   * Identifies integrated vendor domains (Autodesk Forma, Procore) and delegates to specific parsers.
+   *
+   * @param message - The Google Apps Script GmailMessage instance (or null/undefined).
+   * @returns `ParsedData` populated with extracted metadata or fallback default values.
+   */
   static parseEmail(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
     const defaultResult: ParsedData = {
       driveName: "",
@@ -102,12 +156,21 @@ export class EmailIntakeParser {
   }
 }
 
+/**
+ * Interface representing standard filename regex extraction patterns for Google Drive files.
+ */
 interface DriveFilenamePattern {
+  /** Unique identifier for the filename pattern rule. */
   id: string;
+  /** Regular expression used to match file names. */
   regex: RegExp;
+  /** Extractor callback returning key-value document properties from regex match groups. */
   extract: (match: RegExpMatchArray) => Record<string, string>;
 }
 
+/**
+ * Supported Google Drive filename matching patterns for Architecture and FF&E submittal files.
+ */
 const DRIVE_FILENAME_PATTERNS: DriveFilenamePattern[] = [
   {
     id: 'ArchitectureStandard',
@@ -138,7 +201,16 @@ const DRIVE_FILENAME_PATTERNS: DriveFilenamePattern[] = [
   }
 ];
 
+/**
+ * Intake parser for extracting document attributes from Google Drive filenames.
+ */
 export class DriveFilenameIntakeParser {
+  /**
+   * Matches clean file names against configured Drive filename patterns (Architecture or FF&E standard naming).
+   *
+   * @param filename - The raw filename of the selected Google Drive item.
+   * @returns `RawDocument` containing extracted metadata fields or empty defaults if unmatched.
+   */
   static parse(filename: string = ""): RawDocument {
     const rawDoc: RawDocument = {
       discipline: "Architecture",
@@ -170,6 +242,17 @@ export class DriveFilenameIntakeParser {
   }
 }
 
+/**
+ * Core validation function evaluating raw intake documents against domain rules.
+ *
+ * Validates common mandatory fields (Date, Contact, Action, Incoming Routing for received items)
+ * and discipline-specific rules for Architecture (Title, Section/Number/Revision warnings)
+ * and FF&E (Spec Tag, Spec Title, Vendor, Tag/Vendor list verification, and related tag validation).
+ *
+ * @param raw - The unvalidated `RawDocument` input payload.
+ * @param context - Optional `ValidationContext` containing valid tag lists and bypass options.
+ * @returns `ValidationResult` indicating success (with `ValidatedDocument`), error, or interaction_required.
+ */
 function validateDocFn(raw: RawDocument, context?: ValidationContext): ValidationResult {
   const rawDoc = FormIntakeParser.parse(raw);
   const discipline = rawDoc.discipline || "Architecture";
@@ -316,24 +399,59 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
   };
 }
 
+/**
+ * Pure application service class providing static entry points for document parsing and validation.
+ */
 export class DocumentPipeline {
+  /**
+   * Normalizes raw form input dictionary into a `RawDocument`.
+   *
+   * @param formInput - Key-value map from form submission.
+   * @returns Formatted `RawDocument`.
+   */
   static parseFormIntake(formInput: Record<string, string>): RawDocument {
     return FormIntakeParser.parse(formInput);
   }
 
+  /**
+   * Extracts metadata from a Gmail message context.
+   *
+   * @param message - Gmail message object or null.
+   * @returns Parsed email data structure.
+   */
   static parseEmail(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
     return EmailIntakeParser.parseEmail(message);
   }
 
+  /**
+   * Extracts document attributes from a Google Drive filename.
+   *
+   * @param filename - Drive file name string.
+   * @returns Raw document structure populated with extracted attributes.
+   */
   static parseFilename(filename: string): RawDocument {
     return DriveFilenameIntakeParser.parse(filename);
   }
 
+  /**
+   * Validates a `RawDocument` against business rules and domain requirements.
+   *
+   * @param rawDoc - Raw document to validate.
+   * @param context - Validation context dependencies (tags, vendors, bypass flags).
+   * @returns Validation outcome (`success`, `error`, or `interaction_required`).
+   */
   static validate(rawDoc: RawDocument, context?: ValidationContext): ValidationResult {
     const fn = typeof validateDocument !== "undefined" ? validateDocument : validateDocFn;
     return fn(rawDoc, context);
   }
 
+  /**
+   * Convenience method to normalize and validate form input in a single pipeline step.
+   *
+   * @param formInput - Raw form inputs map.
+   * @param context - Validation context dependencies.
+   * @returns Final `ValidationResult`.
+   */
   static processFormIntake(formInput: Record<string, string>, context?: ValidationContext): ValidationResult {
     const rawDoc = FormIntakeParser.parse(formInput);
     return DocumentPipeline.validate(rawDoc, context);

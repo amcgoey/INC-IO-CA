@@ -1,4 +1,10 @@
-// src/DocumentWorkflowModule.ts
+/**
+ * @file DocumentWorkflowModule.ts
+ * @description Orchestration application service for submittal document workflows.
+ *
+ * Coordinates file retrieval, Drive storage filing, spreadsheet row insertion, PDF stamping,
+ * status transitions, and direct row link generation for incoming and outgoing submittals.
+ */
 
 declare var require: any;
 
@@ -16,6 +22,15 @@ if (typeof require !== "undefined") {
   } catch (e) {}
 }
 
+/**
+ * Resolves execution policy settings based on the specified workflow action string.
+ *
+ * Incoming actions ("Received") trigger CSI subfolder filing and PDF stamping without updating past rows.
+ * Outgoing actions trigger previous row status updates to "Closed".
+ *
+ * @param action - The workflow action string (e.g., "Received", "Reviewed", "Referred").
+ * @returns `WorkflowActionPolicy` containing execution instructions.
+ */
 export function getActionPolicy(action: string): WorkflowActionPolicy {
   if (action === "Received") {
     return {
@@ -34,6 +49,12 @@ export function getActionPolicy(action: string): WorkflowActionPolicy {
   };
 }
 
+/**
+ * Factory function returning the appropriate `DocumentLogStrategy` implementation for a given document.
+ *
+ * @param doc - The `ValidatedDocument` instance.
+ * @returns `FFESubmittalStrategy` for FF&E discipline or `ArchitectureSubmittalStrategy` for Architecture.
+ */
 export function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy {
   const details = doc ? doc.disciplineDetails : null;
   if (details && details.discipline === "FF&E") {
@@ -42,13 +63,32 @@ export function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrat
   return new ArchitectureSubmittalStrategy();
 }
 
+/**
+ * Extracts the primary document title from a validated document based on discipline details.
+ *
+ * @param doc - The `ValidatedDocument` instance.
+ * @returns Document title string or empty string.
+ */
 export function getDocumentTitle(doc: ValidatedDocument): string {
   const details = doc ? doc.disciplineDetails : null;
   if (!details) return "";
   return details.discipline === "Architecture" ? details.title : details.specTitle;
 }
 
+/**
+ * Core workflow orchestrator service that executes submittal filing, spreadsheet logging, and PDF stamping.
+ */
 export class DocumentWorkflowModule {
+  /**
+   * Executes the end-to-end submittal workflow.
+   *
+   * Resolves the source document blob (from email attachment, Google Drive URL, or Drive file ID),
+   * files the blob via `DriveFilingRepository`, appends the entry to the spreadsheet via `LogRepository`,
+   * stamps cover sheets via `PdfDocumentService` if required by action policy, and constructs the result object.
+   *
+   * @param input - `DocumentWorkflowInput` containing validated document data, target folders, and repository references.
+   * @returns A Promise resolving to `DocumentWorkflowResult` containing output file IDs, links, and log row URLs.
+   */
   static async executeWorkflow(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult> {
     const action = input.validatedDoc.action || (input.selectedAction ? input.selectedAction.action : "");
     const policy = getActionPolicy(action);
@@ -181,6 +221,17 @@ export class DocumentWorkflowModule {
       newFileName: appendResult.newFileName
     };
   }
+}
+
+declare var module: any;
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    getActionPolicy,
+    getDocumentLogStrategy,
+    getDocumentTitle,
+    DocumentWorkflowModule
+  };
 }
 
 declare var module: any;

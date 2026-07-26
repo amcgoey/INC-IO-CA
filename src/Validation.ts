@@ -1,15 +1,38 @@
 /**
- * Pure validation module for raw document form inputs.
+ * @file Validation.ts
+ * @description Core validation module for submittal form inputs.
+ *
+ * Enforces required fields, discipline-specific schema rules (Architecture vs FF&E),
+ * tag/vendor verification against Tag List options, interactive prompt triggers, and fallback warnings.
  */
 
+/**
+ * Returns trimmed string or empty string if nullish.
+ *
+ * @param val - Target string.
+ * @returns Trimmed string.
+ */
 function getTrimmed(val?: string): string {
   return (val || "").trim();
 }
 
+/**
+ * Checks if a string value is empty or whitespace-only.
+ *
+ * @param val - Target string.
+ * @returns `true` if empty/whitespace, `false` otherwise.
+ */
 function isEmpty(val?: string): boolean {
   return getTrimmed(val) === "";
 }
 
+/**
+ * Validates a raw submittal input dictionary against project discipline requirements and tag/vendor options.
+ *
+ * @param raw - `RawDocument` key-value dictionary.
+ * @param context - Optional `ValidationContext` containing valid FF&E tags/vendors and bypass flags.
+ * @returns `ValidationResult` containing status ("success", "error", or "interaction_required"), validated data, errors, or prompts.
+ */
 function validateDocument(raw: RawDocument, context?: ValidationContext): ValidationResult {
   const discipline = getTrimmed(raw.discipline) || "Architecture";
 

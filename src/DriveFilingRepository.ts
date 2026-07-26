@@ -1,14 +1,33 @@
-// src/DriveFilingRepository.ts
+/**
+ * @file DriveFilingRepository.ts
+ * @description Implementations of `DriveFilingRepository` for Google Drive folder hierarchy resolution, subfolder creation, document filing, and Windows G:\ local path mapping.
+ *
+ * Provides `GoogleDriveFilingRepository` for production DriveApp API interactions and
+ * `FakeDriveFilingRepository` for unit testing.
+ */
 
+/**
+ * In-memory test implementation of `DriveFilingRepository`.
+ * Records filing calls and returns stubbed `FilingResult` outcomes without invoking Google Drive APIs.
+ */
 class FakeDriveFilingRepository implements DriveFilingRepository {
+  /** Array tracking file IDs passed to getLocalPath. */
   public calls: string[] = [];
+  /** Recorded filing executions containing source files, filing options, and results. */
   public filedDocuments: Array<{ file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob }; options: FilingOptions; result: FilingResult }> = [];
+  /** Custom mapped local paths for testing. */
   public customPaths: Record<string, string>;
 
+  /**
+   * Constructs a new `FakeDriveFilingRepository` instance.
+   *
+   * @param customPaths - Dictionary mapping file IDs to custom mock local paths.
+   */
   constructor(customPaths: Record<string, string> = {}) {
     this.customPaths = customPaths;
   }
 
+  /** @override */
   getLocalPath(fileId: string): string {
     this.calls.push(fileId);
     if (this.customPaths[fileId]) {
@@ -17,6 +36,7 @@ class FakeDriveFilingRepository implements DriveFilingRepository {
     return "G:\\My Drive\\FakePath\\" + fileId;
   }
 
+  /** @override */
   fileDocument(
     file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob },
     options: FilingOptions
@@ -32,7 +52,18 @@ class FakeDriveFilingRepository implements DriveFilingRepository {
   }
 }
 
+/**
+ * Production implementation of `DriveFilingRepository` using Google Apps Script's `DriveApp` and `Drive` Advanced Service.
+ */
 class GoogleDriveFilingRepository implements DriveFilingRepository {
+  /**
+   * Files a document blob or existing Drive file ID into the specified destination folder hierarchy.
+   * Creates missing subfolders along the `subfolderPath` array if necessary.
+   *
+   * @param file - Object containing either an existing `fileId` or new file `blob`.
+   * @param options - `FilingOptions` specifying target folder ID, subfolder path segments, and target file name.
+   * @returns `FilingResult` containing destination file ID, web URL, Windows G:\ local path, and target folder ID.
+   */
   fileDocument(
     file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob },
     options: FilingOptions
@@ -74,6 +105,13 @@ class GoogleDriveFilingRepository implements DriveFilingRepository {
     return { fileId, url, localPath, folderId };
   }
 
+  /**
+   * Resolves the local Windows `G:\` drive file path for a given Google Drive file ID.
+   * Traverses parent folder hierarchies for both Shared Drives (`G:\Shared drives\...`) and My Drive (`G:\My Drive\...`).
+   *
+   * @param fileId - Google Drive file ID string.
+   * @returns Formatted Windows local path string (e.g. `G:\Shared drives\Project\Closed\08 OPENINGS\file.pdf`).
+   */
   getLocalPath(fileId: string): string {
     try {
       if (typeof Drive !== "undefined" && (Drive as any).Files) {
@@ -112,6 +150,7 @@ class GoogleDriveFilingRepository implements DriveFilingRepository {
   }
 }
 
+/** Global default repository instance for Google Drive filing operations. */
 var defaultDriveFilingRepository: DriveFilingRepository = new GoogleDriveFilingRepository();
 
 declare var module: any;

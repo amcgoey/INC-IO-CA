@@ -1,6 +1,14 @@
 /**
- * Sanitizes strings to prevent accidental leakage of Script Properties (e.g., API keys).
- * Automatically fetches all script properties and masks them in the output string.
+ * @file AIUtils.ts
+ * @description Utility functions for AI API key retrieval, error sanitization/redaction, HTTP backoff retries, and external URL file fetching.
+ */
+
+/**
+ * Sanitizes error strings to prevent accidental leakage of Script Properties (e.g. GEMINI_API_KEY).
+ * Scans PropertiesService values longer than 5 characters and masks them in the returned error string.
+ *
+ * @param errorStr - Raw error string or exception object.
+ * @returns Redacted error string.
  */
 function sanitizeErrorString(errorStr: any): string {
   if (!errorStr) return "Unknown Error";
@@ -28,10 +36,23 @@ function sanitizeErrorString(errorStr: any): string {
   return sanitized;
 }
 
+/**
+ * Retrieves the Gemini API Key from Google Apps Script `PropertiesService.getScriptProperties()`.
+ *
+ * @returns Gemini API key string or `null` if unconfigured.
+ */
 function getGeminiApiKey(): string | null {
   return PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
 }
 
+/**
+ * Executes an HTTP fetch request to Gemini API with exponential backoff retries on HTTP 429 / 503 status codes.
+ *
+ * @param url - Gemini API endpoint URL.
+ * @param options - `UrlFetchApp` request options.
+ * @param maxRetries - Maximum retry attempts (default: 2).
+ * @returns `GeminiFetchResult` object.
+ */
 function fetchGeminiWithRetry(url: string, options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions, maxRetries = 2): GeminiFetchResult {
   let attempts = 0;
   while (attempts <= maxRetries) {
@@ -57,6 +78,14 @@ function fetchGeminiWithRetry(url: string, options: GoogleAppsScript.URL_Fetch.U
   return { success: false, statusCode: "MAX_RETRIES_EXCEEDED", errorText: "Max retries exceeded" };
 }
 
+/**
+ * Downloads a file from an external URL and saves it into a Google Drive folder.
+ * Handles HTML authentication wall detection and URL domain whitelist errors.
+ *
+ * @param url - External file download URL.
+ * @param folderId - Target Google Drive folder ID.
+ * @returns Result object containing `success` status, file ID, file name, or error code.
+ */
 function fetchAndSaveFile(url: string, folderId: string): { success: boolean; error?: string; fileId?: string; fileName?: string } {
   try {
     const response = UrlFetchApp.fetch(url, { followRedirects: true, muteHttpExceptions: true });

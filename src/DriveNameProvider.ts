@@ -1,15 +1,35 @@
-// src/DriveNameProvider.ts
+/**
+ * @file DriveNameProvider.ts
+ * @description Service providing available Google Shared Drive names and IDs for project selection.
+ *
+ * Provides `GoogleDriveNameProvider` with 6-hour caching (`CacheAdapter`) for Google Drive API queries and
+ * `FakeDriveNameProvider` for unit testing.
+ */
 
+/**
+ * Service interface for querying available Shared Drive details and names.
+ */
 interface DriveNameProvider {
+  /** Retrieves string names of all accessible Shared Drives. */
   getAvailableDriveNames(): string[];
+  /** Retrieves structured `SharedDriveInfo` objects (ID and name) for all accessible Shared Drives. */
   getSharedDrives(): SharedDriveInfo[];
 }
 
+/**
+ * Production implementation of `DriveNameProvider` using the Google Drive Advanced API service.
+ * Caches retrieved Shared Drive lists for up to 6 hours (21,600 seconds) via `CacheAdapter`.
+ */
 class GoogleDriveNameProvider implements DriveNameProvider {
   private cacheAdapter: CacheAdapter;
   private readonly CACHE_KEY = "cached_shared_drives";
   private readonly CACHE_TTL_SECONDS = 21600; // 6 hours
 
+  /**
+   * Constructs a `GoogleDriveNameProvider` instance.
+   *
+   * @param cacheAdapter - Optional custom `CacheAdapter` instance.
+   */
   constructor(cacheAdapter?: CacheAdapter) {
     if (cacheAdapter) {
       this.cacheAdapter = cacheAdapter;
@@ -20,6 +40,11 @@ class GoogleDriveNameProvider implements DriveNameProvider {
     }
   }
 
+  /**
+   * Queries Google Drive for accessible Shared Drives, incorporating user cache lookup and fallback logic.
+   *
+   * @returns Array of `SharedDriveInfo` objects containing Drive IDs and names.
+   */
   getSharedDrives(): SharedDriveInfo[] {
     const cached = this.cacheAdapter.get(this.CACHE_KEY);
     if (cached) {
@@ -70,14 +95,27 @@ class GoogleDriveNameProvider implements DriveNameProvider {
     return drives;
   }
 
+  /**
+   * Returns string names of all available Shared Drives.
+   *
+   * @returns Array of Shared Drive name strings.
+   */
   getAvailableDriveNames(): string[] {
     return this.getSharedDrives().map(d => d.name);
   }
 }
 
+/**
+ * In-memory test mock implementation of `DriveNameProvider`.
+ */
 class FakeDriveNameProvider implements DriveNameProvider {
   private drives: SharedDriveInfo[];
 
+  /**
+   * Constructs a `FakeDriveNameProvider` instance.
+   *
+   * @param initialDrives - Initial array of Shared Drive names or `SharedDriveInfo` objects.
+   */
   constructor(initialDrives: (string | SharedDriveInfo)[] = []) {
     this.drives = initialDrives.map(item =>
       typeof item === "string" ? { id: "", name: item } : { ...item }
@@ -92,15 +130,18 @@ class FakeDriveNameProvider implements DriveNameProvider {
     this.drives = drives.map(d => ({ ...d }));
   }
 
+  /** @override */
   getSharedDrives(): SharedDriveInfo[] {
     return this.drives.map(d => ({ ...d }));
   }
 
+  /** @override */
   getAvailableDriveNames(): string[] {
     return this.drives.map(d => d.name);
   }
 }
 
+/** Global default instance seam for DriveNameProvider. */
 var defaultDriveNameProvider: DriveNameProvider = new GoogleDriveNameProvider();
 
 declare var module: any;

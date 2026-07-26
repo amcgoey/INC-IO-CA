@@ -1,6 +1,18 @@
-// src/GoogleSheetsLogRepository.ts
+/**
+ * @file GoogleSheetsLogRepository.ts
+ * @description Concrete implementation of `LogRepository` persisting submittal records, log settings, and tag lists using the Google Sheets API.
+ *
+ * Provides caching for settings, header schema verification/formatting, interactive tag/vendor additions,
+ * and delegates document appending to `LogEngine` via `GoogleSheetsStorageAdapter`.
+ */
 
 class GoogleSheetsLogRepository implements LogRepository {
+  /**
+   * Invalidates the cached user settings payload for a specific spreadsheet and discipline.
+   *
+   * @param spreadsheetId - Target Google Sheets spreadsheet ID.
+   * @param discipline - Architectural or FF&E discipline string.
+   */
   private invalidateSettingsCache(spreadsheetId: string, discipline: string = "FF&E"): void {
     try {
       const cache = CacheService.getUserCache();
@@ -10,10 +22,25 @@ class GoogleSheetsLogRepository implements LogRepository {
     }
   }
 
+  /**
+   * Extracts clean header string arrays from raw Tag List sheet matrix data.
+   *
+   * @param tagData - 2D matrix of sheet values from the Tag List sheet.
+   * @returns Array of column header names.
+   */
   private getTagSheetHeaders(tagData: any[][]): string[] {
     return tagData.length > 2 ? tagData[2].map((h: any) => String(h).trim()) : [];
   }
 
+  /**
+   * Fallback cell-by-cell writer used when a row-level `setValues` call fails due to spreadsheet validation errors.
+   *
+   * @param sheet - Target Google Sheets Sheet object.
+   * @param rowIndex - 1-based target row index.
+   * @param headers - Column headers array.
+   * @param rowData - Array of values to write into cells.
+   * @returns Array of column header names that failed to write.
+   */
   private setValuesCellByCell(sheet: GoogleAppsScript.Spreadsheet.Sheet, rowIndex: number, headers: string[], rowData: any[]): string[] {
     const failedColumns: string[] = [];
     for (let i = 0; i < headers.length; i++) {
@@ -29,6 +56,14 @@ class GoogleSheetsLogRepository implements LogRepository {
     return failedColumns;
   }
 
+  /**
+   * Fetches settings, contacts, actions, project abbreviation, and FF&E tags/vendors from the spreadsheet.
+   * Uses CacheService to cache results for up to 1 hour (3600 seconds).
+   *
+   * @param spreadsheetId - Target spreadsheet ID.
+   * @param discipline - Architectural or FF&E discipline string.
+   * @returns `LogSettings` dictionary containing contacts, actions, project abbreviation, and tags.
+   */
   getLogSettings(spreadsheetId: string, discipline: string): LogSettings {
     const cache = CacheService.getUserCache();
     const cacheKey = `log_settings_${spreadsheetId}_${discipline}`;
@@ -114,6 +149,13 @@ class GoogleSheetsLogRepository implements LogRepository {
     return result;
   }
 
+  /**
+   * Inspects the target log sheet headers, renames duplicate headers (e.g. calculated columns),
+   * and dynamically inserts missing required system columns like `Link` or `Contact History`.
+   *
+   * @param spreadsheetId - Target spreadsheet ID.
+   * @returns Cleaned array of header column strings.
+   */
   verifyAndFormatLogSheet(spreadsheetId: string): string[] {
     const ss = SpreadsheetApp.openById(spreadsheetId);
     const sheet = ss.getSheetByName(CONFIG.LOG_SHEET_NAME);
@@ -181,6 +223,14 @@ class GoogleSheetsLogRepository implements LogRepository {
     return headers;
   }
 
+  /**
+   * Adds a new FF&E Spec Tag and Title to the Tag List spreadsheet tab, inserting it in alphabetical order.
+   * Invalidates the settings cache upon completion.
+   *
+   * @param spreadsheetId - Target spreadsheet ID.
+   * @param newTag - New spec tag code (e.g. "CH-01").
+   * @param newTitle - New spec title string.
+   */
   addNewTagToTagList(spreadsheetId: string, newTag: string, newTitle: string): void {
     const ss = SpreadsheetApp.openById(spreadsheetId);
     const tagSheet = ss.getSheetByName(CONFIG.TAG_LIST_SHEET_NAME);
@@ -217,6 +267,13 @@ class GoogleSheetsLogRepository implements LogRepository {
     this.invalidateSettingsCache(spreadsheetId, "FF&E");
   }
 
+  /**
+   * Adds a new FF&E Vendor name to the Tag List spreadsheet tab.
+   * Invalidates the settings cache upon completion.
+   *
+   * @param spreadsheetId - Target spreadsheet ID.
+   * @param newVendor - New vendor name string.
+   */
   addNewVendorToTagList(spreadsheetId: string, newVendor: string): void {
     const ss = SpreadsheetApp.openById(spreadsheetId);
     const tagSheet = ss.getSheetByName(CONFIG.TAG_LIST_SHEET_NAME);
@@ -243,6 +300,15 @@ class GoogleSheetsLogRepository implements LogRepository {
     this.invalidateSettingsCache(spreadsheetId, "FF&E");
   }
 
+  /**
+   * Inserts a new row into the physical spreadsheet sheet based on an calculated `RowInsertionPlan`.
+   *
+   * @param spreadsheetId - Target spreadsheet ID.
+   * @param headers - Column headers array.
+   * @param rowData - Row values array matching headers.
+   * @param plan - `RowInsertionPlan` containing target row index and blank gap instructions.
+   * @returns Object containing final 1-based `rowIndex` and any `failedColumns`.
+   */
   insertLogRow(
     spreadsheetId: string,
     headers: string[],
@@ -272,6 +338,15 @@ class GoogleSheetsLogRepository implements LogRepository {
     return { rowIndex: plan.finalRowIndex, failedColumns };
   }
 
+  /**
+   * Appends a validated document to the Google Sheets log by delegating to `LogEngine` via `GoogleSheetsStorageAdapter`.
+   *
+   * @param spreadsheetId - Target spreadsheet ID.
+   * @param document - Validated document instance.
+   * @param strategy - Strategy controlling formatting and sorting.
+   * @param options - Additional execution options.
+   * @returns `AppendDocumentResult` containing row index, filename, and contact history chain.
+   */
   appendDocument(
     spreadsheetId: string,
     document: ValidatedDocument,
@@ -284,5 +359,5 @@ class GoogleSheetsLogRepository implements LogRepository {
   }
 }
 
-// Global default repository instance
+/** Global default repository seam for Google Sheets storage operations. */
 var defaultLogRepository: LogRepository = new GoogleSheetsLogRepository();

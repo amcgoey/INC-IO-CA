@@ -1,3 +1,10 @@
+/**
+ * @file Parser.ts
+ * @description Legacy entry facade and utility patterns for email subject and Drive filename intake parsing.
+ *
+ * Delegates execution to `DocumentPipeline.parseFilename`, `DocumentPipeline.parseEmail`, and `EmailIntakeParser`.
+ */
+
 interface SubjectPattern {
   id: string;
   regex: RegExp;
@@ -71,6 +78,13 @@ const DRIVE_FILENAME_PATTERNS: FilenamePattern[] = [
   }
 ];
 
+/**
+ * Parses a Google Drive filename to extract submittal metadata.
+ * Delegates to `DocumentPipeline.parseFilename` when present.
+ *
+ * @param filename - Target filename string.
+ * @returns `ParsedData` object containing extracted fields.
+ */
 function parseDriveFilename(filename: string): ParsedData {
   if (typeof DocumentPipeline !== "undefined" && typeof DocumentPipeline.parseFilename === "function") {
     return DocumentPipeline.parseFilename(filename);
@@ -88,7 +102,13 @@ function parseDriveFilename(filename: string): ParsedData {
   return data;
 }
 
-
+/**
+ * Parses a Gmail message to extract project submittal details based on sender or subject formatting.
+ * Delegates to `DocumentPipeline.parseEmail` when present.
+ *
+ * @param message - Gmail message object.
+ * @returns `ParsedData` object.
+ */
 function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
   if (typeof DocumentPipeline !== "undefined" && DocumentPipeline.parseEmail) {
     return DocumentPipeline.parseEmail(message);
@@ -116,6 +136,14 @@ function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): P
   return defaultResult;
 }
 
+/**
+ * Internal helper for Autodesk Forma email parsing.
+ * Delegates to `EmailIntakeParser.parseFormaEmail_`.
+ *
+ * @param subject - Email subject string.
+ * @param body - Email body snippet.
+ * @returns Partial `ParsedData` metadata.
+ */
 function parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
   if (typeof EmailIntakeParser !== "undefined" && EmailIntakeParser.parseFormaEmail_) {
     return EmailIntakeParser.parseFormaEmail_(subject, body);
@@ -123,6 +151,14 @@ function parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
   return {};
 }
 
+/**
+ * Internal helper for Procore email parsing.
+ * Delegates to `EmailIntakeParser.parseProcoreEmail_`.
+ *
+ * @param subject - Email subject string.
+ * @param body - Email body snippet.
+ * @returns Partial `ParsedData` metadata.
+ */
 function parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> {
   if (typeof EmailIntakeParser !== "undefined" && EmailIntakeParser.parseProcoreEmail_) {
     return EmailIntakeParser.parseProcoreEmail_(subject, body);
