@@ -57,7 +57,7 @@ export class EmailIntakeParser {
     const projectMatch = subject.match(/^([^-]+)-/);
     if (projectMatch) result.driveName = projectMatch[1].trim();
 
-    const subMatch = subject.match(/#\s*(.*?)\s+was/i);
+    const subMatch = subject.match(/(?:Submittal\s*)?#\s*([\w\.\-]+)\s+was/i);
     if (subMatch) {
       const parts = subMatch[1].split('-');
       result.specSection = parts[0].trim();
