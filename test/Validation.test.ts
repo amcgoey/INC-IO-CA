@@ -260,7 +260,7 @@ test('DocumentPipeline.processFormIntake - requires incomingRouting when action 
 });
 
 test('DocumentPipeline.processFormIntake - end-to-end success path for common & discipline fields', () => {
-  const formInput = {
+  const rawDoc = {
     date: '2026-07-25',
     contact: 'John Smith',
     action: 'Received',
@@ -272,7 +272,7 @@ test('DocumentPipeline.processFormIntake - end-to-end success path for common & 
     revision: '01'
   };
 
-  const result = DocumentPipeline.processFormIntake(formInput);
+  const result = DocumentPipeline.processFormIntake(rawDoc);
 
   assert.equal(result.status, 'success');
   if (result.status === 'success') {
@@ -280,6 +280,60 @@ test('DocumentPipeline.processFormIntake - end-to-end success path for common & 
     assert.equal(result.data.contact, 'John Smith');
     assert.equal(result.data.action, 'Received');
     assert.equal(result.data.incomingRouting, 'To Refer');
+    assert.equal(result.warnings.length, 0);
+    const details = result.data.disciplineDetails;
+    assert.equal(details.discipline, 'Architecture');
+    if (details.discipline === 'Architecture') {
+      assert.equal(details.section, '230000');
+      assert.equal(details.number, '001');
+      assert.equal(details.title, 'HVAC Submittal');
+      assert.equal(details.revision, '01');
+    }
+  }
+});
+
+
+
+test('DocumentPipeline.processFormIntake - Architecture warnings for missing section, number, revision', () => {
+  const rawDoc = {
+    date: '2026-07-25',
+    contact: 'John Smith',
+    action: 'Approved',
+    title: 'HVAC Submittal',
+    discipline: 'Architecture'
+  };
+
+  const result = DocumentPipeline.processFormIntake(rawDoc);
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.deepEqual(result.warnings, ['Section', 'Number', 'Revision']);
+    const details = result.data.disciplineDetails;
+    assert.equal(details.discipline, 'Architecture');
+    if (details.discipline === 'Architecture') {
+      assert.equal(details.section, '');
+      assert.equal(details.number, '');
+      assert.equal(details.title, 'HVAC Submittal');
+      assert.equal(details.revision, '');
+    }
+  }
+});
+
+
+
+test('DocumentPipeline.processFormIntake - Architecture validation fails when title is missing', () => {
+  const rawDoc = {
+    date: '2026-07-25',
+    contact: 'John Smith',
+    action: 'Approved',
+    discipline: 'Architecture'
+  };
+
+  const result = DocumentPipeline.processFormIntake(rawDoc);
+
+  assert.equal(result.status, 'error');
+  if (result.status === 'error') {
+    assert.deepEqual(result.missingFields, ['Title']);
   }
 });
 
