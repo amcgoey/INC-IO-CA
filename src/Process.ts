@@ -128,26 +128,10 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
     selectedAction
   };
 
-  const workflowModule = (globalThis as any).DocumentWorkflowModule || DocumentWorkflowModule;
-  const result: DocumentWorkflowResult = await workflowModule.executeWorkflow(input);
-
-  const flashData = {
-    fileId: result.fileId,
-    targetKey: result.targetKey,
-    url: result.url,
-    localPath: result.localPath,
-    title: result.title,
-    action: result.action,
-    incomingRouting: result.incomingRouting,
-    projectAbbr: result.projectAbbr,
-    directRowUrl: result.directRowUrl,
-    failedColumns: result.failedColumns,
-    emptyFallbacks: result.emptyFallbacks,
-    newFileName: result.newFileName
-  };
+  const result: DocumentWorkflowResult = await DocumentWorkflowModule.executeWorkflow(input);
 
   return CardService.newActionResponseBuilder()
-    .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, flashData)))
+    .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, result)))
     .build();
 }
 
