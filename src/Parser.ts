@@ -95,8 +95,8 @@ function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): P
   }
   const defaultResult: ParsedData = {
     driveName: "",
-    discipline: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture",
-    action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
+    discipline: CONFIG.DEFAULT_DISCIPLINE,
+    action: CONFIG.DEFAULT_ACTION
   };
 
   if (!message) return defaultResult;
@@ -120,29 +120,7 @@ function parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
   if (typeof EmailIntakeParser !== "undefined" && EmailIntakeParser.parseFormaEmail_) {
     return EmailIntakeParser.parseFormaEmail_(subject, body);
   }
-  const defaultAction = typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
-  const result: Partial<ParsedData> = {};
-  const projectMatch = subject.match(/^([^-]+)-/);
-  if (projectMatch) result.driveName = projectMatch[1].trim();
-
-  const subMatch = subject.match(/(?:Submittal\s*)?#\s*(.*?)\s+was/i);
-  if (subMatch) {
-    const parts = subMatch[1].split('-');
-    result.specSection = parts[0].trim();
-    if (parts.length > 1) result.revNum = parts.slice(1).join('-').trim();
-    if (/^\d/.test(result.specSection)) result.discipline = "Architecture";
-  }
-
-  const actionMatch = subject.match(/was\s+(.+)$/i);
-  if (actionMatch) {
-    const intent = actionMatch[1].toLowerCase().trim();
-    if (intent.includes("provided for your information") || intent.includes("submitted") || intent.includes("forwarded")) {
-      result.action = defaultAction;
-    } else {
-      result.action = actionMatch[1].trim();
-    }
-  }
-  return result;
+  return {};
 }
 
 function parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> {
@@ -163,7 +141,7 @@ function parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> 
   if (/returned/i.test(subject) || /reviewed/i.test(subject)) {
     result.action = "Reviewed";
   } else if (/submitted/i.test(subject)) {
-    result.action = typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
+    result.action = CONFIG.DEFAULT_ACTION;
   }
   return result;
 }
