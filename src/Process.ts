@@ -2,6 +2,20 @@ declare var require: any;
 
 if (typeof require !== "undefined") {
   try {
+    const _dp = eval('require("./DocumentPipeline")');
+    if (_dp) {
+      if (_dp.FormIntakeParser && typeof FormIntakeParser === "undefined") {
+        (globalThis as any).FormIntakeParser = _dp.FormIntakeParser;
+      }
+      if (_dp.DocumentPipeline && typeof DocumentPipeline === "undefined") {
+        (globalThis as any).DocumentPipeline = _dp.DocumentPipeline;
+      }
+    }
+  } catch (e) {}
+}
+
+if (typeof require !== "undefined") {
+  try {
     const _dls = eval('require("./DocumentLogStrategy")');
     if (_dls) {
       if (_dls.ArchitectureSubmittalStrategy && typeof ArchitectureSubmittalStrategy === "undefined") {
@@ -44,14 +58,13 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const selectedAction = settings.actions.find(a => a.action === form.action) || { action: "", abbr: "", status: "" };
 
     // Validate form inputs using pure validation module
-    const rawDoc: RawDocument = form;
     const validationContext: ValidationContext = {
       ffeTags: settings.ffeTags,
       bypassTagValidation: p.bypassTagValidation === "true",
       bypassVendorValidation: p.bypassVendorValidation === "true"
     };
 
-    const validationResult = validateDocument(rawDoc, validationContext);
+    const validationResult = DocumentPipeline.processFormIntake(form, validationContext);
 
     if (validationResult.status === "error") {
       return CardService.newActionResponseBuilder()
