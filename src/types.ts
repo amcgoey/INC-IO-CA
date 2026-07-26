@@ -281,6 +281,19 @@ interface LogRepository {
 
 
 // Global Ambient Function Declarations
+declare class FormIntakeParser {
+  static parse(formInput: Record<string, string>): RawDocument;
+}
+
+declare class DocumentPipeline {
+  static parseFormIntake(formInput: Record<string, string>): RawDocument;
+  static validate(rawDoc: RawDocument, context?: ValidationContext): ValidationResult;
+  static processFormIntake(formInput: Record<string, string>, context?: ValidationContext): ValidationResult;
+}
+
+declare function validateDocument(rawDoc: RawDocument, context?: ValidationContext): ValidationResult;
+
+
 declare function buildMainCard(e: GoogleAppsScriptEvent, initialData?: ParsedData | null, isTagChange?: boolean, flashMessage?: FlashMessage | null): GoogleAppsScript.Card_Service.Card;
 declare function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled?: boolean, projectAbbr?: string, action?: string, incomingRouting?: string, draftUrl?: string | null, directRowUrl?: string | null, failedColumns?: string[], emptyFallbacks?: string[]): GoogleAppsScript.Card_Service.Card;
 declare function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData;
