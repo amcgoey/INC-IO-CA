@@ -349,9 +349,9 @@ test("moveSubmittalToClosed delegates file move and subfolder path resolution to
 test("executeIncomingWorkflow delegates execution directly to DocumentWorkflowModule.executeWorkflow", async () => {
   const originalExecuteWorkflow = DocumentWorkflowModule.executeWorkflow;
   let executeWorkflowCalled = false;
-  let receivedInput: any = null;
+  let receivedInput: DocumentWorkflowInput | null = null;
 
-  (DocumentWorkflowModule as any).executeWorkflow = async (input: any) => {
+  DocumentWorkflowModule.executeWorkflow = async (input: DocumentWorkflowInput) => {
     executeWorkflowCalled = true;
     receivedInput = input;
     return {

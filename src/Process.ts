@@ -125,13 +125,7 @@ async function executeIncomingWorkflow(ctx: any): Promise<any> {
     incomingRouting: form.incomingRouting,
     projectAbbr: p.projectAbbr,
     emptyFallbacks,
-    selectedAction,
-    logRepository: (globalThis as any).defaultLogRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : undefined),
-    driveFilingRepository: (globalThis as any).defaultDriveFilingRepository || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : undefined),
-    pdfDocumentService: (globalThis as any).defaultPdfDocumentService || (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : undefined),
-    driveApp: (globalThis as any).DriveApp || (typeof DriveApp !== "undefined" ? DriveApp : undefined),
-    gmailApp: (globalThis as any).GmailApp || (typeof GmailApp !== "undefined" ? GmailApp : undefined),
-    spreadsheetApp: (globalThis as any).SpreadsheetApp || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp : undefined)
+    selectedAction
   };
 
   const workflowModule = (globalThis as any).DocumentWorkflowModule || DocumentWorkflowModule;
