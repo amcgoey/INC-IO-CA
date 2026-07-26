@@ -5,8 +5,8 @@ import assert from "node:assert";
 
 // Global environment mocks before requiring modules
 (globalThis as any).CONFIG = {
-  GEMINI_API_URL_TRIAGE: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-  GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent"
+  GEMINI_API_URL_TRIAGE: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+  GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
 };
 
 const { InMemoryCacheAdapter } = require("../src/CacheAdapter");
@@ -240,3 +240,13 @@ test("FakeAiAnalysisAdapter stubs triage and deep analysis calls", async () => {
   assert.strictEqual(fakeAdapter.triageCalls.length, 1);
   assert.strictEqual(fakeAdapter.triageCalls[0].messageId, "msg-fake-1");
 });
+
+test("checkAiModelHealth reports missing key or status when executed", () => {
+  const { checkAiModelHealth } = require("../src/AiAnalysisService");
+  const health = checkAiModelHealth();
+  assert.ok(health.triage);
+  assert.ok(health.analysis);
+  assert.strictEqual(typeof health.triage.ok, "boolean");
+  assert.strictEqual(typeof health.analysis.ok, "boolean");
+});
+

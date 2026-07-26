@@ -52,7 +52,7 @@ const EMAIL_SUBJECT_PATTERNS: SubjectPattern[] = [
 /**
  * Modular configuration for Drive filename parsing patterns.
  */
-const DRIVE_FILENAME_PATTERNS: FilenamePattern[] = [
+const LEGACY_DRIVE_FILENAME_PATTERNS: FilenamePattern[] = [
   {
     id: 'ArchitectureStandard',
     regex: /^[^A-Za-z0-9]*([A-Za-z0-9]+)-([A-Za-z0-9\.]+)-([A-Za-z0-9]+)\s+(.*?)\s+-\s+(\d{6})/i,
@@ -91,7 +91,7 @@ function parseDriveFilename(filename: string): ParsedData {
   }
   let data: ParsedData = { discipline: "Architecture", specSection: undefined, submittalNum: undefined, revNum: undefined, title: undefined, specTag: undefined, vendor: undefined, date: undefined };
 
-  for (const pattern of DRIVE_FILENAME_PATTERNS) {
+  for (const pattern of LEGACY_DRIVE_FILENAME_PATTERNS) {
     const match = filename.match(pattern.regex);
     if (match) {
       Object.assign(data, pattern.extract(match));

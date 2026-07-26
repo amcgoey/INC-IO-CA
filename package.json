@@ -9,7 +9,8 @@
     "open": "clasp open",
     "deploy": "clasp deploy",
     "typecheck": "tsc --noEmit",
-    "test": "npx tsx --test test/**/*.ts"
+    "test": "npx tsx --test test/**/*.ts",
+    "check-models": "npx tsx scripts/check-models.ts"
   },
   "devDependencies": {
     "@google/clasp": "^2.4.2",

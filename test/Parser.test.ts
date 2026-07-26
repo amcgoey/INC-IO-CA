@@ -348,3 +348,29 @@ test('Main.ts buildAddOn - populates parsedData with Forma submittal notificatio
   assert.equal(card.parsedData.discipline, "Architecture");
   assert.equal(card.parsedData.action, "Received");
 });
+
+test("No duplicate top-level const/let/var declarations exist across src files (GAS global scope protection)", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const srcDir = path.resolve(__dirname, "../src");
+  const files = fs.readdirSync(srcDir).filter((f: string) => f.endsWith(".ts") && f !== "types.ts");
+
+  const declarations = new Map<string, string>(); // varName -> fileName
+
+  for (const file of files) {
+    const content = fs.readFileSync(path.join(srcDir, file), "utf-8");
+    const lines = content.split("\n");
+    for (const line of lines) {
+      const match = line.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z0-9_]+)/);
+      if (match) {
+        const varName = match[1];
+        if (declarations.has(varName)) {
+          const prevFile = declarations.get(varName);
+          assert.fail(`Duplicate top-level declaration '${varName}' found in '${file}' and '${prevFile}'`);
+        }
+        declarations.set(varName, file);
+      }
+    }
+  }
+});
+

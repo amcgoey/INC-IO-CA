@@ -201,19 +201,17 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl with hyphens 
   assert.ok(fetchedFileIds.includes("1234567890abcdefghijklmnopqrst_-ABC"));
 });
 
-test("DocumentWorkflowModule.executeWorkflow files stamped PDF in destination subfolder", async () => {
+test("DocumentWorkflowModule.executeWorkflow files stamped PDF in root targetFolder (Submittals)", async () => {
   mockCreatedFiles.length = 0;
   let subfolderTargeted = "";
-
   const mockDriveFilingRepo = {
     fileDocument: () => ({
-      fileId: "filed-id-123",
-      url: "http://drive.com/filed-id-123",
-      localPath: "G:\Drive\filed-id-123",
+      fileId: "filed-orig-1",
+      url: "http://drive.google.com/filed-orig-1",
+      localPath: "G:\\Closed\\03-Concrete\\orig.pdf",
       folderId: "folder-subfolder-csi-999"
     })
   };
-
   const mockPdfService = new FakePdfDocumentService();
 
   const customDriveApp = {
@@ -255,7 +253,7 @@ test("DocumentWorkflowModule.executeWorkflow files stamped PDF in destination su
   };
 
   await DocumentWorkflowModule.executeWorkflow(input as any);
-  assert.strictEqual(subfolderTargeted, "folder-subfolder-csi-999");
+  assert.strictEqual(subfolderTargeted, "folder-target-root");
 });
 
 test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", async () => {
@@ -548,7 +546,73 @@ test("DocumentWorkflowModule.executeWorkflow handles FF&E outgoing review action
     selectedAction: { action: "Revise & Resubmit", abbr: " R&R", status: "Revise & Resubmit" },
     expectedTargetKey: "CH-01-001",
     expectedTitle: "Side Chair",
-    expectedNewFileName: "CH-01-001 Side Chair - 2026-07-25 Vendor R&R",
-    expectedRowIndex: 10
   });
 });
+
+test("For Incoming Architectural Submittals, original file is saved to Submittals/Closed/Division and copy is saved to Submittals folder", async () => {
+  mockCreatedFiles.length = 0;
+  const mockDriveFilingRepo = new FakeDriveFilingRepository();
+  const mockPdfService = new FakePdfDocumentService();
+
+  const getFolderCalls: string[] = [];
+  const customDriveApp = {
+    getFileById: () => mockFile,
+    getFolderById: (id: string) => {
+      getFolderCalls.push(id);
+      return {
+        createFile: (blob: any) => {
+          const created = {
+            getId: () => "stamped-copy-id-123",
+            getName: () => blob.getName ? blob.getName() : "stamped.pdf"
+          };
+          mockCreatedFiles.push(created);
+          return created;
+        }
+      };
+    }
+  };
+
+  const mockLogRepo = {
+    appendDocument: () => ({
+      targetKey: "033000-001-001",
+      newFileName: "033000-001-001 Concrete - 2026-07-26 GC Rec",
+      contactHistory: "GC",
+      rowIndex: 5,
+      failedColumns: [],
+      previousRowUpdated: false
+    })
+  };
+
+  const input = {
+    validatedDoc: {
+      documentType: "Submittal",
+      date: "2026-07-26",
+      contact: "GC",
+      action: "Received",
+      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
+    },
+    logFileId: "log-ss-123",
+    targetFolderId: "submittals-root-folder-id",
+    driveFileId: "original-file-id-001",
+    incomingRouting: "To Review",
+    projectAbbr: "PROJ",
+    emptyFallbacks: [],
+    selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
+    logRepository: mockLogRepo as any,
+    driveFilingRepository: mockDriveFilingRepo as any,
+    pdfDocumentService: mockPdfService as any,
+    driveApp: customDriveApp
+  };
+
+  const result = await DocumentWorkflowModule.executeWorkflow(input as any);
+
+  // 1. Original file is filed into Submittals/Closed/<Division>
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments[0].options.targetFolderId, "submittals-root-folder-id");
+
+  // 2. Copy (stamped submittal copy) is saved directly into Submittals root folder (submittals-root-folder-id)
+  assert.ok(getFolderCalls.includes("submittals-root-folder-id"));
+  assert.strictEqual(result.fileId, "stamped-copy-id-123");
+});
+

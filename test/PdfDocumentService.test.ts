@@ -100,6 +100,8 @@ test("defaultPdfDocumentService global seam is bound and overridable", async () 
 });
 
 test("getPdfLib lazy singleton executes UrlFetchApp.fetch and eval at most once per execution context", () => {
+  delete (globalThis as any).PDFLib;
+  delete (globalThis as any).pdfLibInstance;
   let fetchCallCount = 0;
   (globalThis as any).CONFIG = { PDF_LIB_URL: "https://example.com/pdf-lib.js" };
   (globalThis as any).UrlFetchApp = {
@@ -107,19 +109,38 @@ test("getPdfLib lazy singleton executes UrlFetchApp.fetch and eval at most once 
       fetchCallCount++;
       assert.strictEqual(url, "https://example.com/pdf-lib.js");
       return {
-        getContentText: () => "globalThis.PDFLib = { PDFDocument: { load: async () => ({ getForm: () => ({}) }) } };"
+        getContentText: () => "self.PDFLib = { PDFDocument: { load: async () => ({ getForm: () => ({}) }) } };"
       };
     }
   };
 
   const lib1 = getPdfLib();
   assert.ok(lib1);
+  assert.ok(lib1.PDFDocument);
   assert.strictEqual(fetchCallCount, 1);
 
   const lib2 = getPdfLib();
   assert.strictEqual(lib2, lib1);
   assert.strictEqual(fetchCallCount, 1);
 });
+
+test("getPdfLib correctly attaches PDFLib to globalThis even when outer exports object is present in transpiled scope", () => {
+  delete (globalThis as any).PDFLib;
+  (globalThis as any).pdfLibInstance = null;
+  
+  (globalThis as any).CONFIG = { PDF_LIB_URL: "https://example.com/pdf-lib-umd.js" };
+  (globalThis as any).UrlFetchApp = {
+    fetch: () => ({
+      getContentText: () => '!function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"function"==typeof define&&define.amd?define(["exports"],e):e((t=t||self).PDFLib={})}(this,(function(t){t.PDFDocument={name:"PDFDocument"};}));'
+    })
+  };
+
+  const lib = getPdfLib();
+  assert.ok(lib);
+  assert.strictEqual(lib.PDFDocument.name, "PDFDocument");
+});
+
+
 
 test("GoogleAppsScriptPdfDocumentService.extractFormAction extracts checkbox form action", async () => {
   (globalThis as any).PDF_CHECKBOX_MAP = {

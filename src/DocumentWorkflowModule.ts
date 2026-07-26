@@ -150,8 +150,7 @@ export class DocumentWorkflowModule {
 
     if (policy.stampPdf && blob && driveApp) {
       const pdfService = input.pdfDocumentService || defaultPdfDocumentService;
-      const destinationFolderId = filingResult.folderId || input.targetFolderId;
-      const targetFolder = driveApp.getFolderById(destinationFolderId);
+      const targetFolder = driveApp.getFolderById(input.targetFolderId);
       const templateId = (input.incomingRouting === "To Refer")
         ? (typeof CONFIG !== "undefined" ? CONFIG.TRANSMITTAL_TEMPLATE_ID : "")
         : (typeof CONFIG !== "undefined" ? CONFIG.PDF_TEMPLATE_ID : "");

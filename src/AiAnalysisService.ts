@@ -95,9 +95,9 @@ const fetchGeminiWithRetryHelper = (
  * Production implementation of `AiAnalysisService` using the Gemini API.
  */
 class GeminiAiAnalysisAdapter implements AiAnalysisService {
-  private driveNameProvider: DriveNameProvider;
-  private cacheAdapter: CacheAdapter;
-  private pdfDocumentService: PdfDocumentService;
+  private driveNameProvider?: DriveNameProvider;
+  private cacheAdapter?: CacheAdapter;
+  private pdfDocumentService?: PdfDocumentService;
 
   /**
    * Constructs a `GeminiAiAnalysisAdapter` instance.
@@ -111,38 +111,42 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
   }) {
     if (options && options.driveNameProvider) {
       this.driveNameProvider = options.driveNameProvider;
-    } else if (typeof defaultDriveNameProvider !== "undefined") {
-      this.driveNameProvider = defaultDriveNameProvider;
-    } else {
-      try {
-        this.driveNameProvider = require("./DriveNameProvider").defaultDriveNameProvider;
-      } catch (e) {
-        this.driveNameProvider = null as any;
-      }
     }
-
     if (options && options.cacheAdapter) {
       this.cacheAdapter = options.cacheAdapter;
-    } else if (typeof defaultCacheAdapter !== "undefined") {
-      this.cacheAdapter = defaultCacheAdapter;
-    } else {
-      try {
-        this.cacheAdapter = require("./CacheAdapter").defaultCacheAdapter;
-      } catch (e) {
-        this.cacheAdapter = null as any;
-      }
     }
-
     if (options && options.pdfDocumentService) {
       this.pdfDocumentService = options.pdfDocumentService;
-    } else if (typeof defaultPdfDocumentService !== "undefined") {
-      this.pdfDocumentService = defaultPdfDocumentService;
-    } else {
-      try {
-        this.pdfDocumentService = require("./PdfDocumentService").defaultPdfDocumentService;
-      } catch (e) {
-        this.pdfDocumentService = null as any;
-      }
+    }
+  }
+
+  private getDriveNameProvider(): DriveNameProvider | null {
+    if (this.driveNameProvider) return this.driveNameProvider;
+    if (typeof defaultDriveNameProvider !== "undefined") return defaultDriveNameProvider;
+    try {
+      return require("./DriveNameProvider").defaultDriveNameProvider;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  private getCacheAdapter(): CacheAdapter | null {
+    if (this.cacheAdapter) return this.cacheAdapter;
+    if (typeof defaultCacheAdapter !== "undefined") return defaultCacheAdapter;
+    try {
+      return require("./CacheAdapter").defaultCacheAdapter;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  private getPdfDocumentService(): PdfDocumentService | null {
+    if (this.pdfDocumentService) return this.pdfDocumentService;
+    if (typeof defaultPdfDocumentService !== "undefined") return defaultPdfDocumentService;
+    try {
+      return require("./PdfDocumentService").defaultPdfDocumentService;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -155,8 +159,9 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
    * @returns A Promise resolving to `AiPredictionResult`.
    */
   async triageEmail(emailData: EmailData, messageId?: string): Promise<AiPredictionResult> {
-    if (messageId && this.cacheAdapter) {
-      const cached = this.cacheAdapter.get("ai_pred_" + messageId);
+    const cacheAdapter = this.getCacheAdapter();
+    if (messageId && cacheAdapter) {
+      const cached = cacheAdapter.get("ai_pred_" + messageId);
       if (cached) {
         try {
           const parsed: AIPrediction = JSON.parse(cached);
@@ -167,7 +172,8 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
       }
     }
 
-    const driveNames = this.driveNameProvider ? this.driveNameProvider.getAvailableDriveNames() : [];
+    const driveNameProvider = this.getDriveNameProvider();
+    const driveNames = driveNameProvider ? driveNameProvider.getAvailableDriveNames() : [];
 
     const apiKey = getGeminiApiKeyHelper();
     if (!apiKey) {
@@ -212,7 +218,7 @@ Your task is to logically deduce the project. Return JSON.
 
     const apiUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_TRIAGE)
       ? CONFIG.GEMINI_API_URL_TRIAGE
-      : "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+      : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
 
     const fetchResult = fetchGeminiWithRetryHelper(`${apiUrl}?key=${apiKey}`, options);
 
@@ -252,8 +258,8 @@ Your task is to logically deduce the project. Return JSON.
           predictedDiscipline: parsedResponse.predictedDiscipline || ""
         };
 
-        if (messageId && this.cacheAdapter) {
-          this.cacheAdapter.put("ai_pred_" + messageId, JSON.stringify(triagePrediction), 21600);
+        if (messageId && cacheAdapter) {
+          cacheAdapter.put("ai_pred_" + messageId, JSON.stringify(triagePrediction), 21600);
         }
 
         return { success: true, prediction: triagePrediction };
@@ -310,7 +316,11 @@ Your task is to logically deduce the project. Return JSON.
       if (fileSize <= 2097152) { // 2 MB
         base64Pdf = Utilities.base64Encode(fileBytes);
       } else {
-        base64Pdf = await this.pdfDocumentService.slicePagesToBase64(sourceBlob, 3);
+        const pdfService = this.getPdfDocumentService();
+        if (!pdfService) {
+          throw new Error("PdfDocumentService is not available");
+        }
+        base64Pdf = await pdfService.slicePagesToBase64(sourceBlob, 3);
       }
     } catch (e: any) {
       return {
@@ -367,7 +377,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
 
     const apiUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_ANALYSIS)
       ? CONFIG.GEMINI_API_URL_ANALYSIS
-      : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent";
+      : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
 
     const fetchResult = fetchGeminiWithRetryHelper(`${apiUrl}?key=${apiKey}`, options);
 
@@ -419,6 +429,52 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
       };
     }
   }
+}
+
+/**
+ * Diagnostic health check function to ping configured Gemini API model endpoints.
+ * Verifies that the models are active, accessible, and not discontinued.
+ *
+ * @returns Object with status details for triage and analysis endpoints.
+ */
+function checkAiModelHealth(): {
+  triage: { url: string; ok: boolean; statusCode: number | string; message: string };
+  analysis: { url: string; ok: boolean; statusCode: number | string; message: string };
+} {
+  const apiKey = getGeminiApiKeyHelper();
+  const triageUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_TRIAGE)
+    ? CONFIG.GEMINI_API_URL_TRIAGE
+    : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
+  const analysisUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_ANALYSIS)
+    ? CONFIG.GEMINI_API_URL_ANALYSIS
+    : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+
+  const testEndpoint = (url: string) => {
+    if (!apiKey) {
+      return { url, ok: false, statusCode: "MISSING_KEY", message: "Missing GEMINI_API_KEY in Script Properties" };
+    }
+    const payload = {
+      contents: [{ parts: [{ text: "ping" }] }]
+    };
+    const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
+      method: "post",
+      contentType: "application/json",
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    const res = fetchGeminiWithRetryHelper(`${url}?key=${apiKey}`, options, 0);
+    if (res.success && (res.statusCode === 200 || (res.response && res.response.getResponseCode() === 200))) {
+      return { url, ok: true, statusCode: 200, message: "Model active and responding." };
+    }
+    const code = res.statusCode || "ERROR";
+    const rawText = res.response ? res.response.getContentText() : res.errorText || "";
+    return { url, ok: false, statusCode: code, message: rawText || "Failed to reach model endpoint." };
+  };
+
+  return {
+    triage: testEndpoint(triageUrl),
+    analysis: testEndpoint(analysisUrl)
+  };
 }
 
 /**
@@ -476,6 +532,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     GeminiAiAnalysisAdapter,
     FakeAiAnalysisAdapter,
-    defaultAiAnalysisService
+    defaultAiAnalysisService,
+    checkAiModelHealth
   };
 }

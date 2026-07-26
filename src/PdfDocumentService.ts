@@ -14,15 +14,40 @@ let pdfLibInstance: any = null;
  * @returns `PDFLib` object.
  */
 function getPdfLib(): any {
-  if (typeof PDFLib !== "undefined") {
+  if ((globalThis as any).pdfLibInstance === null) {
+    pdfLibInstance = null;
+  }
+  if (typeof PDFLib !== "undefined" && PDFLib && (PDFLib as any).PDFDocument) {
     return PDFLib;
   }
-  if (pdfLibInstance) {
+  if ((globalThis as any).PDFLib && (globalThis as any).PDFLib.PDFDocument) {
+    return (globalThis as any).PDFLib;
+  }
+  if (pdfLibInstance && pdfLibInstance.PDFDocument) {
     return pdfLibInstance;
   }
+
+  const g = globalThis as any;
+  if (typeof g.self === "undefined") g.self = g;
+  if (typeof g.window === "undefined") g.window = g;
+  if (typeof g.global === "undefined") g.global = g;
+
   const setTimeout = (fn: Function) => { fn(); return 0; };
-  eval(UrlFetchApp.fetch(CONFIG.PDF_LIB_URL).getContentText());
-  pdfLibInstance = (globalThis as any).PDFLib || (typeof PDFLib !== "undefined" ? PDFLib : null);
+  if (typeof g.setTimeout === "undefined") g.setTimeout = setTimeout;
+
+  const code = UrlFetchApp.fetch(CONFIG.PDF_LIB_URL).getContentText();
+  
+  // Execute via Function constructor explicitly overriding exports, module, and define as undefined
+  // so the UMD script falls through to globalThis / self / window target (g.PDFLib).
+  const fn = new Function("self", "window", "global", "globalThis", "exports", "module", "define", code);
+  fn.call(g, g, g, g, g, undefined, undefined, undefined);
+
+  pdfLibInstance = g.PDFLib || (typeof PDFLib !== "undefined" ? PDFLib : null);
+
+  if (!pdfLibInstance || !pdfLibInstance.PDFDocument) {
+    throw new Error("PDFLib library failed to initialize cleanly from URL " + (typeof CONFIG !== "undefined" ? CONFIG.PDF_LIB_URL : ""));
+  }
+
   return pdfLibInstance;
 }
 

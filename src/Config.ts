@@ -54,10 +54,28 @@ const CONFIG = {
   /** Default intake file source selection. */
   DEFAULT_FILE_SOURCE: "Email Attachment",
 
-  /** Gemini API endpoint URL for email triage predictions. */
-  GEMINI_API_URL_TRIAGE: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
-  /** Gemini API endpoint URL for multimodal PDF submittal analysis. */
-  GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent"
+  /** Gemini API endpoint URL for email triage predictions (Gemini 3.5 Flash-Lite). */
+  get GEMINI_API_URL_TRIAGE(): string {
+    try {
+      if (typeof PropertiesService !== "undefined" && PropertiesService.getScriptProperties) {
+        const custom = PropertiesService.getScriptProperties().getProperty('GEMINI_API_URL_TRIAGE')
+          || PropertiesService.getScriptProperties().getProperty('GEMINI_API_URL');
+        if (custom) return custom;
+      }
+    } catch (e) {}
+    return "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
+  },
+  /** Gemini API endpoint URL for multimodal PDF submittal analysis (Gemini 3.6 Flash). */
+  get GEMINI_API_URL_ANALYSIS(): string {
+    try {
+      if (typeof PropertiesService !== "undefined" && PropertiesService.getScriptProperties) {
+        const custom = PropertiesService.getScriptProperties().getProperty('GEMINI_API_URL_ANALYSIS')
+          || PropertiesService.getScriptProperties().getProperty('GEMINI_API_URL');
+        if (custom) return custom;
+      }
+    } catch (e) {}
+    return "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+  }
 };
 
 /**
@@ -188,3 +206,13 @@ const EMAIL_TEMPLATES = {
     };
   }
 };
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    CONFIG,
+    CSI_DIVISIONS,
+    PDF_CHECKBOX_MAP,
+    MESSAGES,
+    EMAIL_TEMPLATES
+  };
+}

@@ -393,3 +393,55 @@ test("defaultAiAnalysisService global seam exists", () => {
   assert.ok(defaultAiAnalysisService);
   assert.strictEqual(typeof defaultAiAnalysisService.analyzeSubmittal, "function");
 });
+
+test("GeminiAiAnalysisAdapter lazily resolves defaultPdfDocumentService when constructed prior to defaultPdfDocumentService binding", async () => {
+  const fakePdfService = new FakePdfDocumentService();
+  fakePdfService.setSliceResultBase64("LAZY_SLICED_BASE64");
+
+  const originalDefaultPdfService = (globalThis as any).defaultPdfDocumentService;
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  try {
+    delete (globalThis as any).defaultPdfDocumentService;
+    // Instantiate adapter when defaultPdfDocumentService is NOT in global scope
+    const adapter = new GeminiAiAnalysisAdapter();
+
+    // Now bind defaultPdfDocumentService globally (simulating late load order in GAS)
+    (globalThis as any).defaultPdfDocumentService = fakePdfService;
+
+    (globalThis as any).PropertiesService = {
+      getScriptProperties: () => ({
+        getProperty: (key: string) => (key === "GEMINI_API_KEY" ? "AIzaSyTestKey123" : null),
+        getProperties: () => ({ GEMINI_API_KEY: "AIzaSyTestKey123" })
+      })
+    };
+
+    (globalThis as any).UrlFetchApp = {
+      fetch: () => ({
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ predictedSection: "03 30 00" }) }] } }]
+        })
+      })
+    };
+
+    (globalThis as any).Utilities = {
+      base64Encode: () => "BASE64",
+      sleep: () => {}
+    };
+
+    const largeBlob = createMockBlob(3 * 1024 * 1024); // > 2MB
+    const result = await adapter.analyzeSubmittal(largeBlob, "Email text", { contacts: [], actions: [] });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(fakePdfService.sliceCalls.length, 1);
+  } finally {
+    (globalThis as any).defaultPdfDocumentService = originalDefaultPdfService;
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
