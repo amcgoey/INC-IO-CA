@@ -379,10 +379,7 @@ function handleRefreshCache(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Ser
 
   if (cache) cache.removeAll(keysToClear);
 
-  return CardService.newActionResponseBuilder()
-    .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e)))
-    .setNotification(CardService.newNotification().setText("✅ Cache cleared. Data reloaded."))
-    .build();
+  return defaultCardPresenter.presentCacheRefresh(e);
 }
 
 async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsScript.Card_Service.ActionResponse> {
@@ -458,19 +455,19 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
 
 function handleFetchUrl(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse {
   const p = e.parameters || {};
-  if (!p.targetFolderId) return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_TARGET_FOLDER)).build();
+  if (!p.targetFolderId) return defaultCardPresenter.presentNotification(MESSAGES.ERROR_TARGET_FOLDER);
   const result = fetchAndSaveFile(p.url, p.targetFolderId);
   if (!result.success) {
     let msg = MESSAGES.ERROR_FETCH_FAILED(result.error);
     if (result.error === "AUTH_WALL") msg = MESSAGES.WARNING_AUTH_WALL;
     else if (result.error === "NOT_WHITELISTED") msg = MESSAGES.WARNING_NOT_WHITELISTED;
-    return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(msg)).build();
+    return defaultCardPresenter.presentFetchUrlResult(e, { warning: msg }, msg);
   }
   const flashMessage = { debugPhase2: MESSAGES.DEBUG_SAVED_TO_DRIVE(result.fileName || "", result.fileId || ""), newDriveFileId: result.fileId };
   e.formInput = e.formInput || {};
   e.formInput.fileSource = "Selected Drive File";
   e.formInput.driveFileId = result.fileId || "";
-  return CardService.newActionResponseBuilder().setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, flashMessage))).setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_FETCHED)).build();
+  return defaultCardPresenter.presentFetchUrlResult(e, flashMessage, MESSAGES.SUCCESS_FETCHED);
 }
 
 function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled = false, projectAbbr = "", action = "", incomingRouting = "", draftUrl: string | null = null, directRowUrl: string | null = null, failedColumns: string[] = [], emptyFallbacks: string[] = []): GoogleAppsScript.Card_Service.Card {
@@ -584,6 +581,8 @@ if (typeof module !== "undefined" && module.exports) {
     onStateChange,
     onSpecTagChange,
     processSubmissionWithNewTag,
-    processSubmissionWithNewVendor
+    processSubmissionWithNewVendor,
+    handleRefreshCache,
+    handleFetchUrl
   };
 }

@@ -28,6 +28,31 @@ class CardPresenter {
     return this.buildUpdateCardResponse(card);
   }
 
+  presentInteractionPrompt(
+    e: GoogleAppsScriptEvent,
+    promptType: "ADD_TAG" | "ADD_VENDOR",
+    warningMessage: string
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    const flashData: FlashMessage = {
+      warning: warningMessage,
+      promptAddTag: promptType === "ADD_TAG",
+      promptAddVendor: promptType === "ADD_VENDOR"
+    };
+
+    const card = buildMainCard(e, null, false, flashData);
+
+    return this.buildUpdateCardResponse(card);
+  }
+
+  presentIncomingSuccess(
+    e: GoogleAppsScriptEvent,
+    result: DocumentWorkflowResult
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    const card = buildMainCard(e, null, false, result);
+
+    return this.buildUpdateCardResponse(card);
+  }
+
   presentCardReload(
     e: GoogleAppsScriptEvent,
     isTagChange?: boolean
@@ -40,10 +65,9 @@ class CardPresenter {
   presentOutgoingSuccess(
     e: GoogleAppsScriptEvent,
     result: DocumentWorkflowResult,
-    params: Record<string, string>
+    eventParams: Record<string, string>
   ): GoogleAppsScript.Card_Service.ActionResponse {
     const form = (e && e.formInput) || {};
-    const eventParams = params || (e && e.parameters) || {};
 
     const discipline = form.discipline || eventParams.discipline || (typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture");
     const isArchitecture = discipline === "Architecture";
@@ -85,6 +109,41 @@ class CardPresenter {
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(updatedCard))
       .setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_MOVED(destName)))
+      .build();
+  }
+
+  presentCacheRefresh(
+    e: GoogleAppsScriptEvent
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    const card = buildMainCard(e);
+
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card))
+      .setNotification(CardService.newNotification().setText("✅ Cache cleared. Data reloaded."))
+      .build();
+  }
+
+  presentFetchUrlResult(
+    e: GoogleAppsScriptEvent,
+    flashMessage?: any,
+    notificationText?: string
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    const card = buildMainCard(e, null, false, flashMessage);
+    const builder = CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card));
+
+    if (notificationText) {
+      builder.setNotification(CardService.newNotification().setText(notificationText));
+    }
+
+    return builder.build();
+  }
+
+  presentNotification(
+    notificationText: string
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification().setText(notificationText))
       .build();
   }
 }
