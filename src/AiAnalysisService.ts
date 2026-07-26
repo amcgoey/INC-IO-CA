@@ -196,7 +196,6 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
         const parsed: DeepAnalysisPrediction = JSON.parse(text);
         return {
           success: true,
-          prediction: parsed,
           analysis: parsed
         };
       }
@@ -223,7 +222,6 @@ class FakeAiAnalysisAdapter implements AiAnalysisService {
   public analyzeCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; emailText: string; contextObj: DeepAnalysisContext }> = [];
   private analysisResult: DeepAnalysisResult = {
     success: true,
-    prediction: {},
     analysis: {}
   };
 
