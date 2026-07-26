@@ -7,8 +7,20 @@ Validates and records incoming or outgoing project submittals into the log sheet
 **Document**:
 The core domain concept representing a formal project correspondence or record (such as a Submittal, RFI, ASI, Bulletin, etc.) processed through the system.
 
+**AppContext**:
+The environment in which the application is executing (e.g. `GoogleDrive`, `Gmail`, or future contexts). Determines workflow behavior such as immediate vs. deferred 2-step filing.
+
 **Submittal**:
 A specific document type representing shop drawings, product data, samples, or mockups submitted for architect/engineer review.
+
+**OriginalDocument**:
+The pristine, unmodified document file received from a Source, saved directly into the Closed subfolder hierarchy upon initial receipt.
+
+**ReviewDocument**:
+The working copy of an incoming document created by duplicating the OriginalDocument, inserting the CoverPageDocument at the front, and placing it in the Root Folder for user review and markup.
+
+**CoverPageDocument**:
+The cover sheet document (template PDF or doc) inserted into the front of a ReviewDocument to receive review markup, routing details, and status updates.
 
 **RawDocument**:
 The untrusted, string-heavy data coming directly from the UI form submission for any document type (Submittals, RFIs, etc).
@@ -30,6 +42,9 @@ The dependencies (like LogSettings, valid tags, valid vendors) passed into the p
 **ValidationResult**:
 A discriminated union that represents the three universal outcomes of validating a RawDocument: `success` (with the ValidatedDocument and any non-fatal warnings), `error` (fatal failures), or `interaction_required` (when the UI must prompt the user before continuing).
 
+**ListDocumentField**:
+A document field backed by a dynamic list of options (long form and abbreviation) loaded at runtime from spreadsheet settings. Defines whether the primary stored value is long form or abbreviation, while preserving bi-directional resolution.
+
 **DocumentPipeline**:
 The pure application service that ingests raw intake data (email subjects, filenames, or UI form inputs as RawDocument) and coordinates parsing, normalization, and validation rules to produce a ValidationResult.
 _Avoid_: IntakeManager, FormValidator, DataProcessor
@@ -37,6 +52,15 @@ _Avoid_: IntakeManager, FormValidator, DataProcessor
 **DocumentWorkflowModule**:
 The application workflow service that orchestrates file retrieval, PDF stamping, drive filing, spreadsheet logging, and direct spreadsheet URL generation for any document type.
 _Avoid_: ProcessManager, SubmittalWorkflowModule, WorkflowHelper
+
+**DocumentAction**:
+A primitive, reusable transformation or operation (e.g., `MoveDocument`, `RenameDocument`, `InsertPages`, `ExtractPages`, `WriteLog`, `AnalyzeDocument`, `TriageDocument`) applied to a document during workflow execution.
+
+**DocumentTypeConfig**:
+Configuration object encapsulating document-type specific parameters (such as root folder names, closed subfolder rules, cover page templates, and filename prefixes) required by workflow actions.
+
+**WorkflowRunner**:
+The pipeline engine that executes a step-by-step sequence of `DocumentAction` instances for a target `DocumentType` and `AppContext`.
 
 **WorkflowActionPolicy**:
 Encapsulates action-specific execution policies (such as direction, filing subfolder handling, PDF stamping rules, and previous row status updates) to keep document workflow execution generic and extensible.
