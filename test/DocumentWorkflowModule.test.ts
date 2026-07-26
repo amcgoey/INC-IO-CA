@@ -347,3 +347,54 @@ test("DocumentWorkflowModule.executeWorkflow handles TEMPLATE_MISSING fallback d
   assert.strictEqual(mockCreatedFiles.length, 1);
   (globalThis as any).CONFIG.PDF_TEMPLATE_ID = "tmpl-pdf";
 });
+
+test("DocumentWorkflowModule.executeWorkflow returns stamped fileId when PDF is stamped", async () => {
+  const mockDriveFilingRepo = new FakeDriveFilingRepository();
+  const mockPdfService = new FakePdfDocumentService();
+
+  const stampedMockFile = {
+    ...mockFile,
+    getId: () => "stamped-file-id-999"
+  };
+
+  const customDriveApp = {
+    getFileById: () => mockFile,
+    getFolderById: () => ({
+      ...mockFolder,
+      createFile: () => stampedMockFile
+    })
+  };
+
+  const mockLogRepo = {
+    appendDocument: () => ({
+      targetKey: "033000-001-001",
+      newFileName: "033000-001-001 Concrete",
+      contactHistory: "GC",
+      rowIndex: 5,
+      failedColumns: [],
+      previousRowUpdated: false
+    })
+  };
+
+  const input = {
+    validatedDoc: {
+      documentType: "Submittal",
+      date: "2026-07-25",
+      contact: "GC",
+      action: "Received",
+      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
+    },
+    logFileId: "log-ss-123",
+    targetFolderId: "folder-target-root",
+    driveFileId: "file-1",
+    incomingRouting: "To Review",
+    selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
+    logRepository: mockLogRepo as any,
+    driveFilingRepository: mockDriveFilingRepo as any,
+    pdfDocumentService: mockPdfService as any,
+    driveApp: customDriveApp
+  };
+
+  const result = await DocumentWorkflowModule.executeWorkflow(input as any);
+  assert.strictEqual(result.fileId, "stamped-file-id-999");
+});

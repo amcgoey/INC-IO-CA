@@ -66,8 +66,13 @@ export class DocumentWorkflowModule {
         const att = msg ? msg.getAttachments().find((a: any) => a.getName() === input.attachmentName) : null;
         if (att) blob = att.copyBlob();
       } else if (input.fileSource === "Google Drive URL" && input.driveFileUrl && driveApp) {
-        const match = input.driveFileUrl.match(/([a-zA-Z0-9_-]{25,})/);
-        if (match) blob = driveApp.getFileById(match[0]).getAs((typeof MimeType !== "undefined" ? MimeType : (globalThis as any).MimeType || {}).PDF || "application/pdf");
+        const urlMatch = input.driveFileUrl.match(/\/d\/([a-zA-Z0-9_-]{25,})/) ||
+                         input.driveFileUrl.match(/[?&]id=([a-zA-Z0-9_-]{25,})/) ||
+                         input.driveFileUrl.match(/([a-zA-Z0-9_-]{25,})/);
+        const extractedId = urlMatch ? (urlMatch[1] || urlMatch[0]) : null;
+        if (extractedId) {
+          blob = driveApp.getFileById(extractedId).getAs((typeof MimeType !== "undefined" ? MimeType : (globalThis as any).MimeType || {}).PDF || "application/pdf");
+        }
       }
     } else if (driveApp) {
       blob = driveApp.getFileById(input.driveFileId).getBlob();
@@ -97,6 +102,8 @@ export class DocumentWorkflowModule {
       }
     );
 
+    let finalFileId = filingResult.fileId;
+
     if (filingResult.fileId && driveApp) {
       driveApp.getFileById(filingResult.fileId).setName(appendResult.newFileName + ".pdf");
     }
@@ -123,11 +130,19 @@ export class DocumentWorkflowModule {
         );
         const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
         stamped.setName(stampedPrefix + appendResult.newFileName + ".pdf");
-        targetFolder.createFile(stamped);
+        const stampedCreatedFile = targetFolder.createFile(stamped);
+        if (stampedCreatedFile && typeof stampedCreatedFile.getId === "function") {
+          const sId = stampedCreatedFile.getId();
+          if (sId) finalFileId = sId;
+        }
       } catch (err: any) {
         if (err.message === "TEMPLATE_MISSING") {
           const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
-          targetFolder.createFile(blob.copyBlob().setName(stampedPrefix + appendResult.newFileName + ".pdf"));
+          const fallbackCreated = targetFolder.createFile(blob.copyBlob().setName(stampedPrefix + appendResult.newFileName + ".pdf"));
+          if (fallbackCreated && typeof fallbackCreated.getId === "function") {
+            const fId = fallbackCreated.getId();
+            if (fId) finalFileId = fId;
+          }
         } else {
           throw err;
         }
@@ -152,7 +167,7 @@ export class DocumentWorkflowModule {
     const itemTitle = getDocumentTitle(input.validatedDoc);
 
     return {
-      fileId: filingResult.fileId,
+      fileId: finalFileId,
       targetKey: appendResult.targetKey,
       url: filingResult.url,
       localPath: filingResult.localPath,
