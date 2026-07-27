@@ -691,16 +691,6 @@ declare class OutgoingWorkflow {
   static execute(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult>;
 }
 
-declare class MoveDocumentAction implements DocumentAction {
-  name?: string;
-  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
-}
-
-declare class RenameDocumentAction implements DocumentAction {
-  name?: string;
-  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
-}
-
 declare class DocumentWorkflowModule {
   static executeWorkflow(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult>;
 }
