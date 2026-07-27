@@ -438,7 +438,8 @@ declare function computeRowInsertionPlan(boundedData: any[][], headers: string[]
 
 /** Primitive reusable document transformation or operation step handler. */
 interface DocumentAction<TInput = any, TOutput = any> {
-  execute(input: TInput): Promise<TOutput>;
+  name?: string;
+  execute(input: TInput): Promise<TOutput> | TOutput;
 }
 
 /** Input options for InsertPagesAction. */
