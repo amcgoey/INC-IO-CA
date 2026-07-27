@@ -91,7 +91,8 @@ export class MoveDocumentAction implements DocumentAction {
       { fileId: context.fileId, blob: context.blob },
       {
         targetFolderId: context.targetFolderId || "",
-        subfolderPath: resolveSubfolderPath(context)
+        subfolderPath: resolveSubfolderPath(context),
+        newFileName: context.newFileName
       }
     );
 
