@@ -271,27 +271,12 @@ interface ResolvedListField {
   longForm: string;
 }
 
-/** Class declaring stored form and dynamic option resolution for list fields. */
-declare class ListDocumentField {
-  readonly name: string;
-  readonly storedForm: StoredFormType;
-  readonly options: ListFieldOption[];
-  constructor(name: string, storedForm: StoredFormType, options?: ListFieldOption[]);
-  static createContactField(contacts?: ContactSetting[]): ListDocumentField;
-  static createActionField(actions?: ActionSetting[]): ListDocumentField;
-  resolve(inputValue: string): ResolvedListField;
-}
-
 /** Strongly typed validated document domain model. */
 interface ValidatedDocument {
   documentType: string;
   date: string;
   contact: string;
   action: string;
-  contactAbbr?: string;
-  contactLongForm?: string;
-  actionAbbr?: string;
-  actionLongForm?: string;
   listFields?: Record<string, ResolvedListField>;
   notes?: string;
   incomingRouting?: string;
@@ -309,7 +294,7 @@ interface ValidationContext {
   contacts?: ContactSetting[];
   actions?: ActionSetting[];
   logSettings?: LogSettings;
-  listFields?: Record<string, ListDocumentField>;
+  listFields?: Record<string, any>;
 }
 
 /** Discriminated union outcome for submittal validation. */
@@ -561,3 +546,6 @@ declare class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocum
   formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
   getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string;
 }
+
+
+declare var ListDocumentField: any;

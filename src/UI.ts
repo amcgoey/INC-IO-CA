@@ -348,7 +348,9 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
   logSettings.actions.forEach((a: any) => actDrop.addItem(a.action, a.action, state.action === a.action));
   section3.addWidget(actDrop);
 
-  if (state.action === "Received") {
+  const hasListField = typeof ListDocumentField !== "undefined";
+  const resolvedActionInUI = hasListField ? ListDocumentField.createActionField(logSettings.actions || []).resolve(state.action) : null;
+  if ((resolvedActionInUI && resolvedActionInUI.longForm === "Received") || state.action === "Received") {
     const routingDrop = CardService.newSelectionInput().setType(CardService.SelectionInputType.DROPDOWN).setTitle(getTitle("Incoming Routing", "Incoming Routing")).setFieldName("incomingRouting");
     routingDrop.addItem("To Review", "To Review", state.incomingRouting === "To Review").addItem("To Refer", "To Refer", state.incomingRouting === "To Refer");
     section3.addWidget(routingDrop);

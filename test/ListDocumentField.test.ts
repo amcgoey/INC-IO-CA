@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ListDocumentField, DocumentPipeline } from '../src/DocumentPipeline';
+import { ListDocumentField, DocumentPipeline, FormIntakeParser } from '../src/DocumentPipeline';
 import { ValidationContext } from '../src/types';
 
 test('ListDocumentField.resolve - contact field resolves long form to stored abbreviation', () => {
@@ -48,6 +48,20 @@ test('ListDocumentField.resolve - action field resolves abbreviation to stored l
   assert.equal(resolvedFromLongForm.longForm, 'Received');
 });
 
+test('ListDocumentField.createStatusField - status field resolves action/status mapping', () => {
+  const actions = [
+    { action: 'Received', abbr: 'REC', status: 'Open' },
+    { action: 'Reviewed', abbr: 'REV', status: 'Closed' }
+  ];
+  const field = ListDocumentField.createStatusField(actions);
+
+  assert.equal(field.storedForm, 'longForm');
+
+  const resolved = field.resolve('REC');
+  assert.equal(resolved.storedValue, 'Open');
+  assert.equal(resolved.longForm, 'Open');
+});
+
 test('ListDocumentField.resolve - handles unlisted values with fallback', () => {
   const field = ListDocumentField.createContactField([]);
   const resolved = field.resolve('Custom Partner');
@@ -55,6 +69,23 @@ test('ListDocumentField.resolve - handles unlisted values with fallback', () => 
   assert.equal(resolved.storedValue, 'Custom Partner');
   assert.equal(resolved.abbreviation, 'Custom Partner');
   assert.equal(resolved.longForm, 'Custom Partner');
+});
+
+test('FormIntakeParser.parse - attaches ListDocumentField resolution metadata when context is provided', () => {
+  const context: ValidationContext = {
+    contacts: [{ abbr: 'INC', name: 'INC Architecture and Design' }],
+    actions: [{ action: 'Received', abbr: 'REC', status: 'Open' }]
+  };
+
+  const rawDoc = FormIntakeParser.parse(
+    { contact: 'INC Architecture and Design', action: 'REC' },
+    context
+  );
+
+  assert.equal(rawDoc.contactAbbr, 'INC');
+  assert.equal(rawDoc.contactLongForm, 'INC Architecture and Design');
+  assert.equal(rawDoc.actionAbbr, 'REC');
+  assert.equal(rawDoc.actionLongForm, 'Received');
 });
 
 test('DocumentPipeline.validate - resolves contact abbreviation and action long form via ValidationContext', () => {
@@ -82,15 +113,16 @@ test('DocumentPipeline.validate - resolves contact abbreviation and action long 
   if (result.status === 'success') {
     assert.equal(result.data.contact, 'INC'); // stored abbreviation
     assert.equal(result.data.action, 'Received'); // stored long form
-    assert.equal(result.data.contactAbbr, 'INC');
-    assert.equal(result.data.contactLongForm, 'INC Architecture and Design');
-    assert.equal(result.data.actionAbbr, 'REC');
-    assert.equal(result.data.actionLongForm, 'Received');
 
     assert.ok(result.data.listFields);
     assert.equal(result.data.listFields.contact.storedValue, 'INC');
+    assert.equal(result.data.listFields.contact.abbreviation, 'INC');
+    assert.equal(result.data.listFields.contact.longForm, 'INC Architecture and Design');
     assert.equal(result.data.listFields.contact.storedForm, 'abbreviation');
+
     assert.equal(result.data.listFields.action.storedValue, 'Received');
+    assert.equal(result.data.listFields.action.abbreviation, 'REC');
+    assert.equal(result.data.listFields.action.longForm, 'Received');
     assert.equal(result.data.listFields.action.storedForm, 'longForm');
   }
 });

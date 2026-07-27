@@ -29,15 +29,96 @@ function isEmpty(val?: string): boolean {
 /**
  * Parses raw form key-value input maps into normalized `RawDocument` objects.
  */
+export class ListDocumentField {
+  readonly name: string;
+  readonly storedForm: StoredFormType;
+  readonly options: ListFieldOption[];
+
+  constructor(name: string, storedForm: StoredFormType, options: ListFieldOption[] = []) {
+    this.name = name;
+    this.storedForm = storedForm;
+    this.options = options;
+  }
+
+  static createContactField(contacts: ContactSetting[] = []): ListDocumentField {
+    const options: ListFieldOption[] = contacts.map(c => ({
+      abbr: getTrimmed(c.abbr),
+      longForm: getTrimmed(c.name)
+    }));
+    return new ListDocumentField('contact', 'abbreviation', options);
+  }
+
+  static createActionField(actions: ActionSetting[] = []): ListDocumentField {
+    const options: ListFieldOption[] = actions.map(a => ({
+      abbr: getTrimmed(a.abbr),
+      longForm: getTrimmed(a.action),
+      status: getTrimmed(a.status)
+    }));
+    return new ListDocumentField('action', 'longForm', options);
+  }
+
+  resolve(inputValue: string): ResolvedListField {
+    const trimmed = getTrimmed(inputValue);
+    if (!trimmed) {
+      return {
+        fieldName: this.name,
+        storedForm: this.storedForm,
+        storedValue: '',
+        abbreviation: '',
+        longForm: ''
+      };
+    }
+
+    const lower = trimmed.toLowerCase();
+    const match = this.options.find(opt => {
+      const abbrMatch = opt.abbr ? opt.abbr.toLowerCase() === lower : false;
+      const nameMatch = (opt.longForm || opt.name || opt.action || '').toLowerCase() === lower;
+      return abbrMatch || nameMatch;
+    });
+
+    if (match) {
+      const abbr = match.abbr || trimmed;
+      const longForm = match.longForm || match.name || match.action || trimmed;
+      const storedValue = this.storedForm === 'abbreviation' ? abbr : longForm;
+      return {
+        fieldName: this.name,
+        storedForm: this.storedForm,
+        storedValue,
+        abbreviation: abbr,
+        longForm
+      };
+    }
+
+    return {
+      fieldName: this.name,
+      storedForm: this.storedForm,
+      storedValue: trimmed,
+      abbreviation: trimmed,
+      longForm: trimmed
+    };
+  }
+
+  static createStatusField(actions: ActionSetting[] = []): ListDocumentField {
+    const options: ListFieldOption[] = actions.map(a => ({
+      abbr: getTrimmed(a.abbr),
+      longForm: getTrimmed(a.status || a.action),
+      status: getTrimmed(a.status)
+    }));
+    return new ListDocumentField('status', 'longForm', options);
+  }
+}
+
+
 export class FormIntakeParser {
   /**
    * Normalizes raw form input keys by trimming strings and applying default fallback values
-   * for discipline, action, and document type.
+   * for discipline, action, and document type. Optionally resolves ListDocumentField metadata.
    *
    * @param formInput - Dictionary of raw form field values from UI submission.
+   * @param context - Optional ValidationContext containing ListDocumentField option lists.
    * @returns Normalized `RawDocument` containing trimmed form values and applied defaults.
    */
-  static parse(formInput: Record<string, string> = {}): RawDocument {
+  static parse(formInput: Record<string, string> = {}, context?: ValidationContext): RawDocument {
     const rawDoc: RawDocument = {};
     const keys = Object.keys(formInput);
     for (let i = 0; i < keys.length; i++) {
@@ -53,14 +134,21 @@ export class FormIntakeParser {
     }
     rawDoc.documentType = rawDoc.documentType || "Submittal";
 
+    if (context) {
+      const contactField = context.listFields?.contact || ListDocumentField.createContactField(context.contacts || context.logSettings?.contacts || []);
+      const actionField = context.listFields?.action || ListDocumentField.createActionField(context.actions || context.logSettings?.actions || []);
+      const resolvedContact = contactField.resolve(rawDoc.contact || '');
+      const resolvedAction = actionField.resolve(rawDoc.action || '');
+      rawDoc.contactAbbr = resolvedContact.abbreviation;
+      rawDoc.contactLongForm = resolvedContact.longForm;
+      rawDoc.actionAbbr = resolvedAction.abbreviation;
+      rawDoc.actionLongForm = resolvedAction.longForm;
+    }
+
     return rawDoc;
   }
 }
 
-/**
- * Parses email subjects and body text from external software integrations (Procore, Autodesk Forma)
- * into partial or full `ParsedData` intake structures.
- */
 export class EmailIntakeParser {
   /**
    * Internal helper to parse Procore submittal email notification subjects.
@@ -254,242 +342,21 @@ export class DriveFilenameIntakeParser {
  * @returns `ValidationResult` indicating success (with `ValidatedDocument`), error, or interaction_required.
  */
 
-export class ListDocumentField {
-  readonly name: string;
-  readonly storedForm: StoredFormType;
-  readonly options: ListFieldOption[];
-
-  constructor(name: string, storedForm: StoredFormType, options: ListFieldOption[] = []) {
-    this.name = name;
-    this.storedForm = storedForm;
-    this.options = options;
-  }
-
-  static createContactField(contacts: ContactSetting[] = []): ListDocumentField {
-    const options: ListFieldOption[] = contacts.map(c => ({
-      abbr: getTrimmed(c.abbr),
-      longForm: getTrimmed(c.name)
-    }));
-    return new ListDocumentField('contact', 'abbreviation', options);
-  }
-
-  static createActionField(actions: ActionSetting[] = []): ListDocumentField {
-    const options: ListFieldOption[] = actions.map(a => ({
-      abbr: getTrimmed(a.abbr),
-      longForm: getTrimmed(a.action),
-      status: getTrimmed(a.status)
-    }));
-    return new ListDocumentField('action', 'longForm', options);
-  }
-
-  resolve(inputValue: string): ResolvedListField {
-    const trimmed = getTrimmed(inputValue);
-    if (!trimmed) {
-      return {
-        fieldName: this.name,
-        storedForm: this.storedForm,
-        storedValue: '',
-        abbreviation: '',
-        longForm: ''
-      };
-    }
-
-    const lower = trimmed.toLowerCase();
-    const match = this.options.find(opt => {
-      const abbrMatch = opt.abbr ? opt.abbr.toLowerCase() === lower : false;
-      const nameMatch = (opt.longForm || opt.name || opt.action || '').toLowerCase() === lower;
-      return abbrMatch || nameMatch;
-    });
-
-    if (match) {
-      const abbr = match.abbr || trimmed;
-      const longForm = match.longForm || match.name || match.action || trimmed;
-      const storedValue = this.storedForm === 'abbreviation' ? abbr : longForm;
-      return {
-        fieldName: this.name,
-        storedForm: this.storedForm,
-        storedValue,
-        abbreviation: abbr,
-        longForm
-      };
-    }
-
-    return {
-      fieldName: this.name,
-      storedForm: this.storedForm,
-      storedValue: trimmed,
-      abbreviation: trimmed,
-      longForm: trimmed
-    };
-  }
-}
 
 function validateDocFn(raw: RawDocument, context?: ValidationContext): ValidationResult {
-  const rawDoc = FormIntakeParser.parse(raw);
-  const discipline = rawDoc.discipline || "Architecture";
-
-  const contactField = context?.listFields?.contact || ListDocumentField.createContactField(context?.contacts || context?.logSettings?.contacts || []);
-  const actionField = context?.listFields?.action || ListDocumentField.createActionField(context?.actions || context?.logSettings?.actions || []);
-
-  const resolvedContact = contactField.resolve(rawDoc.contact);
-  const resolvedAction = actionField.resolve(rawDoc.action);
-
-  // Validate common required fields
-  const missingFields: string[] = [];
-  if (isEmpty(rawDoc.date)) missingFields.push("Date");
-  if (isEmpty(rawDoc.contact)) missingFields.push("Contact");
-  if (isEmpty(rawDoc.action)) missingFields.push("Action");
-
-  if ((resolvedAction.longForm === "Received" || resolvedAction.storedValue === "Received" || rawDoc.action === "Received") && isEmpty(rawDoc.incomingRouting)) {
-    missingFields.push("Incoming Routing");
-  }
-
-  // Discipline-specific required fields
-  if (discipline === "Architecture") {
-    if (isEmpty(rawDoc.title)) missingFields.push("Title");
-  } else if (discipline === "FF&E") {
-    if (isEmpty(rawDoc.specTag)) missingFields.push("Spec Tag");
-    if (isEmpty(rawDoc.specTitle)) missingFields.push("Spec Title");
-    if (isEmpty(rawDoc.vendor)) missingFields.push("Vendor");
-  }
-
-  if (missingFields.length > 0) {
-    return {
-      status: "error",
-      errors: [`Missing required fields: ${missingFields.join(", ")}`],
-      missingFields
-    };
-  }
-
-  const warnings: string[] = [];
-  const validTags = context?.ffeTags?.tags || [];
-  const validVendors = context?.ffeTags?.vendors || [];
-
-  if (discipline === "Architecture") {
-    const sectionVal = getTrimmed(rawDoc.section);
-    if (!sectionVal) warnings.push("Section");
-
-    const numberVal = getTrimmed(rawDoc.number);
-    if (!numberVal) warnings.push("Number");
-
-    const revisionVal = getTrimmed(rawDoc.revision);
-    if (!revisionVal) warnings.push("Revision");
-
-    const archDetails: ArchitectureDetails = {
-      discipline: "Architecture",
-      section: sectionVal,
-      number: numberVal,
-      title: getTrimmed(rawDoc.title),
-      revision: revisionVal
-    };
-
-    const validatedDoc: ValidatedDocument = {
-      documentType: getTrimmed(rawDoc.documentType) || "Submittal",
-      date: getTrimmed(rawDoc.date),
-      contact: resolvedContact.storedValue,
-      action: resolvedAction.storedValue,
-      contactAbbr: resolvedContact.abbreviation,
-      contactLongForm: resolvedContact.longForm,
-      actionAbbr: resolvedAction.abbreviation,
-      actionLongForm: resolvedAction.longForm,
-      listFields: {
-        contact: resolvedContact,
-        action: resolvedAction
-      },
-      notes: getTrimmed(rawDoc.notes),
-      incomingRouting: getTrimmed(rawDoc.incomingRouting),
-      disciplineDetails: archDetails
-    };
-
-    return {
-      status: "success",
-      data: validatedDoc,
-      warnings
-    };
-  }
-
-  if (discipline === "FF&E") {
-    const specTag = getTrimmed(rawDoc.specTag);
-    const vendor = getTrimmed(rawDoc.vendor);
-    const relatedTag = getTrimmed(rawDoc.relatedTag);
-
-    // Related Tags Validation
-    if (relatedTag) {
-      const inputRelatedTags = relatedTag.split(",").map(t => t.trim()).filter(Boolean);
-      const invalidRelatedTags = inputRelatedTags.filter(
-        t => !validTags.some(valid => valid.toLowerCase() === t.toLowerCase())
-      );
-      if (invalidRelatedTags.length > 0) {
-        return {
-          status: "error",
-          errors: [`Invalid Related Tags: ${invalidRelatedTags.join(", ")}. Only valid options from the tag list are accepted.`]
-        };
+  let fn = typeof validateDocument !== "undefined" ? validateDocument : null;
+  if (!fn) {
+    try {
+      const valModule = require("./Validation");
+      if (valModule && typeof valModule.validateDocument === "function") {
+        fn = valModule.validateDocument;
       }
-    }
-
-    // Spec Tag & Vendor Exist Validation (with bypass check)
-    const bypassTag = !!context?.bypassTagValidation;
-    const bypassVendor = !!context?.bypassVendorValidation;
-
-    const tagExists = validTags.some(t => t.toLowerCase() === specTag.toLowerCase());
-    if (!tagExists && !bypassTag) {
-      return {
-        status: "interaction_required",
-        interactionType: "ADD_TAG",
-        message: `Spec Tag "${specTag}" is not in the Tag List. Would you like to add it?`
-      };
-    }
-
-    const vendorExists = validVendors.some(v => v.toLowerCase() === vendor.toLowerCase());
-    if (!vendorExists && !bypassVendor) {
-      return {
-        status: "interaction_required",
-        interactionType: "ADD_VENDOR",
-        message: `Vendor "${vendor}" is not in the Tag List. Would you like to add it?`
-      };
-    }
-
-    const revisionVal = getTrimmed(rawDoc.revision);
-    if (!revisionVal) warnings.push("Revision");
-
-    const ffeDetails: FFEDetails = {
-      discipline: "FF&E",
-      specTag,
-      specTitle: getTrimmed(rawDoc.specTitle),
-      vendor,
-      revision: revisionVal,
-      relatedTag
-    };
-
-    const validatedDoc: ValidatedDocument = {
-      documentType: getTrimmed(rawDoc.documentType) || "Submittal",
-      date: getTrimmed(rawDoc.date),
-      contact: resolvedContact.storedValue,
-      action: resolvedAction.storedValue,
-      contactAbbr: resolvedContact.abbreviation,
-      contactLongForm: resolvedContact.longForm,
-      actionAbbr: resolvedAction.abbreviation,
-      actionLongForm: resolvedAction.longForm,
-      listFields: {
-        contact: resolvedContact,
-        action: resolvedAction
-      },
-      notes: getTrimmed(rawDoc.notes),
-      incomingRouting: getTrimmed(rawDoc.incomingRouting),
-      disciplineDetails: ffeDetails
-    };
-
-    return {
-      status: "success",
-      data: validatedDoc,
-      warnings
-    };
+    } catch (e) {}
   }
-
-  return {
-    status: "error",
-    errors: [`Discipline ${discipline} validation not yet implemented`]
-  };
+  if (fn) {
+    return fn(raw, context);
+  }
+  return { status: "error", errors: ["Validation module not available"] };
 }
 
 

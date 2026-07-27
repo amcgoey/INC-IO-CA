@@ -1,3 +1,22 @@
+
+function getFormIntakeParser() {
+  if (typeof FormIntakeParser !== "undefined") return FormIntakeParser;
+  try {
+    const dp = require("./DocumentPipeline");
+    if (dp && dp.FormIntakeParser) return dp.FormIntakeParser;
+  } catch (e) {}
+  return { parse: (r: RawDocument) => r };
+}
+
+function getListDocumentField() {
+  if (typeof ListDocumentField !== "undefined") return ListDocumentField;
+  try {
+    const dp = require("./DocumentPipeline");
+    if (dp && dp.ListDocumentField) return dp.ListDocumentField;
+  } catch (e) {}
+  return null;
+}
+
 /**
  * @file Validation.ts
  * @description Core validation module for submittal form inputs.
@@ -34,11 +53,11 @@ function isEmpty(val?: string): boolean {
  * @returns `ValidationResult` containing status ("success", "error", or "interaction_required"), validated data, errors, or prompts.
  */
 function validateDocument(raw: RawDocument, context?: ValidationContext): ValidationResult {
-  const rawDoc = FormIntakeParser.parse(raw);
+  const rawDoc = getFormIntakeParser().parse(raw, context);
   const discipline = rawDoc.discipline || "Architecture";
 
-  const contactField = context?.listFields?.contact || ListDocumentField.createContactField(context?.contacts || context?.logSettings?.contacts || []);
-  const actionField = context?.listFields?.action || ListDocumentField.createActionField(context?.actions || context?.logSettings?.actions || []);
+  const contactField = context?.listFields?.contact || getListDocumentField().createContactField(context?.contacts || context?.logSettings?.contacts || []);
+  const actionField = context?.listFields?.action || getListDocumentField().createActionField(context?.actions || context?.logSettings?.actions || []);
 
   const resolvedContact = contactField.resolve(rawDoc.contact);
   const resolvedAction = actionField.resolve(rawDoc.action);
@@ -49,7 +68,7 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
   if (isEmpty(rawDoc.contact)) missingFields.push("Contact");
   if (isEmpty(rawDoc.action)) missingFields.push("Action");
 
-  if ((resolvedAction.longForm === "Received" || resolvedAction.storedValue === "Received" || rawDoc.action === "Received") && isEmpty(rawDoc.incomingRouting)) {
+  if (resolvedAction.longForm === "Received" && isEmpty(rawDoc.incomingRouting)) {
     missingFields.push("Incoming Routing");
   }
 
@@ -97,10 +116,6 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
       date: getTrimmed(rawDoc.date),
       contact: resolvedContact.storedValue,
       action: resolvedAction.storedValue,
-      contactAbbr: resolvedContact.abbreviation,
-      contactLongForm: resolvedContact.longForm,
-      actionAbbr: resolvedAction.abbreviation,
-      actionLongForm: resolvedAction.longForm,
       listFields: {
         contact: resolvedContact,
         action: resolvedAction
@@ -175,10 +190,6 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
       date: getTrimmed(rawDoc.date),
       contact: resolvedContact.storedValue,
       action: resolvedAction.storedValue,
-      contactAbbr: resolvedContact.abbreviation,
-      contactLongForm: resolvedContact.longForm,
-      actionAbbr: resolvedAction.abbreviation,
-      actionLongForm: resolvedAction.longForm,
       listFields: {
         contact: resolvedContact,
         action: resolvedAction
