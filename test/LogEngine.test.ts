@@ -1,7 +1,7 @@
 import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 
-const { GasMockHarness, DocumentFactory, InMemorySheetStorageAdapter } = require("./harness");
+const { GasMockHarness, DocumentFactory, createTestContext, InMemorySheetStorageAdapter } = require("./harness");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
 const { LogEngine } = require("../src/LogEngine");
 
@@ -53,6 +53,7 @@ test("ArchitectureSubmittalStrategy extracts keys, formats filename and payload"
 });
 
 test("LogEngine appends new Architecture document end-to-end with InMemorySheetStorageAdapter", () => {
+  const context = createTestContext();
   const headers = [
     "Section", "Number", "Title", "Revision", "Date",
     "Contact", "Action", "Status", "Notes", "Link", "Contact History"
