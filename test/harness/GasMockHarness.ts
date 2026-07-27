@@ -1,7 +1,10 @@
 import { MockDriveState, MockDriveApp } from "./MockDrive";
+import { MockCardService } from "./CardServiceMocks";
+import { CardSerializer } from "./CardSerializer";
+
 /**
  * @file GasMockHarness.ts
- * @description Centralized testing infrastructure harness managing globalThis stubs for CONFIG, CacheService, PropertiesService, and SpreadsheetApp with explicit lifecycle methods.
+ * @description Centralized testing infrastructure harness managing globalThis stubs for CONFIG, CacheService, PropertiesService, SpreadsheetApp, DriveApp, and CardService with explicit lifecycle methods.
  */
 
 /// <reference path="../../src/Config.ts" />
@@ -16,7 +19,6 @@ try {
     DEFAULT_CONFIG = CONFIG as Record<string, unknown>;
   }
 }
-
 
 
 export interface CallLog {
@@ -547,6 +549,7 @@ export class GasMockHarness {
   public cacheService: MockCacheService = new MockCacheService();
   public sheetsService: MockSheetsService = new MockSheetsService();
   public driveState: MockDriveState = new MockDriveState();
+  public cardService: MockCardService = new MockCardService();
   public config: Record<string, unknown> = {};
   private configOverrides: Record<string, unknown> = {};
 
@@ -575,7 +578,7 @@ export class GasMockHarness {
   }
 
   public static install(options?: HarnessInstallOptions): GasMockHarness {
-    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "SpreadsheetApp", "DriveApp"];
+    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "SpreadsheetApp", "DriveApp", "CardService"];
     for (const name of globalsToStub) {
       if (!GasMockHarness.originalGlobals.has(name)) {
         GasMockHarness.originalGlobals.set(name, (globalThis as any)[name]);
@@ -594,6 +597,7 @@ export class GasMockHarness {
     (globalThis as any).PropertiesService = GasMockHarness.instance.propertiesService;
     (globalThis as any).CacheService = GasMockHarness.instance.cacheService;
     (globalThis as any).SpreadsheetApp = GasMockHarness.instance.sheetsService;
+    (globalThis as any).CardService = GasMockHarness.instance.cardService;
     (globalThis as any).CONFIG = GasMockHarness.instance.config;
     (globalThis as any).DriveApp = new MockDriveApp(GasMockHarness.instance.driveState);
 
@@ -608,9 +612,15 @@ export class GasMockHarness {
     GasMockHarness.instance!.cacheService.reset();
     GasMockHarness.instance!.sheetsService.reset();
     GasMockHarness.instance!.driveState.reset();
+    GasMockHarness.instance!.cardService = new MockCardService();
     GasMockHarness.instance!.configOverrides = {};
     GasMockHarness.instance!.resetConfig();
     (globalThis as any).CONFIG = GasMockHarness.instance!.config;
+    (globalThis as any).CardService = GasMockHarness.instance!.cardService;
+  }
+
+  public static getCardServiceState(card: any): Record<string, unknown> {
+    return CardSerializer.toJSON(card) as unknown as Record<string, unknown>;
   }
 
   public static uninstall(): void {
