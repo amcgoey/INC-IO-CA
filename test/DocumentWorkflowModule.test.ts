@@ -24,7 +24,6 @@ afterEach(() => {
 test("getActionPolicy returns incoming policy for 'Received'", () => {
   const policy = getActionPolicy("Received");
   assert.strictEqual(policy.direction, "incoming");
-  assert.strictEqual(policy.useCsiSubfolder, true);
   assert.strictEqual(policy.stampPdf, true);
   assert.strictEqual(policy.updatePreviousStatus, false);
 });
@@ -32,7 +31,6 @@ test("getActionPolicy returns incoming policy for 'Received'", () => {
 test("getActionPolicy returns outgoing policy for review actions", () => {
   const policy = getActionPolicy("Approved");
   assert.strictEqual(policy.direction, "outgoing");
-  assert.strictEqual(policy.useCsiSubfolder, false);
   assert.strictEqual(policy.stampPdf, false);
   assert.strictEqual(policy.updatePreviousStatus, true);
   assert.strictEqual(policy.previousRowStatus, "Closed");

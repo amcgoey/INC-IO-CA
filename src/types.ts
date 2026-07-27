@@ -481,13 +481,7 @@ interface StampOptions {
 }
 
 /** Supported execution environment context. */
-type AppContext = "GoogleDrive" | "Gmail" | string;
-
-/** Interface for primitive, reusable workflow document transformations or operations. */
-interface DocumentAction<TInput = any, TOutput = any> {
-  name?: string;
-  execute(input: TInput): Promise<TOutput> | TOutput;
-}
+type AppContext = "GoogleDrive" | "Gmail";
 
 /** Input payload for PDF page extraction action. */
 interface ExtractPagesInput {
@@ -579,7 +573,6 @@ declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 /** Policy detailing workflow actions (direction, stamping, subfolder rules). */
 interface WorkflowActionPolicy {
   direction: "incoming" | "outgoing";
-  useCsiSubfolder?: boolean;
   stampPdf: boolean;
   updatePreviousStatus: boolean;
   previousRowStatus?: string;
@@ -701,12 +694,6 @@ interface DocumentActionContext {
   projectAbbr?: string;
   emptyFallbacks?: string[];
   [key: string]: any;
-}
-
-/** Interface for primitive reusable document pipeline actions. */
-interface DocumentAction {
-  name?: string;
-  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
 }
 
 

@@ -66,14 +66,12 @@ export function getActionPolicy(action: string): WorkflowActionPolicy {
   if (action === "Received") {
     return {
       direction: "incoming",
-      useCsiSubfolder: true,
-      stampPdf: true,
+        stampPdf: true,
       updatePreviousStatus: false
     };
   }
   return {
     direction: "outgoing",
-    useCsiSubfolder: false,
     stampPdf: false,
     updatePreviousStatus: true,
     previousRowStatus: "Closed"
@@ -149,7 +147,8 @@ export class DocumentWorkflowModule {
       blob = driveApp.getFileById(input.driveFileId).getBlob();
     }
 
-    const subfolderPath = (policy.useCsiSubfolder && strategy.getFilingSubfolders)
+   const appContext = input.appContext || "GoogleDrive";
+    const subfolderPath = (policy.direction === "incoming" || appContext === "Gmail") && strategy.getFilingSubfolders
       ? strategy.getFilingSubfolders(input.validatedDoc)
       : undefined;
 

@@ -179,7 +179,7 @@ class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocu
       return [closedFolder];
     }
     const secPrefix = secStr.substring(0, 2);
-    const csiDivs = typeof CSI_DIVISIONS !== "undefined" ? CSI_DIVISIONS : (globalThis as any).CSI_DIVISIONS;
+    const csiDivs = typeof CSI_DIVISIONS !== "undefined" ? CSI_DIVISIONS : null;
     const divName = (csiDivs && csiDivs[secPrefix]) ? csiDivs[secPrefix] : null;
     if (divName) {
       return [closedFolder, divName];

@@ -189,7 +189,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
       ? strategy.getFilingSubfolders(doc)
       : [closedFolder];
 
-    const driveFilingRepo = (e as any).driveFilingRepository || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
+    const driveFilingRepo = (e && (e as any).driveFilingRepository) || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
     const filingResult = driveFilingRepo.fileDocument(
       { fileId: p.fileId },
       { targetFolderId: p.targetFolderId, subfolderPath }
