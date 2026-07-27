@@ -85,7 +85,7 @@ export class FakeLogRepository implements LogRepository {
       found: false,
       rowIndex: null,
       contactHistory: "",
- previousStatus: "",
+      previousStatus: "",
       rowData: null,
       identityData,
       previousRowUpdated: false

@@ -35,6 +35,11 @@ function safePadNum(val: any, len: number): string {
   if ((globalThis as any).padNum) return (globalThis as any).padNum(val, len);
   return String(val || "").trim().padStart(len, '0');
 }
+/**
+* Domain engine responsible for inserting validated subittals into tabular log sheets.
+* Calculates contact history chains, handles previous row status transitions (e.g. marking previous revisions Closed),
+*computes group/sort row insertion plans, and writes rows via the storage adapter.
+*/
 class LogEngine {
   /** Low-level storage adapter executing spreadsheet operations. */
   private storageAdapter: SheetStorageAdapter;
