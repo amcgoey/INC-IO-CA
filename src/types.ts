@@ -216,6 +216,7 @@ interface ProcessContext {
   headers: string[];
   getColIdx: (name: string) => number;
   selectedAction: { action: string; abbr: string; status: string };
+  appContext?: AppContext;
   targetKey: string;
   groupKey: string;
   newFileName: string;
@@ -626,6 +627,20 @@ declare function getActionPolicy(action: string): WorkflowActionPolicy;
 declare function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy;
 declare function getDocumentTitle(doc: ValidatedDocument): string;
 
+declare class OutgoingWorkflow {
+  static execute(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult>;
+}
+
+declare class MoveDocumentAction implements DocumentAction {
+  name?: string;
+  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
+}
+
+declare class RenameDocumentAction implements DocumentAction {
+  name?: string;
+  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
+}
+
 declare class DocumentWorkflowModule {
   static executeWorkflow(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult>;
 }
@@ -697,12 +712,8 @@ interface DocumentActionContext {
   [key: string]: any;
 }
 
-
-declare class MoveDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
-  name?: string;
-  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
-}
-declare class RenameDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
+/** Interface for primitive reusable document pipeline actions. */
+interface DocumentAction {
   name?: string;
   execute(context: DocumentActionContext): Promise<DocumentActionContext>;
 }
