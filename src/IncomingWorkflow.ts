@@ -164,7 +164,7 @@ export class IncomingWorkflow {
       strategy: strategy,
       identityData: strategy.getIdentityData(input.validatedDoc),
       options: {
-        link: input.driveFileId ? ("http://drive.google.com/" + input.driveFileId) : "",
+        link: input.driveFileId ? ("https://drive.google.com/" + input.driveFileId) : "",
         status: input.selectedAction?.status || "",
         actionAbbr: input.selectedAction?.abbr || "",
         updatePreviousStatus: policy.updatePreviousStatus,

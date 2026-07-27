@@ -152,7 +152,7 @@ test("processSubmission for Architecture incoming action delegates to DocumentWo
   assert.strictEqual(appendCalled, true);
   assert.strictEqual(passedOptions.status, "Under Review");
   assert.strictEqual(passedOptions.actionAbbr, " Rec");
-  assert.strictEqual(passedOptions.link, "http://drive.google.com/file-1");
+  assert.strictEqual(passedOptions.link, "https://drive.google.com/file-1");
 
   assert.strictEqual(result.navigation.action, "updateCard");
   assert.strictEqual(result.navigation.card.flashData.targetKey, "033000-001-001");
@@ -258,7 +258,7 @@ test("processSubmission for FF&E incoming action delegates to DocumentWorkflowMo
   assert.strictEqual(appendCalled, true);
   assert.strictEqual(passedOptions.status, "Under Review");
   assert.strictEqual(passedOptions.actionAbbr, " Rec");
-  assert.strictEqual(passedOptions.link, "http://drive.google.com/file-1");
+  assert.strictEqual(passedOptions.link, "https://drive.google.com/file-1");
 
   assert.strictEqual(result.navigation.action, "updateCard");
   assert.strictEqual(result.navigation.card.flashData.targetKey, "CH-01-001");
