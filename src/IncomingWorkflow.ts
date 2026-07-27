@@ -153,18 +153,21 @@ export class IncomingWorkflow {
     const logRepo = input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
     const moveAction = new (typeof MoveDocumentAction !== "undefined" ? MoveDocumentAction : (globalThis as any).MoveDocumentAction)();
 
-    // 1. Resolve source document blob
+    // 1. Resolve source document blob and title
     const blob = this.resolveSourceBlob(input);
+    const itemTitle = typeof getDocumentTitle !== "undefined" ? getDocumentTitle(input.validatedDoc) : "";
 
     // Step 1: Write initial receiving log entry via WriteLogAction to derive calculated file name
     const writeLogAction = input.writeLogAction || new (typeof WriteLogAction !== "undefined" ? WriteLogAction : (globalThis as any).WriteLogAction)();
+    const initialLink = input.driveFileId ? ("https://drive.google.com/" + input.driveFileId) : "";
+
     const appendResult = await runner.runAction(writeLogAction, {
       spreadsheetId: input.logFileId,
       document: input.validatedDoc,
       strategy: strategy,
       identityData: strategy.getIdentityData(input.validatedDoc),
       options: {
-        link: input.driveFileId ? ("https://drive.google.com/" + input.driveFileId) : "",
+        link: initialLink,
         status: input.selectedAction?.status || "",
         actionAbbr: input.selectedAction?.abbr || "",
         updatePreviousStatus: policy.updatePreviousStatus,
@@ -206,12 +209,11 @@ export class IncomingWorkflow {
         ? (typeof CONFIG !== "undefined" ? CONFIG.TRANSMITTAL_TEMPLATE_ID : "")
         : (typeof CONFIG !== "undefined" ? CONFIG.PDF_TEMPLATE_ID : "");
 
-      const titleVal = typeof getDocumentTitle !== "undefined" ? getDocumentTitle(input.validatedDoc) : "";
       const insertAction = input.insertPagesAction || new (typeof InsertPagesAction !== "undefined" ? InsertPagesAction : (globalThis as any).InsertPagesAction)();
 
       stampedBlob = await runner.runAction(insertAction, {
         sourceBlob: reviewBlob,
-        data: { action, title: titleVal, incomingRouting: input.incomingRouting },
+        data: { action, title: itemTitle, incomingRouting: input.incomingRouting },
         options: {
           newFileName: appendResult.newFileName,
           stampSubmittalNo: appendResult.targetKey,
@@ -226,6 +228,7 @@ export class IncomingWorkflow {
     const reviewFileName = stampedPrefix + appendResult.newFileName + ".pdf";
 
     const reviewContext: DocumentActionContext = await runner.runAction(moveAction, {
+      fileId: dupContext.fileId,
       blob: stampedBlob || undefined,
       targetFolderId: input.targetFolderId,
       subfolderPath: undefined,
@@ -234,7 +237,6 @@ export class IncomingWorkflow {
     });
 
     const directRowUrl = this.buildDirectRowUrl(input.logFileId, appendResult.rowIndex, input.logSheetId, spreadsheetApp);
-    const itemTitle = typeof getDocumentTitle !== "undefined" ? getDocumentTitle(input.validatedDoc) : "";
 
     return {
       fileId: reviewContext.fileId || origContext.fileId || "",
