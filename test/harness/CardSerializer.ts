@@ -217,7 +217,10 @@ export class CardSerializer {
     };
   }
 
-  public static toJSON(cardInput: MockCard | MockCardBuilder | any): CardJson {
+  public static toJSON(cardInput: MockCard | MockCardBuilder | CardJson | any): CardJson {
+    if (cardInput && !(cardInput instanceof MockCard) && !(cardInput instanceof MockCardBuilder) && typeof cardInput === "object" && Array.isArray(cardInput.sections)) {
+      return cardInput as CardJson;
+    }
     const card: MockCard = cardInput instanceof MockCardBuilder ? cardInput.build() : cardInput;
 
     const headerJson: CardHeaderJson | undefined = card?.header
@@ -247,7 +250,10 @@ export class CardSerializer {
     };
   }
 
-  public static actionResponseToJSON(responseInput: MockActionResponse | MockActionResponseBuilder | any): ActionResponseJson {
+  public static actionResponseToJSON(responseInput: MockActionResponse | MockActionResponseBuilder | ActionResponseJson | any): ActionResponseJson {
+    if (responseInput && !(responseInput instanceof MockActionResponse) && !(responseInput instanceof MockActionResponseBuilder) && typeof responseInput === "object" && ("stateChanged" in responseInput || "notification" in responseInput || "navigation" in responseInput)) {
+      return responseInput as ActionResponseJson;
+    }
     const res: MockActionResponse = responseInput instanceof MockActionResponseBuilder ? responseInput.build() : responseInput;
 
     const notifJson: NotificationJson | undefined = res?.notification
@@ -268,5 +274,64 @@ export class CardSerializer {
       notification: notifJson,
       navigation: navJson
     };
+  }
+  public static hasWidgetText(cardInput: CardJson | MockCard | MockCardBuilder | unknown, searchString: string): boolean {
+    if (!cardInput) return false;
+    const cardJson = CardSerializer.toJSON(cardInput);
+
+    const matchText = (val: unknown): boolean => {
+      if (typeof val === "string") {
+        return val.includes(searchString);
+      }
+      if (Array.isArray(val)) {
+        return val.some(matchText);
+      }
+      if (val && typeof val === "object") {
+        return Object.values(val).some(matchText);
+      }
+      return false;
+    };
+
+    return matchText(cardJson);
+  }
+
+  public static findButton(cardInput: CardJson | MockCard | MockCardBuilder | unknown, buttonIdentifier: string): ButtonJson | undefined {
+    if (!cardInput) return undefined;
+    const cardJson = CardSerializer.toJSON(cardInput);
+
+    const checkButton = (btn: ButtonJson): boolean => {
+      if (btn.type === "TextButton" && btn.text === buttonIdentifier) {
+        return true;
+      }
+      if (btn.type === "ImageButton" && btn.altText === buttonIdentifier) {
+        return true;
+      }
+      if (btn.onClickAction && btn.onClickAction.functionName === buttonIdentifier) {
+        return true;
+      }
+      return false;
+    };
+
+    for (const sec of cardJson.sections || []) {
+      for (const widget of sec.widgets || []) {
+        if (!widget) continue;
+        if (widget.type === "ButtonSet") {
+          const btnSet = widget as ButtonSetWidgetJson;
+          for (const btn of btnSet.buttons || []) {
+            if (checkButton(btn)) return btn;
+          }
+        } else if (widget.type === "TextButton" || widget.type === "ImageButton") {
+          const btn = widget as ButtonJson;
+          if (checkButton(btn)) return btn;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  public static getNotificationText(responseInput: ActionResponseJson | MockActionResponse | MockActionResponseBuilder | unknown): string | null {
+    if (!responseInput) return null;
+    const responseJson = CardSerializer.actionResponseToJSON(responseInput);
+    return responseJson?.notification?.text ?? null;
   }
 }

@@ -236,3 +236,115 @@ test("CardService.actionResponseToJSON serializes navigation and notification re
     }
   });
 });
+
+test("semantic assertion helper hasWidgetText recursively checks widgets for text matches", () => {
+  const CardService = (globalThis as any).CardService;
+
+  const header = CardService.newCardHeader()
+    .setTitle("Header Title")
+    .setSubtitle("Header Subtitle");
+
+  const section = CardService.newCardSection()
+    .setHeader("Section Header")
+    .addWidget(CardService.newTextParagraph().setText("Paragraph Text"))
+    .addWidget(
+      CardService.newTextInput()
+        .setFieldName("field1")
+        .setTitle("Input Title")
+        .setValue("Input Value")
+    )
+    .addWidget(
+      CardService.newSelectionInput()
+        .setTitle("Selection Title")
+        .addItem("Option Label", "opt_val", true)
+    )
+    .addWidget(
+      CardService.newButtonSet().addButton(
+        CardService.newTextButton().setText("Submit Action")
+      )
+    );
+
+  const cardBuilder = CardService.newCardBuilder()
+    .setHeader(header)
+    .addSection(section);
+
+  const cardJson = CardSerializer.toJSON(cardBuilder);
+
+  // Test with serialized JSON
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardJson, "Header Title"), true);
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardJson, "Header Subtitle"), true);
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardJson, "Section Header"), true);
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardJson, "Paragraph Text"), true);
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardJson, "Input Title"), true);
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardJson, "Input Value"), true);
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardJson, "Option Label"), true);
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardJson, "Submit Action"), true);
+
+  // Test negative match
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardJson, "Nonexistent Text"), false);
+
+  // Test direct builder input
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardBuilder, "Paragraph Text"), true);
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardBuilder, "Paragraph Text"), true);
+});
+
+test("semantic assertion helper findButton locates buttons by label, altText, or callback action", () => {
+  const CardService = (globalThis as any).CardService;
+
+  const saveAction = CardService.newAction().setFunctionName("onSaveHandler");
+  const saveBtn = CardService.newTextButton()
+    .setText("Save Changes")
+    .setOnClickAction(saveAction);
+
+  const imgBtn = CardService.newImageButton()
+    .setAltText("Settings Icon")
+    .setOnClickAction(CardService.newAction().setFunctionName("openSettings"));
+
+  const section = CardService.newCardSection().addWidget(
+    CardService.newButtonSet().addButton(saveBtn).addButton(imgBtn)
+  );
+
+  const card = CardService.newCardBuilder().addSection(section).build();
+
+  // Match by text label
+  const btnByLabel = GasMockHarness.getCardServiceState.findButton(card, "Save Changes");
+  assert.ok(btnByLabel);
+  assert.equal(btnByLabel?.type, "TextButton");
+  assert.equal((btnByLabel as any)?.text, "Save Changes");
+
+  // Match by callback function name
+  const btnByAction = GasMockHarness.getCardServiceState.findButton(card, "onSaveHandler");
+  assert.ok(btnByAction);
+  assert.equal((btnByAction as any)?.onClickAction?.functionName, "onSaveHandler");
+
+  // Match by altText
+  const btnByAlt = GasMockHarness.getCardServiceState.findButton(card, "Settings Icon");
+  assert.ok(btnByAlt);
+  assert.equal(btnByAlt?.type, "ImageButton");
+  assert.equal((btnByAlt as any)?.altText, "Settings Icon");
+
+  // Negative match
+  assert.equal(GasMockHarness.getCardServiceState.findButton(card, "Nonexistent"), undefined);
+});
+
+test("semantic assertion helper getNotificationText extracts toast notification text", () => {
+  const CardService = (globalThis as any).CardService;
+
+  const notification = CardService.newNotification().setText("Saved successfully!");
+  const actionResponse = CardService.newActionResponseBuilder()
+    .setNotification(notification)
+    .build();
+
+  const responseJson = CardSerializer.actionResponseToJSON(actionResponse);
+
+  // From ActionResponseJson
+  assert.equal(GasMockHarness.getCardServiceState.getNotificationText(responseJson), "Saved successfully!");
+
+  // From ActionResponse object / builder directly
+  assert.equal(GasMockHarness.getCardServiceState.getNotificationText(actionResponse), "Saved successfully!");
+  assert.equal(GasMockHarness.getCardServiceState.getNotificationText(actionResponse), "Saved successfully!");
+
+  // Null notification case
+  const emptyResponse = CardService.newActionResponseBuilder().build();
+  assert.equal(GasMockHarness.getCardServiceState.getNotificationText(emptyResponse), null);
+});

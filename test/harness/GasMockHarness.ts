@@ -1,6 +1,6 @@
 import { MockDriveState, MockDriveApp } from "./MockDrive";
 import { MockCardService } from "./CardServiceMocks";
-import { CardSerializer } from "./CardSerializer";
+import { CardSerializer, ButtonJson } from "./CardSerializer";
 
 /**
  * @file GasMockHarness.ts
@@ -541,6 +541,14 @@ function getDefaultConfig(): Record<string, unknown> {
   return cachedDefaultConfig!;
 }
 
+
+export interface CardServiceStateCallable {
+  (card: any): Record<string, unknown>;
+  hasWidgetText: typeof CardSerializer.hasWidgetText;
+  findButton: typeof CardSerializer.findButton;
+  getNotificationText: typeof CardSerializer.getNotificationText;
+}
+
 export class GasMockHarness {
   private static instance: GasMockHarness | null = null;
   private static originalGlobals: Map<string, unknown> = new Map();
@@ -619,9 +627,16 @@ export class GasMockHarness {
     (globalThis as any).CardService = GasMockHarness.instance!.cardService;
   }
 
-  public static getCardServiceState(card: any): Record<string, unknown> {
-    return CardSerializer.toJSON(card) as unknown as Record<string, unknown>;
-  }
+  public static getCardServiceState: CardServiceStateCallable = Object.assign(
+    function (card: any): Record<string, unknown> {
+      return CardSerializer.toJSON(card) as unknown as Record<string, unknown>;
+    },
+    {
+      hasWidgetText: CardSerializer.hasWidgetText,
+      findButton: CardSerializer.findButton,
+      getNotificationText: CardSerializer.getNotificationText
+    }
+  );
 
   public static uninstall(): void {
     for (const [name, originalValue] of GasMockHarness.originalGlobals.entries()) {
