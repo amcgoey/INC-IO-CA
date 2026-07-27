@@ -275,7 +275,7 @@ export class CardSerializer {
       navigation: navJson
     };
   }
-  public static hasWidgetText(cardInput: CardJson | MockCard | MockCardBuilder | any, searchString: string): boolean {
+  public static hasWidgetText(cardInput: CardJson | MockCard | MockCardBuilder | unknown, searchString: string): boolean {
     if (!cardInput) return false;
     const cardJson = CardSerializer.toJSON(cardInput);
 
@@ -295,31 +295,41 @@ export class CardSerializer {
     return matchText(cardJson);
   }
 
-  public static findButton(cardInput: CardJson | MockCard | MockCardBuilder | any, buttonText: string): ButtonJson | undefined {
+  public static findButton(cardInput: CardJson | MockCard | MockCardBuilder | unknown, buttonIdentifier: string): ButtonJson | undefined {
     if (!cardInput) return undefined;
     const cardJson = CardSerializer.toJSON(cardInput);
 
+    const checkButton = (btn: ButtonJson): boolean => {
+      if (btn.type === "TextButton" && btn.text === buttonIdentifier) {
+        return true;
+      }
+      if (btn.type === "ImageButton" && btn.altText === buttonIdentifier) {
+        return true;
+      }
+      if (btn.onClickAction && btn.onClickAction.functionName === buttonIdentifier) {
+        return true;
+      }
+      return false;
+    };
+
     for (const sec of cardJson.sections || []) {
       for (const widget of sec.widgets || []) {
-        if (widget && (widget as any).type === "ButtonSet" && Array.isArray((widget as any).buttons)) {
-          for (const btn of (widget as any).buttons as ButtonJson[]) {
-            if (btn.type === "TextButton" && btn.text === buttonText) {
-              return btn;
-            }
-            if (btn.type === "ImageButton" && btn.altText === buttonText) {
-              return btn;
-            }
-            if (btn.onClickAction && btn.onClickAction.functionName === buttonText) {
-              return btn;
-            }
+        if (!widget) continue;
+        if (widget.type === "ButtonSet") {
+          const btnSet = widget as ButtonSetWidgetJson;
+          for (const btn of btnSet.buttons || []) {
+            if (checkButton(btn)) return btn;
           }
+        } else if (widget.type === "TextButton" || widget.type === "ImageButton") {
+          const btn = widget as ButtonJson;
+          if (checkButton(btn)) return btn;
         }
       }
     }
     return undefined;
   }
 
-  public static getNotificationText(responseInput: ActionResponseJson | MockActionResponse | MockActionResponseBuilder | any): string | null {
+  public static getNotificationText(responseInput: ActionResponseJson | MockActionResponse | MockActionResponseBuilder | unknown): string | null {
     if (!responseInput) return null;
     const responseJson = CardSerializer.actionResponseToJSON(responseInput);
     return responseJson?.notification?.text ?? null;

@@ -627,19 +627,7 @@ export class GasMockHarness {
     (globalThis as any).CardService = GasMockHarness.instance!.cardService;
   }
 
-    public static hasWidgetText(cardInput: any, searchString: string): boolean {
-    return CardSerializer.hasWidgetText(cardInput, searchString);
-  }
-
-  public static findButton(cardInput: any, buttonText: string): ButtonJson | undefined {
-    return CardSerializer.findButton(cardInput, buttonText);
-  }
-
-  public static getNotificationText(responseInput: any): string | null {
-    return CardSerializer.getNotificationText(responseInput);
-  }
-
-  public static getCardServiceState: CardServiceStateCallable = Object.assign(
+    public static getCardServiceState: CardServiceStateCallable = Object.assign(
     function (card: any): Record<string, unknown> {
       return CardSerializer.toJSON(card) as unknown as Record<string, unknown>;
     },

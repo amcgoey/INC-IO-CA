@@ -285,7 +285,7 @@ test("semantic assertion helper hasWidgetText recursively checks widgets for tex
 
   // Test direct builder input
   assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardBuilder, "Paragraph Text"), true);
-  assert.equal(GasMockHarness.hasWidgetText(cardBuilder, "Paragraph Text"), true);
+  assert.equal(GasMockHarness.getCardServiceState.hasWidgetText(cardBuilder, "Paragraph Text"), true);
 });
 
 test("semantic assertion helper findButton locates buttons by label, altText, or callback action", () => {
@@ -342,7 +342,7 @@ test("semantic assertion helper getNotificationText extracts toast notification 
 
   // From ActionResponse object / builder directly
   assert.equal(GasMockHarness.getCardServiceState.getNotificationText(actionResponse), "Saved successfully!");
-  assert.equal(GasMockHarness.getNotificationText(actionResponse), "Saved successfully!");
+  assert.equal(GasMockHarness.getCardServiceState.getNotificationText(actionResponse), "Saved successfully!");
 
   // Null notification case
   const emptyResponse = CardService.newActionResponseBuilder().build();
