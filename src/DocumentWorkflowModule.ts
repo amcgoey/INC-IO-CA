@@ -246,13 +246,4 @@ if (typeof module !== "undefined" && module.exports) {
   };
 }
 
-declare var module: any;
 
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    getActionPolicy,
-    getDocumentLogStrategy,
-    getDocumentTitle,
-    DocumentWorkflowModule
-  };
-}

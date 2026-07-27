@@ -39,6 +39,7 @@ function resolveSubfolderPath(context: DocumentActionContext): string[] | undefi
 
 /**
  * Primitive action that files/moves a document into a Google Drive folder/subfolder hierarchy.
+ * Decoupled from file renaming.
  */
 class MoveDocumentAction implements DocumentAction {
   name: string = "MoveDocument";
@@ -59,8 +60,7 @@ class MoveDocumentAction implements DocumentAction {
       { fileId: context.fileId, blob: context.blob },
       {
         targetFolderId: context.targetFolderId || "",
-        subfolderPath: resolveSubfolderPath(context),
-        newFileName: context.newFileName
+        subfolderPath: resolveSubfolderPath(context)
       }
     );
 
@@ -81,19 +81,17 @@ class RenameDocumentAction implements DocumentAction {
   name: string = "RenameDocument";
 
   /**
-   * Executes file renaming.
+   * Executes file renaming using explicit target name.
    *
    * @param context - Action context containing fileId, newFileName, and optional driveApp reference.
-   * @returns Updated context with formatted newFileName.
+   * @returns Updated context with newFileName.
    */
   async execute(context: DocumentActionContext): Promise<DocumentActionContext> {
     if (!context.newFileName) {
       return context;
     }
 
-    const finalName = context.newFileName.endsWith(".pdf")
-      ? context.newFileName
-      : context.newFileName + ".pdf";
+    const finalName = context.newFileName;
 
     const driveApp = context.driveApp || (typeof DriveApp !== "undefined" ? DriveApp : null);
 

@@ -1,31 +1,31 @@
+/// <reference path="../src/types.ts" />
 /**
  * @file WorkflowRunner.test.ts
  * @description Unit tests for WorkflowRunner pipeline engine, MoveDocumentAction, and RenameDocumentAction.
  */
 
-import { test } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const { GasMockHarness, FakeDriveFilingRepository } = require('./harness');
 const { WorkflowRunner, MoveDocumentAction, RenameDocumentAction } = require('../src/WorkflowRunner');
 
 test('WorkflowRunner - executes actions sequentially passing modified context', async () => {
-  const log = [];
+  const log: string[] = [];
   const action1 = {
     name: 'Action1',
-    async execute(context) {
+    async execute(context: any) {
       log.push('action1');
       return { ...context, step1: true };
     }
   };
   const action2 = {
     name: 'Action2',
-    async execute(context) {
+    async execute(context: any) {
       log.push('action2');
       return { ...context, step2: true };
     }
-  } ;
-
+  };
 
   const initialContext = { fileId: 'doc-101' };
   const finalContext = await WorkflowRunner.run([action1, action2], initialContext);
@@ -37,7 +37,7 @@ test('WorkflowRunner - executes actions sequentially passing modified context', 
   assert.equal(finalContext.fileId, 'doc-101');
 });
 
-test('MoveDocumentAction - files document via DriveFilingRepository and updates context', async () => {
+test('MoveDocumentAction - files document via DriveFilingRepository without renaming', async () => {
   const fakeRepo = new FakeDriveFilingRepository();
   const moveAction = new MoveDocumentAction();
 
@@ -57,7 +57,7 @@ test('MoveDocumentAction - files document via DriveFilingRepository and updates 
   assert.deepEqual(fakeRepo.filedDocuments[0].options.subfolderPath, ['Closed', '08 OPENINGS']);
 });
 
-test('RenameDocumentAction - renames Drive file and formats pdf extension', async () => {
+test('RenameDocumentAction - renames Drive file with explicit newFileName', async () => {
   GasMockHarness.install();
 
   try {
@@ -68,7 +68,7 @@ test('RenameDocumentAction - renames Drive file and formats pdf extension', asyn
     const renameAction = new RenameDocumentAction();
     const context = {
       fileId,
-      newFileName: 'SUBMITTAL-001-0-OPENINGS',
+      newFileName: 'SUBMITTAL-001-0-OPENINGS.pdf',
       driveApp
     };
 
@@ -98,7 +98,7 @@ test('WorkflowRunner - 2-step pipeline (Move + Rename) with FakeDriveFilingRepos
       fileId,
       targetFolderId: 'root-folder-id',
       subfolderPath: ['Submittals', 'Closed'],
-      newFileName: 'FINAL_SUBMITTAL_001',
+      newFileName: 'FINAL_SUBMITTAL_001.pdf',
       driveFilingRepository: fakeRepo,
       driveApp
     };
