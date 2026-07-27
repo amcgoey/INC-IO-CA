@@ -108,3 +108,24 @@ test('WorkflowRunner.runAction - executes WriteLogAction seam cleanly for FF&E s
   assert.equal(payload['Vendor'], 'Herman Miller');
   assert.equal(payload['Status'], 'Approved');
 });
+
+test('WorkflowRunner.runSequence - executes WriteLogAction in a sequence pipeline', async () => {
+  const fakeRepo = new FakeLogRepository();
+  const action = new WriteLogAction();
+  const doc = createValidatedArchitectureSubmittal();
+  const strategy = new ArchitectureSubmittalStrategy();
+
+  const input: WriteLogInput = {
+    spreadsheetId: 'test-ss-seq',
+    document: doc,
+    strategy,
+    logRepository: fakeRepo
+  };
+
+  const results = await WorkflowRunner.runSequence([
+    { action, input }
+  ]);
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].targetKey, '081100-001-01');
+});

@@ -80,7 +80,12 @@ class LogEngine {
     );
 
     const boundedData = getBoundedData(logData);
-    const targetKey = options.identityData ? options.identityData.identity : strategy.getTargetKey(document);
+    const identityData: IdentityData = options.identityData || (strategy.getIdentityData ? strategy.getIdentityData(document) : {
+      identityGroup: strategy.getGroupKey(document),
+      identityRevisionGroup: strategy.getSortKey(document),
+      identity: strategy.getTargetKey(document)
+    });
+    const targetKey = identityData.identity;
 
     const historyColIdx = headers.indexOf("Contact History");
     const calcChainColIdx = headers.indexOf("Calc Contact Chain");

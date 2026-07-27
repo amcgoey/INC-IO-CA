@@ -70,7 +70,7 @@ export interface DocumentLogStrategy<T = ValidatedDocument> {
   getSortKey(doc: T): string;
   /** Generates the primary user-facing target key (e.g. "081100-001-0" or "CH-01-0"). */
   getTargetKey(doc: T): string;
-  getIdentityData?(doc: T): IdentityData;
+  getIdentityData(doc: T): IdentityData;
   /** Extracts the group key from an existing raw spreadsheet row array. */
   getGroupKeyFromRow(row: any[], headers: string[]): string;
   /** Extracts the sort key from an existing raw spreadsheet row array. */
@@ -205,6 +205,15 @@ class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
     const rev = safePadNum(details.revision, 3);
     const dateStr = formatDateStr(doc.date);
     return `${groupKey}-${rev}-${dateStr}`;
+  }
+
+  /** @override */
+  getIdentityData(doc: ValidatedDocument): IdentityData {
+    return {
+      identityGroup: this.getGroupKey(doc),
+      identityRevisionGroup: this.getSortKey(doc),
+      identity: this.getTargetKey(doc)
+    };
   }
 
   /** @override */

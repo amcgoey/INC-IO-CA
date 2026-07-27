@@ -340,7 +340,7 @@ interface DocumentLogStrategy<T = ValidatedDocument> {
   getGroupKey(doc: T): string;
   getSortKey(doc: T): string;
   getTargetKey(doc: T): string;
-  getIdentityData?(doc: T): IdentityData;
+  getIdentityData(doc: T): IdentityData;
   getGroupKeyFromRow(row: any[], headers: string[]): string;
   getSortKeyFromRow(row: any[], headers: string[]): string;
   getTargetKeyFromRow(row: any[], headers: string[]): string;
@@ -580,6 +580,7 @@ declare const PDFLib: any;
 
 declare class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
   getFilingSubfolders(doc: ValidatedDocument): string[];
+  getIdentityData(doc: ValidatedDocument): IdentityData;
   getGroupKey(doc: ValidatedDocument): string;
   getSortKey(doc: ValidatedDocument): string;
   getTargetKey(doc: ValidatedDocument): string;
@@ -591,6 +592,7 @@ declare class ArchitectureSubmittalStrategy implements DocumentLogStrategy<Valid
 }
 
 declare class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
+  getIdentityData(doc: ValidatedDocument): IdentityData;
   getGroupKey(doc: ValidatedDocument): string;
   getSortKey(doc: ValidatedDocument): string;
   getTargetKey(doc: ValidatedDocument): string;

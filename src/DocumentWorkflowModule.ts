@@ -152,6 +152,7 @@ export class DocumentWorkflowModule {
       spreadsheetId: input.logFileId,
       document: input.validatedDoc,
       strategy: strategy,
+      identityData: strategy && typeof strategy.getIdentityData === "function" ? strategy.getIdentityData(input.validatedDoc) : undefined,
       options: {
         link: filingResult.url,
         status: input.selectedAction.status,
