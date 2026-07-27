@@ -23,7 +23,8 @@ test.afterEach(() => {
   targetFolderId: string,
   logFileId: string
 ) => {
-  const CardService = (globalThis as any).CardService;
+  const harness = GasMockHarness.install();
+  const CardService = harness.cardService;
   const header = CardService.newCardHeader().setTitle("Submittal Processed Successfully");
   const card = CardService.newCardBuilder().setHeader(header);
   const sec = CardService.newCardSection()
@@ -41,7 +42,8 @@ test.afterEach(() => {
 };
 
 (globalThis as any).buildMainCard = (e: any, initialData: any, isTagChange: any, flashData: any) => {
-  const CardService = (globalThis as any).CardService;
+  const harness = GasMockHarness.install();
+  const CardService = harness.cardService;
   const header = CardService.newCardHeader().setTitle("MainCard");
   const card = CardService.newCardBuilder().setHeader(header);
   const sec = CardService.newCardSection();
@@ -308,8 +310,10 @@ test("CardPresenter - presentOutgoingSuccess builds pushed SuccessCard ActionRes
 test("CardPresenter - presentMoveToClosedSuccess updates card with toast notification", () => {
   const presenter = new CardPresenter();
   const mockEvent = EventFactory.createCardSubmitEvent();
-  const mockUpdatedCard: any = (globalThis as any).CardService.newCardBuilder()
-    .setHeader((globalThis as any).CardService.newCardHeader().setTitle("SuccessCardUpdated"))
+  const harness = GasMockHarness.install();
+  const CardService = harness.cardService;
+  const mockUpdatedCard = CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle("SuccessCardUpdated"))
     .build();
   const destName = "Closed/Concrete";
 
@@ -458,8 +462,10 @@ test("CardPresenter - presentDeepAnalysisResult returns error notification toast
 test("CardPresenter - presentDraftEmailSuccess returns updateCard with updated success card and SUCCESS_DRAFT_CREATED notification", () => {
   const presenter = new CardPresenter();
   const mockEvent = EventFactory.createCardSubmitEvent();
-  const mockUpdatedSuccessCard: any = (globalThis as any).CardService.newCardBuilder()
-    .setHeader((globalThis as any).CardService.newCardHeader().setTitle("SuccessCardWithDraftUrl"))
+  const harness = GasMockHarness.install();
+  const CardService = harness.cardService;
+  const mockUpdatedSuccessCard = CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle("SuccessCardWithDraftUrl"))
     .build();
 
   const response = presenter.presentDraftEmailSuccess(mockEvent, mockUpdatedSuccessCard);
