@@ -39,8 +39,8 @@ function createDefaultListFields(contact: string, action: string) {
 /**
  * Resolves contact, action, and listFields for validated document fixtures.
  */
-function resolveFixtureFields(
-  overrides: any,
+function resolveFixtureFields<T extends ValidatedDocument>(
+  overrides: Partial<T> | Record<string, any>,
   defaultContact: string,
   defaultAction: string
 ) {

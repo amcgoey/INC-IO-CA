@@ -5,16 +5,7 @@
  * Wraps LogRepository.appendDocument() into a primitive DocumentAction handler operating on IdentityData.
  */
 
-export interface WriteLogInput {
-  spreadsheetId: string;
-  document: ValidatedDocument;
-  strategy: DocumentLogStrategy;
-  identityData?: IdentityData;
-  options?: AppendDocumentOptions;
-  logRepository?: LogRepository;
-}
-
- /**
+/**
  * Primitive workflow action that persists validated submittal documents to the log repository
  * using abstract IdentityData (IdentityGroup, IdentityRevisionGroup, Identity).
  */
@@ -59,8 +50,6 @@ export class WriteLogAction implements DocumentAction<WriteLogInput, AppendDocum
     );
   }
 }
-
-
 
 declare var module: any;
 
