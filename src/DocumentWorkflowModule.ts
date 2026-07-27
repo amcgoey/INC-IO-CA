@@ -122,6 +122,7 @@ export class DocumentWorkflowModule {
       if (incomingWf && typeof incomingWf.execute === "function") {
         return await incomingWf.execute(input);
       }
+      throw new Error("Unable to execute incoming workflow: IncomingWorkflow module unavailable");
     }
 
     const outgoingWf = (globalThis as any).OutgoingWorkflow || (typeof OutgoingWorkflow !== "undefined" ? OutgoingWorkflow : null);

@@ -660,6 +660,7 @@ interface DocumentWorkflowInput {
   duplicateDocumentAction?: DuplicateDocumentAction;
   insertPagesAction?: InsertPagesAction;
   writeLogAction?: WriteLogAction;
+  moveDocumentAction?: MoveDocumentAction;
   pdfDocumentService?: PdfDocumentService;
   strategy?: DocumentLogStrategy;
   driveApp?: any;

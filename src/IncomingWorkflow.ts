@@ -151,7 +151,7 @@ export class IncomingWorkflow {
     const spreadsheetApp = input.spreadsheetApp || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp : null);
     const driveFilingRepo = input.driveFilingRepository || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
     const logRepo = input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
-    const moveAction = new (typeof MoveDocumentAction !== "undefined" ? MoveDocumentAction : (globalThis as any).MoveDocumentAction)();
+    const moveAction = input.moveDocumentAction || new (typeof MoveDocumentAction !== "undefined" ? MoveDocumentAction : (globalThis as any).MoveDocumentAction)();
 
     // 1. Resolve source document blob and title
     const blob = this.resolveSourceBlob(input);
@@ -228,7 +228,6 @@ export class IncomingWorkflow {
     const reviewFileName = stampedPrefix + appendResult.newFileName + ".pdf";
 
     const reviewContext: DocumentActionContext = await runner.runAction(moveAction, {
-      fileId: dupContext.fileId,
       blob: stampedBlob || undefined,
       targetFolderId: input.targetFolderId,
       subfolderPath: undefined,
