@@ -21,6 +21,8 @@ try {
 }
 
 
+const DEFAULT_CSI_DIVISIONS: Record<string, string> = { "03": "03-Concrete" };
+
 export interface CallLog {
   method: string;
   args: unknown[];
@@ -294,7 +296,7 @@ export class MockSheet {
   private grid: any[][] = [];
   public calls: CallLog[] = [];
 
-  constructor(public name: string, initialData: any[][] = []) {
+  constructor(public name: string, initialData: any[][] = [], public sheetId: number = 101) {
     this.grid = initialData.map(row => [...row]);
   }
 
@@ -305,6 +307,11 @@ export class MockSheet {
   public getName(): string {
     this.recordCall("getName", []);
     return this.name;
+  }
+
+  public getSheetId(): number {
+    this.recordCall("getSheetId", []);
+    return this.sheetId;
   }
 
   public getGrid(): any[][] {
@@ -448,7 +455,12 @@ export class MockSheetsService {
   public openById(id: string): MockSpreadsheet {
     this.recordCall("openById", [id]);
     if (!this.spreadsheets.has(id)) {
-      this.spreadsheets.set(id, new MockSpreadsheet(id));
+      const ss = new MockSpreadsheet(id);
+      const logSheetName = (globalThis as any).CONFIG?.LOG_SHEET_NAME;
+      if (logSheetName && logSheetName !== "Sheet1") {
+        ss.insertSheet(logSheetName);
+      }
+      this.spreadsheets.set(id, ss);
     }
     return this.spreadsheets.get(id)!;
   }
@@ -521,6 +533,8 @@ export class MockSheetsState {
 
 export interface HarnessInstallOptions {
   configOverrides?: Record<string, unknown>;
+  csiDivisionsOverrides?: Record<string, string>;
+  driveAdvancedServiceOverrides?: Record<string, unknown>;
 }
 
 
@@ -586,7 +600,7 @@ export class GasMockHarness {
   }
 
   public static install(options?: HarnessInstallOptions): GasMockHarness {
-    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "SpreadsheetApp", "DriveApp", "CardService"];
+    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "SpreadsheetApp", "DriveApp", "CardService", "CSI_DIVISIONS", "Drive"];
     for (const name of globalsToStub) {
       if (!GasMockHarness.originalGlobals.has(name)) {
         GasMockHarness.originalGlobals.set(name, (globalThis as any)[name]);
@@ -610,6 +624,8 @@ export class GasMockHarness {
     (globalThis as any).DriveApp = new MockDriveApp(GasMockHarness.instance.driveState);
     (globalThis as any).Utilities = (globalThis as any).Utilities || { formatDate: (d: any, tz: string, f: string)=> (d && d.toISOString ? d.toISOString().slice(2, 10).replace(/-/g, "") : "260726") };
     (globalThis as any).Session = (globalThis as any).Session || { getScriptTimeZone : () => "America/New_York", getActiveUser: () => ({ getEmail: () => "user@example.com" }) };
+    (globalThis as any).CSI_DIVISIONS = options?.csiDivisionsOverrides || DEFAULT_CSI_DIVISIONS;
+    (globalThis as any).Drive = options?.driveAdvancedServiceOverrides !== undefined ? options.driveAdvancedServiceOverrides : undefined;
 
     return GasMockHarness.instance;
   }
@@ -627,6 +643,7 @@ export class GasMockHarness {
     GasMockHarness.instance!.resetConfig();
     (globalThis as any).CONFIG = GasMockHarness.instance!.config;
     (globalThis as any).CardService = GasMockHarness.instance!.cardService;
+    (globalThis as any).CSI_DIVISIONS = DEFAULT_CSI_DIVISIONS;
   }
 
   public static getCardServiceState: CardServiceStateCallable = Object.assign(
