@@ -4,7 +4,7 @@
  * @description Incoming submittal dual-path workflow execution service ("Received" action).
  *
  * Implements the dual-path workflow using WorkflowRunner action primitives:
- * 1. Writes initial receiving log record via WriteLogAction to obtain calculated file name.
+ * 1. Writes initial receiving log record via WriteLogAction to derive calculated file name.
  * 2. Saves pristine untouched OriginalDocument to Submittals\Closed\<Subfolder>\<Calculated File Name>.pdf via MoveDocumentAction.
  * 3. Duplicates OriginalDocument to create ReviewDocument via DuplicateDocumentAction.
  * 4. Prepends CoverPageDocument onto ReviewDocument via InsertPagesAction.
@@ -156,18 +156,7 @@ export class IncomingWorkflow {
     // 1. Resolve source document blob
     const blob = this.resolveSourceBlob(input);
 
-    // Path 1: Save pristine untouched OriginalDocument to Submittals\Closed\<Subfolder>\ via MoveDocumentAction
-    const closedSubfolderPath = strategy.getFilingSubfolders ? strategy.getFilingSubfolders(input.validatedDoc) : undefined;
-
-    const origContext: DocumentActionContext = await runner.runAction(moveAction, {
-      fileId: input.driveFileId,
-      blob: blob || undefined,
-      targetFolderId: input.targetFolderId,
-      subfolderPath: closedSubfolderPath,
-      driveFilingRepository: driveFilingRepo
-    });
-
-    // Step 2: Write initial receiving log entry via WriteLogAction
+    // Step 1: Write initial receiving log entry via WriteLogAction to derive calculated file name
     const writeLogAction = input.writeLogAction || new (typeof WriteLogAction !== "undefined" ? WriteLogAction : (globalThis as any).WriteLogAction)();
     const appendResult = await runner.runAction(writeLogAction, {
       spreadsheetId: input.logFileId,
@@ -175,7 +164,7 @@ export class IncomingWorkflow {
       strategy: strategy,
       identityData: strategy.getIdentityData(input.validatedDoc),
       options: {
-        link: origContext.url || "",
+        link: input.driveFileId ? ("http://drive.google.com/" + input.driveFileId) : "",
         status: input.selectedAction?.status || "",
         actionAbbr: input.selectedAction?.abbr || "",
         updatePreviousStatus: policy.updatePreviousStatus,
@@ -184,7 +173,20 @@ export class IncomingWorkflow {
       logRepository: logRepo
     });
 
-    // Path 2: Duplicate OriginalDocument to create ReviewDocument blob via DuplicateDocumentAction
+    // Path 1: Save pristine untouched OriginalDocument to Submittals\Closed\<Subfolder>\<Calculated File Name>.pdf via MoveDocumentAction
+    const closedSubfolderPath = strategy.getFilingSubfolders ? strategy.getFilingSubfolders(input.validatedDoc) : undefined;
+    const originalFileName = appendResult.newFileName + ".pdf";
+
+    const origContext: DocumentActionContext = await runner.runAction(moveAction, {
+      fileId: input.driveFileId,
+      blob: blob || undefined,
+      targetFolderId: input.targetFolderId,
+      subfolderPath: closedSubfolderPath,
+      newFileName: originalFileName,
+      driveFilingRepository: driveFilingRepo
+    });
+
+    // Path 2: Duplicate OriginalDocument to create ReviewDocument via DuplicateDocumentAction
     const dupAction = input.duplicateDocumentAction || new (typeof DuplicateDocumentAction !== "undefined" ? DuplicateDocumentAction : (globalThis as any).DuplicateDocumentAction)();
     const dupContext: DocumentActionContext = await runner.runAction(dupAction, {
       blob: blob || undefined,
@@ -227,7 +229,6 @@ export class IncomingWorkflow {
     }
 
     const reviewContext: DocumentActionContext = await runner.runAction(moveAction, {
-      fileId: dupContext.fileId,
       blob: stampedBlob || undefined,
       targetFolderId: input.targetFolderId,
       subfolderPath: undefined,
@@ -239,10 +240,10 @@ export class IncomingWorkflow {
     const itemTitle = typeof getDocumentTitle !== "undefined" ? getDocumentTitle(input.validatedDoc) : "";
 
     return {
-      fileId: reviewContext.fileId || origContext.fileId || "",
+      fileId: origContext.fileId || reviewContext.fileId || "",
       targetKey: appendResult.targetKey,
-      url: reviewContext.url || origContext.url || "",
-      localPath: reviewContext.localPath || origContext.localPath || "",
+      url: origContext.url || reviewContext.url || "",
+      localPath: origContext.localPath || reviewContext.localPath || "",
       title: itemTitle || "",
       action: action,
       incomingRouting: input.incomingRouting,
