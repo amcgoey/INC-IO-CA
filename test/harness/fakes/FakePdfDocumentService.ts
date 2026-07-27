@@ -7,6 +7,8 @@ export class FakePdfDocumentService implements PdfDocumentService {
   public extractCalls: string[] = [];
   public stampCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; data: ParsedData; options: StampOptions }> = [];
   public sliceCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; maxPages: number }> = [];
+  public extractPagesCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; maxPages: number }> = [];
+  private extractPagesResultBlob: GoogleAppsScript.Base.Blob | null = null;
   public calls: Array<{ method: string; args: any[] }> = [];
   private actionMap: Map<string, string | null> = new Map();
   private defaultAction: string | null = null;
@@ -22,6 +24,7 @@ export class FakePdfDocumentService implements PdfDocumentService {
   }
 
   reset(): void {
+    this.extractPagesCalls = [];
     this.extractCalls = [];
     this.stampCalls = [];
     this.sliceCalls = [];
@@ -38,6 +41,10 @@ export class FakePdfDocumentService implements PdfDocumentService {
 
   setStampResultBlob(blob: GoogleAppsScript.Base.Blob): void {
     this.stampResultBlob = blob;
+  }
+
+  setExtractPagesResultBlob(blob: GoogleAppsScript.Base.Blob): void {
+    this.extractPagesResultBlob = blob;
   }
 
   setSliceResultBase64(base64String: string): void {
@@ -65,6 +72,18 @@ export class FakePdfDocumentService implements PdfDocumentService {
     this.calls.push({ method: "stampSubmittal", args: [sourceBlob, data, options] });
     if (this.stampResultBlob) {
       return this.stampResultBlob;
+    }
+    return sourceBlob;
+  }
+
+  async extractPages(
+    sourceBlob: GoogleAppsScript.Base.Blob,
+    maxPages = 3
+  ): Promise<GoogleAppsScript.Base.Blob> {
+    this.extractPagesCalls.push({ sourceBlob, maxPages });
+    this.calls.push({ method: "extractPages", args: [sourceBlob, maxPages] });
+    if (this.extractPagesResultBlob) {
+      return this.extractPagesResultBlob;
     }
     return sourceBlob;
   }

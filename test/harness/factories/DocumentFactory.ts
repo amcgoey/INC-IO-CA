@@ -107,8 +107,7 @@ export function createValidatedArchitectureSubmittal(overrides: ValidatedArchite
     overrides.disciplineDetails
   );
 
-  const { contact, action, listFields } = resolveFixtureFields(
-    overrides,
+  const { contact, action, listFields } = resolveFixtureFields(overrides as any,
     DEFAULT_CONTACT_ARCH,
     DEFAULT_ACTION_RECEIVED
   );
@@ -121,7 +120,7 @@ export function createValidatedArchitectureSubmittal(overrides: ValidatedArchite
     incomingRouting: "To Refer",
     notes: "Sample submittal notes",
     listFields,
-    ...overrides,
+    ...(overrides as any),
     disciplineDetails
   };
 }
@@ -147,8 +146,7 @@ export function createValidatedFFESubmittal(overrides: ValidatedFFEOverride = {}
     overrides.disciplineDetails
   );
 
-  const { contact, action, listFields } = resolveFixtureFields(
-    overrides,
+  const { contact, action, listFields } = resolveFixtureFields(overrides as any,
     DEFAULT_CONTACT_FFE,
     DEFAULT_ACTION_APPROVED
   );
@@ -160,7 +158,7 @@ export function createValidatedFFESubmittal(overrides: ValidatedFFEOverride = {}
     action,
     notes: "Sample FF&E notes",
     listFields,
-    ...overrides,
+    ...(overrides as any),
     disciplineDetails
   };
 }
@@ -207,8 +205,7 @@ export function createValidatedRfi(overrides: ValidatedRfiOverride = {}): Valida
     overrides.disciplineDetails
   );
 
-  const { contact, action, listFields } = resolveFixtureFields(
-    overrides,
+  const { contact, action, listFields } = resolveFixtureFields(overrides as any,
     DEFAULT_CONTACT_ARCH,
     DEFAULT_ACTION_RECEIVED
   );
@@ -221,7 +218,7 @@ export function createValidatedRfi(overrides: ValidatedRfiOverride = {}): Valida
     incomingRouting: "To Architect",
     notes: "Sample RFI notes",
     listFields,
-    ...overrides,
+    ...(overrides as any),
     disciplineDetails
   };
 }
