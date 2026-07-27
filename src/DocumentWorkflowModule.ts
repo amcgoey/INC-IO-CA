@@ -10,6 +10,12 @@ declare var require: any;
 
 if (typeof require !== "undefined") {
   try {
+    const _ipa = eval('require("./InsertPagesAction")');
+    if (_ipa && _ipa.InsertPagesAction && typeof InsertPagesAction === "undefined") {
+      (globalThis as any).InsertPagesAction = _ipa.InsertPagesAction;
+    }
+  } catch (e) {}
+  try {
     const _dls = eval('require("./DocumentLogStrategy")');
     if (_dls) {
       if (_dls.ArchitectureSubmittalStrategy && typeof ArchitectureSubmittalStrategy === "undefined") {
@@ -149,7 +155,6 @@ export class DocumentWorkflowModule {
     }
 
     if (policy.stampPdf && blob && driveApp) {
-      const pdfService = input.pdfDocumentService || defaultPdfDocumentService;
       const targetFolder = driveApp.getFolderById(input.targetFolderId);
       const templateId = (input.incomingRouting === "To Refer")
         ? (typeof CONFIG !== "undefined" ? CONFIG.TRANSMITTAL_TEMPLATE_ID : "")
@@ -157,34 +162,24 @@ export class DocumentWorkflowModule {
 
       const titleVal = getDocumentTitle(input.validatedDoc);
 
-      try {
-        const stamped = await pdfService.stampSubmittal(
-          blob,
-          { action, title: titleVal, incomingRouting: input.incomingRouting },
-          {
-            newFileName: appendResult.newFileName,
-            stampSubmittalNo: appendResult.targetKey,
-            templateId: templateId
-          }
-        );
-        const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
-        stamped.setName(stampedPrefix + appendResult.newFileName + ".pdf");
-        const stampedCreatedFile = targetFolder.createFile(stamped);
-        if (stampedCreatedFile && typeof stampedCreatedFile.getId === "function") {
-          const sId = stampedCreatedFile.getId();
-          if (sId) finalFileId = sId;
-        }
-      } catch (err: any) {
-        if (err.message === "TEMPLATE_MISSING") {
-          const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
-          const fallbackCreated = targetFolder.createFile(blob.copyBlob().setName(stampedPrefix + appendResult.newFileName + ".pdf"));
-          if (fallbackCreated && typeof fallbackCreated.getId === "function") {
-            const fId = fallbackCreated.getId();
-            if (fId) finalFileId = fId;
-          }
-        } else {
-          throw err;
-        }
+      const insertAction = input.insertPagesAction || new (typeof InsertPagesAction !== "undefined" ? InsertPagesAction : (globalThis as any).InsertPagesAction)();
+      const stamped = await insertAction.execute({
+        sourceBlob: blob,
+        data: { action, title: titleVal, incomingRouting: input.incomingRouting },
+        options: {
+          newFileName: appendResult.newFileName,
+          stampSubmittalNo: appendResult.targetKey,
+          templateId: templateId
+        },
+        pdfDocumentService: input.pdfDocumentService || defaultPdfDocumentService
+      });
+
+      const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
+      stamped.setName(stampedPrefix + appendResult.newFileName + ".pdf");
+      const stampedCreatedFile = targetFolder.createFile(stamped);
+      if (stampedCreatedFile && typeof stampedCreatedFile.getId === "function") {
+        const sId = stampedCreatedFile.getId();
+        if (sId) finalFileId = sId;
       }
     }
 
@@ -220,17 +215,6 @@ export class DocumentWorkflowModule {
       newFileName: appendResult.newFileName
     };
   }
-}
-
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    getActionPolicy,
-    getDocumentLogStrategy,
-    getDocumentTitle,
-    DocumentWorkflowModule
-  };
 }
 
 declare var module: any;
