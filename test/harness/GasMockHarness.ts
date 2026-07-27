@@ -600,6 +600,8 @@ export class GasMockHarness {
     (globalThis as any).CardService = GasMockHarness.instance.cardService;
     (globalThis as any).CONFIG = GasMockHarness.instance.config;
     (globalThis as any).DriveApp = new MockDriveApp(GasMockHarness.instance.driveState);
+    (globalThis as any).Utilities = (globalThis as any).Utilities || { formatDate: (d: any, tz: string, f: string)=> (d && d.toISOString ? d.toISOString().slice(2, 10).replace(/-/g, "") : "260726") };
+    (globalThis as any).Session = (globalThis as any).Session || { getScriptTimeZone : () => "America/New_York", getActiveUser: () => ({ getEmail: () => "user@example.com" }) };
 
     return GasMockHarness.instance;
   }

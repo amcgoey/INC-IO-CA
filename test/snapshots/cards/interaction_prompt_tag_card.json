@@ -1,0 +1,262 @@
+{
+  "navigation": {
+    "action": "updateCard",
+    "card": {
+      "header": {
+        "title": "File Submittal"
+      },
+      "sections": [
+        {
+          "collapsible": false,
+          "widgets": [
+            {
+              "type": "TextParagraph",
+              "text": "⚠️ Spec Tag 'A-99' is not registered. Would you like to add it?"
+            }
+          ]
+        },
+        {
+          "collapsible": false,
+          "widgets": [
+            {
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "discipline",
+              "title": "Discipline",
+              "items": [
+                {
+                  "text": "Architecture",
+                  "value": "Architecture",
+                  "selected": true
+                },
+                {
+                  "text": "FF&E",
+                  "value": "FF&E",
+                  "selected": false
+                }
+              ],
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {}
+              }
+            }
+          ]
+        },
+        {
+          "header": "1. Project Location",
+          "collapsible": false,
+          "widgets": [
+            {
+              "type": "TextInput",
+              "fieldName": "driveName",
+              "title": "Project Shared Drive",
+              "value": "",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {}
+              }
+            }
+          ]
+        },
+        {
+          "header": "2. File Source",
+          "collapsible": false,
+          "widgets": [
+            {
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "fileSource",
+              "title": "Source",
+              "items": [
+                {
+                  "text": "Email Attachment",
+                  "value": "Email Attachment",
+                  "selected": false
+                },
+                {
+                  "text": "Google Drive URL",
+                  "value": "Google Drive URL",
+                  "selected": true
+                },
+                {
+                  "text": "Log Data Only",
+                  "value": "Log Data Only",
+                  "selected": false
+                }
+              ],
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {}
+              }
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "driveFileUrl",
+              "title": "Google Drive URL",
+              "value": "",
+              "multiline": false
+            }
+          ]
+        },
+        {
+          "header": "3. Metadata",
+          "collapsible": false,
+          "widgets": [
+            {
+              "type": "ButtonSet",
+              "buttons": [
+                {
+                  "type": "TextButton",
+                  "text": "✨ Analyze Submittal with AI",
+                  "style": "FILLED",
+                  "disabled": false,
+                  "onClickAction": {
+                    "functionName": "handleDeepAnalysis",
+                    "parameters": {
+                      "logFileId": "",
+                      "discipline": "Architecture"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "section",
+              "title": "Section",
+              "value": "",
+              "multiline": false
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "number",
+              "title": "Number",
+              "value": "",
+              "multiline": false
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "title",
+              "title": "Title",
+              "value": "",
+              "multiline": false
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "revision",
+              "title": "Revision",
+              "value": "0",
+              "multiline": false
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "date",
+              "title": "Date (YYMMDD)",
+              "value": "260727",
+              "multiline": false
+            },
+            {
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "contact",
+              "title": "Contact",
+              "items": []
+            },
+            {
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "action",
+              "title": "Action",
+              "items": [],
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {}
+              }
+            },
+            {
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "incomingRouting",
+              "title": "Incoming Routing",
+              "items": [
+                {
+                  "text": "To Review",
+                  "value": "To Review",
+                  "selected": true
+                },
+                {
+                  "text": "To Refer",
+                  "value": "To Refer",
+                  "selected": false
+                }
+              ]
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "notes",
+              "title": "Notes",
+              "value": "",
+              "multiline": true
+            },
+            {
+              "type": "ButtonSet",
+              "buttons": [
+                {
+                  "type": "TextButton",
+                  "text": "File & Log",
+                  "style": "FILLED",
+                  "disabled": false,
+                  "onClickAction": {
+                    "functionName": "processSubmission",
+                    "parameters": {
+                      "logFileId": "",
+                      "targetFolderId": "",
+                      "projectAbbr": ""
+                    }
+                  }
+                },
+                {
+                  "type": "TextButton",
+                  "text": "Add New Tag, File & Log",
+                  "style": "OUTLINED",
+                  "disabled": false,
+                  "onClickAction": {
+                    "functionName": "processSubmissionWithNewTag",
+                    "parameters": {
+                      "logFileId": "",
+                      "targetFolderId": "",
+                      "projectAbbr": "",
+                      "newTag": "",
+                      "newTitle": ""
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "header": "⚙️ Advanced Options",
+          "collapsible": true,
+          "widgets": [
+            {
+              "type": "ButtonSet",
+              "buttons": [
+                {
+                  "type": "TextButton",
+                  "text": "🔄 Refresh Cache & Reload",
+                  "disabled": false,
+                  "onClickAction": {
+                    "functionName": "handleRefreshCache",
+                    "parameters": {}
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
