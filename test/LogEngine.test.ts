@@ -52,6 +52,36 @@ test("ArchitectureSubmittalStrategy extracts keys, formats filename and payload"
   assert.strictEqual(payload["Link"], "http://example.com/file.pdf");
 });
 
+test("ArchitectureSubmittalStrategy handles empty section (non-CSI submittal) without leading hyphens", () => {
+  const strategy = new ArchitectureSubmittalStrategy();
+
+  const doc = DocumentFactory.createValidatedArchitectureSubmittal({
+    date: "2026-07-25",
+    contact: "GC",
+    action: "Submitted",
+    notes: "Non-CSI submittal",
+    disciplineDetails: {
+      section: "",
+      number: "001",
+      title: "General Submittal",
+      revision: "0"
+    }
+  });
+
+  assert.strictEqual(strategy.getGroupKey(doc), "001");
+  assert.strictEqual(strategy.getTargetKey(doc), "001-0");
+  assert.strictEqual(strategy.getSortKey(doc), "001-000-20260725");
+
+  const fileName = strategy.getFileName(doc, "GC", " Rev");
+  assert.strictEqual(fileName, "001-0 General Submittal - 2026-07-25 GC Rev");
+
+  const headers = ["Section", "Number", "Title", "Revision", "Date", "Contact", "Action", "Status", "Notes", "Link", "Contact History"];
+  const rowWithNoSection = ["", "001", "General Submittal", "0", "2026-07-25", "GC", "Submitted", "Open", "", "", "GC"];
+
+  assert.strictEqual(strategy.getTargetKeyFromRow(rowWithNoSection, headers), "001-0");
+  assert.strictEqual(strategy.getGroupKeyFromRow(rowWithNoSection, headers), "001");
+});
+
 test("LogEngine appends new Architecture document end-to-end with InMemorySheetStorageAdapter", () => {
   const context = createTestContext();
   const headers = [

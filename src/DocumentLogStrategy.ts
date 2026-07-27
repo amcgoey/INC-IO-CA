@@ -20,6 +20,13 @@ if (typeof require !== "undefined") {
 }
 
 /**
+ * Helper to safely extract and trim section string from ArchitectureDetails, handling null/undefined correctly.
+ */
+function getSectionVal(section: any): string {
+  return section != null ? String(section).trim() : "";
+}
+
+/**
  * Formats a Date object or raw date string into a standard 6-digit `YYMMDD` string.
  *
  * @param rawDate - The input date instance, date string, or number.
@@ -85,9 +92,9 @@ class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocu
   /** @override */
   getGroupKey(doc: ValidatedDocument): string {
     const details = doc.disciplineDetails as ArchitectureDetails;
-    const sec = safePadNum(details.section, 6);
+    const secVal = getSectionVal(details?.section);
     const num = safePadNum(details.number, 3);
-    return `${sec}-${num}`.toLowerCase();
+    return secVal ? `${safePadNum(secVal, 6)}-${num}`.toLowerCase() : num.toLowerCase();
   }
 
   /** @override */
@@ -102,7 +109,8 @@ class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocu
   /** @override */
   getTargetKey(doc: ValidatedDocument): string {
     const details = doc.disciplineDetails as ArchitectureDetails;
-    return `${details.section}-${details.number}-${details.revision}`;
+    const secVal = getSectionVal(details?.section);
+    return secVal ? `${secVal}-${details.number}-${details.revision}` : `${details.number}-${details.revision}`;
   }
 
   /** @override */
@@ -123,7 +131,7 @@ class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocu
     const sec = String(secIdx !== -1 ? row[secIdx] || "" : "").trim();
     const num = String(numIdx !== -1 ? row[numIdx] || "" : "").trim();
     const rev = String(revIdx !== -1 ? row[revIdx] || "" : "").trim();
-    return `${sec}-${num}-${rev}`;
+    return sec ? `${sec}-${num}-${rev}` : `${num}-${rev}`;
   }
 
   /** @override */

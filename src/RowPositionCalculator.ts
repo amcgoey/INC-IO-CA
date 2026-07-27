@@ -69,9 +69,13 @@ function getRowGroupKey(row: any[], discipline: string, headers: string[]): stri
   if (discipline === "Architecture") {
     const secIdx = headers.indexOf("Section");
     const numIdx = headers.indexOf("Number");
-    let sec = padNum(secIdx !== -1 ? row[secIdx] : "", 6);
+    let secVal = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
     let num = padNum(numIdx !== -1 ? row[numIdx] : "", 3);
-    return `${sec}-${num}`.toLowerCase();
+    if (secVal) {
+      let sec = padNum(secVal, 6);
+      return `${sec}-${num}`.toLowerCase();
+    }
+    return num.toLowerCase();
   } else {
     const tagIdx = headers.indexOf("Spec Tag");
     let tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim();
