@@ -520,3 +520,47 @@ declare class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocum
   formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
   getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string;
 }
+
+
+/** Configuration schema encapsulating document-type specific rules and settings. */
+interface DocumentTypeConfig {
+  documentType: string;
+  rootFolderName?: string;
+  closedSubfolderRules?: (doc: ValidatedDocument) => string[];
+  coverPageTemplateId?: string;
+  filenamePrefix?: string;
+  logIdentity?: string;
+}
+
+/** Execution context passed through action pipeline steps. */
+interface DocumentActionContext {
+  fileId?: string;
+  blob?: GoogleAppsScript.Base.Blob;
+  validatedDoc?: ValidatedDocument;
+  config?: DocumentTypeConfig;
+  targetFolderId?: string;
+  subfolderPath?: string[];
+  newFileName?: string;
+  url?: string;
+  localPath?: string;
+  folderId?: string;
+  driveFilingRepository?: DriveFilingRepository;
+  logRepository?: LogRepository;
+  pdfDocumentService?: PdfDocumentService;
+  driveApp?: any;
+  gmailApp?: any;
+  spreadsheetApp?: any;
+  strategy?: DocumentLogStrategy;
+  selectedAction?: { action: string; abbr: string; status: string };
+  incomingRouting?: string;
+  projectAbbr?: string;
+  emptyFallbacks?: string[];
+  [key: string]: any;
+}
+
+/** Interface for primitive reusable document pipeline actions. */
+interface DocumentAction {
+  name: string;
+  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
+}
+
