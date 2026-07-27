@@ -21,7 +21,7 @@ This skill coordinates the development flow of subagents handling issue tickets.
 3. **Manage the queue & spawn subagents**: Assign each frontier issue (`gh issue edit <n> --add-assignee @me`) and spawn subagents using `invoke_subagent` with `Workspace: "share"` (Git worktrees). Direct subagents to spawn separate review subagents when running `/code-review` and post milestone artifacts to their assigned issue.
    * *Completion Criterion*: Subagents spawned on isolated Git branches (`ticket-<number>`) for all available frontier slots with strict subagent-spawning and milestone commenting directives.
 
-4. **Manage resources & review plans**: Enforce subagent concurrency caps (2–4 active agents). Review subagent implementation plans against `CONTEXT.md` and repository standards. Provide feedback until satisfied, then approve the plan and release the subagent.
+4. **Manage resources & review plans**: Enforce subagent concurrency caps (2–4 active agents). Review subagent implementation plans incrementally upon arrival against `CONTEXT.md` and repository standards. Provide feedback or approval immediately per subagent as its plan arrives so it can begin development without waiting for peers.
    * *Completion Criterion*: Approved plan attached to the GitHub issue as a comment and subagent released for development.
 
 5. **Merge commits & update DAG**: Once a subagent reports a ticket is defect-free and closed, merge the ticket's feature branch into the target integration branch (`develop`), recalculate the dependency frontier, and repeat.
@@ -86,7 +86,7 @@ This skill coordinates the development flow of subagents handling issue tickets.
 ### Step 4: Manage Resources & Review Plans
 * **Concurrency Cap**: Maintain 2–4 active subagents maximum to prevent system CPU/memory exhaustion.
 * **Concurrent Typechecks & Tests**: Subagents may run `npm run typecheck` (`tsc --noEmit`) and unit tests concurrently within their respective worktrees, as typechecks are read-only and source files are worktree-isolated.
-* **Plan Review**: Subagents must submit implementation plans to the orchestrator before editing code. Check plans against `CONTEXT.md` terminology, parent spec constraints, and test seams. Provide feedback if incomplete; once approved, post the plan to the GitHub issue (`gh issue comment <n> --body "..."`) and release the subagent.
+* **Incremental & Asynchronous Plan Review**: Do NOT wait for all active subagents to finish planning before reviewing. Review each implementation plan as soon as its `send_message` arrives: check against `CONTEXT.md` terminology, parent spec constraints, and test seams. Provide feedback or approve immediately per subagent so approved subagents can start coding right away without waiting for peers. Once approved, post the plan to the GitHub issue (`gh issue comment <n> --body "..."`) and release the subagent.
 
 ### Step 5: Merge Commits & Update DAG
 * When a subagent closes its ticket, verify that its branch builds clean (`npm run typecheck`) and tests pass.
