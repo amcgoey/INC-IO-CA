@@ -216,6 +216,7 @@ interface ProcessContext {
   headers: string[];
   getColIdx: (name: string) => number;
   selectedAction: { action: string; abbr: string; status: string };
+  appContext?: AppContext;
   targetKey: string;
   groupKey: string;
   newFileName: string;
@@ -572,6 +573,8 @@ declare var defaultTriageDocumentAction: TriageDocumentAction;
 
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 
+type AppContext = 'GoogleDrive' | 'Gmail';
+
 /** Policy detailing workflow actions (direction, stamping, subfolder rules). */
 interface WorkflowActionPolicy {
   direction: "incoming" | "outgoing";
@@ -583,6 +586,7 @@ interface WorkflowActionPolicy {
 
 /** Input object passed to DocumentWorkflowModule.executeWorkflow. */
 interface DocumentWorkflowInput {
+  appContext?: AppContext;
   validatedDoc: ValidatedDocument;
   logFileId: string;
   logSheetId?: number;
@@ -626,6 +630,20 @@ interface DocumentWorkflowResult {
 declare function getActionPolicy(action: string): WorkflowActionPolicy;
 declare function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy;
 declare function getDocumentTitle(doc: ValidatedDocument): string;
+
+declare class OutgoingWorkflow {
+  static execute(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult>;
+}
+
+declare class MoveDocumentAction implements DocumentAction {
+  name?: string;
+  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
+}
+
+declare class RenameDocumentAction implements DocumentAction {
+  name?: string;
+  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
+}
 
 declare class DocumentWorkflowModule {
   static executeWorkflow(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult>;
@@ -699,7 +717,7 @@ interface DocumentActionContext {
 
 /** Interface for primitive reusable document pipeline actions. */
 interface DocumentAction {
-  name: string;
+  name?: string;
   execute(context: DocumentActionContext): Promise<DocumentActionContext>;
 }
 

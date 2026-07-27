@@ -9,6 +9,13 @@
 
 declare var require: any;
 
+  try {
+    const _ow = eval('require("./OutgoingWorkflow")');
+    if (_ow && _ow.OutgoingWorkflow && typeof OutgoingWorkflow === "undefined") {
+      (globalThis as any).OutgoingWorkflow = _ow.OutgoingWorkflow;
+    }
+  } catch (e) {}
+
 if (typeof require !== "undefined") {
   try {
     const _wla = eval('require("./WriteLogAction")');
@@ -123,6 +130,13 @@ export class DocumentWorkflowModule {
   static async executeWorkflow(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult> {
     const action = input.validatedDoc.action || (input.selectedAction ? input.selectedAction.action : "");
     const policy = getActionPolicy(action);
+
+    if (policy.direction === "outgoing") {
+      const outgoingWf = (globalThis as any).OutgoingWorkflow || (typeof OutgoingWorkflow !== "undefined" ? OutgoingWorkflow : null);
+      if (outgoingWf && typeof outgoingWf.execute === "function") {
+        return await outgoingWf.execute(input);
+      }
+    }
 
     const strategy = input.strategy || getDocumentLogStrategy(input.validatedDoc);
 
