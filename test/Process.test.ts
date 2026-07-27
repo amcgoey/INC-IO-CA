@@ -346,6 +346,34 @@ test("moveSubmittalToClosed delegates file move and subfolder path resolution to
   assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-123");
 });
 
+test("moveSubmittalToClosed files directly under Closed root folder when section is blank (non-CSI project)", () => {
+  mockDriveFilingRepo.filedDocuments = [];
+  const event = {
+    parameters: {
+      targetFolderId: "target-folder-noncsi",
+      discipline: "Architecture",
+      section: "",
+      fileId: "file-closed-noncsi-789",
+      newFileName: "001-0 General Requirements",
+      fileUrl: "http://drive.google.com/file-closed-noncsi-789",
+      stampSubNo: "001-0",
+      itemTitle: "General Requirements",
+      logFileId: "log-789",
+      projectAbbr: "PROJ",
+      action: "Approved",
+      incomingRouting: "To Review",
+      directRowUrl: "http://docs.google.com/sheet",
+      failedColumns: "[]",
+      emptyFallbacks: "[]"
+    }
+  };
+
+  const res = moveSubmittalToClosed(event as any);
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed"]);
+  assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-noncsi-789");
+});
+
 test("moveSubmittalToClosed delegates file move and subfolder path resolution to defaultDriveFilingRepository for FF&E", () => {
   mockDriveFilingRepo.filedDocuments = [];
   const event = {
