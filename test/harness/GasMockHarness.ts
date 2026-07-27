@@ -18,6 +18,7 @@ try {
 }
 
 
+
 export interface CallLog {
   method: string;
   args: unknown[];

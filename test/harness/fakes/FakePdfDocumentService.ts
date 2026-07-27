@@ -21,6 +21,13 @@ export class FakePdfDocumentService implements PdfDocumentService {
     }
   }
 
+  reset(): void {
+    this.extractCalls = [];
+    this.stampCalls = [];
+    this.sliceCalls = [];
+    this.calls = [];
+  }
+
   setFormAction(fileId: string, action: string | null): void {
     this.actionMap.set(fileId, action);
   }

@@ -16,6 +16,12 @@ export class FakeLogRepository implements LogRepository {
     }
   }
 
+  reset(): void {
+    this.calls = [];
+    this.insertedRows = [];
+    this.appendedDocuments = [];
+  }
+
   getLogSettings(spreadsheetId: string, discipline: string): LogSettings {
     this.calls.push({ method: "getLogSettings", args: [spreadsheetId, discipline] });
     const key = `${spreadsheetId}:${discipline}`;
@@ -26,10 +32,11 @@ export class FakeLogRepository implements LogRepository {
       return this.configuredSettings[spreadsheetId];
     }
     return {
-      logFileId: spreadsheetId,
-      submittalTabName: "Submittals",
-      incomingTabName: "Incoming",
-      outgoingTabName: "Outgoing"
+      contacts: [],
+      actions: [],
+      ffeTags: { tags: [], vendors: [], tagMap: {} },
+      projectAbbr: "DEFAULT",
+      logSheetId: null
     };
   }
 
@@ -48,10 +55,10 @@ export class FakeLogRepository implements LogRepository {
 
   insertLogRow(
     spreadsheetId: string,
-    headers: stringm[],
+    headers: string[],
     rowData: any[],
     plan: RowInsertionPlan
-  ): { rowIndex: integer; failedColumns: stringm[] } {
+  ): { rowIndex: number; failedColumns: string[] } {
     this.calls.push({ method: "insertLogRow", args: [spreadsheetId, headers, rowData, plan] });
     this.insertedRows.push({ spreadsheetId, headers, rowData, plan });
     return { rowIndex: plan.finalRowIndex, failedColumns: [] };
@@ -66,9 +73,12 @@ export class FakeLogRepository implements LogRepository {
     this.calls.push({ method: "appendDocument", args: [spreadsheetId, document, strategy, options] });
     this.appendedDocuments.push({ spreadsheetId, document, strategy, options });
     return {
+      targetKey: "KEY-001",
+      newFileName: "test.pdf",
+      contactHistory: "",
       rowIndex: 10,
-      filename: (document.raw && document.raw.common && document.raw.common.filename) || "test.pdf",
-      contactHistory: []
+      failedColumns: [],
+      previousRowUpdated: false
     };
   }
 }
