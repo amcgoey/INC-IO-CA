@@ -398,6 +398,36 @@ test("ArchitectureSubmittalStrategy resolves subfolder path segments from CSI di
 
   const fallbackSubfolders = strategy.getFilingSubfolders!(docFallback);
   assert.deepStrictEqual(fallbackSubfolders, ["Closed"]);
+
+  const docBlankSection = DocumentFactory.createValidatedArchitectureSubmittal({
+    date: "2026-07-25",
+    contact: "GC",
+    action: "Submitted",
+    disciplineDetails: {
+      section: "",
+      number: "001",
+      title: "General Requirements",
+      revision: "0"
+    }
+  });
+
+  const blankSectionSubfolders = strategy.getFilingSubfolders!(docBlankSection);
+  assert.deepStrictEqual(blankSectionSubfolders, ["Closed"]);
+
+  const docWhitespaceSection = DocumentFactory.createValidatedArchitectureSubmittal({
+    date: "2026-07-25",
+    contact: "GC",
+    action: "Submitted",
+    disciplineDetails: {
+      section: "   ",
+      number: "001",
+      title: "General Requirements",
+      revision: "0"
+    }
+  });
+
+  const whitespaceSectionSubfolders = strategy.getFilingSubfolders!(docWhitespaceSection);
+  assert.deepStrictEqual(whitespaceSectionSubfolders, ["Closed"]);
 });
 
 test("FFESubmittalStrategy resolves subfolder path segments from spec tag prefix", () => {

@@ -163,9 +163,13 @@ class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocu
   /** @override */
   getFilingSubfolders(doc: ValidatedDocument): string[] {
     const details = doc.disciplineDetails as ArchitectureDetails;
-    const secPrefix = String(details && details.section ? details.section : "").trim().substring(0, 2);
-    const divName = (typeof CSI_DIVISIONS !== "undefined" && CSI_DIVISIONS[secPrefix]) ? CSI_DIVISIONS[secPrefix] : null;
     const closedFolder = (typeof CONFIG !== "undefined" && CONFIG.CLOSED_FOLDER_NAME) ? CONFIG.CLOSED_FOLDER_NAME : "Closed";
+    const secStr = String(details && details.section ? details.section : "").trim();
+    if (!secStr) {
+      return [closedFolder];
+    }
+    const secPrefix = secStr.substring(0, 2);
+    const divName = (typeof CSI_DIVISIONS !== "undefined" && CSI_DIVISIONS[secPrefix]) ? CSI_DIVISIONS[secPrefix] : null;
     if (divName) {
       return [closedFolder, divName];
     }

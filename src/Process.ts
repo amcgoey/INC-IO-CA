@@ -184,9 +184,10 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
         : { discipline: "FF&E", specTag: p.specTag || "", specTitle: "", vendor: "", revision: "" }
     };
 
+    const closedFolder = (typeof CONFIG !== "undefined" && CONFIG.CLOSED_FOLDER_NAME) ? CONFIG.CLOSED_FOLDER_NAME : "Closed";
     const subfolderPath = strategy.getFilingSubfolders
       ? strategy.getFilingSubfolders(doc)
-      : [(typeof CONFIG !== "undefined" && CONFIG.CLOSED_FOLDER_NAME) ? CONFIG.CLOSED_FOLDER_NAME : "Closed"];
+      : [closedFolder];
 
     const filingResult = defaultDriveFilingRepository.fileDocument(
       { fileId: p.fileId },
