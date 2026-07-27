@@ -427,6 +427,23 @@ declare function getRowGroupKey(row: any[], discipline: string, headers: string[
 declare function getRowSortKey(row: any[], discipline: string, headers: string[]): string;
 declare function computeRowInsertionPlan(boundedData: any[][], headers: string[], rowData: any[], disciplineOrGroupKeyFn: string | RowKeyFn, sortKeyFn?: RowKeyFn): RowInsertionPlan;
 
+/** Primitive reusable document transformation or operation step handler. */
+interface DocumentAction<TInput = any, TOutput = any> {
+  execute(input: TInput): Promise<TOutput>;
+}
+
+/** Input options for InsertPagesAction. */
+interface InsertPagesInput {
+  sourceBlob: GoogleAppsScript.Base.Blob;
+  data: ParsedData;
+  options: StampOptions;
+  pdfDocumentService?: PdfDocumentService;
+}
+
+declare class InsertPagesAction implements DocumentAction<InsertPagesInput, GoogleAppsScript.Base.Blob> {
+  execute(input: InsertPagesInput): Promise<GoogleAppsScript.Base.Blob>;
+}
+
 /** PDF stamping options. */
 interface StampOptions {
   newFileName: string;
@@ -495,6 +512,7 @@ interface DocumentWorkflowInput {
   selectedAction: { action: string; abbr: string; status: string };
   logRepository?: LogRepository;
   driveFilingRepository?: DriveFilingRepository;
+  insertPagesAction?: InsertPagesAction;
   pdfDocumentService?: PdfDocumentService;
   strategy?: DocumentLogStrategy;
   driveApp?: any;
