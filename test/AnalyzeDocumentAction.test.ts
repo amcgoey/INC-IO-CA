@@ -9,16 +9,16 @@ import assert from "node:assert";
 const { FakeAiAnalysisAdapter } = require("./harness/index");
 const { AnalyzeDocumentAction, defaultAnalyzeDocumentAction } = require("../src/AnalyzeDocumentAction");
 
-function createMockBlob(content: string = "dummy pdf content"): GoogleAppsScript.Base.Blob {
+function createMockBlob(name: string = "test.pdf", content: string = "dummy pdf content"): GoogleAppsScript.Base.Blob {
   return {
     getBytes: () => Buffer.from(content),
     getContentType: () => "application/pdf",
-    getName: () => "test.pdf",
+    getName: () => name,
     copyBlob: function() { return this; }
   } as any;
 }
 
-test("AnalyzeDocumentAction executes analyzeSubmittal using injected FakeAiAnalysisAdapter", async () => {
+test("AnalyzeDocumentAction slices PDF to 3 pages via ExtractPagesAction and executes analyzeSubmittal", async () => {
   const fakeAi = new FakeAiAnalysisAdapter();
   fakeAi.setAnalyzeSubmittalResult({
     success: true,
@@ -28,12 +28,32 @@ test("AnalyzeDocumentAction executes analyzeSubmittal using injected FakeAiAnaly
       predictedRevision: "0",
       predictedTitle: "Concrete Structural Mix",
       predictedContactAbbr: "GC",
-      predictedAction: "Submitted"
+      predictedAction: "Submitted",
+      predictedSpecTag: "CONC-01",
+      predictedVendor: "Acme Concrete"
     }
   });
 
-  const action = new AnalyzeDocumentAction({ aiAnalysisService: fakeAi });
-  const blob = createMockBlob();
+  let extractExecuted = false;
+  let maxPagesCaptured = 0;
+  const mockSlicedBlob = createMockBlob("sliced.pdf", "sliced content");
+
+  const mockExtractPagesAction: ExtractPagesAction = {
+    async execute(input: ExtractPagesInput | GoogleAppsScript.Base.Blob): Promise<ExtractPagesResult> {
+      extractExecuted = true;
+      if (input && typeof (input as ExtractPagesInput).maxPages === "number") {
+        maxPagesCaptured = (input as ExtractPagesInput).maxPages!;
+      }
+      return { blob: mockSlicedBlob, base64: "c2xpY2Vk" };
+    }
+  } as any;
+
+  const action = new AnalyzeDocumentAction({
+    aiAnalysisService: fakeAi,
+    extractPagesAction: mockExtractPagesAction
+  });
+
+  const blob = createMockBlob("full_document.pdf");
   const contextObj = {
     contacts: [{ abbr: "GC", name: "General Contractor" }],
     actions: [{ action: "Submitted" }]
@@ -45,14 +65,35 @@ test("AnalyzeDocumentAction executes analyzeSubmittal using injected FakeAiAnaly
     contextObj
   });
 
+  assert.strictEqual(extractExecuted, true, "ExtractPagesAction should be executed for 3-page slicing");
+  assert.strictEqual(maxPagesCaptured, 3, "ExtractPagesAction should slice max 3 pages");
   assert.strictEqual(result.success, true);
+
   if (result.success) {
-    assert.strictEqual(result.analysis.predictedSection, "033000");
-    assert.strictEqual(result.analysis.predictedNumber, "001");
-    assert.strictEqual(result.analysis.predictedContactAbbr, "GC");
+    // Assert candidate RawDocument field predictions
+    const rawDocCandidate: RawDocument = {
+      section: result.analysis.predictedSection || "",
+      number: result.analysis.predictedNumber || "",
+      revision: result.analysis.predictedRevision || "",
+      title: result.analysis.predictedTitle || "",
+      contact: result.analysis.predictedContactAbbr || "",
+      action: result.analysis.predictedAction || "",
+      specTag: result.analysis.predictedSpecTag || "",
+      vendor: result.analysis.predictedVendor || ""
+    };
+
+    assert.strictEqual(rawDocCandidate.section, "033000");
+    assert.strictEqual(rawDocCandidate.number, "001");
+    assert.strictEqual(rawDocCandidate.revision, "0");
+    assert.strictEqual(rawDocCandidate.title, "Concrete Structural Mix");
+    assert.strictEqual(rawDocCandidate.contact, "GC");
+    assert.strictEqual(rawDocCandidate.action, "Submitted");
+    assert.strictEqual(rawDocCandidate.specTag, "CONC-01");
+    assert.strictEqual(rawDocCandidate.vendor, "Acme Concrete");
   }
 
   assert.strictEqual(fakeAi.analyzeCalls.length, 1);
+  assert.strictEqual(fakeAi.analyzeCalls[0].sourceBlob.getName(), "sliced.pdf");
   assert.strictEqual(fakeAi.analyzeCalls[0].emailText, "Subject: Concrete submittal");
 });
 

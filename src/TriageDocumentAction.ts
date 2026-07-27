@@ -7,7 +7,7 @@
 
 declare var require: any;
 
-function resolveAiAnalysisServiceHelper(): AiAnalysisService {
+function resolveAiAnalysisService(): AiAnalysisService {
   if (typeof defaultAiAnalysisService !== "undefined" && defaultAiAnalysisService) {
     return defaultAiAnalysisService;
   }
@@ -15,6 +15,10 @@ function resolveAiAnalysisServiceHelper(): AiAnalysisService {
     return (globalThis as any).defaultAiAnalysisService;
   }
   try {
+    const analyzeMod = require("./AnalyzeDocumentAction");
+    if (analyzeMod && analyzeMod.resolveAiAnalysisServiceHelper) {
+      return analyzeMod.resolveAiAnalysisServiceHelper();
+    }
     return require("./AiAnalysisService").defaultAiAnalysisService;
   } catch (e) {
     throw new Error("AiAnalysisService is not available");
@@ -40,7 +44,7 @@ export class TriageDocumentAction implements DocumentAction<TriageDocumentInput,
 
   private getAiAnalysisService(): AiAnalysisService {
     if (this.aiAnalysisService) return this.aiAnalysisService;
-    return resolveAiAnalysisServiceHelper();
+    return resolveAiAnalysisService();
   }
 
   /**

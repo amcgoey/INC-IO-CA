@@ -2,13 +2,13 @@
  * @file AnalyzeDocumentAction.ts
  * @description DocumentAction implementation for AI multimodal submittal document analysis (AnalyzeDocumentAction).
  *
- * Slices up to 3 pages from the target PDF document blob and invokes `AiAnalysisService.analyzeSubmittal`
+ * Slices up to 3 pages from the target PDF document blob via `ExtractPagesAction` and invokes `AiAnalysisService.analyzeSubmittal`
  * to extract candidate submittal form fields.
  */
 
 declare var require: any;
 
-function resolveAiAnalysisServiceHelper(): AiAnalysisService {
+export function resolveAiAnalysisServiceHelper(): AiAnalysisService {
   if (typeof defaultAiAnalysisService !== "undefined" && defaultAiAnalysisService) {
     return defaultAiAnalysisService;
   }
@@ -19,6 +19,20 @@ function resolveAiAnalysisServiceHelper(): AiAnalysisService {
     return require("./AiAnalysisService").defaultAiAnalysisService;
   } catch (e) {
     throw new Error("AiAnalysisService is not available");
+  }
+}
+
+function resolveExtractPagesActionHelper(): ExtractPagesAction | null {
+  if (typeof defaultExtractPagesAction !== "undefined" && defaultExtractPagesAction) {
+    return defaultExtractPagesAction;
+  }
+  if ((globalThis as any).defaultExtractPagesAction) {
+    return (globalThis as any).defaultExtractPagesAction;
+  }
+  try {
+    return require("./ExtractPagesAction").defaultExtractPagesAction;
+  } catch (e) {
+    return null;
   }
 }
 
@@ -48,8 +62,14 @@ export class AnalyzeDocumentAction implements DocumentAction<AnalyzeDocumentInpu
     return resolveAiAnalysisServiceHelper();
   }
 
+  private getExtractPagesAction(): ExtractPagesAction | null {
+    if (this.extractPagesAction) return this.extractPagesAction;
+    return resolveExtractPagesActionHelper();
+  }
+
   /**
    * Executes AI submittal analysis on the source PDF blob.
+   * Slices the first 3 pages of the PDF blob before submitting to AI analysis.
    *
    * @param input - `AnalyzeDocumentInput` containing `sourceBlob`, optional `emailText`, and `contextObj`.
    * @returns A Promise resolving to `DeepAnalysisResult`.
@@ -62,8 +82,21 @@ export class AnalyzeDocumentAction implements DocumentAction<AnalyzeDocumentInpu
     const emailText = input.emailText || "";
     const contextObj = input.contextObj || { contacts: [], actions: [] };
 
+    let targetBlob = input.sourceBlob;
+    const extractAction = input.extractPagesAction || this.getExtractPagesAction();
+    if (extractAction) {
+      try {
+        const sliceResult = await extractAction.execute({ sourceBlob: input.sourceBlob, maxPages: 3 });
+        if (sliceResult && sliceResult.blob) {
+          targetBlob = sliceResult.blob;
+        }
+      } catch (e) {
+        // Fall back to sourceBlob if slicing fails
+      }
+    }
+
     const aiService = input.aiAnalysisService || this.getAiAnalysisService();
-    return await aiService.analyzeSubmittal(input.sourceBlob, emailText, contextObj);
+    return await aiService.analyzeSubmittal(targetBlob, emailText, contextObj);
   }
 }
 
@@ -78,6 +111,7 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     AnalyzeDocumentAction,
-    defaultAnalyzeDocumentAction
+    defaultAnalyzeDocumentAction,
+    resolveAiAnalysisServiceHelper
   };
 }

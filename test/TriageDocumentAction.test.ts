@@ -20,7 +20,7 @@ const sampleEmailData: EmailData = {
   body: "Please find attached submittal for Project Alpha."
 };
 
-test("TriageDocumentAction executes triageEmail using injected FakeAiAnalysisAdapter", async () => {
+test("TriageDocumentAction executes triageEmail and returns auto-selected project and discipline", async () => {
   const fakeAi = new FakeAiAnalysisAdapter();
   fakeAi.setTriageResult({
     success: true,
@@ -38,6 +38,7 @@ test("TriageDocumentAction executes triageEmail using injected FakeAiAnalysisAda
 
   assert.strictEqual(result.success, true);
   if (result.success) {
+    // Assert auto-selected Project ID and Discipline predictions
     assert.strictEqual(result.prediction.predictedProjectName, "Project Alpha");
     assert.strictEqual(result.prediction.predictedDiscipline, "Architecture");
   }
