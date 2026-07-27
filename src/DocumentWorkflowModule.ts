@@ -10,6 +10,18 @@ declare var require: any;
 
 if (typeof require !== "undefined") {
   try {
+    const _wla = eval('require("./WriteLogAction")');
+    if (_wla && _wla.WriteLogAction && typeof WriteLogAction === "undefined") {
+      (globalThis as any).WriteLogAction = _wla.WriteLogAction;
+    }
+  } catch (e) {}
+  try {
+    const _wfr = eval('require("./WorkflowRunner")');
+    if (_wfr && _wfr.WorkflowRunner && typeof WorkflowRunner === "undefined") {
+      (globalThis as any).WorkflowRunner = _wfr.WorkflowRunner;
+    }
+  } catch (e) {}
+  try {
     const _ipa = eval('require("./InsertPagesAction")');
     if (_ipa && _ipa.InsertPagesAction && typeof InsertPagesAction === "undefined") {
       (globalThis as any).InsertPagesAction = _ipa.InsertPagesAction;
@@ -134,19 +146,21 @@ export class DocumentWorkflowModule {
       { targetFolderId: input.targetFolderId, subfolderPath: subfolderPath }
     );
 
-    const logRepo = input.logRepository || defaultLogRepository;
-    const appendResult = logRepo.appendDocument(
-      input.logFileId,
-      input.validatedDoc,
-      strategy,
-      {
+    const writeLogAction = input.writeLogAction || new (typeof WriteLogAction !== "undefined" ? WriteLogAction : (globalThis as any).WriteLogAction)();
+    const runner = typeof WorkflowRunner !== "undefined" ? WorkflowRunner : (globalThis as any).WorkflowRunner;
+    const appendResult = await runner.runAction(writeLogAction, {
+      spreadsheetId: input.logFileId,
+      document: input.validatedDoc,
+      strategy: strategy,
+      options: {
         link: filingResult.url,
         status: input.selectedAction.status,
         actionAbbr: input.selectedAction.abbr,
         updatePreviousStatus: policy.updatePreviousStatus,
         previousRowStatus: policy.previousRowStatus
-      }
-    );
+      },
+      logRepository: input.logRepository || defaultLogRepository
+    });
 
     let finalFileId = filingResult.fileId;
 

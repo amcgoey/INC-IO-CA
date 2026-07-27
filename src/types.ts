@@ -340,12 +340,20 @@ interface DocumentLogStrategy<T = ValidatedDocument> {
   getGroupKey(doc: T): string;
   getSortKey(doc: T): string;
   getTargetKey(doc: T): string;
+  getIdentityData?(doc: T): IdentityData;
   getGroupKeyFromRow(row: any[], headers: string[]): string;
   getSortKeyFromRow(row: any[], headers: string[]): string;
   getTargetKeyFromRow(row: any[], headers: string[]): string;
   formatRowPayload(doc: T, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
   getFileName(doc: T, contactHistory: string, actionAbbr: string): string;
   getFilingSubfolders?(doc: T): string[];
+}
+
+/** Abstract identity model for storage-agnostic logging. */
+interface IdentityData {
+  identityGroup: string;
+  identityRevisionGroup: string;
+  identity: string;
 }
 
 /** Options for appending submittals to log repository. */
@@ -357,6 +365,7 @@ interface AppendDocumentOptions {
   actionAbbr?: string;
   updatePreviousStatus?: boolean;
   previousRowStatus?: string;
+  identityData?: IdentityData;
 }
 
 /** Result object returned after appending a document row to Google Sheets. */
@@ -440,6 +449,26 @@ interface InsertPagesInput {
   pdfDocumentService?: PdfDocumentService;
 }
 
+
+/** Input options for WriteLogAction. */
+interface WriteLogInput {
+  spreadsheetId: string;
+  document: ValidatedDocument;
+  strategy: DocumentLogStrategy;
+  identityData?: IdentityData;
+  options?: AppendDocumentOptions;
+  logRepository?: LogRepository;
+}
+
+declare class WriteLogAction implements DocumentAction<WriteLogInput, AppendDocumentResult> {
+  execute(input: WriteLogInput): Promise<AppendDocumentResult>;
+}
+
+declare class WorkflowRunner {
+  static runAction<TInput, TOutput>(action: DocumentAction<TInput, TOutput>, input: TInput): Promise<TOutput>;
+  static runSequence(steps: Array<{ action: DocumentAction<any, any>; input: any }>): Promise<any[]>;
+}
+
 declare class InsertPagesAction implements DocumentAction<InsertPagesInput, GoogleAppsScript.Base.Blob> {
   execute(input: InsertPagesInput): Promise<GoogleAppsScript.Base.Blob>;
 }
@@ -513,6 +542,7 @@ interface DocumentWorkflowInput {
   logRepository?: LogRepository;
   driveFilingRepository?: DriveFilingRepository;
   insertPagesAction?: InsertPagesAction;
+  writeLogAction?: WriteLogAction;
   pdfDocumentService?: PdfDocumentService;
   strategy?: DocumentLogStrategy;
   driveApp?: any;
