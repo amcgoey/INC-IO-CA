@@ -224,11 +224,9 @@ export class IncomingWorkflow {
     // Step 5: Apply STAMPED_ prefix and place ReviewDocument in Submittals\ root folder via MoveDocumentAction
     const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
     const reviewFileName = stampedPrefix + appendResult.newFileName + ".pdf";
-    if (stampedBlob && typeof stampedBlob.setName === "function") {
-      stampedBlob.setName(reviewFileName);
-    }
 
     const reviewContext: DocumentActionContext = await runner.runAction(moveAction, {
+      fileId: dupContext.fileId,
       blob: stampedBlob || undefined,
       targetFolderId: input.targetFolderId,
       subfolderPath: undefined,
@@ -240,10 +238,10 @@ export class IncomingWorkflow {
     const itemTitle = typeof getDocumentTitle !== "undefined" ? getDocumentTitle(input.validatedDoc) : "";
 
     return {
-      fileId: origContext.fileId || reviewContext.fileId || "",
+      fileId: reviewContext.fileId || origContext.fileId || "",
       targetKey: appendResult.targetKey,
-      url: origContext.url || reviewContext.url || "",
-      localPath: origContext.localPath || reviewContext.localPath || "",
+      url: reviewContext.url || origContext.url || "",
+      localPath: reviewContext.localPath || origContext.localPath || "",
       title: itemTitle || "",
       action: action,
       incomingRouting: input.incomingRouting,
