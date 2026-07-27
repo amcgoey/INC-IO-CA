@@ -6,9 +6,10 @@
  * Implements the dual-path workflow:
  * 1. Saves pristine untouched OriginalDocument to Submittals\Closed\<Subfolder>\.
  * 2. Writes initial receiving log record via WriteLogAction (using WorkflowRunner).
- * 3. Duplicates OriginalDocument to create ReviewDocument via DuplicateDocumentAction (using WorkflowRunner).
- * 4. Prepends CoverPageDocument onto ReviewDocument via InsertPagesAction (using WorkflowRunner).
- * 5. Applies [Filename Prefix] (STAMPED_) and places ReviewDocument in Submittals\ root.
+ * 3. Renames OriginalDocument via RenameDocumentAction (using WorkflowRunner).
+ * 4. Duplicates OriginalDocument to create ReviewDocument via DuplicateDocumentAction (using WorkflowRunner).
+ * 5. Prepends CoverPageDocument onto ReviewDocument via InsertPagesAction (using WorkflowRunner).
+ * 6. Applies [Filename Prefix] (STAMPED_) and places ReviewDocument in Submittals\ root folder.
  */
 
 declare var require: any;
@@ -80,7 +81,7 @@ declare var defaultDuplicateDocumentAction: DuplicateDocumentAction;
 
 export class IncomingWorkflow {
   /**
-   * Resolves the source document blob from Drive file ID, email attachment, or Drive file URL.
+   * Resolves source document blob from Drive file ID, email attachment, or Drive URL.
    */
   static resolveSourceBlob(input: DocumentWorkflowInput): GoogleAppsScript.Base.Blob | null {
     const driveApp = input.driveApp || (typeof DriveApp !== "undefined" ? DriveApp : null);
@@ -110,15 +111,15 @@ export class IncomingWorkflow {
   }
 
   /**
-   * Constructs direct Google Sheets row edit URL.
+   * Constructs direct Google Sheets row edit URL using LogSettings / CONFIG.LOG_SHEET_NAME.
    */
   static buildDirectRowUrl(logFileId: string, rowIndex: number, sheetId?: number | null, spreadsheetApp?: any): string {
     let resolvedSheetId = sheetId;
     if ((resolvedSheetId === undefined || resolvedSheetId === null) && spreadsheetApp) {
       try {
         const openSs = spreadsheetApp.openById(logFileId);
-        const sheetName = typeof CONFIG !== "undefined" && CONFIG.LOG_SHEET_NAME ? CONFIG.LOG_SHEET_NAME : "Submittals Log";
-        const logSheet = openSs ? openSs.getSheetByName(sheetName) : null;
+        const sheetName = typeof CONFIG !== "undefined" && CONFIG.LOG_SHEET_NAME ? CONFIG.LOG_SHEET_NAME : "";
+        const logSheet = sheetName ? openSs.getSheetByName(sheetName) : (openSs ? openSs.getSheets()[0] : null);
         resolvedSheetId = logSheet ? logSheet.getSheetId() : 0;
       } catch (e) {
         resolvedSheetId = 0;
@@ -171,7 +172,7 @@ export class IncomingWorkflow {
       );
     }
 
-    // Step 2: Write initial receiving log entry via WriteLogAction and WorkflowRunner
+    // Step 2: Write initial receiving log entry via WriteLogAction
     const writeLogAction = input.writeLogAction || new (typeof WriteLogAction !== "undefined" ? WriteLogAction : (globalThis as any).WriteLogAction)();
     const appendResult = await runner.runAction(writeLogAction, {
       spreadsheetId: input.logFileId,
@@ -188,30 +189,31 @@ export class IncomingWorkflow {
       logRepository: logRepo
     });
 
-    // Rename OriginalDocument in Drive to calculated name
-    if (originalFilingResult.fileId && driveApp) {
-      driveApp.getFileById(originalFilingResult.fileId).setName(appendResult.newFileName + ".pdf");
-    }
-
-    // Path 2: Duplicate OriginalDocument to create ReviewDocument via DuplicateDocumentAction and WorkflowRunner
-    const dupAction = input.duplicateDocumentAction || new (typeof DuplicateDocumentAction !== "undefined" ? DuplicateDocumentAction : (globalThis as any).DuplicateDocumentAction)();
-    const dupContext: DocumentActionContext = await runner.runAction(dupAction, {
+    // Step 3: Rename OriginalDocument via RenameDocumentAction and WorkflowRunner
+    const renameAction = new (typeof RenameDocumentAction !== "undefined" ? RenameDocumentAction : (globalThis as any).RenameDocumentAction)();
+    const originalFileName = appendResult.newFileName + ".pdf";
+    await runner.runAction(renameAction, {
       fileId: originalFilingResult.fileId,
       blob: blob || undefined,
-      driveFilingRepository: driveFilingRepo,
-      targetFolderId: input.targetFolderId
+      newFileName: originalFileName,
+      driveApp: driveApp
     });
 
-    let reviewFileId = dupContext.fileId || originalFilingResult.fileId;
-    let reviewUrl = dupContext.url || originalFilingResult.url;
-    let reviewLocalPath = dupContext.localPath || originalFilingResult.localPath;
+    // Path 2: Duplicate OriginalDocument to create ReviewDocument blob via DuplicateDocumentAction
+    const dupAction = input.duplicateDocumentAction || new (typeof DuplicateDocumentAction !== "undefined" ? DuplicateDocumentAction : (globalThis as any).DuplicateDocumentAction)();
+    const dupContext: DocumentActionContext = await runner.runAction(dupAction, {
+      blob: blob || undefined,
+      fileId: originalFilingResult.fileId,
+      driveFilingRepository: driveFilingRepo
+    });
 
-    // Step 4: Prepend CoverPageDocument onto ReviewDocument via InsertPagesAction and WorkflowRunner
     let reviewBlob: GoogleAppsScript.Base.Blob | null = dupContext.blob || blob;
-    if (!reviewBlob && driveApp && reviewFileId) {
-      reviewBlob = driveApp.getFileById(reviewFileId).getBlob();
+    if (!reviewBlob && driveApp && originalFilingResult.fileId) {
+      reviewBlob = driveApp.getFileById(originalFilingResult.fileId).getBlob();
     }
 
+    // Step 5: Prepend CoverPageDocument onto ReviewDocument via InsertPagesAction and WorkflowRunner (if policy.stampPdf)
+    let stampedBlob = reviewBlob;
     if (policy.stampPdf && reviewBlob) {
       const templateId = (input.incomingRouting === "To Refer")
         ? (typeof CONFIG !== "undefined" ? CONFIG.TRANSMITTAL_TEMPLATE_ID : "")
@@ -220,7 +222,7 @@ export class IncomingWorkflow {
       const titleVal = typeof getDocumentTitle !== "undefined" ? getDocumentTitle(input.validatedDoc) : "";
       const insertAction = input.insertPagesAction || new (typeof InsertPagesAction !== "undefined" ? InsertPagesAction : (globalThis as any).InsertPagesAction)();
 
-      const stampedBlob: GoogleAppsScript.Base.Blob = await runner.runAction(insertAction, {
+      stampedBlob = await runner.runAction(insertAction, {
         sourceBlob: reviewBlob,
         data: { action, title: titleVal, incomingRouting: input.incomingRouting },
         options: {
@@ -230,31 +232,37 @@ export class IncomingWorkflow {
         },
         pdfDocumentService: input.pdfDocumentService || (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : null)
       });
+    }
 
-      const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
-      const reviewFileName = stampedPrefix + appendResult.newFileName + ".pdf";
+    // Step 6: Apply STAMPED_ prefix and place ReviewDocument in Submittals\ root folder
+    const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
+    const reviewFileName = stampedPrefix + appendResult.newFileName + ".pdf";
+    if (stampedBlob && typeof stampedBlob.setName === "function") {
       stampedBlob.setName(reviewFileName);
+    }
 
-      // Place ReviewDocument in Submittals\ root via DriveFilingRepository (subfolderPath: undefined)
-      if (driveFilingRepo) {
-        const reviewFiling = driveFilingRepo.fileDocument(
-          { blob: stampedBlob },
-          { targetFolderId: input.targetFolderId, newFileName: reviewFileName }
-        );
-        reviewFileId = reviewFiling.fileId;
-        reviewUrl = reviewFiling.url;
-        reviewLocalPath = reviewFiling.localPath;
-      }
+    let reviewFilingResult: FilingResult = {
+      fileId: "",
+      url: "",
+      localPath: "",
+      folderId: input.targetFolderId
+    };
+
+    if (driveFilingRepo) {
+      reviewFilingResult = driveFilingRepo.fileDocument(
+        { blob: stampedBlob || undefined },
+        { targetFolderId: input.targetFolderId, newFileName: reviewFileName }
+      );
     }
 
     const directRowUrl = this.buildDirectRowUrl(input.logFileId, appendResult.rowIndex, input.logSheetId, spreadsheetApp);
     const itemTitle = typeof getDocumentTitle !== "undefined" ? getDocumentTitle(input.validatedDoc) : "";
 
     return {
-      fileId: reviewFileId,
+      fileId: reviewFilingResult.fileId || originalFilingResult.fileId,
       targetKey: appendResult.targetKey,
-      url: reviewUrl,
-      localPath: reviewLocalPath,
+      url: reviewFilingResult.url || originalFilingResult.url,
+      localPath: reviewFilingResult.localPath || originalFilingResult.localPath,
       title: itemTitle || "",
       action: action,
       incomingRouting: input.incomingRouting,

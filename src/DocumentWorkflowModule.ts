@@ -117,13 +117,6 @@ export class DocumentWorkflowModule {
     const action = input.validatedDoc.action || (input.selectedAction ? input.selectedAction.action : "");
     const policy = getActionPolicy(action);
 
-    if (policy.direction === "outgoing") {
-      const outgoingWf = (globalThis as any).OutgoingWorkflow || (typeof OutgoingWorkflow !== "undefined" ? OutgoingWorkflow : null);
-      if (outgoingWf && typeof outgoingWf.execute === "function") {
-        return await outgoingWf.execute(input);
-      }
-    }
-
     if (policy.direction === "incoming") {
       const incomingWf = (globalThis as any).IncomingWorkflow || (typeof IncomingWorkflow !== "undefined" ? IncomingWorkflow : null);
       if (incomingWf && typeof incomingWf.execute === "function") {
@@ -131,7 +124,12 @@ export class DocumentWorkflowModule {
       }
     }
 
-    throw new Error(`Unsupported workflow action policy direction: ${policy.direction}`);
+    const outgoingWf = (globalThis as any).OutgoingWorkflow || (typeof OutgoingWorkflow !== "undefined" ? OutgoingWorkflow : null);
+    if (outgoingWf && typeof outgoingWf.execute === "function") {
+      return await outgoingWf.execute(input);
+    }
+
+    throw new Error("Unable to execute workflow: OutgoingWorkflow or IncomingWorkflow unavailable");
   }
 }
 
