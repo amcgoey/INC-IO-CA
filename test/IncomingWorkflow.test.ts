@@ -61,6 +61,7 @@ test("IncomingWorkflow.execute processes Architecture incoming submittal with du
   assert.strictEqual(context.driveFilingRepository.duplicatedDocuments.length, 1);
   const reviewFiling = context.driveFilingRepository.filedDocuments[1];
   assert.strictEqual(reviewFiling.options.subfolderPath, undefined);
+  assert.notStrictEqual(originalFiling, reviewFiling);
   assert.strictEqual(reviewFiling.options.targetFolderId, "submittals-root-folder-id");
   assert.strictEqual(reviewFiling.options.newFileName, "STAMPED_033000-001-001 Concrete - 2026-07-25 GC Rec.pdf");
 

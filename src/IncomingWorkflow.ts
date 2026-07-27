@@ -117,7 +117,7 @@ export class IncomingWorkflow {
     if ((resolvedSheetId === undefined || resolvedSheetId === null) && spreadsheetApp) {
       try {
         const openSs = spreadsheetApp.openById(logFileId);
-        const sheetName = typeof CONFIG !== "undefined" && CONFIG.LOG_SHEET_NAME ? CONFIG.LOG_SHEET_NAME : "";
+        const sheetName = typeof CONFIG !== "undefined" && CONFIG.LOG_SHEET_NAME ? CONFIG.LOG_SHEET_NAME : "Submittals Log";
         const logSheet = sheetName ? openSs.getSheetByName(sheetName) : (openSs ? openSs.getSheets()[0] : null);
         resolvedSheetId = logSheet ? logSheet.getSheetId() : 0;
       } catch (e) {
