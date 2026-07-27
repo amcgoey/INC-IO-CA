@@ -250,12 +250,49 @@ interface FFEDetails {
   relatedTag?: string;
 }
 
+/** Stored representation preference for a list-backed document field. */
+type StoredFormType = 'abbreviation' | 'longForm';
+
+/** Option item for dynamic ListDocumentField resolution. */
+interface ListFieldOption {
+  abbr: string;
+  name?: string;
+  longForm?: string;
+  action?: string;
+  status?: string;
+}
+
+/** Bi-directionally resolved value payload for a ListDocumentField. */
+interface ResolvedListField {
+  fieldName: string;
+  storedForm: StoredFormType;
+  storedValue: string;
+  abbreviation: string;
+  longForm: string;
+}
+
+/** Class declaring stored form and dynamic option resolution for list fields. */
+declare class ListDocumentField {
+  readonly name: string;
+  readonly storedForm: StoredFormType;
+  readonly options: ListFieldOption[];
+  constructor(name: string, storedForm: StoredFormType, options?: ListFieldOption[]);
+  static createContactField(contacts?: ContactSetting[]): ListDocumentField;
+  static createActionField(actions?: ActionSetting[]): ListDocumentField;
+  resolve(inputValue: string): ResolvedListField;
+}
+
 /** Strongly typed validated document domain model. */
 interface ValidatedDocument {
   documentType: string;
   date: string;
   contact: string;
   action: string;
+  contactAbbr?: string;
+  contactLongForm?: string;
+  actionAbbr?: string;
+  actionLongForm?: string;
+  listFields?: Record<string, ResolvedListField>;
   notes?: string;
   incomingRouting?: string;
   disciplineDetails: ArchitectureDetails | FFEDetails;
@@ -269,6 +306,10 @@ interface ValidationContext {
   };
   bypassTagValidation?: boolean;
   bypassVendorValidation?: boolean;
+  contacts?: ContactSetting[];
+  actions?: ActionSetting[];
+  logSettings?: LogSettings;
+  listFields?: Record<string, ListDocumentField>;
 }
 
 /** Discriminated union outcome for submittal validation. */

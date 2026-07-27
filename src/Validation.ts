@@ -34,25 +34,32 @@ function isEmpty(val?: string): boolean {
  * @returns `ValidationResult` containing status ("success", "error", or "interaction_required"), validated data, errors, or prompts.
  */
 function validateDocument(raw: RawDocument, context?: ValidationContext): ValidationResult {
-  const discipline = getTrimmed(raw.discipline) || "Architecture";
+  const rawDoc = FormIntakeParser.parse(raw);
+  const discipline = rawDoc.discipline || "Architecture";
+
+  const contactField = context?.listFields?.contact || ListDocumentField.createContactField(context?.contacts || context?.logSettings?.contacts || []);
+  const actionField = context?.listFields?.action || ListDocumentField.createActionField(context?.actions || context?.logSettings?.actions || []);
+
+  const resolvedContact = contactField.resolve(rawDoc.contact);
+  const resolvedAction = actionField.resolve(rawDoc.action);
 
   // Validate common required fields
   const missingFields: string[] = [];
-  if (isEmpty(raw.date)) missingFields.push("Date");
-  if (isEmpty(raw.contact)) missingFields.push("Contact");
-  if (isEmpty(raw.action)) missingFields.push("Action");
+  if (isEmpty(rawDoc.date)) missingFields.push("Date");
+  if (isEmpty(rawDoc.contact)) missingFields.push("Contact");
+  if (isEmpty(rawDoc.action)) missingFields.push("Action");
 
-  if (getTrimmed(raw.action) === "Received" && isEmpty(raw.incomingRouting)) {
+  if ((resolvedAction.longForm === "Received" || resolvedAction.storedValue === "Received" || rawDoc.action === "Received") && isEmpty(rawDoc.incomingRouting)) {
     missingFields.push("Incoming Routing");
   }
 
   // Discipline-specific required fields
   if (discipline === "Architecture") {
-    if (isEmpty(raw.title)) missingFields.push("Title");
+    if (isEmpty(rawDoc.title)) missingFields.push("Title");
   } else if (discipline === "FF&E") {
-    if (isEmpty(raw.specTag)) missingFields.push("Spec Tag");
-    if (isEmpty(raw.specTitle)) missingFields.push("Spec Title");
-    if (isEmpty(raw.vendor)) missingFields.push("Vendor");
+    if (isEmpty(rawDoc.specTag)) missingFields.push("Spec Tag");
+    if (isEmpty(rawDoc.specTitle)) missingFields.push("Spec Title");
+    if (isEmpty(rawDoc.vendor)) missingFields.push("Vendor");
   }
 
   if (missingFields.length > 0) {
@@ -68,30 +75,38 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
   const validVendors = context?.ffeTags?.vendors || [];
 
   if (discipline === "Architecture") {
-    const sectionVal = getTrimmed(raw.section);
+    const sectionVal = getTrimmed(rawDoc.section);
     if (!sectionVal) warnings.push("Section");
 
-    const numberVal = getTrimmed(raw.number);
+    const numberVal = getTrimmed(rawDoc.number);
     if (!numberVal) warnings.push("Number");
 
-    const revisionVal = getTrimmed(raw.revision);
+    const revisionVal = getTrimmed(rawDoc.revision);
     if (!revisionVal) warnings.push("Revision");
 
     const archDetails: ArchitectureDetails = {
       discipline: "Architecture",
       section: sectionVal,
       number: numberVal,
-      title: getTrimmed(raw.title),
+      title: getTrimmed(rawDoc.title),
       revision: revisionVal
     };
 
     const validatedDoc: ValidatedDocument = {
-      documentType: getTrimmed(raw.documentType) || "Submittal",
-      date: getTrimmed(raw.date),
-      contact: getTrimmed(raw.contact),
-      action: getTrimmed(raw.action),
-      notes: getTrimmed(raw.notes),
-      incomingRouting: getTrimmed(raw.incomingRouting),
+      documentType: getTrimmed(rawDoc.documentType) || "Submittal",
+      date: getTrimmed(rawDoc.date),
+      contact: resolvedContact.storedValue,
+      action: resolvedAction.storedValue,
+      contactAbbr: resolvedContact.abbreviation,
+      contactLongForm: resolvedContact.longForm,
+      actionAbbr: resolvedAction.abbreviation,
+      actionLongForm: resolvedAction.longForm,
+      listFields: {
+        contact: resolvedContact,
+        action: resolvedAction
+      },
+      notes: getTrimmed(rawDoc.notes),
+      incomingRouting: getTrimmed(rawDoc.incomingRouting),
       disciplineDetails: archDetails
     };
 
@@ -103,9 +118,9 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
   }
 
   if (discipline === "FF&E") {
-    const specTag = getTrimmed(raw.specTag);
-    const vendor = getTrimmed(raw.vendor);
-    const relatedTag = getTrimmed(raw.relatedTag);
+    const specTag = getTrimmed(rawDoc.specTag);
+    const vendor = getTrimmed(rawDoc.vendor);
+    const relatedTag = getTrimmed(rawDoc.relatedTag);
 
     // Related Tags Validation
     if (relatedTag) {
@@ -143,25 +158,33 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
       };
     }
 
-    const revisionVal = getTrimmed(raw.revision);
+    const revisionVal = getTrimmed(rawDoc.revision);
     if (!revisionVal) warnings.push("Revision");
 
     const ffeDetails: FFEDetails = {
       discipline: "FF&E",
       specTag,
-      specTitle: getTrimmed(raw.specTitle),
+      specTitle: getTrimmed(rawDoc.specTitle),
       vendor,
       revision: revisionVal,
       relatedTag
     };
 
     const validatedDoc: ValidatedDocument = {
-      documentType: getTrimmed(raw.documentType) || "Submittal",
-      date: getTrimmed(raw.date),
-      contact: getTrimmed(raw.contact),
-      action: getTrimmed(raw.action),
-      notes: getTrimmed(raw.notes),
-      incomingRouting: getTrimmed(raw.incomingRouting),
+      documentType: getTrimmed(rawDoc.documentType) || "Submittal",
+      date: getTrimmed(rawDoc.date),
+      contact: resolvedContact.storedValue,
+      action: resolvedAction.storedValue,
+      contactAbbr: resolvedContact.abbreviation,
+      contactLongForm: resolvedContact.longForm,
+      actionAbbr: resolvedAction.abbreviation,
+      actionLongForm: resolvedAction.longForm,
+      listFields: {
+        contact: resolvedContact,
+        action: resolvedAction
+      },
+      notes: getTrimmed(rawDoc.notes),
+      incomingRouting: getTrimmed(rawDoc.incomingRouting),
       disciplineDetails: ffeDetails
     };
 
@@ -177,6 +200,7 @@ function validateDocument(raw: RawDocument, context?: ValidationContext): Valida
     errors: [`Discipline ${discipline} validation not yet implemented`]
   };
 }
+
 
 declare var module: any;
 

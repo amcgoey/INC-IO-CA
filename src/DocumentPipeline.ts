@@ -253,9 +253,86 @@ export class DriveFilenameIntakeParser {
  * @param context - Optional `ValidationContext` containing valid tag lists and bypass options.
  * @returns `ValidationResult` indicating success (with `ValidatedDocument`), error, or interaction_required.
  */
+
+export class ListDocumentField {
+  readonly name: string;
+  readonly storedForm: StoredFormType;
+  readonly options: ListFieldOption[];
+
+  constructor(name: string, storedForm: StoredFormType, options: ListFieldOption[] = []) {
+    this.name = name;
+    this.storedForm = storedForm;
+    this.options = options;
+  }
+
+  static createContactField(contacts: ContactSetting[] = []): ListDocumentField {
+    const options: ListFieldOption[] = contacts.map(c => ({
+      abbr: getTrimmed(c.abbr),
+      longForm: getTrimmed(c.name)
+    }));
+    return new ListDocumentField('contact', 'abbreviation', options);
+  }
+
+  static createActionField(actions: ActionSetting[] = []): ListDocumentField {
+    const options: ListFieldOption[] = actions.map(a => ({
+      abbr: getTrimmed(a.abbr),
+      longForm: getTrimmed(a.action),
+      status: getTrimmed(a.status)
+    }));
+    return new ListDocumentField('action', 'longForm', options);
+  }
+
+  resolve(inputValue: string): ResolvedListField {
+    const trimmed = getTrimmed(inputValue);
+    if (!trimmed) {
+      return {
+        fieldName: this.name,
+        storedForm: this.storedForm,
+        storedValue: '',
+        abbreviation: '',
+        longForm: ''
+      };
+    }
+
+    const lower = trimmed.toLowerCase();
+    const match = this.options.find(opt => {
+      const abbrMatch = opt.abbr ? opt.abbr.toLowerCase() === lower : false;
+      const nameMatch = (opt.longForm || opt.name || opt.action || '').toLowerCase() === lower;
+      return abbrMatch || nameMatch;
+    });
+
+    if (match) {
+      const abbr = match.abbr || trimmed;
+      const longForm = match.longForm || match.name || match.action || trimmed;
+      const storedValue = this.storedForm === 'abbreviation' ? abbr : longForm;
+      return {
+        fieldName: this.name,
+        storedForm: this.storedForm,
+        storedValue,
+        abbreviation: abbr,
+        longForm
+      };
+    }
+
+    return {
+      fieldName: this.name,
+      storedForm: this.storedForm,
+      storedValue: trimmed,
+      abbreviation: trimmed,
+      longForm: trimmed
+    };
+  }
+}
+
 function validateDocFn(raw: RawDocument, context?: ValidationContext): ValidationResult {
   const rawDoc = FormIntakeParser.parse(raw);
   const discipline = rawDoc.discipline || "Architecture";
+
+  const contactField = context?.listFields?.contact || ListDocumentField.createContactField(context?.contacts || context?.logSettings?.contacts || []);
+  const actionField = context?.listFields?.action || ListDocumentField.createActionField(context?.actions || context?.logSettings?.actions || []);
+
+  const resolvedContact = contactField.resolve(rawDoc.contact);
+  const resolvedAction = actionField.resolve(rawDoc.action);
 
   // Validate common required fields
   const missingFields: string[] = [];
@@ -263,7 +340,7 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
   if (isEmpty(rawDoc.contact)) missingFields.push("Contact");
   if (isEmpty(rawDoc.action)) missingFields.push("Action");
 
-  if (rawDoc.action === "Received" && isEmpty(rawDoc.incomingRouting)) {
+  if ((resolvedAction.longForm === "Received" || resolvedAction.storedValue === "Received" || rawDoc.action === "Received") && isEmpty(rawDoc.incomingRouting)) {
     missingFields.push("Incoming Routing");
   }
 
@@ -309,8 +386,16 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
     const validatedDoc: ValidatedDocument = {
       documentType: getTrimmed(rawDoc.documentType) || "Submittal",
       date: getTrimmed(rawDoc.date),
-      contact: getTrimmed(rawDoc.contact),
-      action: getTrimmed(rawDoc.action),
+      contact: resolvedContact.storedValue,
+      action: resolvedAction.storedValue,
+      contactAbbr: resolvedContact.abbreviation,
+      contactLongForm: resolvedContact.longForm,
+      actionAbbr: resolvedAction.abbreviation,
+      actionLongForm: resolvedAction.longForm,
+      listFields: {
+        contact: resolvedContact,
+        action: resolvedAction
+      },
       notes: getTrimmed(rawDoc.notes),
       incomingRouting: getTrimmed(rawDoc.incomingRouting),
       disciplineDetails: archDetails
@@ -379,8 +464,16 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
     const validatedDoc: ValidatedDocument = {
       documentType: getTrimmed(rawDoc.documentType) || "Submittal",
       date: getTrimmed(rawDoc.date),
-      contact: getTrimmed(rawDoc.contact),
-      action: getTrimmed(rawDoc.action),
+      contact: resolvedContact.storedValue,
+      action: resolvedAction.storedValue,
+      contactAbbr: resolvedContact.abbreviation,
+      contactLongForm: resolvedContact.longForm,
+      actionAbbr: resolvedAction.abbreviation,
+      actionLongForm: resolvedAction.longForm,
+      listFields: {
+        contact: resolvedContact,
+        action: resolvedAction
+      },
       notes: getTrimmed(rawDoc.notes),
       incomingRouting: getTrimmed(rawDoc.incomingRouting),
       disciplineDetails: ffeDetails
@@ -399,9 +492,7 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
   };
 }
 
-/**
- * Pure application service class providing static entry points for document parsing and validation.
- */
+
 export class DocumentPipeline {
   /**
    * Normalizes raw form input dictionary into a `RawDocument`.
@@ -466,6 +557,7 @@ if (typeof module !== "undefined" && module.exports) {
     EmailIntakeParser,
     DriveFilenameIntakeParser,
     DocumentPipeline,
+    ListDocumentField,
     validateDocument: typeof validateDocument !== "undefined" ? validateDocument : validateDocFn
   };
 }
