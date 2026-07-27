@@ -42,8 +42,15 @@ async function buildAddOn(e: GoogleAppsScriptEvent): Promise<GoogleAppsScript.Ca
       body: message.getPlainBody ? message.getPlainBody() : ""
     };
 
-    if (typeof defaultAiAnalysisService !== "undefined" && defaultAiAnalysisService.triageEmail) {
-      const triageResult = await defaultAiAnalysisService.triageEmail(emailData, messageId);
+    const triageAction = (typeof defaultTriageDocumentAction !== "undefined" && defaultTriageDocumentAction)
+      ? defaultTriageDocumentAction
+      : ((globalThis as any).defaultTriageDocumentAction || (function() {
+          try { return require("./TriageDocumentAction").defaultTriageDocumentAction; }
+          catch(e) { return new TriageDocumentAction(); }
+        })());
+
+    if (triageAction && typeof triageAction.execute === "function") {
+      const triageResult = await triageAction.execute({ emailData, messageId });
 
       if (triageResult.success) {
         const pred = triageResult.prediction;

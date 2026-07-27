@@ -462,7 +462,13 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
 
   const logSettings = defaultLogRepository.getLogSettings(p.logFileId, p.discipline);
   const contextObj = { contacts: logSettings.contacts, actions: logSettings.actions };
-  const result = await defaultAiAnalysisService.analyzeSubmittal(sourceBlob, emailText, contextObj);
+  const analyzeAction = (typeof defaultAnalyzeDocumentAction !== "undefined" && defaultAnalyzeDocumentAction)
+    ? defaultAnalyzeDocumentAction
+    : ((globalThis as any).defaultAnalyzeDocumentAction || (function() {
+        try { return require("./AnalyzeDocumentAction").defaultAnalyzeDocumentAction; }
+        catch(e) { return new AnalyzeDocumentAction(); }
+      })());
+  const result = await analyzeAction.execute({ sourceBlob, emailText, contextObj });
   
   return defaultCardPresenter.presentDeepAnalysisResult(e, result);
 }
