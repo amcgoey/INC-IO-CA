@@ -18,7 +18,7 @@ test("FakeDriveFilingRepository supports custom configured paths", () => {
 });
 
 test("GoogleDriveFilingRepository resolves Shared Drive path using Drive Advanced Service", () => {
-  const harness = GasMockHarness.install();
+  GasMockHarness.install();
   try {
     const mockDrive = {
       Files: {
@@ -50,7 +50,7 @@ test("GoogleDriveFilingRepository resolves My Drive path using DriveApp parent t
   const harness = GasMockHarness.install();
   try {
     delete (globalThis as any).Drive;
-    const driveState = harness.getDriveState();
+    
 
     const rootFolder = (globalThis as any).DriveApp.getFolderById("root");
     const submittalsFolder = rootFolder.createFolder("Submittals");

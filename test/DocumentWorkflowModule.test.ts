@@ -1,7 +1,7 @@
 import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 
-const { GasMockHarness, DocumentFactory, createTestContext, FakeDriveFilingRepository, FakePdfDocumentService } = require("./harness");
+const { GasMockHarness, DocumentFactory, createTestContext } = require("./harness");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
 const { getActionPolicy, getDocumentLogStrategy, getDocumentTitle, DocumentWorkflowModule } = require("../src/DocumentWorkflowModule");
 
@@ -64,25 +64,6 @@ test("getDocumentTitle extracts title based on discipline", () => {
 test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submittals", async () => {
   const context = createTestContext();
 
-  let appendCalled = false;
-  let passedOptions: any = null;
-  const mockLogRepo = {
-    appendDocument: (ssId: string, doc: any, strategy: any, options: any) => {
-      appendCalled = true;
-      passedOptions = options;
-      assert.strictEqual(ssId, "log-ss-123");
-      assert.ok(strategy instanceof ArchitectureSubmittalStrategy);
-      return {
-        targetKey: "033000-001-001",
-        newFileName: "033000-001-001 Concrete - 2026-07-25 GC Rec",
-        contactHistory: "GC",
-        rowIndex: 5,
-        failedColumns: [],
-        previousRowUpdated: false
-      };
-    }
-  };
-
   const input = {
     validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-25",
@@ -97,16 +78,19 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
     projectAbbr: "PROJ",
     emptyFallbacks: [],
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
-    logRepository: mockLogRepo as any,
+    logRepository: context.logRepository,
     driveFilingRepository: context.driveFilingRepository,
     pdfDocumentService: context.pdfDocumentService
   };
 
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
 
-  assert.strictEqual(appendCalled, true);
-  assert.strictEqual(passedOptions.status, "Under Review");
-  assert.strictEqual(passedOptions.actionAbbr, " Rec");
+  assert.strictEqual(context.logRepository.appendedDocuments.length, 1);
+  const appDoc = context.logRepository.appendedDocuments[0];
+  assert.strictEqual(appDoc.spreadsheetId, "log-ss-123");
+  assert.ok(appDoc.strategy instanceof ArchitectureSubmittalStrategy);
+  assert.strictEqual(appDoc.options?.status, "Under Review");
+  assert.strictEqual(appDoc.options?.actionAbbr, " Rec");
 
   assert.ok(result.fileId);
   assert.strictEqual(result.targetKey, "033000-001-001");
@@ -129,17 +113,6 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl with hyphens 
   const driveState = (GasMockHarness.install()).getDriveState();
   driveState.ensureFile("1234567890abcdefghijklmnopqrst_-ABC", "Test.pdf");
 
-  const mockLogRepo = {
-    appendDocument: () => ({
-      targetKey: "033000-001-001",
-      newFileName: "033000-001-001 Concrete",
-      contactHistory: "GC",
-      rowIndex: 5,
-      failedColumns: [],
-      previousRowUpdated: false
-    })
-  };
-
   const input = {
     validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-25",
@@ -153,7 +126,7 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl with hyphens 
     driveFileUrl: "https://drive.google.com/file/d/1234567890abcdefghijklmnopqrst_-ABC/view",
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
-    logRepository: mockLogRepo as any,
+    logRepository: context.logRepository,
     driveFilingRepository: context.driveFilingRepository,
     pdfDocumentService: context.pdfDocumentService
   };
@@ -164,17 +137,6 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl with hyphens 
 
 test("DocumentWorkflowModule.executeWorkflow files stamped PDF in root targetFolder (Submittals)", async () => {
   const context = createTestContext();
-
-  const mockLogRepo = {
-    appendDocument: () => ({
-      targetKey: "033000-001-001",
-      newFileName: "033000-001-001 Concrete",
-      contactHistory: "GC",
-      rowIndex: 5,
-      failedColumns: [],
-      previousRowUpdated: false
-    })
-  };
 
   const input = {
     validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
@@ -188,7 +150,7 @@ test("DocumentWorkflowModule.executeWorkflow files stamped PDF in root targetFol
     driveFileId: "file-1",
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
-    logRepository: mockLogRepo as any,
+    logRepository: context.logRepository,
     driveFilingRepository: context.driveFilingRepository,
     pdfDocumentService: context.pdfDocumentService
   };
@@ -199,20 +161,14 @@ test("DocumentWorkflowModule.executeWorkflow files stamped PDF in root targetFol
 
 test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", async () => {
   const context = createTestContext();
-
-  const mockLogRepo = {
-    appendDocument: (ssId: string, doc: any, strategy: any, options: any) => {
-      assert.ok(strategy instanceof FFESubmittalStrategy);
-      return {
-        targetKey: "CH-01-001",
-        newFileName: "CH-01-001 Side Chair - 2026-07-25 Vendor Rec",
-        contactHistory: "Vendor",
-        rowIndex: 9,
-        failedColumns: [],
-        previousRowUpdated: false
-      };
-    }
-  };
+  context.logRepository.customAppendResult = () => ({
+    targetKey: "CH-01-001",
+    newFileName: "CH-01-001 Side Chair - 2026-07-25 Vendor Rec",
+    contactHistory: "Vendor",
+    rowIndex: 9,
+    failedColumns: [],
+    previousRowUpdated: false
+  });
 
   const input = {
     validatedDoc: DocumentFactory.createValidatedFFESubmittal({
@@ -228,7 +184,7 @@ test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", 
     projectAbbr: "PROJ",
     emptyFallbacks: [],
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
-    logRepository: mockLogRepo as any,
+    logRepository: context.logRepository,
     driveFilingRepository: context.driveFilingRepository,
     pdfDocumentService: context.pdfDocumentService
   };
@@ -246,17 +202,6 @@ test("DocumentWorkflowModule.executeWorkflow handles TEMPLATE_MISSING fallback d
   const context = createTestContext();
   (globalThis as any).CONFIG.PDF_TEMPLATE_ID = "";
 
-  const mockLogRepo = {
-    appendDocument: () => ({
-      targetKey: "033000-001-001",
-      newFileName: "033000-001-001 Concrete",
-      contactHistory: "GC",
-      rowIndex: 2,
-      failedColumns: [],
-      previousRowUpdated: false
-    })
-  };
-
   const input = {
     validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-25",
@@ -269,7 +214,7 @@ test("DocumentWorkflowModule.executeWorkflow handles TEMPLATE_MISSING fallback d
     driveFileId: "file-1",
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
-    logRepository: mockLogRepo as any,
+    logRepository: context.logRepository,
     driveFilingRepository: context.driveFilingRepository,
     pdfDocumentService: context.pdfDocumentService
   };
@@ -280,17 +225,6 @@ test("DocumentWorkflowModule.executeWorkflow handles TEMPLATE_MISSING fallback d
 
 test("DocumentWorkflowModule.executeWorkflow returns stamped fileId when PDF is stamped", async () => {
   const context = createTestContext();
-
-  const mockLogRepo = {
-    appendDocument: () => ({
-      targetKey: "033000-001-001",
-      newFileName: "033000-001-001 Concrete",
-      contactHistory: "GC",
-      rowIndex: 5,
-      failedColumns: [],
-      previousRowUpdated: false
-    })
-  };
 
   const input = {
     validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
@@ -304,7 +238,7 @@ test("DocumentWorkflowModule.executeWorkflow returns stamped fileId when PDF is 
     driveFileId: "file-1",
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
-    logRepository: mockLogRepo as any,
+    logRepository: context.logRepository,
     driveFilingRepository: context.driveFilingRepository,
     pdfDocumentService: context.pdfDocumentService
   };
@@ -318,17 +252,6 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl even when fil
   const driveState = (GasMockHarness.install()).getDriveState();
   driveState.ensureFile("9876543210abcdefghijklmnopqrstuv", "File.pdf");
 
-  const mockLogRepo = {
-    appendDocument: () => ({
-      targetKey: "033000-001-001",
-      newFileName: "033000-001-001 Concrete",
-      contactHistory: "GC",
-      rowIndex: 5,
-      failedColumns: [],
-      previousRowUpdated: false
-    })
-  };
-
   const input = {
     validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-25",
@@ -341,7 +264,7 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl even when fil
     driveFileUrl: "https://drive.google.com/file/d/9876543210abcdefghijklmnopqrstuv/view",
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
-    logRepository: mockLogRepo as any,
+    logRepository: context.logRepository,
     driveFilingRepository: context.driveFilingRepository,
     pdfDocumentService: context.pdfDocumentService
   };
@@ -358,32 +281,17 @@ async function verifyOutgoingWorkflow(testParams: {
   expectedTargetKey: string;
   expectedTitle: string;
   expectedNewFileName: string;
-  expectedRowIndex?: number;
+  expectedRowIndex: number;
 }) {
   const context = createTestContext();
-
-  let appendCalled = false;
-  let passedAppendOptions: Record<string, any> | undefined;
-  const mockLogRepo = {
-    appendDocument: (
-      spreadsheetId: string,
-      doc: any,
-      strategy: any,
-      options?: Record<string, any>
-    ) => {
-      appendCalled = true;
-      passedAppendOptions = options;
-      assert.strictEqual(spreadsheetId, testParams.logFileId);
-      return {
-        targetKey: testParams.expectedTargetKey,
-        newFileName: testParams.expectedNewFileName,
-        contactHistory: doc.contact,
-        rowIndex: testParams.expectedRowIndex || 6,
-        failedColumns: [],
-        previousRowUpdated: true
-      };
-    }
-  };
+  context.logRepository.customAppendResult = () => ({
+    targetKey: testParams.expectedTargetKey,
+    newFileName: testParams.expectedNewFileName,
+    contactHistory: testParams.validatedDoc.contact,
+    rowIndex: testParams.expectedRowIndex,
+    failedColumns: [],
+    previousRowUpdated: true
+  });
 
   const input = {
     validatedDoc: testParams.validatedDoc,
@@ -391,19 +299,21 @@ async function verifyOutgoingWorkflow(testParams: {
     targetFolderId: "folder-target",
     driveFileId: testParams.driveFileId,
     selectedAction: testParams.selectedAction,
-    logRepository: mockLogRepo as any,
+    logRepository: context.logRepository,
     driveFilingRepository: context.driveFilingRepository,
     pdfDocumentService: context.pdfDocumentService
   };
 
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
 
-  assert.strictEqual(appendCalled, true);
-  assert.ok(passedAppendOptions);
-  assert.strictEqual(passedAppendOptions.status, testParams.selectedAction.status);
-  assert.strictEqual(passedAppendOptions.actionAbbr, testParams.selectedAction.abbr);
-  assert.strictEqual(passedAppendOptions.updatePreviousStatus, true);
-  assert.strictEqual(passedAppendOptions.previousRowStatus, "Closed");
+  assert.strictEqual(context.logRepository.appendedDocuments.length, 1);
+  const appDoc = context.logRepository.appendedDocuments[0];
+  assert.strictEqual(appDoc.spreadsheetId, testParams.logFileId);
+  assert.ok(appDoc.options);
+  assert.strictEqual(appDoc.options.status, testParams.selectedAction.status);
+  assert.strictEqual(appDoc.options.actionAbbr, testParams.selectedAction.abbr);
+  assert.strictEqual(appDoc.options.updatePreviousStatus, true);
+  assert.strictEqual(appDoc.options.previousRowStatus, "Closed");
 
   assert.strictEqual(result.fileId, testParams.driveFileId);
   assert.strictEqual(result.targetKey, testParams.expectedTargetKey);
@@ -454,17 +364,6 @@ test("DocumentWorkflowModule.executeWorkflow handles FF&E outgoing review action
 test("For Incoming Architectural Submittals, original file is saved to Submittals/Closed/Division and copy is saved to Submittals folder", async () => {
   const context = createTestContext();
 
-  const mockLogRepo = {
-    appendDocument: () => ({
-      targetKey: "033000-001-001",
-      newFileName: "033000-001-001 Concrete - 2026-07-26 GC Rec",
-      contactHistory: "GC",
-      rowIndex: 5,
-      failedColumns: [],
-      previousRowUpdated: false
-    })
-  };
-
   const input = {
     validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-26",
@@ -479,7 +378,7 @@ test("For Incoming Architectural Submittals, original file is saved to Submittal
     projectAbbr: "PROJ",
     emptyFallbacks: [],
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
-    logRepository: mockLogRepo as any,
+    logRepository: context.logRepository,
     driveFilingRepository: context.driveFilingRepository,
     pdfDocumentService: context.pdfDocumentService
   };

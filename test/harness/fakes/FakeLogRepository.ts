@@ -9,6 +9,7 @@ export class FakeLogRepository implements LogRepository {
   public configuredMissingHeaders: string[] = [];
   public insertedRows: Array<{ spreadsheetId: string; headers: string[]; rowData: any[]; plan: RowInsertionPlan }> = [];
   public appendedDocuments: Array<{ spreadsheetId: string; document: ValidatedDocument; strategy: DocumentLogStrategy; options?: AppendDocumentOptions }> = [];
+  public customAppendResult?: AppendDocumentResult | ((ssId: string, doc: ValidatedDocument, strategy: DocumentLogStrategy, options?: AppendDocumentOptions) => AppendDocumentResult);
 
   constructor(initialSettings?: Record<string, LogSettings>) {
     if (initialSettings) {
@@ -20,6 +21,7 @@ export class FakeLogRepository implements LogRepository {
     this.calls = [];
     this.insertedRows = [];
     this.appendedDocuments = [];
+    this.customAppendResult = undefined;
   }
 
   getLogSettings(spreadsheetId: string, discipline: string): LogSettings {
@@ -72,13 +74,21 @@ export class FakeLogRepository implements LogRepository {
   ): AppendDocumentResult {
     this.calls.push({ method: "appendDocument", args: [spreadsheetId, document, strategy, options] });
     this.appendedDocuments.push({ spreadsheetId, document, strategy, options });
+    if (this.customAppendResult) {
+      if (typeof this.customAppendResult === "function") {
+        return this.customAppendResult(spreadsheetId, document, strategy, options);
+      }
+      return this.customAppendResult;
+    }
+    const targetKey = strategy && typeof strategy.getTargetKey === "function" ? strategy.getTargetKey(document) : "KEY-001";
+    const newFileName = strategy && typeof strategy.getFileName === "function" ? strategy.getFileName(document, document.contact, options.actionAbbr || "") : "test.pdf";
     return {
-      targetKey: "KEY-001",
-      newFileName: "test.pdf",
-      contactHistory: "",
-      rowIndex: 10,
+      targetKey,
+      newFileName,
+      contactHistory: document.contact || "",
+      rowIndex: 5,
       failedColumns: [],
-      previousRowUpdated: false
+      previousRowUpdated: !!options.updatePreviousStatus
     };
   }
 }

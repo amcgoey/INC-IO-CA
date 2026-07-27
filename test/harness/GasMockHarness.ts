@@ -420,7 +420,7 @@ export class MockSpreadsheet {
 
   public getSheetByName(name: string): MockSheet | null {
     this.recordCall("getSheetByName", [name]);
-    return this.sheets.get(name) || this.getSheets()[0] || null;
+    return this.sheets.get(name) || null;
   }
 
   public getSheets(): MockSheet[] {
@@ -453,7 +453,12 @@ export class MockSheetsService {
   public openById(id: string): MockSpreadsheet {
     this.recordCall("openById", [id]);
     if (!this.spreadsheets.has(id)) {
-      this.spreadsheets.set(id, new MockSpreadsheet(id));
+      const ss = new MockSpreadsheet(id);
+      const logSheetName = (globalThis as any).CONFIG?.LOG_SHEET_NAME;
+      if (logSheetName && logSheetName !== "Sheet1") {
+        ss.insertSheet(logSheetName);
+      }
+      this.spreadsheets.set(id, ss);
     }
     return this.spreadsheets.get(id)!;
   }
