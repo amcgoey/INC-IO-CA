@@ -284,6 +284,12 @@ interface ValidatedDocument {
 }
 
 /** Options and tag lists for submittal validation. */
+interface IListDocumentField {
+  name: string;
+  storedForm: StoredFormType;
+  resolve(inputValue: string): ResolvedListField;
+}
+
 interface ValidationContext {
   ffeTags?: {
     tags: string[];
@@ -294,7 +300,7 @@ interface ValidationContext {
   contacts?: ContactSetting[];
   actions?: ActionSetting[];
   logSettings?: LogSettings;
-  listFields?: Record<string, any>;
+  listFields?: Record<string, IListDocumentField>;
 }
 
 /** Discriminated union outcome for submittal validation. */
@@ -546,6 +552,3 @@ declare class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocum
   formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
   getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string;
 }
-
-
-declare var ListDocumentField: any;
