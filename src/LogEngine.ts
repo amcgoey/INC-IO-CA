@@ -2,7 +2,7 @@
  * @file LogEngine.ts
  * @description Application domain engine coordinating contact history chains, status transitions, row insertion plans, and spreadsheet log persistence.
  *
- * Utilizes `SheetStorageAdapter` ofor sheet reading and mutation and `DocumentLogStrategy` for target keys,
+ * Utilizes `SheetStorageAdapter` for sheet reading and mutation and `DocumentLogStrategy` for target keys,
  * sorting keys, and tabular row payload formatting.
  */
 
