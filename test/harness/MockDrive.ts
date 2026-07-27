@@ -260,6 +260,7 @@ export class MockDriveState {
   private folders: Map<string, VirtualFolderMetadata> = new Map();
   private files: Map<string, VirtualFileMetadata> = new Map();
   private filedFileIds: Set<string> = new Set();
+  private failureIds: Set<string> = new Set();
   private autoIdCounter: number = 1000;
 
   constructor() {
@@ -270,6 +271,7 @@ export class MockDriveState {
     this.folders.clear();
     this.files.clear();
     this.filedFileIds.clear();
+    this.failureIds.clear();
     this.autoIdCounter = 1000;
     this.folders.set("root", {
       id: "root",
@@ -278,6 +280,14 @@ export class MockDriveState {
       childFolderIds: [],
       childFileIds: []
     });
+  }
+
+  public addFailureId(id: string): void {
+    this.failureIds.add(id);
+  }
+
+  public shouldFail(id: string): boolean {
+    return this.failureIds.has(id);
   }
 
   public getFileById(id: string): VirtualFileMetadata | null {
@@ -508,6 +518,9 @@ export class MockDriveApp {
   }
 
   public getFileById(id: string): MockFile {
+    if (this.state.shouldFail(id)) {
+      throw new Error("Drive API Failure");
+    }
     this.state.ensureFile(id);
     return new MockFile(this.state, id);
   }

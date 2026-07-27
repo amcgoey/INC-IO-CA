@@ -1,24 +1,33 @@
 import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 const { GoogleDriveFilingRepository, defaultDriveFilingRepository } = require("../src/DriveFilingRepository");
-const { FakeDriveFilingRepository, GasMockHarness } = require("./harness");
+const { FakeDriveFilingRepository, GasMockHarness, createTestContext } = require("./harness");
 const { MockBlob } = require("./harness/MockDrive");
 
+beforeEach(() => {
+  GasMockHarness.install();
+});
+
+afterEach(() => {
+  GasMockHarness.uninstall();
+});
+
 test("FakeDriveFilingRepository records calls and returns deterministic path", () => {
-  const repo = new FakeDriveFilingRepository();
+  const context = createTestContext();
+  const repo = context.driveFilingRepository;
   const path1 = repo.getLocalPath("file-123");
   assert.strictEqual(path1, "G:\\My Drive\\FakePath\\file-123");
   assert.deepStrictEqual(repo.calls, ["file-123"]);
 });
 
 test("FakeDriveFilingRepository supports custom configured paths", () => {
-  const repo = new FakeDriveFilingRepository({ "file-abc": "G:\\Custom\\Path\\file-abc.pdf" });
+  const context = createTestContext({ driveFilingCustomPaths: { "file-abc": "G:\\Custom\\Path\\file-abc.pdf" } });
+  const repo = context.driveFilingRepository;
   const path = repo.getLocalPath("file-abc");
   assert.strictEqual(path, "G:\\Custom\\Path\\file-abc.pdf");
 });
 
 test("GoogleDriveFilingRepository resolves Shared Drive path using Drive Advanced Service", () => {
-  GasMockHarness.install();
   try {
     const mockDrive = {
       Files: {
@@ -42,40 +51,29 @@ test("GoogleDriveFilingRepository resolves Shared Drive path using Drive Advance
     assert.strictEqual(resolvedPath, "G:\\Shared drives\\Project Alpha Drive\\03-Concrete\\Submittal.pdf");
   } finally {
     delete (globalThis as any).Drive;
-    GasMockHarness.uninstall();
   }
 });
 
 test("GoogleDriveFilingRepository resolves My Drive path using DriveApp parent traversal", () => {
-  const harness = GasMockHarness.install();
-  try {
-    delete (globalThis as any).Drive;
-    
+  delete (globalThis as any).Drive;
 
-    const rootFolder = (globalThis as any).DriveApp.getFolderById("root");
-    const submittalsFolder = rootFolder.createFolder("Submittals");
-    const file = submittalsFolder.createFile("MyDoc.pdf", "content", "application/pdf");
+  const rootFolder = (globalThis as any).DriveApp.getFolderById("root");
+  const submittalsFolder = rootFolder.createFolder("Submittals");
+  const file = submittalsFolder.createFile("MyDoc.pdf", "content", "application/pdf");
 
-    const repo = new GoogleDriveFilingRepository();
-    const resolvedPath = repo.getLocalPath(file.getId());
-    assert.strictEqual(resolvedPath, "G:\\My Drive\\Submittals\\MyDoc.pdf");
-  } finally {
-    GasMockHarness.uninstall();
-  }
+  const repo = new GoogleDriveFilingRepository();
+  const resolvedPath = repo.getLocalPath(file.getId());
+  assert.strictEqual(resolvedPath, "G:\\My Drive\\Submittals\\MyDoc.pdf");
 });
 
 test("GoogleDriveFilingRepository returns fallback path on error", () => {
-  const harness = GasMockHarness.install();
-  try {
-    delete (globalThis as any).Drive;
-    (globalThis as any).DriveApp.getFileById = () => { throw new Error("Drive API Failure"); };
+  delete (globalThis as any).Drive;
+  const driveState = GasMockHarness.instance!.getDriveState();
+  driveState.addFailureId("err-file-id");
 
-    const repo = new GoogleDriveFilingRepository();
-    const resolvedPath = repo.getLocalPath("err-file-id");
-    assert.strictEqual(resolvedPath, "G:\\Error\\err-file-id");
-  } finally {
-    GasMockHarness.uninstall();
-  }
+  const repo = new GoogleDriveFilingRepository();
+  const resolvedPath = repo.getLocalPath("err-file-id");
+  assert.strictEqual(resolvedPath, "G:\\Error\\err-file-id");
 });
 
 test("defaultDriveFilingRepository is an instance of GoogleDriveFilingRepository", () => {
@@ -83,7 +81,8 @@ test("defaultDriveFilingRepository is an instance of GoogleDriveFilingRepository
 });
 
 test("FakeDriveFilingRepository.fileDocument records invocation and returns deterministic result", () => {
-  const repo = new FakeDriveFilingRepository();
+  const context = createTestContext();
+  const repo = context.driveFilingRepository;
   const options = { targetFolderId: "target-123", subfolderPath: ["Closed", "03-Concrete"] };
   const res = repo.fileDocument({ fileId: "file-999" }, options);
 
@@ -96,7 +95,8 @@ test("FakeDriveFilingRepository.fileDocument records invocation and returns dete
 });
 
 test("FakeDriveFilingRepository.fileDocument handles FF&E subfolder structure", () => {
-  const repo = new FakeDriveFilingRepository();
+  const context = createTestContext();
+  const repo = context.driveFilingRepository;
   const options = { targetFolderId: "target-123", subfolderPath: ["Closed", "CH"] };
   const res = repo.fileDocument({ fileId: "file-ffe-123" }, options);
 
@@ -107,43 +107,32 @@ test("FakeDriveFilingRepository.fileDocument handles FF&E subfolder structure", 
 });
 
 test("GoogleDriveFilingRepository.fileDocument traverses subfolder path and moves existing fileId", () => {
-  const harness = GasMockHarness.install();
-  try {
-    delete (globalThis as any).Drive;
-    const driveState = harness.getDriveState();
-    const targetFolder = (globalThis as any).DriveApp.getFolderById("folder-target-id");
-    const origFile = targetFolder.createFile("Original.pdf", "content", "application/pdf");
+  delete (globalThis as any).Drive;
+  const targetFolder = (globalThis as any).DriveApp.getFolderById("folder-target-id");
+  const origFile = targetFolder.createFile("Original.pdf", "content", "application/pdf");
 
-    const repo = new GoogleDriveFilingRepository();
-    const result = repo.fileDocument(
-      { fileId: origFile.getId() },
-      { targetFolderId: "folder-target-id", subfolderPath: ["Closed", "03-Concrete"], newFileName: "033000-001 Concrete" }
-    );
+  const repo = new GoogleDriveFilingRepository();
+  const result = repo.fileDocument(
+    { fileId: origFile.getId() },
+    { targetFolderId: "folder-target-id", subfolderPath: ["Closed", "03-Concrete"], newFileName: "033000-001 Concrete" }
+  );
 
-    assert.strictEqual(result.fileId, origFile.getId());
-    assert.ok(result.folderId);
-    assert.ok(result.localPath.includes("Closed"));
-    assert.strictEqual(origFile.getName(), "033000-001 Concrete.pdf");
-  } finally {
-    GasMockHarness.uninstall();
-  }
+  assert.strictEqual(result.fileId, origFile.getId());
+  assert.ok(result.folderId);
+  assert.ok(result.localPath.includes("Closed"));
+  assert.strictEqual(origFile.getName(), "033000-001 Concrete.pdf");
 });
 
 test("GoogleDriveFilingRepository.fileDocument creates new file when blob is provided", () => {
-  const harness = GasMockHarness.install();
-  try {
-    delete (globalThis as any).Drive;
-    const mockBlob = new MockBlob("Sample content", "application/pdf", "Sample.pdf");
+  delete (globalThis as any).Drive;
+  const mockBlob = new MockBlob("Sample content", "application/pdf", "Sample.pdf");
 
-    const repo = new GoogleDriveFilingRepository();
-    const result = repo.fileDocument(
-      { blob: mockBlob as any },
-      { targetFolderId: "root-123", subfolderPath: ["Closed"], newFileName: "Sample.pdf" }
-    );
+  const repo = new GoogleDriveFilingRepository();
+  const result = repo.fileDocument(
+    { blob: mockBlob as any },
+    { targetFolderId: "root-123", subfolderPath: ["Closed"], newFileName: "Sample.pdf" }
+  );
 
-    assert.ok(result.fileId);
-    assert.ok(result.folderId);
-  } finally {
-    GasMockHarness.uninstall();
-  }
+  assert.ok(result.fileId);
+  assert.ok(result.folderId);
 });

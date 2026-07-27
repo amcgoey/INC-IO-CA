@@ -81,14 +81,14 @@ export class FakeLogRepository implements LogRepository {
       return this.customAppendResult;
     }
     const targetKey = strategy && typeof strategy.getTargetKey === "function" ? strategy.getTargetKey(document) : "KEY-001";
-    const newFileName = strategy && typeof strategy.getFileName === "function" ? strategy.getFileName(document, document.contact, options.actionAbbr || "") : "test.pdf";
+    const newFileName = strategy && typeof strategy.getFileName === "function" ? strategy.getFileName(document, document.contact, options?.actionAbbr || "") : "test.pdf";
     return {
       targetKey,
       newFileName,
       contactHistory: document.contact || "",
       rowIndex: 5,
       failedColumns: [],
-      previousRowUpdated: !!options.updatePreviousStatus
+      previousRowUpdated: !!options?.updatePreviousStatus
     };
   }
 }

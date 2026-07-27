@@ -15,12 +15,10 @@ beforeEach(() => {
       PDF_TEMPLATE_ID: "tmpl-pdf"
     }
   });
-  (globalThis as any).CSI_DIVISIONS = { "03": "03-Concrete" };
 });
 
 afterEach(() => {
   GasMockHarness.uninstall();
-  delete (globalThis as any).CSI_DIVISIONS;
 });
 
 test("getActionPolicy returns incoming policy for 'Received'", () => {
@@ -110,7 +108,7 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
 
 test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl with hyphens and underscores", async () => {
   const context = createTestContext();
-  const driveState = (GasMockHarness.install()).getDriveState();
+  const driveState = GasMockHarness.instance!.getDriveState();
   driveState.ensureFile("1234567890abcdefghijklmnopqrst_-ABC", "Test.pdf");
 
   const input = {
@@ -199,8 +197,16 @@ test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", 
 });
 
 test("DocumentWorkflowModule.executeWorkflow handles TEMPLATE_MISSING fallback during PDF stamping", async () => {
+  GasMockHarness.install({
+    configOverrides: {
+      LOG_HEADER_ROW: 3,
+      LOG_SHEET_NAME: "Submittals Log",
+      STAMPED_FILE_PREFIX: "STAMPED_",
+      TRANSMITTAL_TEMPLATE_ID: "tmpl-transmittal",
+      PDF_TEMPLATE_ID: ""
+    }
+  });
   const context = createTestContext();
-  (globalThis as any).CONFIG.PDF_TEMPLATE_ID = "";
 
   const input = {
     validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
@@ -249,7 +255,7 @@ test("DocumentWorkflowModule.executeWorkflow returns stamped fileId when PDF is 
 
 test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl even when fileSource is omitted", async () => {
   const context = createTestContext();
-  const driveState = (GasMockHarness.install()).getDriveState();
+  const driveState = GasMockHarness.instance!.getDriveState();
   driveState.ensureFile("9876543210abcdefghijklmnopqrstuv", "File.pdf");
 
   const input = {
