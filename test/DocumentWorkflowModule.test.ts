@@ -396,3 +396,42 @@ test("For Incoming Architectural Submittals, original file is saved to Submittal
   assert.strictEqual(context.driveFilingRepository.filedDocuments[0].options.targetFolderId, "submittals-root-folder-id");
   assert.ok(result.fileId);
 });
+
+test("DocumentWorkflowModule.executeWorkflow GoogleDrive AppContext OutgoingWorkflow renames file in-place without moving to subfolder", async () => {
+  const context = createTestContext();
+  context.logRepository.customAppendResult = () => ({
+    targetKey: "033000-001-001",
+    newFileName: "033000-001-001 Concrete - 2026-07-25 GC App",
+    contactHistory: "GC",
+    rowIndex: 6,
+    failedColumns: [],
+    previousRowUpdated: true
+  });
+
+  const input = {
+    appContext: "GoogleDrive",
+    validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
+      date: "2026-07-25",
+      contact: "GC",
+      action: "Approved",
+      disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
+    }),
+    logFileId: "log-ss-123",
+    targetFolderId: "folder-target",
+    driveFileId: "file-1",
+    selectedAction: { action: "Approved", abbr: " App", status: "Approved" },
+    logRepository: context.logRepository,
+    driveFilingRepository: context.driveFilingRepository,
+    pdfDocumentService: context.pdfDocumentService
+  };
+
+  const result = await DocumentWorkflowModule.executeWorkflow(input as any);
+
+  assert.strictEqual(result.fileId, "file-1");
+  assert.strictEqual(result.newFileName, "033000-001-001 Concrete - 2026-07-25 GC App");
+
+  assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
+  // In GoogleDrive context, file remains in root folder (subfolderPath is undefined)
+  assert.strictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, undefined);
+  assert.strictEqual(context.pdfDocumentService.stampCalls.length, 0);
+});

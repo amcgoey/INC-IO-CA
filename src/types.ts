@@ -480,8 +480,12 @@ interface StampOptions {
   templateId: string;
 }
 
+/** Supported execution environment context. */
+type AppContext = "GoogleDrive" | "Gmail" | string;
+
 /** Interface for primitive, reusable workflow document transformations or operations. */
 interface DocumentAction<TInput = any, TOutput = any> {
+  name?: string;
   execute(input: TInput): Promise<TOutput> | TOutput;
 }
 
@@ -575,7 +579,7 @@ declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 /** Policy detailing workflow actions (direction, stamping, subfolder rules). */
 interface WorkflowActionPolicy {
   direction: "incoming" | "outgoing";
-  useCsiSubfolder: boolean;
+  useCsiSubfolder?: boolean;
   stampPdf: boolean;
   updatePreviousStatus: boolean;
   previousRowStatus?: string;
@@ -583,6 +587,7 @@ interface WorkflowActionPolicy {
 
 /** Input object passed to DocumentWorkflowModule.executeWorkflow. */
 interface DocumentWorkflowInput {
+  appContext?: AppContext;
   validatedDoc: ValidatedDocument;
   logFileId: string;
   logSheetId?: number;
@@ -673,6 +678,7 @@ interface DocumentTypeConfig {
 
 /** Execution context passed through action pipeline steps. */
 interface DocumentActionContext {
+  appContext?: AppContext;
   fileId?: string;
   blob?: GoogleAppsScript.Base.Blob;
   validatedDoc?: ValidatedDocument;
@@ -699,7 +705,16 @@ interface DocumentActionContext {
 
 /** Interface for primitive reusable document pipeline actions. */
 interface DocumentAction {
-  name: string;
+  name?: string;
   execute(context: DocumentActionContext): Promise<DocumentActionContext>;
 }
 
+
+declare class MoveDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
+  name?: string;
+  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
+}
+declare class RenameDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
+  name?: string;
+  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
+}

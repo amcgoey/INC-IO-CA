@@ -557,3 +557,28 @@ test("moveSubmittalToClosed delegates success response creation to defaultCardPr
     defaultCardPresenter.presentMoveToClosedSuccess = originalPresentMoveToClosedSuccess;
   }
 });
+
+test("moveSubmittalToClosed files document to Closed subfolder hierarchy and returns card response", async () => {
+  mockDriveFilingRepo.filedDocuments = [];
+  const event = {
+    parameters: {
+      fileId: "file-submittal-1",
+      newFileName: "033000-001-001 Concrete",
+      fileUrl: "https://drive.google.com/file/d/file-submittal-1/view",
+      stampSubNo: "033000-001-001",
+      itemTitle: "Concrete",
+      discipline: "Architecture",
+      section: "033000",
+      targetFolderId: "folder-closed-1",
+      logFileId: "log-123",
+      projectAbbr: "PROJ",
+      action: "Approved",
+      incomingRouting: ""
+    }
+  };
+
+  const response = moveSubmittalToClosed(event as any);
+  assert.ok(response);
+  assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+});
