@@ -9,14 +9,13 @@
 
 declare var require: any;
 
+if (typeof require !== "undefined") {
   try {
     const _ow = eval('require("./OutgoingWorkflow")');
     if (_ow && _ow.OutgoingWorkflow && typeof OutgoingWorkflow === "undefined") {
       (globalThis as any).OutgoingWorkflow = _ow.OutgoingWorkflow;
     }
   } catch (e) {}
-
-if (typeof require !== "undefined") {
   try {
     const _wla = eval('require("./WriteLogAction")');
     if (_wla && _wla.WriteLogAction && typeof WriteLogAction === "undefined") {

@@ -123,26 +123,21 @@ export class OutgoingWorkflow {
 
     const driveFilingRepo = input.driveFilingRepository || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
 
-    if (appContext === "Gmail") {
-      const closedFolder = (typeof CONFIG !== "undefined" && CONFIG.CLOSED_FOLDER_NAME) ? CONFIG.CLOSED_FOLDER_NAME : "Closed";
-      const subfolderPath = strategy.getFilingSubfolders
-        ? strategy.getFilingSubfolders(input.validatedDoc)
-        : [closedFolder];
-
-      if (driveFilingRepo) {
-        finalFilingResult = driveFilingRepo.fileDocument(
-          { fileId: input.driveFileId },
-          { targetFolderId: input.targetFolderId, subfolderPath: subfolderPath }
-        );
+    if (driveFilingRepo && input.driveFileId) {
+      const filingOpts: FilingOptions = {
+        targetFolderId: input.targetFolderId,
+        newFileName: newFileName
+      };
+      if (appContext === "Gmail") {
+        const subfolderPath = strategy.getFilingSubfolders ? strategy.getFilingSubfolders(input.validatedDoc) : undefined;
+        if (subfolderPath) {
+          filingOpts.subfolderPath = subfolderPath;
+        }
       }
-    } else {
-      // AppContext === 'GoogleDrive': retain file in root target folder
-      if (driveFilingRepo && input.driveFileId) {
-        finalFilingResult = driveFilingRepo.fileDocument(
-          { fileId: input.driveFileId },
-          { targetFolderId: input.targetFolderId }
-        );
-      }
+      finalFilingResult = driveFilingRepo.fileDocument(
+        { fileId: input.driveFileId },
+        filingOpts
+      );
     }
 
     let sheetId = input.logSheetId;
