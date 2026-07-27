@@ -534,7 +534,7 @@ export class MockSheetsState {
 export interface HarnessInstallOptions {
   configOverrides?: Record<string, unknown>;
   csiDivisionsOverrides?: Record<string, string>;
-  driveAdvancedServiceOverrides?: any;
+  driveAdvancedServiceOverrides?: Record<string, unknown>;
 }
 
 
@@ -641,7 +641,7 @@ export class GasMockHarness {
     GasMockHarness.instance!.resetConfig();
     (globalThis as any).CONFIG = GasMockHarness.instance!.config;
     (globalThis as any).CardService = GasMockHarness.instance!.cardService;
-    (globalThis as any).CSI_DIVISIONS = { "03": "03-Concrete" };
+    (globalThis as any).CSI_DIVISIONS = DEFAULT_CSI_DIVISIONS;
   }
 
   public static getCardServiceState: CardServiceStateCallable = Object.assign(
