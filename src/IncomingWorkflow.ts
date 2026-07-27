@@ -195,8 +195,8 @@ export class IncomingWorkflow {
     });
 
     let reviewBlob: GoogleAppsScript.Base.Blob | null = dupContext.blob || blob;
-    if (!reviewBlob && driveApp && origContext.fileId) {
-      reviewBlob = driveApp.getFileById(origContext.fileId).getBlob();
+    if (!reviewBlob && driveApp && dupContext.fileId) {
+      reviewBlob = driveApp.getFileById(dupContext.fileId).getBlob();
     }
 
     // Step 4: Prepend CoverPageDocument onto ReviewDocument via InsertPagesAction (if policy.stampPdf)
