@@ -250,18 +250,46 @@ interface FFEDetails {
   relatedTag?: string;
 }
 
+/** Stored representation preference for a list-backed document field. */
+type StoredFormType = 'abbreviation' | 'longForm';
+
+/** Option item for dynamic ListDocumentField resolution. */
+interface ListFieldOption {
+  abbr: string;
+  name?: string;
+  longForm?: string;
+  action?: string;
+  status?: string;
+}
+
+/** Bi-directionally resolved value payload for a ListDocumentField. */
+interface ResolvedListField {
+  fieldName: string;
+  storedForm: StoredFormType;
+  storedValue: string;
+  abbreviation: string;
+  longForm: string;
+}
+
 /** Strongly typed validated document domain model. */
 interface ValidatedDocument {
   documentType: string;
   date: string;
   contact: string;
   action: string;
+  listFields?: Record<string, ResolvedListField>;
   notes?: string;
   incomingRouting?: string;
   disciplineDetails: ArchitectureDetails | FFEDetails;
 }
 
 /** Options and tag lists for submittal validation. */
+interface IListDocumentField {
+  name: string;
+  storedForm: StoredFormType;
+  resolve(inputValue: string): ResolvedListField;
+}
+
 interface ValidationContext {
   ffeTags?: {
     tags: string[];
@@ -269,6 +297,10 @@ interface ValidationContext {
   };
   bypassTagValidation?: boolean;
   bypassVendorValidation?: boolean;
+  contacts?: ContactSetting[];
+  actions?: ActionSetting[];
+  logSettings?: LogSettings;
+  listFields?: Record<string, IListDocumentField>;
 }
 
 /** Discriminated union outcome for submittal validation. */
