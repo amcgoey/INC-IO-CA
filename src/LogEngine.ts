@@ -23,6 +23,16 @@ if (typeof require !== "undefined") {
  * Calculates contact history chains, handles previous row status transitions (e.g. marking previous revisions Closed),
  * computes group/sort row insertion plans, and writes rows via the storage adapter.
  */
+/**
+ * Extracts the resolved contact abbreviation from a validated document's ListDocumentField metadata.
+ *
+ * @param document - Validated document domain model.
+ * @returns Abbreviated contact string, or empty string if not resolved.
+ */
+function getContactAbbreviation(document: ValidatedDocument): string {
+  return document.listFields?.contact?.abbreviation || "";
+}
+
 class LogEngine {
   /** Low-level storage adapter executing spreadsheet operations. */
   private storageAdapter: SheetStorageAdapter;
@@ -101,8 +111,8 @@ class LogEngine {
       }
     }
 
-    const contact = document.contact || "";
-    const newChain = previousChain ? `${previousChain} ${contact}` : contact;
+    const contact = getContactAbbreviation(document);
+    const newChain = [previousChain, contact].filter(Boolean).join(" ");
     const actionAbbr = options.actionAbbr || "";
     const newFileName = strategy.getFileName(document, newChain, actionAbbr);
 
