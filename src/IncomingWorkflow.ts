@@ -1,13 +1,13 @@
 /// <reference path="./types.ts" />
 /**
  * @file IncomingWorkflow.ts
- * @description Incoming submittal workflow execution service ("Received" action).
+ * @description Incoming submittal dual-path workflow execution service ("Received" action).
  *
  * Implements the dual-path workflow:
- * 1. Saves untouched pristine OriginalDocument to Submittals\Closed\<Subfolder>\.
- * 2. Writes initial receiving record to the Sheet Log.
- * 3. Duplicates OriginalDocument to create ReviewDocument.
- * 4. Prepends CoverPageDocument onto ReviewDocument via InsertPagesAction.
+ * 1. Saves pristine untouched OriginalDocument to Submittals\Closed\<Subfolder>\.
+ * 2. Writes initial receiving log record via WriteLogAction (using WorkflowRunner).
+ * 3. Duplicates OriginalDocument to create ReviewDocument via DuplicateDocumentAction (using WorkflowRunner).
+ * 4. Prepends CoverPageDocument onto ReviewDocument via InsertPagesAction (using WorkflowRunner).
  * 5. Applies [Filename Prefix] (STAMPED_) and places ReviewDocument in Submittals\ root.
  */
 
@@ -80,6 +80,57 @@ declare var defaultDuplicateDocumentAction: DuplicateDocumentAction;
 
 export class IncomingWorkflow {
   /**
+   * Resolves the source document blob from Drive file ID, email attachment, or Drive file URL.
+   */
+  static resolveSourceBlob(input: DocumentWorkflowInput): GoogleAppsScript.Base.Blob | null {
+    const driveApp = input.driveApp || (typeof DriveApp !== "undefined" ? DriveApp : null);
+    const gmailApp = input.gmailApp || (typeof GmailApp !== "undefined" ? GmailApp : null);
+
+    if (input.driveFileId && driveApp) {
+      return driveApp.getFileById(input.driveFileId).getBlob();
+    }
+
+    if (input.fileSource === "Email Attachment" && input.messageId && input.attachmentName && gmailApp) {
+      const msg = gmailApp.getMessageById(input.messageId);
+      const att = msg ? msg.getAttachments().find((a: any) => a.getName() === input.attachmentName) : null;
+      if (att) return att.getBlob();
+    }
+
+    if (input.driveFileUrl && driveApp) {
+      const urlMatch = input.driveFileUrl.match(/\/d\/([a-zA-Z0-9_-]{25,})/) ||
+                       input.driveFileUrl.match(/[?&]id=([a-zA-Z0-9_-]{25,})/) ||
+                       input.driveFileUrl.match(/([a-zA-Z0-9_-]{25,})/);
+      const extractedId = urlMatch ? (urlMatch[1] || urlMatch[0]) : null;
+      if (extractedId) {
+        return driveApp.getFileById(extractedId).getAs((typeof MimeType !== "undefined" ? MimeType : (globalThis as any).MimeType || {}).PDF || "application/pdf");
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Constructs direct Google Sheets row edit URL.
+   */
+  static buildDirectRowUrl(logFileId: string, rowIndex: number, sheetId?: number | null, spreadsheetApp?: any): string {
+    let resolvedSheetId = sheetId;
+    if ((resolvedSheetId === undefined || resolvedSheetId === null) && spreadsheetApp) {
+      try {
+        const openSs = spreadsheetApp.openById(logFileId);
+        const sheetName = typeof CONFIG !== "undefined" && CONFIG.LOG_SHEET_NAME ? CONFIG.LOG_SHEET_NAME : "Submittals Log";
+        const logSheet = openSs ? openSs.getSheetByName(sheetName) : null;
+        resolvedSheetId = logSheet ? logSheet.getSheetId() : 0;
+      } catch (e) {
+        resolvedSheetId = 0;
+      }
+    } else if (resolvedSheetId === undefined || resolvedSheetId === null) {
+      resolvedSheetId = 0;
+    }
+
+    return `https://docs.google.com/spreadsheets/d/${logFileId}/edit#gid=${resolvedSheetId}&range=A${rowIndex}`;
+  }
+
+  /**
    * Executes the incoming submittal dual-path workflow.
    *
    * @param input - DocumentWorkflowInput containing validated doc, selected action, target folders, and context options.
@@ -94,39 +145,17 @@ export class IncomingWorkflow {
     });
 
     const strategy = input.strategy || (typeof getDocumentLogStrategy !== "undefined" ? getDocumentLogStrategy(input.validatedDoc) : new ArchitectureSubmittalStrategy());
-    const writeLogAction = input.writeLogAction || new (typeof WriteLogAction !== "undefined" ? WriteLogAction : (globalThis as any).WriteLogAction)();
     const runner = typeof WorkflowRunner !== "undefined" ? WorkflowRunner : (globalThis as any).WorkflowRunner;
 
     const driveApp = input.driveApp || (typeof DriveApp !== "undefined" ? DriveApp : null);
-    const gmailApp = input.gmailApp || (typeof GmailApp !== "undefined" ? GmailApp : null);
     const spreadsheetApp = input.spreadsheetApp || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp : null);
     const driveFilingRepo = input.driveFilingRepository || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
+    const logRepo = input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
 
-    // 1. Resolve source document blob if needed
-    let blob: GoogleAppsScript.Base.Blob | null = null;
-    if (!input.driveFileId) {
-      if (input.fileSource === "Email Attachment" && input.messageId && input.attachmentName && gmailApp) {
-        const msg = gmailApp.getMessageById(input.messageId);
-        const att = msg ? msg.getAttachments().find((a: any) => a.getName() === input.attachmentName) : null;
-        if (att) {
-          const dupAction = input.duplicateDocumentAction || (typeof defaultDuplicateDocumentAction !== "undefined" ? defaultDuplicateDocumentAction : new (typeof DuplicateDocumentAction !== "undefined" ? DuplicateDocumentAction : (globalThis as any).DuplicateDocumentAction)());
-          const dupRes = await dupAction.execute({ blob: att.getBlob() });
-          blob = dupRes.blob || null;
-        }
-      } else if (input.driveFileUrl && driveApp) {
-        const urlMatch = input.driveFileUrl.match(/\/d\/([a-zA-Z0-9_-]{25,})/) ||
-                         input.driveFileUrl.match(/[?&]id=([a-zA-Z0-9_-]{25,})/) ||
-                         input.driveFileUrl.match(/([a-zA-Z0-9_-]{25,})/);
-        const extractedId = urlMatch ? (urlMatch[1] || urlMatch[0]) : null;
-        if (extractedId) {
-          blob = driveApp.getFileById(extractedId).getAs((typeof MimeType !== "undefined" ? MimeType : (globalThis as any).MimeType || {}).PDF || "application/pdf");
-        }
-      }
-    } else if (driveApp) {
-      blob = driveApp.getFileById(input.driveFileId).getBlob();
-    }
+    // 1. Resolve source document blob
+    const blob = this.resolveSourceBlob(input);
 
-    // Path 1: Save untouched OriginalDocument to Submittals\Closed\<Subfolder>\
+    // Path 1: Save pristine untouched OriginalDocument to Submittals\Closed\<Subfolder>\
     const closedSubfolderPath = strategy.getFilingSubfolders ? strategy.getFilingSubfolders(input.validatedDoc) : undefined;
     let originalFilingResult: FilingResult = {
       fileId: input.driveFileId || "",
@@ -142,7 +171,8 @@ export class IncomingWorkflow {
       );
     }
 
-    // Step 2: Write initial receiving log entry
+    // Step 2: Write initial receiving log entry via WriteLogAction and WorkflowRunner
+    const writeLogAction = input.writeLogAction || new (typeof WriteLogAction !== "undefined" ? WriteLogAction : (globalThis as any).WriteLogAction)();
     const appendResult = await runner.runAction(writeLogAction, {
       spreadsheetId: input.logFileId,
       document: input.validatedDoc,
@@ -155,7 +185,7 @@ export class IncomingWorkflow {
         updatePreviousStatus: policy.updatePreviousStatus,
         previousRowStatus: policy.previousRowStatus
       },
-      logRepository: input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null)
+      logRepository: logRepo
     });
 
     // Rename OriginalDocument in Drive to calculated name
@@ -163,21 +193,21 @@ export class IncomingWorkflow {
       driveApp.getFileById(originalFilingResult.fileId).setName(appendResult.newFileName + ".pdf");
     }
 
-    // Path 2: Duplicate OriginalDocument to create ReviewDocument
+    // Path 2: Duplicate OriginalDocument to create ReviewDocument via DuplicateDocumentAction and WorkflowRunner
     const dupAction = input.duplicateDocumentAction || new (typeof DuplicateDocumentAction !== "undefined" ? DuplicateDocumentAction : (globalThis as any).DuplicateDocumentAction)();
-    const dupResult = await dupAction.execute({
+    const dupContext: DocumentActionContext = await runner.runAction(dupAction, {
       fileId: originalFilingResult.fileId,
       blob: blob || undefined,
       driveFilingRepository: driveFilingRepo,
       targetFolderId: input.targetFolderId
     });
 
-    let reviewFileId = dupResult.fileId || originalFilingResult.fileId;
-    let reviewUrl = dupResult.url || originalFilingResult.url;
-    let reviewLocalPath = dupResult.localPath || originalFilingResult.localPath;
+    let reviewFileId = dupContext.fileId || originalFilingResult.fileId;
+    let reviewUrl = dupContext.url || originalFilingResult.url;
+    let reviewLocalPath = dupContext.localPath || originalFilingResult.localPath;
 
-    // Step 4: Prepend CoverPageDocument onto ReviewDocument via InsertPagesAction
-    let reviewBlob: GoogleAppsScript.Base.Blob | null = dupResult.blob || blob;
+    // Step 4: Prepend CoverPageDocument onto ReviewDocument via InsertPagesAction and WorkflowRunner
+    let reviewBlob: GoogleAppsScript.Base.Blob | null = dupContext.blob || blob;
     if (!reviewBlob && driveApp && reviewFileId) {
       reviewBlob = driveApp.getFileById(reviewFileId).getBlob();
     }
@@ -190,7 +220,7 @@ export class IncomingWorkflow {
       const titleVal = typeof getDocumentTitle !== "undefined" ? getDocumentTitle(input.validatedDoc) : "";
       const insertAction = input.insertPagesAction || new (typeof InsertPagesAction !== "undefined" ? InsertPagesAction : (globalThis as any).InsertPagesAction)();
 
-      const stampedBlob = await insertAction.execute({
+      const stampedBlob: GoogleAppsScript.Base.Blob = await runner.runAction(insertAction, {
         sourceBlob: reviewBlob,
         data: { action, title: titleVal, incomingRouting: input.incomingRouting },
         options: {
@@ -205,7 +235,7 @@ export class IncomingWorkflow {
       const reviewFileName = stampedPrefix + appendResult.newFileName + ".pdf";
       stampedBlob.setName(reviewFileName);
 
-      // Place ReviewDocument in Submittals\ root (no subfolderPath)
+      // Place ReviewDocument in Submittals\ root via DriveFilingRepository (subfolderPath: undefined)
       if (driveFilingRepo) {
         const reviewFiling = driveFilingRepo.fileDocument(
           { blob: stampedBlob },
@@ -214,30 +244,10 @@ export class IncomingWorkflow {
         reviewFileId = reviewFiling.fileId;
         reviewUrl = reviewFiling.url;
         reviewLocalPath = reviewFiling.localPath;
-      } else if (driveApp) {
-        const targetFolder = driveApp.getFolderById(input.targetFolderId);
-        const stampedCreatedFile = targetFolder.createFile(stampedBlob);
-        if (stampedCreatedFile && typeof stampedCreatedFile.getId === "function") {
-          reviewFileId = stampedCreatedFile.getId();
-        }
       }
     }
 
-    let sheetId = input.logSheetId;
-    if ((sheetId === undefined || sheetId === null) && spreadsheetApp) {
-      try {
-        const openSs = spreadsheetApp.openById(input.logFileId);
-        const sheetName = typeof CONFIG !== "undefined" && CONFIG.LOG_SHEET_NAME ? CONFIG.LOG_SHEET_NAME : "Submittals Log";
-        const logSheet = openSs ? openSs.getSheetByName(sheetName) : null;
-        sheetId = logSheet ? logSheet.getSheetId() : 0;
-      } catch (e) {
-        sheetId = 0;
-      }
-    } else if (sheetId === undefined || sheetId === null) {
-      sheetId = 0;
-    }
-
-    const directRowUrl = "https://docs.google.com/spreadsheets/d/" + input.logFileId + "/edit#gid=" + sheetId + "&range=A" + appendResult.rowIndex;
+    const directRowUrl = this.buildDirectRowUrl(input.logFileId, appendResult.rowIndex, input.logSheetId, spreadsheetApp);
     const itemTitle = typeof getDocumentTitle !== "undefined" ? getDocumentTitle(input.validatedDoc) : "";
 
     return {

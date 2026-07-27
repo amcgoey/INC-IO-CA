@@ -97,8 +97,9 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
   assert.strictEqual(result.newFileName, "033000-001-001 Concrete - 2026-07-25 GC Rec");
   assert.strictEqual(result.directRowUrl, "https://docs.google.com/spreadsheets/d/log-ss-123/edit#gid=101&range=A5");
 
-  assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
+  assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 2);
   assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.strictEqual(context.driveFilingRepository.filedDocuments[1].options.subfolderPath, undefined);
 
   assert.strictEqual(context.pdfDocumentService.stampCalls.length, 1);
   assert.strictEqual(context.pdfDocumentService.stampCalls[0].options.templateId, "tmpl-transmittal");
@@ -152,7 +153,8 @@ test("DocumentWorkflowModule.executeWorkflow files stamped PDF in root targetFol
   };
 
   await DocumentWorkflowModule.executeWorkflow(input as any);
-  assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
+  assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 2);
+  assert.strictEqual(context.driveFilingRepository.filedDocuments[1].options.subfolderPath, undefined);
 });
 
 test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", async () => {
@@ -389,8 +391,9 @@ test("For Incoming Architectural Submittals, original file is saved to Submittal
 
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
 
-  assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
+  assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 2);
   assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.strictEqual(context.driveFilingRepository.filedDocuments[1].options.subfolderPath, undefined);
   assert.strictEqual(context.driveFilingRepository.filedDocuments[0].options.targetFolderId, "submittals-root-folder-id");
   assert.ok(result.fileId);
 });
