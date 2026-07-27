@@ -539,6 +539,37 @@ declare class ExtractPagesAction implements DocumentAction<ExtractPagesInput | G
   execute(input: ExtractPagesInput | GoogleAppsScript.Base.Blob): Promise<ExtractPagesResult>;
 }
 declare var defaultExtractPagesAction: ExtractPagesAction;
+
+/** Input payload for AnalyzeDocumentAction. */
+interface AnalyzeDocumentInput {
+  sourceBlob: GoogleAppsScript.Base.Blob;
+  emailText?: string;
+  contextObj: DeepAnalysisContext;
+  aiAnalysisService?: AiAnalysisService;
+  extractPagesAction?: ExtractPagesAction;
+}
+
+/** Action class for AI multimodal document analysis. */
+declare class AnalyzeDocumentAction implements DocumentAction<AnalyzeDocumentInput, DeepAnalysisResult> {
+  constructor(options?: { aiAnalysisService?: AiAnalysisService; extractPagesAction?: ExtractPagesAction });
+  execute(input: AnalyzeDocumentInput): Promise<DeepAnalysisResult>;
+}
+declare var defaultAnalyzeDocumentAction: AnalyzeDocumentAction;
+
+/** Input payload for TriageDocumentAction. */
+interface TriageDocumentInput {
+  emailData: EmailData;
+  messageId?: string;
+  aiAnalysisService?: AiAnalysisService;
+}
+
+/** Action class for AI email triage. */
+declare class TriageDocumentAction implements DocumentAction<TriageDocumentInput, AiPredictionResult> {
+  constructor(options?: { aiAnalysisService?: AiAnalysisService });
+  execute(input: TriageDocumentInput): Promise<AiPredictionResult>;
+}
+declare var defaultTriageDocumentAction: TriageDocumentAction;
+
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 
 /** Policy detailing workflow actions (direction, stamping, subfolder rules). */
