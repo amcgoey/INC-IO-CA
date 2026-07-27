@@ -1,3 +1,4 @@
+/// <reference path="./types.ts" />
 /**
  * @file DocumentWorkflowModule.ts
  * @description Orchestration application service for submittal document workflows.
@@ -29,6 +30,18 @@ if (typeof require !== "undefined") {
   } catch (e) {}
   try {
     const _dls = eval('require("./DocumentLogStrategy")');
+    const _wr = eval('require("./WorkflowRunner")');
+    if (_wr) {
+      if (_wr.WorkflowRunner && typeof WorkflowRunner === "undefined") {
+        (globalThis as any).WorkflowRunner = _wr.WorkflowRunner;
+      }
+      if (_wr.MoveDocumentAction && typeof MoveDocumentAction === "undefined") {
+        (globalThis as any).MoveDocumentAction = _wr.MoveDocumentAction;
+      }
+      if (_wr.RenameDocumentAction && typeof RenameDocumentAction === "undefined") {
+        (globalThis as any).RenameDocumentAction = _wr.RenameDocumentAction;
+      }
+    }
     if (_dls) {
       if (_dls.ArchitectureSubmittalStrategy && typeof ArchitectureSubmittalStrategy === "undefined") {
         (globalThis as any).ArchitectureSubmittalStrategy = _dls.ArchitectureSubmittalStrategy;
