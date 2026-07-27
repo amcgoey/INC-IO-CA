@@ -370,6 +370,25 @@ interface AppendDocumentOptions {
 }
 
 /** Result object returned after appending a document row to Google Sheets. */
+/** Options for reading submittals from log repository. */
+interface ReadLogOptions {
+  sheetName?: string;
+  headers?: string[];
+  updatePreviousStatus?: boolean;
+  previousRowStatus?: string;
+}
+
+/** Result object returned after reading log entries matching IdentityData. */
+interface ReadLogResult {
+  found: boolean;
+  rowIndex: number | null;
+  contactHistory: string;
+  previousStatus: string;
+  rowData: Record<string, any> | null;
+  identityData: IdentityData;
+  previousRowUpdated: boolean;
+}
+
 interface AppendDocumentResult {
   targetKey: string;
   newFileName: string;
@@ -397,6 +416,12 @@ interface LogRepository {
     strategy: DocumentLogStrategy,
     options?: AppendDocumentOptions
   ): AppendDocumentResult;
+  readLog(
+    spreadsheetId: string,
+    identityData: IdentityData,
+    strategy?: DocumentLogStrategy,
+    options?: ReadLogOptions
+  ): ReadLogResult;
 }
 
 declare class FormIntakeParser {
@@ -464,6 +489,30 @@ interface WriteLogInput {
 
 declare class WriteLogAction implements DocumentAction<WriteLogInput, AppendDocumentResult> {
   execute(input: WriteLogInput): Promise<AppendDocumentResult>;
+}
+
+/** Input options for ReadLogAction. */
+interface ReadLogInput {
+  spreadsheetId: string;
+  identityData?: IdentityData;
+  document?: ValidatedDocument;
+  strategy?: DocumentLogStrategy;
+  sheetName?: string;
+  updatePreviousStatus?: boolean;
+  previousRowStatus?: string;
+  logRepository?: LogRepository;
+}
+
+declare class ReadLogAction implements DocumentAction<ReadLogInput, ReadLogResult> {
+  execute(input: ReadLogInput): Promise<ReadLogResult>;
+}
+
+declare class MoveDocumentAction implements DocumentAction<any, any> {
+  execute(input: any): Promise<any>;
+}
+
+declare class RenameDocumentAction implements DocumentAction<any, any> {
+  execute(input: any): Promise<any>;
 }
 
 declare class WorkflowRunner {

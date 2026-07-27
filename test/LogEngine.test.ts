@@ -585,3 +585,89 @@ test("LogEngine handles empty contact abbreviation without trailing or leading w
 
   assert.strictEqual(res.contactHistory, "SUB");
 });
+
+
+test("Testing Seam: Append Revision 1 submittal after Revision 0 in LogEngine and verify Revision 0 transitions to Closed while Revision 1 is logged as Open", () => {
+  const headers = [
+    "Section", "Number", "Title", "Revision", "Date",
+    "Contact", "Action", "Status", "Notes", "Link", "Contact History"
+  ];
+
+  const initialLog = [
+    ["Project Log Banner"],
+    ["Project Submittals Log"],
+    headers,
+    ["033000", "001", "Concrete Mix", "0", "2026-07-20", "Subcontractor", "Received", "Open", "", "http://drive.google.com/doc1", "Subcontractor"]
+  ];
+
+  const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
+  const engine = new LogEngine(adapter);
+  const strategy = new ArchitectureSubmittalStrategy();
+
+  const docRev1 = DocumentFactory.createValidatedArchitectureSubmittal({
+    date: "2026-07-25",
+    contact: "Architect",
+    action: "Approved",
+    notes: "Revision 1 submittal",
+    disciplineDetails: {
+      section: "033000",
+      number: "001",
+      title: "Concrete Mix",
+      revision: "1"
+    }
+  });
+
+  const result = engine.appendDocument("test-ss-id", docRev1, strategy, {
+    link: "http://drive.google.com/doc2",
+    status: "Open",
+    actionAbbr: " Appr",
+    updatePreviousStatus: true,
+    previousRowStatus: "Closed"
+  });
+
+  assert.strictEqual(result.targetKey, "033000-001-1");
+  assert.strictEqual(result.contactHistory, "Subcontractor Architect");
+  assert.strictEqual(result.previousRowUpdated, true);
+
+  const sheetValues = adapter.getSheetValues("Submittals Log");
+  assert.strictEqual(sheetValues[3][7], "Closed"); // Revision 0 row status updated to Closed
+  assert.strictEqual(sheetValues[4][7], "Open");   // Revision 1 row status logged as Open
+  assert.strictEqual(sheetValues[4][10], "Subcontractor Architect"); // Chained contact history
+});
+
+test("LogEngine.readLog - queries bounded log for IdentityData and returns previous row details and status transition state", () => {
+  const headers = [
+    "Section", "Number", "Title", "Revision", "Date",
+    "Contact", "Action", "Status", "Notes", "Link", "Contact History"
+  ];
+
+  const initialLog = [
+    ["Project Log Banner"],
+    ["Project Submittals Log"],
+    headers,
+    ["033000", "001", "Concrete Mix", "0", "2026-07-20", "Subcontractor", "Received", "Open", "", "http://drive.google.com/doc1", "Subcontractor"]
+  ];
+
+  const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
+  const engine = new LogEngine(adapter);
+  const strategy = new ArchitectureSubmittalStrategy();
+
+  const doc = DocumentFactory.createValidatedArchitectureSubmittal({
+    disciplineDetails: { section: "033000", number: "001", title: "Concrete Mix", revision: "1" }
+  });
+
+  const idData = strategy.getIdentityData(doc);
+  const readRes = engine.readLog("test-ss-id", idData, strategy, {
+    updatePreviousStatus: true,
+    previousRowStatus: "Closed"
+  });
+
+  assert.strictEqual(readRes.found, true);
+  assert.strictEqual(readRes.rowIndex, 4);
+  assert.strictEqual(readRes.contactHistory, "Subcontractor");
+  assert.strictEqual(readRes.previousStatus, "Open");
+  assert.strictEqual(readRes.previousRowUpdated, true);
+
+  const sheetValues = adapter.getSheetValues("Submittals Log");
+  assert.strictEqual(sheetValues[3][7], "Closed");
+});
