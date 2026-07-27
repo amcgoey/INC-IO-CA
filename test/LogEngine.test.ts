@@ -433,3 +433,125 @@ test("FFESubmittalStrategy resolves subfolder path segments from spec tag prefix
   const fallbackSubfolders = strategy.getFilingSubfolders!(docFallback);
   assert.deepStrictEqual(fallbackSubfolders, ["Closed"]);
 });
+
+test("LogEngine uses ListDocumentField contact abbreviation in contact history chain across revisions", () => {
+  const headers = [
+    "Section", "Number", "Title", "Revision", "Date",
+    "Contact", "Action", "Status", "Notes", "Link", "Contact History"
+  ];
+
+  const initialLog = [
+    ["Project Log Banner"],
+    ["Project Submittals Log"],
+    headers
+  ];
+
+  const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
+  const engine = new LogEngine(adapter);
+  const strategy = new ArchitectureSubmittalStrategy();
+
+  const createContactField = (abbr: string, longForm: string): ResolvedListField => ({
+    fieldName: "contact",
+    storedForm: "abbreviation",
+    storedValue: abbr,
+    abbreviation: abbr,
+    longForm
+  });
+
+  const docRev1 = DocumentFactory.createValidatedArchitectureSubmittal({
+    date: "2026-07-20",
+    contact: "Subcontractor",
+    action: "Received",
+    listFields: {
+      contact: createContactField("SUB", "Subcontractor"),
+      action: { fieldName: "action", storedForm: "longForm", storedValue: "Received", abbreviation: "Rec", longForm: "Received" }
+    },
+    disciplineDetails: {
+      section: "033000",
+      number: "001",
+      title: "Concrete Mix",
+      revision: "001"
+    }
+  });
+
+  const res1 = engine.appendDocument("test-ss-id", docRev1, strategy, {
+    link: "http://drive.google.com/doc1",
+    status: "Under Review",
+    actionAbbr: " Rec"
+  });
+
+  assert.strictEqual(res1.contactHistory, "SUB");
+
+  const docRev2 = DocumentFactory.createValidatedArchitectureSubmittal({
+    date: "2026-07-25",
+    contact: "Architect",
+    action: "Approved",
+    listFields: {
+      contact: createContactField("ARCH", "Architect"),
+      action: { fieldName: "action", storedForm: "longForm", storedValue: "Approved", abbreviation: "Appr", longForm: "Approved" }
+    },
+    disciplineDetails: {
+      section: "033000",
+      number: "001",
+      title: "Concrete Mix",
+      revision: "001"
+    }
+  });
+
+  const res2 = engine.appendDocument("test-ss-id", docRev2, strategy, {
+    link: "http://drive.google.com/doc2",
+    status: "Approved",
+    actionAbbr: " Appr",
+    updatePreviousStatus: true,
+    previousRowStatus: "Closed"
+  });
+
+  assert.strictEqual(res2.contactHistory, "SUB ARCH");
+  assert.strictEqual(res2.newFileName, "033000-001-001 Concrete Mix - 2026-07-25 SUB ARCH Appr");
+
+  const sheetValues = adapter.getSheetValues("Submittals Log");
+  assert.strictEqual(sheetValues[4][10], "SUB ARCH");
+});
+
+
+test("LogEngine handles empty contact abbreviation without trailing or leading whitespace in chain", () => {
+  const headers = [
+    "Section", "Number", "Title", "Revision", "Date",
+    "Contact", "Action", "Status", "Notes", "Link", "Contact History"
+  ];
+
+  const initialLog = [
+    ["Project Log Banner"],
+    ["Project Submittals Log"],
+    headers,
+    ["033000", "001", "Concrete Mix", "001", "2026-07-20", "Subcontractor", "Received", "Under Review", "", "http://drive.google.com/doc1", "SUB"]
+  ];
+
+  const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
+  const engine = new LogEngine(adapter);
+  const strategy = new ArchitectureSubmittalStrategy();
+
+  const docNoContact = DocumentFactory.createValidatedArchitectureSubmittal({
+    date: "2026-07-25",
+    contact: "",
+    action: "Approved",
+    listFields: {
+      contact: { fieldName: "contact", storedForm: "abbreviation", storedValue: "", abbreviation: "", longForm: "" },
+      action: { fieldName: "action", storedForm: "longForm", storedValue: "Approved", abbreviation: "Appr", longForm: "Approved" }
+    },
+    disciplineDetails: {
+      section: "033000",
+      number: "001",
+      title: "Concrete Mix",
+      revision: "001"
+    }
+  });
+
+  const res = engine.appendDocument("test-ss-id", docNoContact, strategy, {
+    link: "http://drive.google.com/doc2",
+    status: "Approved",
+    actionAbbr: " Appr"
+  });
+
+  assert.strictEqual(res.contactHistory, "SUB");
+});

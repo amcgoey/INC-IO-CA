@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file DocumentFactory.ts
  * @description Strongly-typed document fixture generators for unit tests.
  *
@@ -25,6 +25,30 @@ export type ValidatedFFEOverride = Partial<Omit<ValidatedDocument, "disciplineDe
 export type ValidatedRfiOverride = Partial<Omit<ValidatedDocument, "disciplineDetails">> & {
   disciplineDetails?: Partial<ArchitectureDetails>;
 };
+
+/**
+ * Builds default ListDocumentField metadata for fixture documents.
+ */
+function createDefaultListFields(contact: string, action: string) {
+  return {
+    contact: { fieldName: "contact", storedForm: "abbreviation" as const, storedValue: contact, abbreviation: contact, longForm: contact },
+    action: { fieldName: "action", storedForm: "longForm" as const, storedValue: action, abbreviation: action, longForm: action }
+  };
+}
+
+/**
+ * Resolves contact, action, and listFields for validated document fixtures.
+ */
+function resolveFixtureFields<T extends ValidatedDocument>(
+  overrides: Partial<T>,
+  defaultContact: string,
+  defaultAction: string
+) {
+  const contact = overrides.contact !== undefined ? overrides.contact : defaultContact;
+  const action = overrides.action !== undefined ? overrides.action : defaultAction;
+  const listFields = overrides.listFields || createDefaultListFields(contact, action);
+  return { contact, action, listFields };
+}
 
 /**
  * Merges default discipline details with optional partial overrides.
@@ -83,13 +107,20 @@ export function createValidatedArchitectureSubmittal(overrides: ValidatedArchite
     overrides.disciplineDetails
   );
 
+  const { contact, action, listFields } = resolveFixtureFields(
+    overrides,
+    DEFAULT_CONTACT_ARCH,
+    DEFAULT_ACTION_RECEIVED
+  );
+
   return {
     documentType: "Submittal",
     date: DEFAULT_DATE,
-    contact: DEFAULT_CONTACT_ARCH,
-    action: DEFAULT_ACTION_RECEIVED,
+    contact,
+    action,
     incomingRouting: "To Refer",
     notes: "Sample submittal notes",
+    listFields,
     ...overrides,
     disciplineDetails
   };
@@ -116,12 +147,19 @@ export function createValidatedFFESubmittal(overrides: ValidatedFFEOverride = {}
     overrides.disciplineDetails
   );
 
+  const { contact, action, listFields } = resolveFixtureFields(
+    overrides,
+    DEFAULT_CONTACT_FFE,
+    DEFAULT_ACTION_APPROVED
+  );
+
   return {
     documentType: "Submittal",
     date: DEFAULT_DATE,
-    contact: DEFAULT_CONTACT_FFE,
-    action: DEFAULT_ACTION_APPROVED,
+    contact,
+    action,
     notes: "Sample FF&E notes",
+    listFields,
     ...overrides,
     disciplineDetails
   };
@@ -169,13 +207,20 @@ export function createValidatedRfi(overrides: ValidatedRfiOverride = {}): Valida
     overrides.disciplineDetails
   );
 
+  const { contact, action, listFields } = resolveFixtureFields(
+    overrides,
+    DEFAULT_CONTACT_ARCH,
+    DEFAULT_ACTION_RECEIVED
+  );
+
   return {
     documentType: "RFI",
     date: DEFAULT_DATE,
-    contact: DEFAULT_CONTACT_ARCH,
-    action: DEFAULT_ACTION_RECEIVED,
+    contact,
+    action,
     incomingRouting: "To Architect",
     notes: "Sample RFI notes",
+    listFields,
     ...overrides,
     disciplineDetails
   };
