@@ -4,8 +4,8 @@
  * @description Incoming submittal dual-path workflow execution service ("Received" action).
  *
  * Implements the dual-path workflow using WorkflowRunner action primitives:
- * 1. Saves pristine untouched OriginalDocument to Submittals\Closed\<Subfolder>\ via MoveDocumentAction.
- * 2. Writes initial receiving log record via WriteLogAction.
+ * 1. Writes initial receiving log record via WriteLogAction to obtain calculated file name.
+ * 2. Saves pristine untouched OriginalDocument to Submittals\Closed\<Subfolder>\<Calculated File Name>.pdf via MoveDocumentAction.
  * 3. Duplicates OriginalDocument to create ReviewDocument via DuplicateDocumentAction.
  * 4. Prepends CoverPageDocument onto ReviewDocument via InsertPagesAction.
  * 5. Applies [Filename Prefix] (STAMPED_) and places ReviewDocument in Submittals\ root via MoveDocumentAction.
@@ -156,8 +156,9 @@ export class IncomingWorkflow {
     // 1. Resolve source document blob
     const blob = this.resolveSourceBlob(input);
 
-    // Path 1: Save pristine untouched OriginalDocument to Submittals\Closed\<Subfolder>\ via MoveDocumentAction and WorkflowRunner
+    // Path 1: Save pristine untouched OriginalDocument to Submittals\Closed\<Subfolder>\ via MoveDocumentAction
     const closedSubfolderPath = strategy.getFilingSubfolders ? strategy.getFilingSubfolders(input.validatedDoc) : undefined;
+
     const origContext: DocumentActionContext = await runner.runAction(moveAction, {
       fileId: input.driveFileId,
       blob: blob || undefined,
@@ -166,7 +167,7 @@ export class IncomingWorkflow {
       driveFilingRepository: driveFilingRepo
     });
 
-    // Step 2: Write initial receiving log entry via WriteLogAction and WorkflowRunner
+    // Step 2: Write initial receiving log entry via WriteLogAction
     const writeLogAction = input.writeLogAction || new (typeof WriteLogAction !== "undefined" ? WriteLogAction : (globalThis as any).WriteLogAction)();
     const appendResult = await runner.runAction(writeLogAction, {
       spreadsheetId: input.logFileId,
@@ -183,7 +184,7 @@ export class IncomingWorkflow {
       logRepository: logRepo
     });
 
-    // Path 2: Duplicate OriginalDocument to create ReviewDocument blob via DuplicateDocumentAction and WorkflowRunner
+    // Path 2: Duplicate OriginalDocument to create ReviewDocument blob via DuplicateDocumentAction
     const dupAction = input.duplicateDocumentAction || new (typeof DuplicateDocumentAction !== "undefined" ? DuplicateDocumentAction : (globalThis as any).DuplicateDocumentAction)();
     const dupContext: DocumentActionContext = await runner.runAction(dupAction, {
       blob: blob || undefined,
@@ -196,7 +197,7 @@ export class IncomingWorkflow {
       reviewBlob = driveApp.getFileById(origContext.fileId).getBlob();
     }
 
-    // Step 5: Prepend CoverPageDocument onto ReviewDocument via InsertPagesAction and WorkflowRunner (if policy.stampPdf)
+    // Step 4: Prepend CoverPageDocument onto ReviewDocument via InsertPagesAction (if policy.stampPdf)
     let stampedBlob = reviewBlob;
     if (policy.stampPdf && reviewBlob) {
       const templateId = (input.incomingRouting === "To Refer")
@@ -218,7 +219,7 @@ export class IncomingWorkflow {
       });
     }
 
-    // Step 6: Apply STAMPED_ prefix and place ReviewDocument in Submittals\ root folder via MoveDocumentAction and WorkflowRunner
+    // Step 5: Apply STAMPED_ prefix and place ReviewDocument in Submittals\ root folder via MoveDocumentAction
     const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
     const reviewFileName = stampedPrefix + appendResult.newFileName + ".pdf";
     if (stampedBlob && typeof stampedBlob.setName === "function") {

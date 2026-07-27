@@ -762,8 +762,3 @@ interface DocumentActionContext {
   [key: string]: any;
 }
 
-/** Interface for primitive reusable document pipeline actions. */
-interface DocumentAction {
-  name?: string;
-  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
-}
