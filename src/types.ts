@@ -451,6 +451,23 @@ interface StampOptions {
   templateId: string;
 }
 
+/** Interface for primitive, reusable workflow document transformations or operations. */
+interface DocumentAction<TInput = any, TOutput = any> {
+  execute(input: TInput): Promise<TOutput> | TOutput;
+}
+
+/** Input payload for PDF page extraction action. */
+interface ExtractPagesInput {
+  sourceBlob: GoogleAppsScript.Base.Blob;
+  maxPages?: number;
+}
+
+/** Result payload produced by PDF page extraction action. */
+interface ExtractPagesResult {
+  blob: GoogleAppsScript.Base.Blob;
+  base64: string;
+}
+
 /** Service interface for PDF stamping, page slicing, and form action extraction. */
 interface PdfDocumentService {
   extractFormAction(fileId: string): Promise<string | null>;
@@ -458,6 +475,10 @@ interface PdfDocumentService {
     sourceBlob: GoogleAppsScript.Base.Blob,
     data: ParsedData,
     options: StampOptions
+  ): Promise<GoogleAppsScript.Base.Blob>;
+  extractPages(
+    sourceBlob: GoogleAppsScript.Base.Blob,
+    maxPages?: number
   ): Promise<GoogleAppsScript.Base.Blob>;
   slicePagesToBase64(
     sourceBlob: GoogleAppsScript.Base.Blob,
@@ -484,6 +505,11 @@ declare var defaultDriveFilingRepository: DriveFilingRepository;
 declare var defaultPdfDocumentService: PdfDocumentService;
 declare var defaultAiAnalysisService: AiAnalysisService;
 declare var defaultDriveNameProvider: DriveNameProvider;
+declare class ExtractPagesAction implements DocumentAction<ExtractPagesInput | GoogleAppsScript.Base.Blob, ExtractPagesResult> {
+  constructor(options?: { pdfDocumentService?: PdfDocumentService; defaultMaxPages?: number });
+  execute(input: ExtractPagesInput | GoogleAppsScript.Base.Blob): Promise<ExtractPagesResult>;
+}
+declare var defaultExtractPagesAction: ExtractPagesAction;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 
 /** Policy detailing workflow actions (direction, stamping, subfolder rules). */

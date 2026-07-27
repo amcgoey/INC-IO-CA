@@ -190,7 +190,7 @@ test("GeminiAiAnalysisAdapter large PDF (> 2MB) delegates to pdfDocumentService.
   };
 
   (globalThis as any).Utilities = {
-    base64Encode: (bytes: any) => "FULL_BASE64",
+    base64Encode: (bytes: any) => "SLICED_LARGE_PDF_BASE64",
     sleep: () => {}
   };
 

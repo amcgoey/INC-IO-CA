@@ -98,6 +98,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
   private driveNameProvider?: DriveNameProvider;
   private cacheAdapter?: CacheAdapter;
   private pdfDocumentService?: PdfDocumentService;
+  private extractPagesAction?: ExtractPagesAction;
 
   /**
    * Constructs a `GeminiAiAnalysisAdapter` instance.
@@ -108,6 +109,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     driveNameProvider?: DriveNameProvider;
     cacheAdapter?: CacheAdapter;
     pdfDocumentService?: PdfDocumentService;
+    extractPagesAction?: ExtractPagesAction;
   }) {
     if (options && options.driveNameProvider) {
       this.driveNameProvider = options.driveNameProvider;
@@ -117,6 +119,9 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     }
     if (options && options.pdfDocumentService) {
       this.pdfDocumentService = options.pdfDocumentService;
+    }
+    if (options && options.extractPagesAction) {
+      this.extractPagesAction = options.extractPagesAction;
     }
   }
 
@@ -135,6 +140,23 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (typeof defaultCacheAdapter !== "undefined") return defaultCacheAdapter;
     try {
       return require("./CacheAdapter").defaultCacheAdapter;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  private getExtractPagesAction(): ExtractPagesAction | null {
+    if (this.extractPagesAction) return this.extractPagesAction;
+    const pdfService = this.getPdfDocumentService();
+    if (pdfService) {
+      const ExtractActionClass = typeof ExtractPagesAction !== "undefined"
+        ? ExtractPagesAction
+        : require("./ExtractPagesAction").ExtractPagesAction;
+      return new ExtractActionClass({ pdfDocumentService: pdfService });
+    }
+    if (typeof defaultExtractPagesAction !== "undefined") return defaultExtractPagesAction;
+    try {
+      return require("./ExtractPagesAction").defaultExtractPagesAction;
     } catch (e) {
       return null;
     }
@@ -316,11 +338,17 @@ Your task is to logically deduce the project. Return JSON.
       if (fileSize <= 2097152) { // 2 MB
         base64Pdf = Utilities.base64Encode(fileBytes);
       } else {
-        const pdfService = this.getPdfDocumentService();
-        if (!pdfService) {
-          throw new Error("PdfDocumentService is not available");
+        const extractAction = this.getExtractPagesAction();
+        if (extractAction) {
+          const extractRes = await extractAction.execute({ sourceBlob, maxPages: 3 });
+          base64Pdf = extractRes.base64;
+        } else {
+          const pdfService = this.getPdfDocumentService();
+          if (!pdfService) {
+            throw new Error("PdfDocumentService is not available");
+          }
+          base64Pdf = await pdfService.slicePagesToBase64(sourceBlob, 3);
         }
-        base64Pdf = await pdfService.slicePagesToBase64(sourceBlob, 3);
       }
     } catch (e: any) {
       return {

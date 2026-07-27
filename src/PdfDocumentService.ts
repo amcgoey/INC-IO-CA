@@ -173,10 +173,18 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
    * @param maxPages - Maximum number of pages to slice.
    * @returns Base64 encoded string of the sliced PDF.
    */
-  async slicePagesToBase64(
+  /**
+   * Slices up to `maxPages` (default 3) from a source PDF blob into a new `GoogleAppsScript.Base.Blob`.
+   * Used as the foundational PDF page extraction logic for standalone workflow actions.
+   *
+   * @param sourceBlob - Source PDF blob.
+   * @param maxPages - Maximum number of pages to slice (default: 3).
+   * @returns A Promise resolving to a new PDF Blob containing sliced pages.
+   */
+  async extractPages(
     sourceBlob: GoogleAppsScript.Base.Blob,
-    maxPages: number
-  ): Promise<string> {
+    maxPages = 3
+  ): Promise<GoogleAppsScript.Base.Blob> {
     const { PDFDocument } = getPdfLib();
     const unsigned = blobToUint8Array(sourceBlob);
 
@@ -193,7 +201,31 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
     copiedPages.forEach((p: any) => slicedDoc.addPage(p));
 
     const pdfBytes = await slicedDoc.save();
-    return Utilities.base64Encode(pdfBytes);
+    const name = (sourceBlob && typeof sourceBlob.getName === "function") ? (sourceBlob.getName() || "sliced.pdf") : "sliced.pdf";
+    if (typeof Utilities !== "undefined" && typeof Utilities.newBlob === "function") {
+      return Utilities.newBlob(pdfBytes, 'application/pdf', name);
+    }
+    return {
+      getBytes: () => pdfBytes,
+      getName: () => name,
+      getContentType: () => "application/pdf"
+    } as any;
+  }
+
+  /**
+   * Slices up to `maxPages` from a source PDF blob and encodes the resulting PDF document to base64.
+   * Used for sending truncated PDF payloads to AI analysis services.
+   *
+   * @param sourceBlob - Source PDF blob.
+   * @param maxPages - Maximum number of pages to slice.
+   * @returns Base64 encoded string of the sliced PDF.
+   */
+  async slicePagesToBase64(
+    sourceBlob: GoogleAppsScript.Base.Blob,
+    maxPages: number
+  ): Promise<string> {
+    const slicedBlob = await this.extractPages(sourceBlob, maxPages);
+    return Utilities.base64Encode(slicedBlob.getBytes());
   }
 }
 
