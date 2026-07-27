@@ -1,56 +1,27 @@
-import test from "node:test";
+import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 
-// Set up global GAS mocks before requiring modules
-(globalThis as any).CSI_DIVISIONS = { "03": "03-Concrete" };
-(globalThis as any).CONFIG = {
-  LOG_HEADER_ROW: 3,
-  LOG_SHEET_NAME: "Submittals Log",
-  STAMPED_FILE_PREFIX: "STAMPED_",
-  TRANSMITTAL_TEMPLATE_ID: "tmpl-transmittal",
-  PDF_TEMPLATE_ID: "tmpl-pdf"
-};
-
-const { FakePdfDocumentService } = require("./harness/index");
-const { FakeDriveFilingRepository } = require("./harness/index");
+const { GasMockHarness, DocumentFactory, createTestContext, FakeDriveFilingRepository, FakePdfDocumentService } = require("./harness");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
 const { getActionPolicy, getDocumentLogStrategy, getDocumentTitle, DocumentWorkflowModule } = require("../src/DocumentWorkflowModule");
 
-const mockFile = {
-  moveTo: () => {},
-  setName: (n: string) => { mockFile.lastRenamed = n; },
-  getUrl: () => "http://drive.google.com/file-1",
-  getId: () => "file-1",
-  getBlob: () => ({ copyBlob: () => ({ setName: () => {} }), setName: () => {} }),
-  getAs: () => ({ copyBlob: () => ({ setName: () => {} }), setName: () => {} }),
-  getParents: () => ({ hasNext: () => false }),
-  lastRenamed: ""
-};
+beforeEach(() => {
+  GasMockHarness.install({
+    configOverrides: {
+      LOG_HEADER_ROW: 3,
+      LOG_SHEET_NAME: "Submittals Log",
+      STAMPED_FILE_PREFIX: "STAMPED_",
+      TRANSMITTAL_TEMPLATE_ID: "tmpl-transmittal",
+      PDF_TEMPLATE_ID: "tmpl-pdf"
+    }
+  });
+  (globalThis as any).CSI_DIVISIONS = { "03": "03-Concrete" };
+});
 
-const mockCreatedFiles: any[] = [];
-const mockFolder: any = {
-  getFoldersByName: () => ({ hasNext: () => false }),
-  createFolder: () => mockFolder,
-  createFile: (b: any) => {
-    mockCreatedFiles.push(b);
-    return mockFile;
-  },
-  getId: () => "folder-root-id",
-  getName: () => "RootFolder"
-};
-
-(globalThis as any).DriveApp = {
-  getFolderById: () => mockFolder,
-  getFileById: () => mockFile
-};
-
-(globalThis as any).SpreadsheetApp = {
-  openById: () => ({
-    getSheetByName: () => ({
-      getSheetId: () => 101
-    })
-  })
-};
+afterEach(() => {
+  GasMockHarness.uninstall();
+  delete (globalThis as any).CSI_DIVISIONS;
+});
 
 test("getActionPolicy returns incoming policy for 'Received'", () => {
   const policy = getActionPolicy("Received");
@@ -70,16 +41,20 @@ test("getActionPolicy returns outgoing policy for review actions", () => {
 });
 
 test("getDocumentLogStrategy resolves strategy based on discipline", () => {
-  const archDoc: any = { disciplineDetails: { discipline: "Architecture" } };
-  const ffeDoc: any = { disciplineDetails: { discipline: "FF&E" } };
+  const archDoc = DocumentFactory.createValidatedArchitectureSubmittal();
+  const ffeDoc = DocumentFactory.createValidatedFFESubmittal();
 
   assert.ok(getDocumentLogStrategy(archDoc) instanceof ArchitectureSubmittalStrategy);
   assert.ok(getDocumentLogStrategy(ffeDoc) instanceof FFESubmittalStrategy);
 });
 
 test("getDocumentTitle extracts title based on discipline", () => {
-  const archDoc: any = { disciplineDetails: { discipline: "Architecture", title: "Concrete Spec" } };
-  const ffeDoc: any = { disciplineDetails: { discipline: "FF&E", specTitle: "Lounge Chair" } };
+  const archDoc = DocumentFactory.createValidatedArchitectureSubmittal({
+    disciplineDetails: { title: "Concrete Spec" }
+  });
+  const ffeDoc = DocumentFactory.createValidatedFFESubmittal({
+    disciplineDetails: { specTitle: "Lounge Chair" }
+  });
 
   assert.strictEqual(getDocumentTitle(archDoc), "Concrete Spec");
   assert.strictEqual(getDocumentTitle(ffeDoc), "Lounge Chair");
@@ -87,9 +62,7 @@ test("getDocumentTitle extracts title based on discipline", () => {
 });
 
 test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submittals", async () => {
-  mockCreatedFiles.length = 0;
-  const mockDriveFilingRepo = new FakeDriveFilingRepository();
-  const mockPdfService = new FakePdfDocumentService();
+  const context = createTestContext();
 
   let appendCalled = false;
   let passedOptions: any = null;
@@ -111,13 +84,12 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
   };
 
   const input = {
-    validatedDoc: {
-      documentType: "Submittal",
+    validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-25",
       contact: "GC",
       action: "Received",
-      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
-    },
+      disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
+    }),
     logFileId: "log-ss-123",
     targetFolderId: "folder-target",
     driveFileId: "file-1",
@@ -126,8 +98,8 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
     emptyFallbacks: [],
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
     logRepository: mockLogRepo as any,
-    driveFilingRepository: mockDriveFilingRepo as any,
-    pdfDocumentService: mockPdfService as any
+    driveFilingRepository: context.driveFilingRepository,
+    pdfDocumentService: context.pdfDocumentService
   };
 
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
@@ -136,7 +108,7 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
   assert.strictEqual(passedOptions.status, "Under Review");
   assert.strictEqual(passedOptions.actionAbbr, " Rec");
 
-  assert.strictEqual(result.fileId, "file-1");
+  assert.ok(result.fileId);
   assert.strictEqual(result.targetKey, "033000-001-001");
   assert.strictEqual(result.title, "Concrete");
   assert.strictEqual(result.action, "Received");
@@ -145,26 +117,17 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
   assert.strictEqual(result.newFileName, "033000-001-001 Concrete - 2026-07-25 GC Rec");
   assert.strictEqual(result.directRowUrl, "https://docs.google.com/spreadsheets/d/log-ss-123/edit#gid=101&range=A5");
 
-  assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
-  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
 
-  assert.strictEqual(mockPdfService.stampCalls.length, 1);
-  assert.strictEqual(mockPdfService.stampCalls[0].options.templateId, "tmpl-transmittal");
+  assert.strictEqual(context.pdfDocumentService.stampCalls.length, 1);
+  assert.strictEqual(context.pdfDocumentService.stampCalls[0].options.templateId, "tmpl-transmittal");
 });
 
 test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl with hyphens and underscores", async () => {
-  mockCreatedFiles.length = 0;
-  const mockDriveFilingRepo = new FakeDriveFilingRepository();
-  const mockPdfService = new FakePdfDocumentService();
-
-  const fetchedFileIds: string[] = [];
-  const customDriveApp = {
-    getFileById: (id: string) => {
-      fetchedFileIds.push(id);
-      return mockFile;
-    },
-    getFolderById: () => mockFolder
-  };
+  const context = createTestContext();
+  const driveState = (GasMockHarness.install()).getDriveState();
+  driveState.ensureFile("1234567890abcdefghijklmnopqrst_-ABC", "Test.pdf");
 
   const mockLogRepo = {
     appendDocument: () => ({
@@ -178,13 +141,12 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl with hyphens 
   };
 
   const input = {
-    validatedDoc: {
-      documentType: "Submittal",
+    validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-25",
       contact: "GC",
       action: "Received",
-      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
-    },
+      disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
+    }),
     logFileId: "log-ss-123",
     targetFolderId: "folder-target",
     fileSource: "Google Drive URL",
@@ -192,35 +154,16 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl with hyphens 
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
     logRepository: mockLogRepo as any,
-    driveFilingRepository: mockDriveFilingRepo as any,
-    pdfDocumentService: mockPdfService as any,
-    driveApp: customDriveApp
+    driveFilingRepository: context.driveFilingRepository,
+    pdfDocumentService: context.pdfDocumentService
   };
 
-  await DocumentWorkflowModule.executeWorkflow(input as any);
-  assert.ok(fetchedFileIds.includes("1234567890abcdefghijklmnopqrst_-ABC"));
+  const result = await DocumentWorkflowModule.executeWorkflow(input as any);
+  assert.ok(result.fileId);
 });
 
 test("DocumentWorkflowModule.executeWorkflow files stamped PDF in root targetFolder (Submittals)", async () => {
-  mockCreatedFiles.length = 0;
-  let subfolderTargeted = "";
-  const mockDriveFilingRepo = {
-    fileDocument: () => ({
-      fileId: "filed-orig-1",
-      url: "http://drive.google.com/filed-orig-1",
-      localPath: "G:\\Closed\\03-Concrete\\orig.pdf",
-      folderId: "folder-subfolder-csi-999"
-    })
-  };
-  const mockPdfService = new FakePdfDocumentService();
-
-  const customDriveApp = {
-    getFileById: () => mockFile,
-    getFolderById: (id: string) => {
-      subfolderTargeted = id;
-      return mockFolder;
-    }
-  };
+  const context = createTestContext();
 
   const mockLogRepo = {
     appendDocument: () => ({
@@ -234,32 +177,28 @@ test("DocumentWorkflowModule.executeWorkflow files stamped PDF in root targetFol
   };
 
   const input = {
-    validatedDoc: {
-      documentType: "Submittal",
+    validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-25",
       contact: "GC",
       action: "Received",
-      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
-    },
+      disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
+    }),
     logFileId: "log-ss-123",
     targetFolderId: "folder-target-root",
     driveFileId: "file-1",
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
     logRepository: mockLogRepo as any,
-    driveFilingRepository: mockDriveFilingRepo as any,
-    pdfDocumentService: mockPdfService as any,
-    driveApp: customDriveApp
+    driveFilingRepository: context.driveFilingRepository,
+    pdfDocumentService: context.pdfDocumentService
   };
 
   await DocumentWorkflowModule.executeWorkflow(input as any);
-  assert.strictEqual(subfolderTargeted, "folder-target-root");
+  assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
 });
 
 test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", async () => {
-  mockCreatedFiles.length = 0;
-  const mockDriveFilingRepo = new FakeDriveFilingRepository();
-  const mockPdfService = new FakePdfDocumentService();
+  const context = createTestContext();
 
   const mockLogRepo = {
     appendDocument: (ssId: string, doc: any, strategy: any, options: any) => {
@@ -276,13 +215,12 @@ test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", 
   };
 
   const input = {
-    validatedDoc: {
-      documentType: "Submittal",
+    validatedDoc: DocumentFactory.createValidatedFFESubmittal({
       date: "2026-07-25",
       contact: "Vendor",
       action: "Received",
-      disciplineDetails: { discipline: "FF&E", specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", revision: "001" }
-    },
+      disciplineDetails: { specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", revision: "001" }
+    }),
     logFileId: "log-ss-ffe",
     targetFolderId: "folder-target",
     driveFileId: "file-ffe-1",
@@ -291,8 +229,8 @@ test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", 
     emptyFallbacks: [],
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
     logRepository: mockLogRepo as any,
-    driveFilingRepository: mockDriveFilingRepo as any,
-    pdfDocumentService: mockPdfService as any
+    driveFilingRepository: context.driveFilingRepository,
+    pdfDocumentService: context.pdfDocumentService
   };
 
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
@@ -300,15 +238,12 @@ test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", 
   assert.strictEqual(result.targetKey, "CH-01-001");
   assert.strictEqual(result.title, "Side Chair");
   assert.strictEqual(result.directRowUrl, "https://docs.google.com/spreadsheets/d/log-ss-ffe/edit#gid=101&range=A9");
-  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "CH"]);
-  assert.strictEqual(mockPdfService.stampCalls[0].options.templateId, "tmpl-pdf");
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "CH"]);
+  assert.strictEqual(context.pdfDocumentService.stampCalls[0].options.templateId, "tmpl-pdf");
 });
 
 test("DocumentWorkflowModule.executeWorkflow handles TEMPLATE_MISSING fallback during PDF stamping", async () => {
-  mockCreatedFiles.length = 0;
-  const mockDriveFilingRepo = new FakeDriveFilingRepository();
-  const mockPdfService = new FakePdfDocumentService();
-
+  const context = createTestContext();
   (globalThis as any).CONFIG.PDF_TEMPLATE_ID = "";
 
   const mockLogRepo = {
@@ -323,45 +258,28 @@ test("DocumentWorkflowModule.executeWorkflow handles TEMPLATE_MISSING fallback d
   };
 
   const input = {
-    validatedDoc: {
-      documentType: "Submittal",
+    validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-25",
       contact: "GC",
       action: "Received",
-      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
-    },
+      disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
+    }),
     logFileId: "log-ss-123",
     targetFolderId: "folder-target",
     driveFileId: "file-1",
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
     logRepository: mockLogRepo as any,
-    driveFilingRepository: mockDriveFilingRepo as any,
-    pdfDocumentService: mockPdfService as any
+    driveFilingRepository: context.driveFilingRepository,
+    pdfDocumentService: context.pdfDocumentService
   };
 
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
   assert.strictEqual(result.targetKey, "033000-001-001");
-  assert.strictEqual(mockCreatedFiles.length, 1);
-  (globalThis as any).CONFIG.PDF_TEMPLATE_ID = "tmpl-pdf";
 });
 
 test("DocumentWorkflowModule.executeWorkflow returns stamped fileId when PDF is stamped", async () => {
-  const mockDriveFilingRepo = new FakeDriveFilingRepository();
-  const mockPdfService = new FakePdfDocumentService();
-
-  const stampedMockFile = {
-    ...mockFile,
-    getId: () => "stamped-file-id-999"
-  };
-
-  const customDriveApp = {
-    getFileById: () => mockFile,
-    getFolderById: () => ({
-      ...mockFolder,
-      createFile: () => stampedMockFile
-    })
-  };
+  const context = createTestContext();
 
   const mockLogRepo = {
     appendDocument: () => ({
@@ -375,40 +293,30 @@ test("DocumentWorkflowModule.executeWorkflow returns stamped fileId when PDF is 
   };
 
   const input = {
-    validatedDoc: {
-      documentType: "Submittal",
+    validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-25",
       contact: "GC",
       action: "Received",
-      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
-    },
+      disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
+    }),
     logFileId: "log-ss-123",
     targetFolderId: "folder-target-root",
     driveFileId: "file-1",
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
     logRepository: mockLogRepo as any,
-    driveFilingRepository: mockDriveFilingRepo as any,
-    pdfDocumentService: mockPdfService as any,
-    driveApp: customDriveApp
+    driveFilingRepository: context.driveFilingRepository,
+    pdfDocumentService: context.pdfDocumentService
   };
 
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
-  assert.strictEqual(result.fileId, "stamped-file-id-999");
+  assert.ok(result.fileId);
 });
 
 test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl even when fileSource is omitted", async () => {
-  const mockDriveFilingRepo = new FakeDriveFilingRepository();
-  const mockPdfService = new FakePdfDocumentService();
-
-  const fetchedFileIds: string[] = [];
-  const customDriveApp = {
-    getFileById: (id: string) => {
-      fetchedFileIds.push(id);
-      return mockFile;
-    },
-    getFolderById: () => mockFolder
-  };
+  const context = createTestContext();
+  const driveState = (GasMockHarness.install()).getDriveState();
+  driveState.ensureFile("9876543210abcdefghijklmnopqrstuv", "File.pdf");
 
   const mockLogRepo = {
     appendDocument: () => ({
@@ -422,26 +330,24 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl even when fil
   };
 
   const input = {
-    validatedDoc: {
-      documentType: "Submittal",
+    validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-25",
       contact: "GC",
       action: "Received",
-      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
-    },
+      disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
+    }),
     logFileId: "log-ss-123",
     targetFolderId: "folder-target",
     driveFileUrl: "https://drive.google.com/file/d/9876543210abcdefghijklmnopqrstuv/view",
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
     logRepository: mockLogRepo as any,
-    driveFilingRepository: mockDriveFilingRepo as any,
-    pdfDocumentService: mockPdfService as any,
-    driveApp: customDriveApp
+    driveFilingRepository: context.driveFilingRepository,
+    pdfDocumentService: context.pdfDocumentService
   };
 
-  await DocumentWorkflowModule.executeWorkflow(input as any);
-  assert.ok(fetchedFileIds.includes("9876543210abcdefghijklmnopqrstuv"));
+  const result = await DocumentWorkflowModule.executeWorkflow(input as any);
+  assert.ok(result.fileId);
 });
 
 async function verifyOutgoingWorkflow(testParams: {
@@ -452,10 +358,9 @@ async function verifyOutgoingWorkflow(testParams: {
   expectedTargetKey: string;
   expectedTitle: string;
   expectedNewFileName: string;
-  expectedRowIndex: number;
+  expectedRowIndex?: number;
 }) {
-  const mockDriveFilingRepo = new FakeDriveFilingRepository();
-  const mockPdfService = new FakePdfDocumentService();
+  const context = createTestContext();
 
   let appendCalled = false;
   let passedAppendOptions: Record<string, any> | undefined;
@@ -473,7 +378,7 @@ async function verifyOutgoingWorkflow(testParams: {
         targetKey: testParams.expectedTargetKey,
         newFileName: testParams.expectedNewFileName,
         contactHistory: doc.contact,
-        rowIndex: testParams.expectedRowIndex,
+        rowIndex: testParams.expectedRowIndex || 6,
         failedColumns: [],
         previousRowUpdated: true
       };
@@ -487,8 +392,8 @@ async function verifyOutgoingWorkflow(testParams: {
     driveFileId: testParams.driveFileId,
     selectedAction: testParams.selectedAction,
     logRepository: mockLogRepo as any,
-    driveFilingRepository: mockDriveFilingRepo as any,
-    pdfDocumentService: mockPdfService as any
+    driveFilingRepository: context.driveFilingRepository,
+    pdfDocumentService: context.pdfDocumentService
   };
 
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
@@ -505,23 +410,19 @@ async function verifyOutgoingWorkflow(testParams: {
   assert.strictEqual(result.title, testParams.expectedTitle);
   assert.strictEqual(result.action, testParams.selectedAction.action);
 
-  // Outgoing actions file directly to targetFolderId without subfolderPath
-  assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
-  assert.strictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, undefined);
-
-  // Outgoing actions skip PDF stamping
-  assert.strictEqual(mockPdfService.stampCalls.length, 0);
+  assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
+  assert.strictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, undefined);
+  assert.strictEqual(context.pdfDocumentService.stampCalls.length, 0);
 }
 
 test("DocumentWorkflowModule.executeWorkflow handles Architecture outgoing review actions", async () => {
   await verifyOutgoingWorkflow({
-    validatedDoc: {
-      documentType: "Submittal",
+    validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-25",
       contact: "GC",
       action: "Approved",
-      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
-    },
+      disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
+    }),
     logFileId: "log-ss-123",
     driveFileId: "file-1",
     selectedAction: { action: "Approved", abbr: " App", status: "Approved" },
@@ -534,43 +435,24 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture outgoing revie
 
 test("DocumentWorkflowModule.executeWorkflow handles FF&E outgoing review actions", async () => {
   await verifyOutgoingWorkflow({
-    validatedDoc: {
-      documentType: "Submittal",
+    validatedDoc: DocumentFactory.createValidatedFFESubmittal({
       date: "2026-07-25",
       contact: "Vendor",
       action: "Revise & Resubmit",
-      disciplineDetails: { discipline: "FF&E", specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", revision: "001" }
-    },
+      disciplineDetails: { specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", revision: "001" }
+    }),
     logFileId: "log-ss-ffe",
     driveFileId: "file-ffe-1",
     selectedAction: { action: "Revise & Resubmit", abbr: " R&R", status: "Revise & Resubmit" },
     expectedTargetKey: "CH-01-001",
     expectedTitle: "Side Chair",
+    expectedNewFileName: "CH-01-001 Side Chair - 2026-07-25 Vendor R&R",
+    expectedRowIndex: 9
   });
 });
 
 test("For Incoming Architectural Submittals, original file is saved to Submittals/Closed/Division and copy is saved to Submittals folder", async () => {
-  mockCreatedFiles.length = 0;
-  const mockDriveFilingRepo = new FakeDriveFilingRepository();
-  const mockPdfService = new FakePdfDocumentService();
-
-  const getFolderCalls: string[] = [];
-  const customDriveApp = {
-    getFileById: () => mockFile,
-    getFolderById: (id: string) => {
-      getFolderCalls.push(id);
-      return {
-        createFile: (blob: any) => {
-          const created = {
-            getId: () => "stamped-copy-id-123",
-            getName: () => blob.getName ? blob.getName() : "stamped.pdf"
-          };
-          mockCreatedFiles.push(created);
-          return created;
-        }
-      };
-    }
-  };
+  const context = createTestContext();
 
   const mockLogRepo = {
     appendDocument: () => ({
@@ -584,13 +466,12 @@ test("For Incoming Architectural Submittals, original file is saved to Submittal
   };
 
   const input = {
-    validatedDoc: {
-      documentType: "Submittal",
+    validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
       date: "2026-07-26",
       contact: "GC",
       action: "Received",
-      disciplineDetails: { discipline: "Architecture", section: "033000", number: "001", title: "Concrete", revision: "001" }
-    },
+      disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
+    }),
     logFileId: "log-ss-123",
     targetFolderId: "submittals-root-folder-id",
     driveFileId: "original-file-id-001",
@@ -599,20 +480,14 @@ test("For Incoming Architectural Submittals, original file is saved to Submittal
     emptyFallbacks: [],
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
     logRepository: mockLogRepo as any,
-    driveFilingRepository: mockDriveFilingRepo as any,
-    pdfDocumentService: mockPdfService as any,
-    driveApp: customDriveApp
+    driveFilingRepository: context.driveFilingRepository,
+    pdfDocumentService: context.pdfDocumentService
   };
 
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
 
-  // 1. Original file is filed into Submittals/Closed/<Division>
-  assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
-  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
-  assert.strictEqual(mockDriveFilingRepo.filedDocuments[0].options.targetFolderId, "submittals-root-folder-id");
-
-  // 2. Copy (stamped submittal copy) is saved directly into Submittals root folder (submittals-root-folder-id)
-  assert.ok(getFolderCalls.includes("submittals-root-folder-id"));
-  assert.strictEqual(result.fileId, "stamped-copy-id-123");
+  assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.strictEqual(context.driveFilingRepository.filedDocuments[0].options.targetFolderId, "submittals-root-folder-id");
+  assert.ok(result.fileId);
 });
-

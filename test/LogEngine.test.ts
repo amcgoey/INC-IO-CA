@@ -1,33 +1,39 @@
-import test from "node:test";
+import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 
-// Global stub for CONFIG matching production Config.ts (LOG_HEADER_ROW: 3)
-(globalThis as any).CONFIG = {
-  LOG_HEADER_ROW: 3,
-  LOG_SHEET_NAME: "Submittals Log"
-};
-
-const { InMemorySheetStorageAdapter } = require("./harness/index");
+const { GasMockHarness, DocumentFactory, InMemorySheetStorageAdapter } = require("./harness");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
 const { LogEngine } = require("../src/LogEngine");
+
+beforeEach(() => {
+  GasMockHarness.install({
+    configOverrides: {
+      LOG_HEADER_ROW: 3,
+      LOG_SHEET_NAME: "Submittals Log",
+      CLOSED_FOLDER_NAME: "Closed"
+    }
+  });
+});
+
+afterEach(() => {
+  GasMockHarness.uninstall();
+});
 
 test("ArchitectureSubmittalStrategy extracts keys, formats filename and payload", () => {
   const strategy = new ArchitectureSubmittalStrategy();
 
-  const doc: ValidatedDocument = {
-    documentType: "Submittal",
+  const doc = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
     contact: "GC",
     action: "Submitted",
     notes: "Initial submittal",
     disciplineDetails: {
-      discipline: "Architecture",
       section: "033000",
       number: "001",
       title: "Cast-in-Place Concrete",
       revision: "001"
     }
-  };
+  });
 
   assert.strictEqual(strategy.getGroupKey(doc), "033000-001");
   assert.strictEqual(strategy.getTargetKey(doc), "033000-001-001");
@@ -62,20 +68,18 @@ test("LogEngine appends new Architecture document end-to-end with InMemorySheetS
   const engine = new LogEngine(adapter);
   const strategy = new ArchitectureSubmittalStrategy();
 
-  const doc: ValidatedDocument = {
-    documentType: "Submittal",
+  const doc = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
     contact: "Subcontractor",
     action: "Received",
     notes: "For review",
     disciplineDetails: {
-      discipline: "Architecture",
       section: "033000",
       number: "001",
       title: "Concrete Mix",
       revision: "001"
     }
-  };
+  });
 
   const result = engine.appendDocument("test-ss-id", doc, strategy, {
     link: "http://drive.google.com/doc1",
@@ -119,20 +123,18 @@ test("LogEngine handles revision workflow by updating previous row status and ch
   const engine = new LogEngine(adapter);
   const strategy = new ArchitectureSubmittalStrategy();
 
-  const docRev2: ValidatedDocument = {
-    documentType: "Submittal",
+  const docRev2 = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
     contact: "Architect",
     action: "Approved",
     notes: "Approved as noted",
     disciplineDetails: {
-      discipline: "Architecture",
       section: "033000",
       number: "001",
       title: "Concrete Mix",
       revision: "001"
     }
-  };
+  });
 
   const result = engine.appendDocument("test-ss-id", docRev2, strategy, {
     link: "http://drive.google.com/doc2",
@@ -171,27 +173,23 @@ test("LogEngine correctly inserts new groups with gap formatting in sorted order
   const engine = new LogEngine(adapter);
   const strategy = new ArchitectureSubmittalStrategy();
 
-  const midDoc: ValidatedDocument = {
-    documentType: "Submittal",
+  const midDoc = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
     contact: "Mason",
     action: "Received",
     disciplineDetails: {
-      discipline: "Architecture",
       section: "020000",
       number: "001",
       title: "Existing Conditions",
       revision: "001"
     }
-  };
+  });
 
   const result = engine.appendDocument("test-ss-id", midDoc, strategy, {
     status: "Open"
   });
 
   const sheetValues = adapter.getSheetValues("Submittals Log");
-  // 010000 group is at row index 3 (0-based)
-  // Blank separator inserted, then 020000 inserted at row index 5 (0-based)
   assert.strictEqual(sheetValues[3][0], "010000");
   assert.strictEqual(sheetValues[4].every((c: any) => c === ""), true); // Separator gap row
   assert.strictEqual(sheetValues[5][0], "020000");
@@ -201,21 +199,19 @@ test("LogEngine correctly inserts new groups with gap formatting in sorted order
 test("FFESubmittalStrategy extracts keys, formats filename and payload", () => {
   const strategy = new FFESubmittalStrategy();
 
-  const doc: ValidatedDocument = {
-    documentType: "Submittal",
+  const doc = DocumentFactory.createValidatedFFESubmittal({
     date: "2026-07-25",
     contact: "Vendor A",
     action: "Received",
     notes: "Sample chair",
     disciplineDetails: {
-      discipline: "FF&E",
       specTag: "CH-01",
       specTitle: "Side Chair",
       vendor: "Furniture Co",
       revision: "001",
       relatedTag: "CH-01A"
     }
-  };
+  });
 
   assert.strictEqual(strategy.getGroupKey(doc), "ch-01");
   assert.strictEqual(strategy.getTargetKey(doc), "CH-01-001");
@@ -251,20 +247,18 @@ test("LogEngine appends new FF&E document end-to-end with InMemorySheetStorageAd
   const engine = new LogEngine(adapter);
   const strategy = new FFESubmittalStrategy();
 
-  const doc: ValidatedDocument = {
-    documentType: "Submittal",
+  const doc = DocumentFactory.createValidatedFFESubmittal({
     date: "2026-07-25",
     contact: "Vendor A",
     action: "Received",
     notes: "For review",
     disciplineDetails: {
-      discipline: "FF&E",
       specTag: "CH-01",
       specTitle: "Side Chair",
       vendor: "Furniture Co",
       revision: "001"
     }
-  };
+  });
 
   const result = engine.appendDocument("test-ss-id", doc, strategy, {
     link: "http://drive.google.com/ffe1",
@@ -303,24 +297,22 @@ test("LogEngine handles FF&E revision workflow by updating previous row status t
     ["CH-01", "", "Side Chair", "Furniture Co", "001", "2026-07-20", "Vendor A", "Received", "Under Review", "", "http://drive.google.com/ffe1", "Vendor A"]
   ];
 
-  const adapter = new InMemorySheetStorageAdapter( { "Submittals Log": initialLog });
+  const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
   const engine = new LogEngine(adapter);
   const strategy = new FFESubmittalStrategy();
 
-  const docRev2: ValidatedDocument = {
-    documentType: "Submittal",
+  const docRev2 = DocumentFactory.createValidatedFFESubmittal({
     date: "2026-07-25",
     contact: "Designer",
     action: "Approved",
     notes: "Approved finish",
     disciplineDetails: {
-      discipline: "FF&E",
       specTag: "CH-01",
       specTitle: "Side Chair",
       vendor: "Furniture Co",
       revision: "001"
     }
-  };
+  });
 
   const result = engine.appendDocument("test-ss-id", docRev2, strategy, {
     link: "http://drive.google.com/ffe2",
@@ -343,80 +335,69 @@ test("LogEngine handles FF&E revision workflow by updating previous row status t
 
 test("ArchitectureSubmittalStrategy resolves subfolder path segments from CSI divisions", () => {
   (globalThis as any).CSI_DIVISIONS = { "03": "03-Concrete" };
-  (globalThis as any).CONFIG = { CLOSED_FOLDER_NAME: "Closed" };
 
   const strategy = new ArchitectureSubmittalStrategy();
 
-  const docConcrete: ValidatedDocument = {
-    documentType: "Submittal",
+  const docConcrete = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
     contact: "GC",
     action: "Submitted",
     disciplineDetails: {
-      discipline: "Architecture",
       section: "033000",
       number: "001",
       title: "Cast-in-Place Concrete",
       revision: "001"
     }
-  };
+  });
 
   const subfolders = strategy.getFilingSubfolders!(docConcrete);
   assert.deepStrictEqual(subfolders, ["Closed", "03-Concrete"]);
 
-  const docFallback: ValidatedDocument = {
-    documentType: "Submittal",
+  const docFallback = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
     contact: "GC",
     action: "Submitted",
     disciplineDetails: {
-      discipline: "Architecture",
       section: "990000",
       number: "001",
       title: "Unknown Section",
       revision: "001"
     }
-  };
+  });
 
   const fallbackSubfolders = strategy.getFilingSubfolders!(docFallback);
   assert.deepStrictEqual(fallbackSubfolders, ["Closed"]);
 });
 
 test("FFESubmittalStrategy resolves subfolder path segments from spec tag prefix", () => {
-  (globalThis as any).CONFIG = { CLOSED_FOLDER_NAME: "Closed" };
-
   const strategy = new FFESubmittalStrategy();
 
-  const docWithTag: ValidatedDocument = {
-    documentType: "Submittal",
+  const docWithTag = DocumentFactory.createValidatedFFESubmittal({
     date: "2026-07-25",
     contact: "Vendor A",
     action: "Received",
     disciplineDetails: {
-      discipline: "FF&E",
       specTag: "CH-01",
       specTitle: "Side Chair",
       vendor: "Furniture Co",
       revision: "001"
     }
-  };
+  });
 
   const subfolders = strategy.getFilingSubfolders!(docWithTag);
   assert.deepStrictEqual(subfolders, ["Closed", "CH"]);
 
-  const docFallback: ValidatedDocument = {
-    documentType: "Submittal",
+  const docFallback = DocumentFactory.createValidatedFFESubmittal({
     date: "2026-07-25",
     contact: "Vendor A",
     action: "Received",
     disciplineDetails: {
-      discipline: "FF&E",
       specTag: "",
       specTitle: "Side Chair",
       vendor: "Furniture Co",
       revision: "001"
     }
-  };
+  });
 
   const fallbackSubfolders = strategy.getFilingSubfolders!(docFallback);
   assert.deepStrictEqual(fallbackSubfolders, ["Closed"]);

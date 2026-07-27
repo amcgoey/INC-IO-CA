@@ -294,7 +294,7 @@ export class MockSheet {
   private grid: any[][] = [];
   public calls: CallLog[] = [];
 
-  constructor(public name: string, initialData: any[][] = []) {
+  constructor(public name: string, initialData: any[][] = [], public sheetId: number = 101) {
     this.grid = initialData.map(row => [...row]);
   }
 
@@ -305,6 +305,11 @@ export class MockSheet {
   public getName(): string {
     this.recordCall("getName", []);
     return this.name;
+  }
+
+  public getSheetId(): number {
+    this.recordCall("getSheetId", []);
+    return this.sheetId;
   }
 
   public getGrid(): any[][] {
@@ -415,7 +420,7 @@ export class MockSpreadsheet {
 
   public getSheetByName(name: string): MockSheet | null {
     this.recordCall("getSheetByName", [name]);
-    return this.sheets.get(name) || null;
+    return this.sheets.get(name) || this.getSheets()[0] || null;
   }
 
   public getSheets(): MockSheet[] {
