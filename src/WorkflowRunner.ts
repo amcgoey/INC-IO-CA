@@ -23,8 +23,7 @@ class WorkflowRunner {
   ): Promise<DocumentActionContext> {
     let context = { ...initialContext };
     for (const action of actions) {
-      const instance = (typeof action === "function" ? new (action as any)() : action);
-      context = await instance.execute(context);
+      context = await action.execute(context);
     }
     return context;
   }
