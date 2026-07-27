@@ -3,12 +3,12 @@
  * @description Centralized testing infrastructure harness managing globalThis stubs for CONFIG, CacheService, and PropertiesService with explicit lifecycle methods.
 */
 
-import { CONFIG as DEFAULT_CONFIG } from "../../src/Config";
+const { CONFIG: DEFAULT_CONFIG } = require("../../src/Config");
 
 export interface CallLog {
   method: string;
   args: unknown[];
-  timestamp: nuner;
+  timestamp: number;
 }
 
 export class MockPropertiesStore {

@@ -1,6 +1,6 @@
 // test/harness/factories/EventFactory.ts
 
-import { GoogleAppsScriptEvent, DriveItem } from "../../../src/types";
+// Ambient types GoogleAppsScriptEvent & DriveItem
 
 export type EventInputs = Record<
   string,
@@ -60,9 +60,9 @@ export class EventFactory {
     overrides: GmailContextOptions = {}
   ): GoogleAppsScriptEvent {
     const messageId =
-      overrides.gmail?.messageId ?? overrides.messageId ?? "msg-test-123";
+      (overrides as any).gmail?.messageId ?? (overrides as any).messageId ?? "msg-test-123";
     const accessToken =
-      overrides.gmail?.accessToken ?? overrides.accessToken ?? "mock-access-token";
+      (overrides as any).gmail?.accessToken ?? (overrides as any).accessToken ?? "mock-access-token";
 
     const baseOverrides: Partial<GoogleAppsScriptEvent> = { ...overrides };
     delete (baseOverrides as GmailContextOptions).messageId;
@@ -87,8 +87,8 @@ export class EventFactory {
     overrides: DriveContextOptions = {}
   ): GoogleAppsScriptEvent {
     const selectedItems: DriveItem[] =
-      overrides.drive?.selectedItems ??
-      overrides.selectedItems ?? [
+      (overrides as any).drive?.selectedItems ??
+      (overrides as any).selectedItems ?? [
         {
           id: "drive-file-123",
           title: "Test_Submittal.pdf",
