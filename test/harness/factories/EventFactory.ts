@@ -60,13 +60,12 @@ export class EventFactory {
     overrides: GmailContextOptions = {}
   ): GoogleAppsScriptEvent {
     const messageId =
-      (overrides as any).gmail?.messageId ?? (overrides as any).messageId ?? "msg-test-123";
+      overrides.gmail?.messageId ?? overrides.messageId ?? "msg-test-123";
     const accessToken =
-      (overrides as any).gmail?.accessToken ?? (overrides as any).accessToken ?? "mock-access-token";
+      overrides.gmail?.accessToken ?? overrides.accessToken ?? "mock-access-token";
 
     const baseOverrides: Partial<GoogleAppsScriptEvent> = { ...overrides };
-    delete (baseOverrides as GmailContextOptions).messageId;
-    delete (baseOverrides as GmailContextOptions).accessToken;
+    delete baseOverrides.gmail;
 
     const baseEvent = EventFactory.createCardSubmitEvent(inputs, baseOverrides);
 
@@ -87,8 +86,8 @@ export class EventFactory {
     overrides: DriveContextOptions = {}
   ): GoogleAppsScriptEvent {
     const selectedItems: DriveItem[] =
-      (overrides as any).drive?.selectedItems ??
-      (overrides as any).selectedItems ?? [
+      overrides.drive?.selectedItems ??
+      overrides.selectedItems ?? [
         {
           id: "drive-file-123",
           title: "Test_Submittal.pdf",
@@ -97,7 +96,7 @@ export class EventFactory {
       ];
 
     const baseOverrides: Partial<GoogleAppsScriptEvent> = { ...overrides };
-    delete (baseOverrides as DriveContextOptions).selectedItems;
+    delete baseOverrides.drive;
 
     const baseEvent = EventFactory.createCardSubmitEvent(inputs, baseOverrides);
 

@@ -34,11 +34,11 @@ export class TestContext {
     this.aiAnalysisAdapter.reset();
   }
 
-  getFiledDocuments() {
+  getFiledDocuments(): Array<{ file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob }; options: FilingOptions; result: FilingResult }> {
     return this.driveFilingRepository.filedDocuments;
   }
 
-  getLoggedRows() {
+  getLoggedRows(): Array<{ spreadsheetId: string; headers: string[]; rowData: any[]; plan: RowInsertionPlan }> {
     return this.logRepository.insertedRows;
   }
 }
