@@ -208,6 +208,11 @@ const EMAIL_TEMPLATES = {
 };
 
 if (typeof module !== "undefined" && module.exports) {
+  (globalThis as any).CONFIG = (globalThis as any).CONFIG || CONFIG;
+  (globalThis as any).CSI_DIVISIONS = (globalThis as any).CSI_DIVISIONS || CSI_DIVISIONS;
+  (globalThis as any).PDF_CHECKBOX_MAP = (globalThis as any).PDF_CHECKBOX_MAP || PDF_CHECKBOX_MAP;
+  (globalThis as any).MESSAGES = (globalThis as any).MESSAGES || MESSAGES;
+  (globalThis as any).EMAIL_TEMPLATES = (globalThis as any).EMAIL_TEMPLATES || EMAIL_TEMPLATES;
   module.exports = {
     CONFIG,
     CSI_DIVISIONS,

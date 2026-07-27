@@ -1,0 +1,110 @@
+{
+  "navigation": {
+    "action": "pushCard",
+    "card": {
+      "header": {
+        "title": "Submittal Logged"
+      },
+      "sections": [
+        {
+          "collapsible": false,
+          "widgets": [
+            {
+              "type": "TextParagraph",
+              "text": "✅ Successfully logged and renamed CH-01-001."
+            },
+            {
+              "type": "ButtonSet",
+              "buttons": [
+                {
+                  "type": "TextButton",
+                  "text": "Open Drive",
+                  "disabled": false,
+                  "openLink": {
+                    "url": "https://drive.google.com/file/d/file-ffe-002/view"
+                  }
+                },
+                {
+                  "type": "TextButton",
+                  "text": "Open Submittal Log",
+                  "disabled": false,
+                  "openLink": {
+                    "url": "https://docs.google.com/spreadsheets/d/log-ffe/edit?gid=0#gid=0"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "localPath",
+              "title": "G:\\ Path",
+              "value": "G:\\My Drive\\CH-01 Side Chair Submittal.pdf",
+              "multiline": false
+            },
+            {
+              "type": "ButtonSet",
+              "buttons": [
+                {
+                  "type": "TextButton",
+                  "text": "Draft Email",
+                  "style": "FILLED",
+                  "disabled": false,
+                  "onClickAction": {
+                    "functionName": "createDraftEmail",
+                    "parameters": {
+                      "fileId": "file-ffe-002",
+                      "url": "https://drive.google.com/file/d/file-ffe-002/view",
+                      "localPath": "G:\\My Drive\\CH-01 Side Chair Submittal.pdf",
+                      "targetKey": "CH-01-001",
+                      "title": "Dining Side Chair",
+                      "action": "Approved",
+                      "incomingRouting": "",
+                      "projectAbbr": "PROJ",
+                      "newFileName": "CH-01 Side Chair Submittal.pdf",
+                      "discipline": "FF&E",
+                      "section": "",
+                      "specTag": "",
+                      "targetFolderId": "folder-ffe",
+                      "logFileId": "log-ffe",
+                      "isFiledStatus": "false",
+                      "directRowUrl": "https://docs.google.com/spreadsheets/d/log-ffe/edit?gid=0#gid=0",
+                      "failedColumns": "[]",
+                      "emptyFallbacks": "[]"
+                    }
+                  }
+                },
+                {
+                  "type": "TextButton",
+                  "text": "File the Submittal",
+                  "style": "OUTLINED",
+                  "disabled": false,
+                  "onClickAction": {
+                    "functionName": "moveSubmittalToClosed",
+                    "parameters": {
+                      "fileId": "file-ffe-002",
+                      "newFileName": "CH-01 Side Chair Submittal.pdf",
+                      "fileUrl": "https://drive.google.com/file/d/file-ffe-002/view",
+                      "stampSubNo": "CH-01-001",
+                      "itemTitle": "Dining Side Chair",
+                      "discipline": "FF&E",
+                      "section": "",
+                      "specTag": "",
+                      "targetFolderId": "folder-ffe",
+                      "logFileId": "log-ffe",
+                      "projectAbbr": "PROJ",
+                      "action": "Approved",
+                      "incomingRouting": "",
+                      "directRowUrl": "https://docs.google.com/spreadsheets/d/log-ffe/edit?gid=0#gid=0",
+                      "failedColumns": "[]",
+                      "emptyFallbacks": "[]"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

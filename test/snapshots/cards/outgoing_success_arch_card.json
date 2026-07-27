@@ -1,0 +1,110 @@
+{
+  "navigation": {
+    "action": "pushCard",
+    "card": {
+      "header": {
+        "title": "Submittal Logged"
+      },
+      "sections": [
+        {
+          "collapsible": false,
+          "widgets": [
+            {
+              "type": "TextParagraph",
+              "text": "✅ Successfully logged and renamed 033000-001."
+            },
+            {
+              "type": "ButtonSet",
+              "buttons": [
+                {
+                  "type": "TextButton",
+                  "text": "Open Drive",
+                  "disabled": false,
+                  "openLink": {
+                    "url": "https://drive.google.com/file/d/file-arch-001/view"
+                  }
+                },
+                {
+                  "type": "TextButton",
+                  "text": "Open Submittal Log",
+                  "disabled": false,
+                  "openLink": {
+                    "url": "https://docs.google.com/spreadsheets/d/log-123/edit?gid=0#gid=0"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "localPath",
+              "title": "G:\\ Path",
+              "value": "G:\\My Drive\\033000-001 Concrete Submittal.pdf",
+              "multiline": false
+            },
+            {
+              "type": "ButtonSet",
+              "buttons": [
+                {
+                  "type": "TextButton",
+                  "text": "Draft Email",
+                  "style": "FILLED",
+                  "disabled": false,
+                  "onClickAction": {
+                    "functionName": "createDraftEmail",
+                    "parameters": {
+                      "fileId": "file-arch-001",
+                      "url": "https://drive.google.com/file/d/file-arch-001/view",
+                      "localPath": "G:\\My Drive\\033000-001 Concrete Submittal.pdf",
+                      "targetKey": "033000-001",
+                      "title": "Cast-in-Place Concrete",
+                      "action": "Approved",
+                      "incomingRouting": "To Review",
+                      "projectAbbr": "PROJ",
+                      "newFileName": "033000-001 Concrete Submittal.pdf",
+                      "discipline": "Architecture",
+                      "section": "",
+                      "specTag": "",
+                      "targetFolderId": "folder-001",
+                      "logFileId": "log-123",
+                      "isFiledStatus": "false",
+                      "directRowUrl": "https://docs.google.com/spreadsheets/d/log-123/edit?gid=0#gid=0",
+                      "failedColumns": "[]",
+                      "emptyFallbacks": "[]"
+                    }
+                  }
+                },
+                {
+                  "type": "TextButton",
+                  "text": "File the Submittal",
+                  "style": "OUTLINED",
+                  "disabled": false,
+                  "onClickAction": {
+                    "functionName": "moveSubmittalToClosed",
+                    "parameters": {
+                      "fileId": "file-arch-001",
+                      "newFileName": "033000-001 Concrete Submittal.pdf",
+                      "fileUrl": "https://drive.google.com/file/d/file-arch-001/view",
+                      "stampSubNo": "033000-001",
+                      "itemTitle": "Cast-in-Place Concrete",
+                      "discipline": "Architecture",
+                      "section": "",
+                      "specTag": "",
+                      "targetFolderId": "folder-001",
+                      "logFileId": "log-123",
+                      "projectAbbr": "PROJ",
+                      "action": "Approved",
+                      "incomingRouting": "To Review",
+                      "directRowUrl": "https://docs.google.com/spreadsheets/d/log-123/edit?gid=0#gid=0",
+                      "failedColumns": "[]",
+                      "emptyFallbacks": "[]"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

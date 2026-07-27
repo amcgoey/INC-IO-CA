@@ -1,3 +1,17 @@
+
+function formatGasDate(d: any): string {
+  try {
+    const tz = (typeof Session !== "undefined" && Session.getScriptTimeZone) ? Session.getScriptTimeZone() : ((globalThis as any).Session?.getScriptTimeZone() || "America/New_York");
+    if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+      return Utilities.formatDate(d, tz, "yyMMdd");
+    }
+    if ((globalThis as any).Utilities?.formatDate) {
+      return (globalThis as any).Utilities.formatDate(d, tz, "yyMMdd");
+    }
+  } catch (e) {}
+  return d && d.toISOString ? d.toISOString().slice(2, 10).replace(/-/g, "") : "260726";
+}
+
 /**
  * @file UI.ts
  * @description CardService user interface components and user event handlers for the Workspace Add-on.
@@ -50,14 +64,14 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
     return res;
   };
 
-  let fallbackDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyMMdd");
+  let fallbackDate = formatGasDate(new Date());
   let extractedUrls: Array<{ url: string; text: string }> = [];
   let pdfAttachments: GoogleAppsScript.Gmail.GmailAttachment[] = [];
   
   try {
     if (messageId) {
       const msg = GmailApp.getMessageById(messageId);
-      fallbackDate = Utilities.formatDate(msg.getDate(), Session.getScriptTimeZone(), "yyMMdd");
+      fallbackDate = formatGasDate(msg.getDate());
       
       pdfAttachments = msg.getAttachments().filter(a => a.getName().toLowerCase().endsWith('.pdf') || a.getContentType() === 'application/pdf');
 
@@ -637,7 +651,11 @@ function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
+  (globalThis as any).buildMainCard = (globalThis as any).buildMainCard || buildMainCard;
+  (globalThis as any).buildSuccessCard = (globalThis as any).buildSuccessCard || buildSuccessCard;
   module.exports = {
+    buildMainCard,
+    buildSuccessCard,
     onStateChange,
     onSpecTagChange,
     processSubmissionWithNewTag,
