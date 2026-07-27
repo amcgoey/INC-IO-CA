@@ -226,7 +226,6 @@ export class IncomingWorkflow {
     const reviewFileName = stampedPrefix + appendResult.newFileName + ".pdf";
 
     const reviewContext: DocumentActionContext = await runner.runAction(moveAction, {
-      fileId: dupContext.fileId,
       blob: stampedBlob || undefined,
       targetFolderId: input.targetFolderId,
       subfolderPath: undefined,
