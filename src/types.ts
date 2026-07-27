@@ -507,14 +507,6 @@ declare class ReadLogAction implements DocumentAction<ReadLogInput, ReadLogResul
   execute(input: ReadLogInput): Promise<ReadLogResult>;
 }
 
-declare class MoveDocumentAction implements DocumentAction<any, any> {
-  execute(input: any): Promise<any>;
-}
-
-declare class RenameDocumentAction implements DocumentAction<any, any> {
-  execute(input: any): Promise<any>;
-}
-
 declare class WorkflowRunner {
   static runAction<TInput, TOutput>(action: DocumentAction<TInput, TOutput>, input: TInput): Promise<TOutput>;
   static runSequence(steps: Array<{ action: DocumentAction<any, any>; input: any }>): Promise<any[]>;
