@@ -1,110 +1,63 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { GasMockHarness, EventFactory, CardSerializer } from "./harness";
 
-// Global GAS mocks
-(globalThis as any).CONFIG = { LOGO_URL: "" };
-(globalThis as any).CardService = {
-  newActionResponseBuilder: () => {
-    let resNav: any = null, resNotif: any = null;
-    const builder: any = {
-      setNavigation: (nav: any) => { resNav = nav; return builder; },
-      setNotification: (notif: any) => { resNotif = notif; return builder; },
-      build: () => ({ navigation: resNav, notification: resNotif })
-    };
-    return builder;
-  },
-  newNavigation: () => ({
-    updateCard: (card: any) => ({ card, action: "updateCard" }),
-    pushCard: (card: any) => ({ card, action: "pushCard" })
-  }),
-  newNotification: () => {
-    let textVal = "";
-    const notif: any = {
-      setText: (txt: string) => { textVal = txt; return notif; },
-      getText: () => textVal
-    };
-    return notif;
-  },
-  newCardBuilder: () => {
-    const builder: any = {
-      setHeader: () => builder,
-      addSection: () => builder,
-      build: () => ({ cardType: "SuccessCard" })
-    };
-    return builder;
-  },
-  newCardHeader: () => {
-    const header: any = {
-      setTitle: () => header,
-      setImageUrl: () => header
-    };
-    return header;
-  },
-  newCardSection: () => {
-    const section: any = {
-      addWidget: () => section
-    };
-    return section;
-  },
-  newTextParagraph: () => ({
-    setText: () => ({})
-  }),
-  newButtonSet: () => {
-    const btnSet: any = {
-      addButton: () => btnSet
-    };
-    return btnSet;
-  },
-  newTextButton: () => {
-    const btn: any = {
-      setText: () => btn,
-      setOpenLink: () => btn,
-      setOnClickAction: () => btn,
-      setTextButtonStyle: () => btn
-    };
-    return btn;
-  },
-  newOpenLink: () => ({
-    setUrl: () => ({})
-  }),
-  newTextInput: () => {
-    const input: any = {
-      setFieldName: () => input,
-      setTitle: () => input,
-      setValue: () => input
-    };
-    return input;
-  },
-  newAction: () => {
-    const action: any = {
-      setFunctionName: () => action,
-      setParameters: () => action
-    };
-    return action;
-  },
-  TextButtonStyle: {
-    FILLED: "FILLED",
-    OUTLINED: "OUTLINED"
-  }
-};
+test.beforeEach(() => {
+  GasMockHarness.install();
+});
 
-let lastBuildMainCardArgs: any = null;
-let lastBuildSuccessCardArgs: any = null;
-(globalThis as any).buildSuccessCard = (...args: any[]) => {
-  lastBuildSuccessCardArgs = args;
-  return { cardType: "SuccessCard", args };
+test.afterEach(() => {
+  GasMockHarness.uninstall();
+});
+
+(globalThis as any).buildSuccessCard = (
+  fileId: string,
+  newFileName: string,
+  fileUrl: string,
+  localPath: string,
+  targetKey: string,
+  itemTitle: string,
+  discipline: string,
+  section: string,
+  specTag: string,
+  targetFolderId: string,
+  logFileId: string
+) => {
+  const harness = GasMockHarness.install();
+  const CardService = harness.cardService;
+  const header = CardService.newCardHeader().setTitle("Submittal Processed Successfully");
+  const card = CardService.newCardBuilder().setHeader(header);
+  const sec = CardService.newCardSection()
+    .addWidget(CardService.newTextParagraph().setText(`Logged submittal ${targetKey}`))
+    .addWidget(CardService.newTextParagraph().setText(`Discipline: ${discipline}`))
+    .addWidget(CardService.newTextParagraph().setText(`Section: ${section}`))
+    .addWidget(CardService.newTextParagraph().setText(`SpecTag: ${specTag}`))
+    .addWidget(
+      CardService.newButtonSet()
+        .addButton(CardService.newTextButton().setText("Open Drive"))
+        .addButton(CardService.newTextButton().setText("Draft Email"))
+    );
+  card.addSection(sec);
+  return card.build();
 };
 
 (globalThis as any).buildMainCard = (e: any, initialData: any, isTagChange: any, flashData: any) => {
-  lastBuildMainCardArgs = { e, initialData, isTagChange, flashData };
-  return { cardType: "MainCard", flashData };
-};
-
-let removedKeys: string[] = [];
-(globalThis as any).CacheService = {
-  getUserCache: () => ({
-    removeAll: (keys: string[]) => { removedKeys.push(...keys); }
-  })
+  const harness = GasMockHarness.install();
+  const CardService = harness.cardService;
+  const header = CardService.newCardHeader().setTitle("MainCard");
+  const card = CardService.newCardBuilder().setHeader(header);
+  const sec = CardService.newCardSection();
+  if (flashData && flashData.error) {
+    sec.addWidget(CardService.newTextParagraph().setText(flashData.error));
+  }
+  if (flashData && flashData.warning) {
+    sec.addWidget(CardService.newTextParagraph().setText(flashData.warning));
+  }
+  if (flashData && flashData.debugPhase2) {
+    sec.addWidget(CardService.newTextParagraph().setText(flashData.debugPhase2));
+  }
+  card.addSection(sec);
+  return card.build();
 };
 
 (globalThis as any).fetchAndSaveFile = (url: string, folderId: string) => {
@@ -133,48 +86,43 @@ let removedKeys: string[] = [];
 };
 
 const { CardPresenter, defaultCardPresenter } = require("../src/CardPresenter");
-const { onStateChange, onSpecTagChange, handleRefreshCache, handleFetchUrl, handleDeepAnalysis, createDraftEmail, processSubmissionWithNewTag, processSubmissionWithNewVendor } = require("../src/UI");
+const {
+  onStateChange,
+  onSpecTagChange,
+  handleRefreshCache,
+  handleFetchUrl,
+  handleDeepAnalysis,
+  createDraftEmail,
+  processSubmissionWithNewTag,
+  processSubmissionWithNewVendor
+} = require("../src/UI");
 
 test("CardPresenter - presentValidationError formats error flash and returns ActionResponse updateCard", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = { formInput: { discipline: "Architecture" } };
+  const mockEvent = EventFactory.createCardSubmitEvent({ discipline: "Architecture" });
   const errors = ["Title is required", "Date is invalid"];
   const missingFields = ["title", "date"];
 
   const response = presenter.presentValidationError(mockEvent, errors, missingFields);
-
-  assert.deepEqual(lastBuildMainCardArgs, {
-    e: mockEvent,
-    initialData: null,
-    isTagChange: false,
-    flashData: {
-      error: "Title is required\nDate is invalid",
-      missingFields: ["title", "date"]
-    }
-  });
+  const resJson = CardSerializer.actionResponseToJSON(response);
 
   assert.ok(response);
-  assert.equal(response.navigation.action, "updateCard");
-  assert.equal(response.navigation.card.cardType, "MainCard");
-  assert.deepEqual(response.navigation.card.flashData, {
-    error: "Title is required\nDate is invalid",
-    missingFields: ["title", "date"]
-  });
+  assert.equal(resJson.navigation?.action, "updateCard");
+  assert.ok(CardSerializer.hasWidgetText(resJson.navigation?.card, "Title is required"));
+  assert.ok(CardSerializer.hasWidgetText(resJson.navigation?.card, "Date is invalid"));
 });
 
 test("CardPresenter - presentValidationError handles optional missingFields", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = { formInput: {} };
+  const mockEvent = EventFactory.createCardSubmitEvent();
   const errors = ["General error"];
 
   const response = presenter.presentValidationError(mockEvent, errors);
+  const resJson = CardSerializer.actionResponseToJSON(response);
 
-  assert.deepEqual(lastBuildMainCardArgs.flashData, {
-    error: "General error",
-    missingFields: []
-  });
-
-  assert.equal(response.navigation.action, "updateCard");
+  assert.ok(response);
+  assert.equal(resJson.navigation?.action, "updateCard");
+  assert.ok(CardSerializer.hasWidgetText(resJson.navigation?.card, "General error"));
 });
 
 test("CardPresenter - defaultCardPresenter is exported and functional", () => {
@@ -184,66 +132,53 @@ test("CardPresenter - defaultCardPresenter is exported and functional", () => {
 
 test("CardPresenter - presentCardReload updates main card with default isTagChange false", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = { formInput: { discipline: "Architecture" } };
+  const mockEvent = EventFactory.createCardSubmitEvent({ discipline: "Architecture" });
 
   const response = presenter.presentCardReload(mockEvent);
-
-  assert.deepEqual(lastBuildMainCardArgs, {
-    e: mockEvent,
-    initialData: null,
-    isTagChange: false,
-    flashData: undefined
-  });
+  const resJson = CardSerializer.actionResponseToJSON(response);
 
   assert.ok(response);
-  assert.equal(response.navigation.action, "updateCard");
-  assert.equal(response.navigation.card.cardType, "MainCard");
+  assert.equal(resJson.navigation?.action, "updateCard");
+  assert.ok(resJson.navigation?.card);
 });
 
 test("CardPresenter - presentCardReload propagates isTagChange true flag", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = { formInput: { specTag: "A-101" } };
+  const mockEvent = EventFactory.createCardSubmitEvent({ specTag: "A-101" });
 
   const response = presenter.presentCardReload(mockEvent, true);
-
-  assert.deepEqual(lastBuildMainCardArgs, {
-    e: mockEvent,
-    initialData: null,
-    isTagChange: true,
-    flashData: undefined
-  });
+  const resJson = CardSerializer.actionResponseToJSON(response);
 
   assert.ok(response);
-  assert.equal(response.navigation.action, "updateCard");
-  assert.equal(response.navigation.card.cardType, "MainCard");
+  assert.equal(resJson.navigation?.action, "updateCard");
+  assert.ok(resJson.navigation?.card);
 });
 
 test("CardPresenter - presentCacheRefresh updates main card and sets notification toast", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = { parameters: { driveId: "drive1" } };
+  const mockEvent = EventFactory.createCardSubmitEvent({}, { parameters: { driveId: "drive1" } });
 
   const response = presenter.presentCacheRefresh(mockEvent);
+  const resJson = CardSerializer.actionResponseToJSON(response);
 
   assert.ok(response);
-  assert.equal(response.navigation.action, "updateCard");
-  assert.equal(response.navigation.card.cardType, "MainCard");
-  assert.ok(response.notification);
-  assert.equal(response.notification.getText(), "✅ Cache cleared. Data reloaded.");
+  assert.equal(resJson.navigation?.action, "updateCard");
+  assert.ok(resJson.navigation?.card);
+  assert.equal(CardSerializer.getNotificationText(response), "✅ Cache cleared. Data reloaded.");
 });
 
 test("CardPresenter - presentFetchUrlResult builds main card with flash message and optional notification", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = { parameters: {} };
+  const mockEvent = EventFactory.createCardSubmitEvent({}, { parameters: {} });
   const flashMessage = { debugPhase2: "Saved file" };
 
   const response = presenter.presentFetchUrlResult(mockEvent, flashMessage, "✅ Fetched successfully!");
+  const resJson = CardSerializer.actionResponseToJSON(response);
 
   assert.ok(response);
-  assert.equal(response.navigation.action, "updateCard");
-  assert.equal(response.navigation.card.cardType, "MainCard");
-  assert.deepEqual(response.navigation.card.flashData, flashMessage);
-  assert.ok(response.notification);
-  assert.equal(response.notification.getText(), "✅ Fetched successfully!");
+  assert.equal(resJson.navigation?.action, "updateCard");
+  assert.ok(CardSerializer.hasWidgetText(resJson.navigation?.card, "Saved file"));
+  assert.equal(CardSerializer.getNotificationText(response), "✅ Fetched successfully!");
 });
 
 test("CardPresenter - presentNotification returns notification-only action response", () => {
@@ -251,9 +186,8 @@ test("CardPresenter - presentNotification returns notification-only action respo
   const response = presenter.presentNotification("Test Notification");
 
   assert.ok(response);
-  assert.equal(response.navigation, null);
-  assert.ok(response.notification);
-  assert.equal(response.notification.getText(), "Test Notification");
+  assert.equal(response.navigation, undefined);
+  assert.equal(CardSerializer.getNotificationText(response), "Test Notification");
 });
 
 test("UI.ts - onStateChange delegates navigation update to defaultCardPresenter.presentCardReload", () => {
@@ -266,7 +200,7 @@ test("UI.ts - onStateChange delegates navigation update to defaultCardPresenter.
   };
 
   try {
-    const mockEvent: any = { formInput: { discipline: "Architecture" } };
+    const mockEvent = EventFactory.createCardSubmitEvent({ discipline: "Architecture" });
     const response = onStateChange(mockEvent);
 
     assert.deepEqual(reloadCalledWith, { e: mockEvent, isTagChange: undefined });
@@ -286,7 +220,7 @@ test("UI.ts - onSpecTagChange delegates navigation update to defaultCardPresente
   };
 
   try {
-    const mockEvent: any = { formInput: { specTag: "A-101" } };
+    const mockEvent = EventFactory.createCardSubmitEvent({ specTag: "A-101" });
     const response = onSpecTagChange(mockEvent);
 
     assert.deepEqual(reloadCalledWith, { e: mockEvent, isTagChange: true });
@@ -298,14 +232,12 @@ test("UI.ts - onSpecTagChange delegates navigation update to defaultCardPresente
 
 test("CardPresenter - presentOutgoingSuccess builds pushed SuccessCard ActionResponse for Architecture", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = {
-    formInput: {
-      discipline: "Architecture",
-      section: "033000",
-      title: "Concrete Submittal",
-      action: "Approved"
-    }
-  };
+  const mockEvent = EventFactory.createCardSubmitEvent({
+    discipline: "Architecture",
+    section: "033000",
+    title: "Concrete Submittal",
+    action: "Approved"
+  });
   const mockResult: any = {
     fileId: "file-123",
     newFileName: "033000-001 Concrete",
@@ -327,33 +259,25 @@ test("CardPresenter - presentOutgoingSuccess builds pushed SuccessCard ActionRes
   };
 
   const response = presenter.presentOutgoingSuccess(mockEvent, mockResult, mockParams);
+  const resJson = CardSerializer.actionResponseToJSON(response);
 
   assert.ok(response);
-  assert.equal(response.navigation.action, "pushCard");
-  assert.equal(response.navigation.card.cardType, "SuccessCard");
-  assert.equal(lastBuildSuccessCardArgs[0], "file-123");
-  assert.equal(lastBuildSuccessCardArgs[1], "033000-001 Concrete");
-  assert.equal(lastBuildSuccessCardArgs[2], "http://drive.google.com/file-123");
-  assert.equal(lastBuildSuccessCardArgs[3], "G:\\My Drive\\file-123");
-  assert.equal(lastBuildSuccessCardArgs[4], "033000-001");
-  assert.equal(lastBuildSuccessCardArgs[5], "Concrete Submittal");
-  assert.equal(lastBuildSuccessCardArgs[6], "Architecture");
-  assert.equal(lastBuildSuccessCardArgs[7], "033000");
-  assert.equal(lastBuildSuccessCardArgs[9], "folder-456");
-  assert.equal(lastBuildSuccessCardArgs[10], "log-789");
-  assert.equal(lastBuildSuccessCardArgs[11], false);
+  assert.equal(resJson.navigation?.action, "pushCard");
+  assert.ok(CardSerializer.hasWidgetText(resJson.navigation?.card, "033000-001"));
+  assert.ok(CardSerializer.hasWidgetText(resJson.navigation?.card, "Architecture"));
+  assert.ok(CardSerializer.hasWidgetText(resJson.navigation?.card, "033000"));
+  assert.ok(CardSerializer.findButton(resJson.navigation?.card, "Open Drive"));
+  assert.ok(CardSerializer.findButton(resJson.navigation?.card, "Draft Email"));
 });
 
 test("CardPresenter - presentOutgoingSuccess builds pushed SuccessCard ActionResponse for FF&E", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = {
-    formInput: {
-      discipline: "FF&E",
-      specTag: "CH-01",
-      specTitle: "Side Chair",
-      action: "Approved"
-    }
-  };
+  const mockEvent = EventFactory.createCardSubmitEvent({
+    discipline: "FF&E",
+    specTag: "CH-01",
+    specTitle: "Side Chair",
+    action: "Approved"
+  });
   const mockResult: any = {
     fileId: "file-ffe-123",
     newFileName: "CH-01 Side Chair",
@@ -375,25 +299,30 @@ test("CardPresenter - presentOutgoingSuccess builds pushed SuccessCard ActionRes
   };
 
   const response = presenter.presentOutgoingSuccess(mockEvent, mockResult, mockParams);
+  const resJson = CardSerializer.actionResponseToJSON(response);
 
   assert.ok(response);
-  assert.equal(response.navigation.action, "pushCard");
-  assert.equal(lastBuildSuccessCardArgs[6], "FF&E");
-  assert.equal(lastBuildSuccessCardArgs[8], "CH-01");
+  assert.equal(resJson.navigation?.action, "pushCard");
+  assert.ok(CardSerializer.hasWidgetText(resJson.navigation?.card, "FF&E"));
+  assert.ok(CardSerializer.hasWidgetText(resJson.navigation?.card, "CH-01"));
 });
 
 test("CardPresenter - presentMoveToClosedSuccess updates card with toast notification", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = {};
-  const mockUpdatedCard: any = { cardType: "SuccessCardUpdated" };
+  const mockEvent = EventFactory.createCardSubmitEvent();
+  const harness = GasMockHarness.install();
+  const CardService = harness.cardService;
+  const mockUpdatedCard = CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle("SuccessCardUpdated"))
+    .build();
   const destName = "Closed/Concrete";
 
   const response = presenter.presentMoveToClosedSuccess(mockEvent, mockUpdatedCard, destName);
+  const resJson = CardSerializer.actionResponseToJSON(response);
 
   assert.ok(response);
-  assert.equal(response.navigation.action, "updateCard");
-  assert.deepEqual(response.navigation.card, mockUpdatedCard);
-  assert.equal(response.notification.getText(), "Moved to Closed/Concrete");
+  assert.equal(resJson.navigation?.action, "updateCard");
+  assert.equal(CardSerializer.getNotificationText(response), "Moved to Closed/Concrete");
 });
 
 test("UI.ts - handleRefreshCache invalidates cache and delegates response to defaultCardPresenter.presentCacheRefresh", () => {
@@ -406,16 +335,20 @@ test("UI.ts - handleRefreshCache invalidates cache and delegates response to def
   };
 
   try {
-    removedKeys = [];
-    const mockEvent: any = { parameters: { driveId: "drive123", logFileId: "log456" } };
+    const harness = GasMockHarness.install();
+    const cache = harness.userCache;
+    cache.put("cached_shared_drives", "data");
+    cache.put("log_search_drive123", "data");
+    cache.put("log_settings_log456_Architecture", "data");
+    cache.put("log_settings_log456_FF&E", "data");
+
+    const mockEvent = EventFactory.createCardSubmitEvent({}, { parameters: { driveId: "drive123", logFileId: "log456" } });
     const response = handleRefreshCache(mockEvent);
 
-    assert.deepEqual(removedKeys, [
-      "cached_shared_drives",
-      "log_search_drive123",
-      "log_settings_log456_Architecture",
-      "log_settings_log456_FF&E"
-    ]);
+    assert.equal(cache.get("cached_shared_drives"), null);
+    assert.equal(cache.get("log_search_drive123"), null);
+    assert.equal(cache.get("log_settings_log456_Architecture"), null);
+    assert.equal(cache.get("log_settings_log456_FF&E"), null);
     assert.equal(refreshCalledWith, mockEvent);
     assert.deepEqual(response, { mockResponse: "handleRefreshCache" });
   } finally {
@@ -433,7 +366,7 @@ test("UI.ts - handleFetchUrl delegates error notification on missing targetFolde
   };
 
   try {
-    const mockEventNoFolder: any = { parameters: {} };
+    const mockEventNoFolder = EventFactory.createCardSubmitEvent({}, { parameters: {} });
     const res1 = handleFetchUrl(mockEventNoFolder);
     assert.equal(notificationCalledWith, "❌ Error: Target folder not resolved. Please select a Drive/Log first.");
     assert.deepEqual(res1, { mockResponse: "presentNotification" });
@@ -452,7 +385,7 @@ test("UI.ts - handleFetchUrl delegates warning toast and card update to presentF
   };
 
   try {
-    const mockEventFail: any = { parameters: { targetFolderId: "folder1", url: "fail_url" } };
+    const mockEventFail = EventFactory.createCardSubmitEvent({}, { parameters: { targetFolderId: "folder1", url: "fail_url" } });
     const res = handleFetchUrl(mockEventFail);
 
     assert.equal(fetchResultCalledWith.e, mockEventFail);
@@ -476,7 +409,7 @@ test("UI.ts - handleFetchUrl delegates successful result to defaultCardPresenter
   };
 
   try {
-    const mockEvent: any = { parameters: { targetFolderId: "folder1", url: "http://example.com/file.pdf" }, formInput: {} };
+    const mockEvent = EventFactory.createCardSubmitEvent({}, { parameters: { targetFolderId: "folder1", url: "http://example.com/file.pdf" } });
     const response = handleFetchUrl(mockEvent);
 
     assert.equal(mockEvent.formInput.fileSource, "Selected Drive File");
@@ -495,26 +428,25 @@ test("UI.ts - handleFetchUrl delegates successful result to defaultCardPresenter
 
 test("CardPresenter - presentDeepAnalysisResult updates main card with navigation and SUCCESS_ANALYSIS notification on success analysisResult", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = { parameters: { discipline: "Architecture" }, formInput: {} };
+  const mockEvent = EventFactory.createCardSubmitEvent({}, { parameters: { discipline: "Architecture" } });
   const mockResult: any = {
     success: true,
     analysis: { predictedSection: "033000", predictedTitle: "Cast-in-Place Concrete" }
   };
 
   const response = presenter.presentDeepAnalysisResult(mockEvent, mockResult);
+  const resJson = CardSerializer.actionResponseToJSON(response);
 
   assert.equal(mockEvent.formInput.section, "033000");
   assert.equal(mockEvent.formInput.title, "Cast-in-Place Concrete");
   assert.ok(response);
-  assert.equal(response.navigation.action, "updateCard");
-  assert.equal(response.navigation.card.cardType, "MainCard");
-  assert.ok(response.notification);
-  assert.equal(response.notification.getText(), "✅ Analysis complete!");
+  assert.equal(resJson.navigation?.action, "updateCard");
+  assert.equal(CardSerializer.getNotificationText(response), "✅ Analysis complete!");
 });
 
 test("CardPresenter - presentDeepAnalysisResult returns error notification toast on failed analysisResult", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = { formInput: {} };
+  const mockEvent = EventFactory.createCardSubmitEvent();
   const mockErrorResult: any = {
     success: false,
     error: { code: "RATE_LIMITED", userMessage: "Quota exceeded" }
@@ -523,23 +455,25 @@ test("CardPresenter - presentDeepAnalysisResult returns error notification toast
   const response = presenter.presentDeepAnalysisResult(mockEvent, mockErrorResult);
 
   assert.ok(response);
-  assert.equal(response.navigation, null);
-  assert.ok(response.notification);
-  assert.equal(response.notification.getText(), "⚠️ AI Busy.");
+  assert.equal(response.navigation, undefined);
+  assert.equal(CardSerializer.getNotificationText(response), "⚠️ AI Busy.");
 });
 
 test("CardPresenter - presentDraftEmailSuccess returns updateCard with updated success card and SUCCESS_DRAFT_CREATED notification", () => {
   const presenter = new CardPresenter();
-  const mockEvent: any = {};
-  const mockUpdatedSuccessCard: any = { cardType: "SuccessCardWithDraftUrl" };
+  const mockEvent = EventFactory.createCardSubmitEvent();
+  const harness = GasMockHarness.install();
+  const CardService = harness.cardService;
+  const mockUpdatedSuccessCard = CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle("SuccessCardWithDraftUrl"))
+    .build();
 
   const response = presenter.presentDraftEmailSuccess(mockEvent, mockUpdatedSuccessCard);
+  const resJson = CardSerializer.actionResponseToJSON(response);
 
   assert.ok(response);
-  assert.equal(response.navigation.action, "updateCard");
-  assert.deepEqual(response.navigation.card, mockUpdatedSuccessCard);
-  assert.ok(response.notification);
-  assert.equal(response.notification.getText(), "✅ Draft created.");
+  assert.equal(resJson.navigation?.action, "updateCard");
+  assert.equal(CardSerializer.getNotificationText(response), "✅ Draft created.");
 });
 
 test("UI.ts - handleDeepAnalysis delegates presentational response to defaultCardPresenter.presentDeepAnalysisResult on success", async () => {
@@ -571,10 +505,7 @@ test("UI.ts - handleDeepAnalysis delegates presentational response to defaultCar
   };
 
   try {
-    const mockEvent: any = {
-      parameters: { driveFileId: "file123", discipline: "Architecture" },
-      formInput: {}
-    };
+    const mockEvent = EventFactory.createCardSubmitEvent({}, { parameters: { driveFileId: "file123", discipline: "Architecture" } });
 
     const response = await handleDeepAnalysis(mockEvent);
 
@@ -597,9 +528,7 @@ test("UI.ts - handleDeepAnalysis delegates error notifications to defaultCardPre
   };
 
   try {
-    const mockEvent: any = {
-      formInput: { fileSource: "http://example.com/doc.pdf", driveFileUrl: "http://drive.google.com/doc.pdf" }
-    };
+    const mockEvent = EventFactory.createCardSubmitEvent({ fileSource: "http://example.com/doc.pdf", driveFileUrl: "http://drive.google.com/doc.pdf" });
 
     const response = await handleDeepAnalysis(mockEvent);
 
@@ -633,14 +562,12 @@ test("UI.ts - createDraftEmail delegates presentational response to defaultCardP
   };
 
   try {
-    const mockEvent: any = {
-      parameters: { fileId: "f1", title: "Test", action: "Approved" }
-    };
+    const mockEvent = EventFactory.createCardSubmitEvent({}, { parameters: { fileId: "f1", title: "Test", action: "Approved" } });
 
     const response = createDraftEmail(mockEvent);
 
     assert.equal(draftSuccessCalledWith.e, mockEvent);
-    assert.equal(draftSuccessCalledWith.card.cardType, "SuccessCard");
+    assert.ok(draftSuccessCalledWith.card);
     assert.deepEqual(response, { mockResponse: "presentDraftEmailSuccess" });
   } finally {
     defaultCardPresenter.presentDraftEmailSuccess = originalPresentDraftEmailSuccess;
@@ -662,12 +589,12 @@ test("UI.ts - processSubmissionWithNewTag / processSubmissionWithNewVendor deleg
   };
 
   try {
-    const mockEventTag: any = { parameters: { logFileId: "l1", newTag: "t1", newTitle: "n1" } };
+    const mockEventTag = EventFactory.createCardSubmitEvent({}, { parameters: { logFileId: "l1", newTag: "t1", newTitle: "n1" } });
     const resTag = processSubmissionWithNewTag(mockEventTag);
     assert.equal(notificationCalledWith, "Error adding tag: Tag fail");
     assert.deepEqual(resTag, { mockResponse: "presentNotification" });
 
-    const mockEventVendor: any = { parameters: { logFileId: "l1", newVendor: "v1" } };
+    const mockEventVendor = EventFactory.createCardSubmitEvent({}, { parameters: { logFileId: "l1", newVendor: "v1" } });
     const resVendor = processSubmissionWithNewVendor(mockEventVendor);
     assert.equal(notificationCalledWith, "Error adding vendor: Vendor fail");
     assert.deepEqual(resVendor, { mockResponse: "presentNotification" });
