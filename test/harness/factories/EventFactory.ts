@@ -1,6 +1,6 @@
 // test/harness/factories/EventFactory.ts
 
-import { GoogleAppsScriptEvent, DriveItem } from "../../../src/types";
+
 
 export type EventInputs = Record<
   string,
