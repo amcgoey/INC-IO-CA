@@ -135,7 +135,11 @@ export class DocumentWorkflowModule {
       if (input.fileSource === "Email Attachment" && input.messageId && input.attachmentName && gmailApp) {
         const msg = gmailApp.getMessageById(input.messageId);
         const att = msg ? msg.getAttachments().find((a: any) => a.getName() === input.attachmentName) : null;
-        if (att) blob = att.copyBlob();
+        if (att) {
+          const dupAction = input.duplicateDocumentAction || (typeof defaultDuplicateDocumentAction !== "undefined" ? defaultDuplicateDocumentAction : new DuplicateDocumentAction());
+          const dupRes = await dupAction.execute({ blob: att.getBlob() });
+          blob = dupRes.blob || null;
+        }
       } else if (input.driveFileUrl && driveApp) {
         const urlMatch = input.driveFileUrl.match(/\/d\/([a-zA-Z0-9_-]{25,})/) ||
                          input.driveFileUrl.match(/[?&]id=([a-zA-Z0-9_-]{25,})/) ||
