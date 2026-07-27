@@ -627,7 +627,7 @@ export class GasMockHarness {
     (globalThis as any).CardService = GasMockHarness.instance!.cardService;
   }
 
-    public static getCardServiceState: CardServiceStateCallable = Object.assign(
+  public static getCardServiceState: CardServiceStateCallable = Object.assign(
     function (card: any): Record<string, unknown> {
       return CardSerializer.toJSON(card) as unknown as Record<string, unknown>;
     },
