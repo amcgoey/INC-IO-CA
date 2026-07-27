@@ -89,8 +89,8 @@ export class OutgoingWorkflow {
       identityData: strategy.getIdentityData(input.validatedDoc),
       options: {
         link: "",
-        status: input.selectedAction.status,
-        actionAbbr: input.selectedAction.abbr,
+        status: input.selectedAction?.status || "",
+        actionAbbr: input.selectedAction?.abbr || "",
         updatePreviousStatus: policy.updatePreviousStatus,
         previousRowStatus: policy.previousRowStatus
       },
