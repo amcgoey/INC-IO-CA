@@ -6,6 +6,7 @@
 export class FakeDriveFilingRepository implements DriveFilingRepository {
   public calls: string[] = [];
   public filedDocuments: Array<{ file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob }; options: FilingOptions; result: FilingResult }> = [];
+  public duplicatedDocuments: Array<{ source: { fileId?: string; blob?: GoogleAppsScript.Base.Blob }; options?: FilingOptions; result: FilingResult }> = [];
   public customPaths: Record<string, string>;
 
   constructor(customPaths: Record<string, string> = {}) {
@@ -15,6 +16,7 @@ export class FakeDriveFilingRepository implements DriveFilingRepository {
   reset(): void {
     this.calls = [];
     this.filedDocuments = [];
+    this.duplicatedDocuments = [];
   }
 
   getLocalPath(fileId: string): string {
@@ -36,6 +38,21 @@ export class FakeDriveFilingRepository implements DriveFilingRepository {
     const localPath = this.getLocalPath(id);
     const result: FilingResult = { fileId: id, url, localPath, folderId };
     this.filedDocuments.push({ file, options, result });
+    return result;
+  }
+
+  duplicateDocument(
+    source: { fileId?: string; blob?: GoogleAppsScript.Base.Blob },
+    options?: FilingOptions
+  ): FilingResult {
+    const origId = source.fileId || "fake-file-id";
+    const newId = origId + "-copy";
+    const subfolders = options?.subfolderPath || ["Closed"];
+    const folderId = "folder-" + subfolders.join("-");
+    const url = "http://drive.google.com/" + newId;
+    const localPath = this.getLocalPath(newId);
+    const result: FilingResult = { fileId: newId, url, localPath, folderId };
+    this.duplicatedDocuments.push({ source, options, result });
     return result;
   }
 }

@@ -123,6 +123,8 @@ interface FlashMessage {
   projectAbbr?: string;
   directRowUrl?: string;
   failedColumns?: string[];
+  originalFileId?: string;
+  duplicateDocumentAction?: DuplicateDocumentAction;
   emptyFallbacks?: string[];
   newFileName?: string;
   newDriveFileId?: string;
@@ -610,6 +612,22 @@ declare class TriageDocumentAction implements DocumentAction<TriageDocumentInput
   execute(input: TriageDocumentInput): Promise<AiPredictionResult>;
 }
 declare var defaultTriageDocumentAction: TriageDocumentAction;
+declare class DuplicateDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
+  name: string;
+  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
+}
+declare var defaultDuplicateDocumentAction: DuplicateDocumentAction;
+
+declare class MoveDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
+  name: string;
+  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
+}
+
+declare class RenameDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
+  name: string;
+  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
+}
+
 
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 
@@ -639,6 +657,7 @@ interface DocumentWorkflowInput {
   selectedAction: { action: string; abbr: string; status: string };
   logRepository?: LogRepository;
   driveFilingRepository?: DriveFilingRepository;
+  duplicateDocumentAction?: DuplicateDocumentAction;
   insertPagesAction?: InsertPagesAction;
   writeLogAction?: WriteLogAction;
   pdfDocumentService?: PdfDocumentService;

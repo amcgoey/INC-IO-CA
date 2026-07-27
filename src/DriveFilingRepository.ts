@@ -67,6 +67,58 @@ class GoogleDriveFilingRepository implements DriveFilingRepository {
    * @param fileId - Google Drive file ID string.
    * @returns Formatted Windows local path string (e.g. `G:\Shared drives\Project\Closed\08 OPENINGS\file.pdf`).
    */
+
+  /**
+   * Duplicates a document file or blob in Google Drive with clean ID resolution.
+   *
+   * @param source - Source file ID or in-memory blob to duplicate.
+   * @param options - Optional filing options specifying target folder ID, subfolders, and target file name.
+   * @returns FilingResult containing duplicated file ID, web URL, Windows G:\ local path, and target folder ID.
+   */
+  duplicateDocument(
+    source: { fileId?: string; blob?: GoogleAppsScript.Base.Blob },
+    options?: FilingOptions
+  ): FilingResult {
+    let targetFolder: GoogleAppsScript.Drive.Folder | null = null;
+    if (options && options.targetFolderId) {
+      let curFolder: GoogleAppsScript.Drive.Folder = DriveApp.getFolderById(options.targetFolderId);
+      const subfolders = options.subfolderPath || [];
+      for (const subName of subfolders) {
+        const iter: GoogleAppsScript.Drive.FolderIterator = curFolder.getFoldersByName(subName);
+        if (iter.hasNext()) {
+          curFolder = iter.next();
+        } else {
+          curFolder = curFolder.createFolder(subName);
+        }
+      }
+      targetFolder = curFolder;
+    }
+
+    let copiedFile: GoogleAppsScript.Drive.File;
+    if (source.fileId) {
+      const srcFile = DriveApp.getFileById(source.fileId);
+      const name = options?.newFileName || srcFile.getName();
+      copiedFile = targetFolder ? srcFile.makeCopy(name, targetFolder) : srcFile.makeCopy(name);
+    } else if (source.blob) {
+      const name = options?.newFileName || "Copy";
+      const blob = source.blob.copyBlob().setName(name);
+      if (targetFolder) {
+        copiedFile = targetFolder.createFile(blob);
+      } else {
+        copiedFile = DriveApp.createFile(blob);
+      }
+    } else {
+      throw new Error("Either fileId or blob must be provided to duplicateDocument");
+    }
+
+    const fileId = copiedFile.getId();
+    const url = copiedFile.getUrl();
+    const folderId = targetFolder ? targetFolder.getId() : (copiedFile.getParents().hasNext() ? copiedFile.getParents().next().getId() : "");
+    const localPath = this.getLocalPath(fileId);
+
+    return { fileId, url, localPath, folderId };
+  }
+
   getLocalPath(fileId: string): string {
     try {
       if (typeof Drive !== "undefined" && (Drive as any).Files) {
