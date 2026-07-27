@@ -21,6 +21,8 @@ try {
 }
 
 
+const DEFAULT_CSI_DIVISIONS: Record<string, string> = { "03": "03-Concrete" };
+
 export interface CallLog {
   method: string;
   args: unknown[];
@@ -619,7 +621,7 @@ export class GasMockHarness {
     (globalThis as any).CardService = GasMockHarness.instance.cardService;
     (globalThis as any).CONFIG = GasMockHarness.instance.config;
     (globalThis as any).DriveApp = new MockDriveApp(GasMockHarness.instance.driveState);
-    (globalThis as any).CSI_DIVISIONS = options?.csiDivisionsOverrides || { "03": "03-Concrete" };
+    (globalThis as any).CSI_DIVISIONS = options?.csiDivisionsOverrides || DEFAULT_CSI_DIVISIONS;
 
     return GasMockHarness.instance;
   }
