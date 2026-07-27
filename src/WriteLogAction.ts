@@ -2,7 +2,7 @@
  * @file WriteLogAction.ts
  * @description DocumentAction implementation for persisting validated document log entries using abstract IdentityData.
  *
- * Wraps LogRepository.appendDocument() into a primitive DocumentAction handler operating on IdentityData.
+ * Wraps LogRepository.appendDocument() into a primitive DocumentAction handler operating strictly on IdentityData.
  */
 
 /**
@@ -27,15 +27,8 @@ export class WriteLogAction implements DocumentAction<WriteLogInput, AppendDocum
       throw new Error('LogRepository is required for WriteLogAction');
     }
 
-    const identityData: IdentityData = input.identityData || (
-      input.strategy && typeof input.strategy.getIdentityData === 'function'
-        ? input.strategy.getIdentityData(input.document)
-        : {
-            identityGroup: input.strategy.getGroupKey(input.document),
-            identityRevisionGroup: input.strategy.getSortKey(input.document),
-            identity: input.strategy.getTargetKey(input.document)
-          }
-    );
+    const identityData: IdentityData =
+      input.identityData || input.strategy.getIdentityData(input.document);
 
     const appendOptions: AppendDocumentOptions = {
       ...input.options,
