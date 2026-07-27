@@ -9,7 +9,15 @@
 
 declare var require: any;
 
+declare var IncomingWorkflow: any;
+
 if (typeof require !== "undefined") {
+  try {
+    const _iw = eval('require("./IncomingWorkflow")');
+    if (_iw && _iw.IncomingWorkflow && typeof IncomingWorkflow === "undefined") {
+      (globalThis as any).IncomingWorkflow = _iw.IncomingWorkflow;
+    }
+  } catch (e) {}
   try {
     const _ow = eval('require("./OutgoingWorkflow")');
     if (_ow && _ow.OutgoingWorkflow && typeof OutgoingWorkflow === "undefined") {
