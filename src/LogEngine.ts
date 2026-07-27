@@ -2,9 +2,10 @@
  * @file LogEngine.ts
  * @description Application domain engine coordinating contact history chains, status transitions, row insertion plans, and spreadsheet log persistence.
  *
- * Utilizes `SheetStorageAdapter` for sheet reading and mutation and `DocumentLogStrategy` for target keys,
+ * Utilizes `SheetStorageAdapter` ofor sheet reading and mutation and `DocumentLogStrategy` for target keys,
  * sorting keys, and tabular row payload formatting.
  */
+
 
 declare var require: any;
 
@@ -19,11 +20,6 @@ if (typeof require !== "undefined") {
 }
 
 /**
- * Domain engine responsible for inserting validated submittals into tabular log sheets.
- * Calculates contact history chains, handles previous row status transitions (e.g. marking previous revisions Closed),
- * computes group/sort row insertion plans, and writes rows via the storage adapter.
- */
-/**
  * Extracts the resolved contact abbreviation from a validated document's ListDocumentField metadata.
  *
  * @param document - Validated document domain model.
@@ -33,6 +29,12 @@ function getContactAbbreviation(document: ValidatedDocument): string {
   return document.listFields?.contact?.abbreviation || "";
 }
 
+
+function safePadNum(val: any, len: number): string {
+  if (typeof padNum !== "undefined") return padNum(val, len);
+  if ((globalThis as any).padNum) return (globalThis as any).padNum(val, len);
+  return String(val || "").trim().padStart(len, '0');
+}
 class LogEngine {
   /** Low-level storage adapter executing spreadsheet operations. */
   private storageAdapter: SheetStorageAdapter;
@@ -47,20 +49,105 @@ class LogEngine {
   }
 
   /**
-   * Appends or inserts a validated document into the specified spreadsheet log.
-   *
-   * 1. Reads current sheet values and extracts column headers.
-   * 2. Searches bounded sheet data for previous submittal instances matching the target key to compute contact history chains.
-   * 3. Optionally updates previous revision row statuses (e.g. setting status to "Closed").
-   * 4. Formats row payload and destination file name via `DocumentLogStrategy`.
-   * 5. Computes target row index and gap insertion rules via `computeRowInsertionPlan`.
-   * 6. Executes physical row insertion via `storageAdapter`.
+   * Reads existing log entries matching IdentityData, extracts contact history and previous row details,
+   * and optionally updates previous row status (e.g. marking previous revision Closed).
    *
    * @param spreadsheetId - Target spreadsheet ID string.
-   * @param document - Validated submittal document.
-   * @param strategy - Strategy instance defining grouping, sorting, and formatting rules.
-   * @param options - Additional append parameters (headers, status, previous row update flags).
-   * @returns `AppendDocumentResult` containing row index, contact history, filename, and validation details.
+   * @param identityData - Abstract identity model containing identityGroup, identityRevisionGroup, and identity.
+   * @param strategy - Optional DocumentLogStrategy for row key extraction.
+   * @param options - ReadLogOptions.
+   * @returns `ReadLogResult` containing match status, row index, contact history, and status update outcome.
+   */
+  readLog(
+    spreadsheetId: string,
+    identityData: IdentityData,
+    strategy?: DocumentLogStrategy,
+    options: ReadLogOptions = {}
+  ): ReadLogResult {
+    const sheetName = options.sheetName || CONFIG.LOG_SHEET_NAME;
+    const logData = this.storageAdapter.getSheetValues(sheetName);
+
+    const headerRowIdx = CONFIG.LOG_HEADER_ROW > 0 ? CONFIG.LOG_HEADER_ROW - 1 : 2;
+
+    const headers = options.headers || (
+      logData.length > headerRowIdx
+        ? logData[headerRowIdx].map((h: any) => String(h || "").trim())
+        : []
+    );
+
+    const boundedData = getBoundedData(logData);
+    const historyColIdx = headers.indexOf("Contact History");
+    const calcChainColIdx = headers.indexOf("Calc Contact Chain");
+    const statusColIdx = headers.indexOf("Status");
+
+    const dataStartIdx = CONFIG.LOG_HEADER_ROW > 0 ? CONFIG.LOG_HEADER_ROW : 3;
+
+    let found = false;
+    let rowIndex: number | null = null;
+    let contactHistory = "";
+    let previousStatus = "";
+    let rowDataMap: Record<string, any> | null = null;
+
+    for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
+      const row = boundedData[i];
+      let matches = false;
+      if (strategy) {
+        const groupKey = strategy.getGroupKeyFromRow(row, headers);
+        const targetKey = strategy.getTargetKeyFromRow(row, headers);
+        if (groupKey === identityData.identityGroup || targetKey === identityData.identity) {
+          matches = true;
+        }
+      } else {
+        const secIdx = headers.indexOf("Section");
+        const numIdx = headers.indexOf("Number");
+        const specTagIdx = headers.indexOf("Spec Tag");
+        const sec = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
+        const num = numIdx !== -1 ? String(row[numIdx] || "").trim() : "";
+        const specTag = specTagIdx !== -1 ? String(row[specTagIdx] || "").trim() : "";
+        const rowGroup = sec ? `${safePadNum(sec, 6)}-${safePadNum(num, 3)}`.toLowerCase() : (specTag ? specTag.toLowerCase() : num.toLowerCase());
+        if (rowGroup === identityData.identityGroup || (row[0] && String(row[0]).trim() === identityData.identity)) {
+          matches = true;
+        }
+      }
+
+      if (matches) {
+        found = true;
+        rowIndex = i + 1;
+        const histVal = (historyColIdx !== -1) ? String(row[historyColIdx] || "").trim() : "";
+        const calcVal = (calcChainColIdx !== -1) ? String(row[calcChainColIdx] || "").trim() : "";
+        contactHistory = histVal ? histVal : calcVal;
+        previousStatus = (statusColIdx !== -1) ? String(row[statusColIdx] || "").trim() : "";
+
+        rowDataMap = {};
+        for (let c = 0; c < headers.length; c++) {
+          if (headers[c]) {
+            rowDataMap[headers[c]] = row[c];
+          }
+        }
+        break;
+      }
+    }
+
+    let previousRowUpdated = false;
+    if (options.updatePreviousStatus && rowIndex !== null && statusColIdx !== -1) {
+      const newStatus = options.previousRowStatus || "Closed";
+      this.storageAdapter.setRangeValue(sheetName, rowIndex, statusColIdx + 1, newStatus);
+      previousRowUpdated = true;
+    }
+
+    return {
+      found,
+      rowIndex,
+      contactHistory,
+      previousStatus,
+      rowData: rowDataMap,
+      identityData,
+      previousRowUpdated
+    };
+  }
+
+  /**
+   * Appends or inserts a validated document into the specified spreadsheet log.
    */
   appendDocument(
     spreadsheetId: string,
@@ -96,8 +183,9 @@ class LogEngine {
 
     for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
       const row = boundedData[i];
+      const rowGroupKey = strategy.getGroupKeyFromRow(row, headers);
       const rowKey = strategy.getTargetKeyFromRow(row, headers);
-      if (rowKey === targetKey) {
+      if (rowGroupKey === identityData.identityGroup || rowKey === targetKey) {
         const histVal = (historyColIdx !== -1) ? String(row[historyColIdx] || "").trim() : "";
         const calcVal = (calcChainColIdx !== -1) ? String(row[calcChainColIdx] || "").trim() : "";
         previousChain = histVal ? histVal : calcVal;
@@ -153,6 +241,8 @@ class LogEngine {
     };
   }
 }
+
+
 
 declare var module: any;
 

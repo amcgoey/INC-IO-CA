@@ -9,6 +9,8 @@ export class FakeLogRepository implements LogRepository {
   public configuredMissingHeaders: string[] = [];
   public insertedRows: Array<{ spreadsheetId: string; headers: string[]; rowData: any[]; plan: RowInsertionPlan }> = [];
   public appendedDocuments: Array<{ spreadsheetId: string; document: ValidatedDocument; strategy: DocumentLogStrategy; options?: AppendDocumentOptions }> = [];
+  public readLogEntries: Array<{ spreadsheetId: string; identityData: IdentityData; strategy?: DocumentLogStrategy; options?: ReadLogOptions }> = [];
+  public customReadResult?: ReadLogResult;
   public customAppendResult?: AppendDocumentResult | ((ssId: string, doc: ValidatedDocument, strategy: DocumentLogStrategy, options?: AppendDocumentOptions) => AppendDocumentResult);
 
   constructor(initialSettings?: Record<string, LogSettings>) {
@@ -21,7 +23,9 @@ export class FakeLogRepository implements LogRepository {
     this.calls = [];
     this.insertedRows = [];
     this.appendedDocuments = [];
+    this.readLogEntries = [];
     this.customAppendResult = undefined;
+    this.customReadResult = undefined;
   }
 
   getLogSettings(spreadsheetId: string, discipline: string): LogSettings {
@@ -64,6 +68,28 @@ export class FakeLogRepository implements LogRepository {
     this.calls.push({ method: "insertLogRow", args: [spreadsheetId, headers, rowData, plan] });
     this.insertedRows.push({ spreadsheetId, headers, rowData, plan });
     return { rowIndex: plan.finalRowIndex, failedColumns: [] };
+  }
+
+  readLog(
+    spreadsheetId: string,
+    identityData: IdentityData,
+    strategy?: DocumentLogStrategy,
+    options: ReadLogOptions = {}
+  ): ReadLogResult {
+    this.calls.push({ method: "readLog", args: [spreadsheetId, identityData, strategy, options] });
+    this.readLogEntries.push({ spreadsheetId, identityData, strategy, options });
+    if (this.customReadResult) {
+      return this.customReadResult;
+    }
+    return {
+      found: false,
+      rowIndex: null,
+      contactHistory: "",
+ previousStatus: "",
+      rowData: null,
+      identityData,
+      previousRowUpdated: false
+    };
   }
 
   appendDocument(

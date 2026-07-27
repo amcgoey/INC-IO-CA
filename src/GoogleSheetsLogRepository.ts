@@ -357,6 +357,16 @@ class GoogleSheetsLogRepository implements LogRepository {
     const engine = new LogEngine(adapter);
     return engine.appendDocument(spreadsheetId, document, strategy, options);
   }
+  readLog(
+    spreadsheetId: string,
+    identityData: IdentityData,
+    strategy?: DocumentLogStrategy,
+    options: ReadLogOptions = {}
+  ): ReadLogResult {
+    const adapter = new GoogleSheetsStorageAdapter(spreadsheetId);
+    const engine = new LogEngine(adapter);
+    return engine.readLog(spreadsheetId, identityData, strategy, options);
+  }
 }
 
 /** Global default repository seam for Google Sheets storage operations. */
