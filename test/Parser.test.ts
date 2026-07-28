@@ -474,6 +474,43 @@ test("EmailIntakeParser parses Email 5 (.eml sample: CMiC Collaborate) correctly
   assert.equal(parsed.action, "Received");
 });
 
+test("EmailIntakeParser.parseGenericEmail_ parses non-vendor submittal emails correctly", () => {
+  const msg1 = {
+    getFrom: () => "general@subcontractor.com",
+    getSubject: () => "Submittal 099100-17.0 for review",
+    getPlainBody: () => "Attached is the submittal"
+  };
+  const parsed1 = EmailIntakeParser.parseEmail(msg1 as any);
+  assert.equal(parsed1.specSection, "099100");
+  assert.equal(parsed1.section, "099100");
+  assert.equal(parsed1.submittalNum, "017");
+  assert.equal(parsed1.number, "017");
+  assert.equal(parsed1.revNum, "0");
+  assert.equal(parsed1.revision, "0");
+  assert.equal(parsed1.action, "Received");
+
+  const msg2 = {
+    getFrom: () => "contractor@builder.com",
+    getSubject: () => "Transmittal for 06 20 00-003-00",
+    getPlainBody: () => ""
+  };
+  const parsed2 = EmailIntakeParser.parseEmail(msg2 as any);
+  assert.equal(parsed2.specSection, "062000");
+  assert.equal(parsed2.submittalNum, "003");
+  assert.equal(parsed2.revNum, "00");
+
+  const msg3 = {
+    getFrom: () => "sales@fixtures.com",
+    getSubject: () => "Submittal # 084113-11.2",
+    getPlainBody: () => ""
+  };
+  const parsed3 = EmailIntakeParser.parseEmail(msg3 as any);
+  assert.equal(parsed3.specSection, "084113");
+  assert.equal(parsed3.submittalNum, "011");
+  assert.equal(parsed3.revNum, "2");
+});
+
+
 test("No duplicate top-level const/let/var declarations exist across src files (GAS global scope protection)", () => {
   const fs = require("fs");
   const path = require("path");

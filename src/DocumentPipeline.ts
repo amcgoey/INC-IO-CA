@@ -307,6 +307,32 @@ class EmailIntakeParser {
     return result;
   }
 
+  static parseGenericEmail_(subject: string, body: string): Partial<ParsedData> {
+    const result: Partial<ParsedData> = {
+      action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
+    };
+
+    const textToSearch = (subject + "\n" + (body || "")).replace(/=\r?\n/g, '');
+
+    const genericMatch = textToSearch.match(/(?:Submittal\s*#?|Subm\s*#?|Spec\s*#?|Section\s*#?|Transmittal\s*(?:for)?\s*)\s*(\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]*#?\s*([\w.]+(?:-[\w.]+)*)/i) ||
+                         textToSearch.match(/(\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]+(\d{1,4})(?:[.-](\d{1,3}))?/);
+
+    if (genericMatch) {
+      result.specSection = normalizeSpecSection(genericMatch[1]);
+      const numRevStr = genericMatch[2] ? genericMatch[2].trim() : "";
+      if (numRevStr) {
+        const { submittalNum, revNum } = splitNumberAndRevision(numRevStr);
+        result.submittalNum = submittalNum;
+        if (revNum) result.revNum = revNum;
+      }
+      if (genericMatch[3] && !result.revNum) {
+        result.revNum = genericMatch[3];
+      }
+    }
+
+    return result;
+  }
+
   static parseEmail(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
     const defaultResult: ParsedData = {
       driveName: "",
@@ -323,16 +349,24 @@ class EmailIntakeParser {
 
     const combinedHeaders = (sender + " " + replyTo + " " + subject).toLowerCase();
 
-    let res: ParsedData;
+    let matched: Partial<ParsedData> | null = null;
     if (combinedHeaders.includes("forma") || combinedHeaders.includes("autodesk")) {
-      res = { ...defaultResult, ...EmailIntakeParser.parseFormaEmail_(subject, body) };
+      matched = EmailIntakeParser.parseFormaEmail_(subject, body);
     } else if (combinedHeaders.includes("cmic") || combinedHeaders.includes("stobg") || combinedHeaders.includes("trn")) {
-      res = { ...defaultResult, ...EmailIntakeParser.parseCmicEmail_(subject, body) };
-    } else if (combinedHeaders.includes("procore") || combinedHeaders.includes("submittal")) {
-      res = { ...defaultResult, ...EmailIntakeParser.parseProcoreEmail_(subject, body) };
-    } else {
-      res = defaultResult;
+      matched = EmailIntakeParser.parseCmicEmail_(subject, body);
+    } else if (combinedHeaders.includes("procore") || combinedHeaders.includes("submittal") || combinedHeaders.includes("subm")) {
+      matched = EmailIntakeParser.parseProcoreEmail_(subject, body);
     }
+
+    // Tier 2: Generic Email Parser fallback if Tier 1 vendor parsers did not produce a specSection
+    if (!matched || !matched.specSection) {
+      const genericParsed = EmailIntakeParser.parseGenericEmail_(subject, body);
+      if (genericParsed.specSection) {
+        matched = { ...(matched || {}), ...genericParsed };
+      }
+    }
+
+    const res: ParsedData = { ...defaultResult, ...(matched || {}) };
 
     if (res.specSection && !res.section) res.section = res.specSection;
     if (res.section && !res.specSection) res.specSection = res.section;
