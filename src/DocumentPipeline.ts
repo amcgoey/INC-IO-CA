@@ -186,10 +186,14 @@ function splitNumberAndRevision(numRevStr: string): { submittalNum: string; revN
   };
 }
 
+function getDefaultAction(): string {
+  return typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
+}
+
 class EmailIntakeParser {
   static parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> {
     const result: Partial<ParsedData> = {
-      action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
+      action: getDefaultAction()
     };
 
     const projectMatch = subject.match(/\[([^\]]+)\]/);
@@ -234,7 +238,7 @@ class EmailIntakeParser {
 
   static parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
     const result: Partial<ParsedData> = {
-      action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
+      action: getDefaultAction()
     };
 
     const projectMatch = subject.match(/^([^-]+)-/);
@@ -269,7 +273,7 @@ class EmailIntakeParser {
 
   static parseCmicEmail_(subject: string, body: string): Partial<ParsedData> {
     const result: Partial<ParsedData> = {
-      action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
+      action: getDefaultAction()
     };
 
     // Subject Pattern: [Fwd: ]New TRNS | TRN00588 | [Project] P2_062200-030-1_Walnut Wood Refinishing_For App
@@ -309,24 +313,24 @@ class EmailIntakeParser {
 
   static parseGenericEmail_(subject: string, body: string): Partial<ParsedData> {
     const result: Partial<ParsedData> = {
-      action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
+      action: getDefaultAction()
     };
 
-    const textToSearch = (subject + "\n" + (body || "")).replace(/=\r?\n/g, '');
+    const searchableEmailContent = (subject + "\n" + (body || "")).replace(/=\r?\n/g, '');
 
-    const genericMatch = textToSearch.match(/(?:Submittal\s*#?|Subm\s*#?|Spec\s*#?|Section\s*#?|Transmittal\s*(?:for)?\s*)\s*(\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]*#?\s*([\w.]+(?:-[\w.]+)*)/i) ||
-                         textToSearch.match(/(\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]+(\d{1,4})(?:[.-](\d{1,3}))?/);
+    const submittalSectionMatch = searchableEmailContent.match(/(?:Submittal\s*#?|Subm\s*#?|Spec\s*#?|Section\s*#?|Transmittal\s*(?:for)?\s*)\s*(\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]*#?\s*([\w.]+(?:-[\w.]+)*)/i) ||
+                                searchableEmailContent.match(/(\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]+(\d{1,4})(?:[.-](\d{1,3}))?/);
 
-    if (genericMatch) {
-      result.specSection = normalizeSpecSection(genericMatch[1]);
-      const numRevStr = genericMatch[2] ? genericMatch[2].trim() : "";
-      if (numRevStr) {
-        const { submittalNum, revNum } = splitNumberAndRevision(numRevStr);
+    if (submittalSectionMatch) {
+      result.specSection = normalizeSpecSection(submittalSectionMatch[1]);
+      const submittalNumberAndRevisionString = submittalSectionMatch[2] ? submittalSectionMatch[2].trim() : "";
+      if (submittalNumberAndRevisionString) {
+        const { submittalNum, revNum } = splitNumberAndRevision(submittalNumberAndRevisionString);
         result.submittalNum = submittalNum;
         if (revNum) result.revNum = revNum;
       }
-      if (genericMatch[3] && !result.revNum) {
-        result.revNum = genericMatch[3];
+      if (submittalSectionMatch[3] && !result.revNum) {
+        result.revNum = submittalSectionMatch[3];
       }
     }
 
@@ -337,7 +341,7 @@ class EmailIntakeParser {
     const defaultResult: ParsedData = {
       driveName: "",
       discipline: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture",
-      action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
+      action: getDefaultAction()
     };
 
     if (!message) return defaultResult;
