@@ -339,12 +339,20 @@ class EmailIntakeParser {
 
       // Title Extraction: Check text following the matched section/number for delimiters (, , - , _ , | , : )
       const matchedFullText = submittalSectionMatch[0];
-      const matchIndex = searchableEmailContent.indexOf(matchedFullText);
+      const matchIndex = typeof submittalSectionMatch.index === "number" ? submittalSectionMatch.index : searchableEmailContent.indexOf(matchedFullText);
       if (matchIndex !== -1) {
         const remainingText = searchableEmailContent.substring(matchIndex + matchedFullText.length);
         const delimiterMatch = remainingText.match(/^\s*(?:[,\-_|:]\s*|\s+-\s+)(.+)/);
         if (delimiterMatch) {
           let extractedTitle = delimiterMatch[1].replace(/[\r\n].*/s, '').trim();
+
+          // Decode common HTML entities in title
+          extractedTitle = extractedTitle
+            .replace(/&amp;/g, '&')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>');
 
           // Filter out status noise phrases
           extractedTitle = extractedTitle.replace(TRAILING_NOISE_RE, '').trim();

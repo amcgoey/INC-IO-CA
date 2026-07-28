@@ -560,6 +560,14 @@ test("EmailIntakeParser.parseGenericEmail_ extracts titles via delimiters and fi
   };
   const parsed4 = EmailIntakeParser.parseEmail(msg4 as any);
   assert.equal(parsed4.title, "Structural Concrete Mockup");
+
+  const msg5 = {
+    getFrom: () => "sub@builder.com",
+    getSubject: () => "Submittal 062000-003 - Phase 2 &amp; Millwork Samples",
+    getPlainBody: () => ""
+  };
+  const parsed5 = EmailIntakeParser.parseEmail(msg5 as any);
+  assert.equal(parsed5.title, "Phase 2 & Millwork Samples");
 });
 
 
