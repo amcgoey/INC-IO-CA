@@ -49,6 +49,14 @@ A document field backed by a dynamic list of options (long form and abbreviation
 The pure application service that ingests raw intake data (email subjects, filenames, or UI form inputs as RawDocument) and coordinates parsing, normalization, and validation rules to produce a ValidationResult.
 _Avoid_: IntakeManager, FormValidator, DataProcessor
 
+**EmailIntakeParser**:
+The email parsing component of `DocumentPipeline` that executes a 3-tier fallback chain (Vendor Parsers -> Generic Submittal Parser -> Unparsed Default Fallback) to extract submittal metadata from incoming email subjects and body text.
+_Avoid_: EmailUtils, MailParser
+
+**GenericEmailParser**:
+The Tier 2 generic email parsing strategy that extracts 6-digit CSI MasterFormat sections, padded 3-digit submittal numbers, and revisions from non-vendor-specific submittal emails while leaving discipline and project assessment to AI Triage.
+
+
 **DocumentWorkflowModule**:
 The application workflow service that orchestrates file retrieval, PDF stamping, drive filing, spreadsheet logging, and direct spreadsheet URL generation for any document type.
 _Avoid_: ProcessManager, SubmittalWorkflowModule, WorkflowHelper
