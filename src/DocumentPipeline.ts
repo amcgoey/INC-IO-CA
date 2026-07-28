@@ -186,6 +186,10 @@ function splitNumberAndRevision(numRevStr: string): { submittalNum: string; revN
   };
 }
 
+const STATUS_NOISE_WORDS = "was\\s+submitted|has\\s+been\\s+submitted|submitted|for\\s+review|for\\s+approval|for\\s+app|notification|distributed|distribute|provided\\s+for\\s+your\\s+information|for\\s+your\\s+information|fyi";
+const TRAILING_NOISE_RE = new RegExp(`\\s+(?:${STATUS_NOISE_WORDS}).*`, "i");
+const EXACT_NOISE_RE = new RegExp(`^(?:${STATUS_NOISE_WORDS})$`, "i");
+
 function getDefaultAction(): string {
   return typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
 }
@@ -343,9 +347,9 @@ class EmailIntakeParser {
           let extractedTitle = delimiterMatch[1].replace(/[\r\n].*/s, '').trim();
 
           // Filter out status noise phrases
-          extractedTitle = extractedTitle.replace(/\s+(?:was\s+submitted|has\s+been\s+submitted|submitted|for\s+review|for\s+approval|for\s+app|notification|distributed|distribute|provided\s+for\s+your\s+information|for\s+your\s+information|fyi).*/i, '').trim();
+          extractedTitle = extractedTitle.replace(TRAILING_NOISE_RE, '').trim();
 
-          const isPureNoise = /^(?:was\s+submitted|has\s+been\s+submitted|submitted|for\s+review|for\s+approval|for\s+app|notification|distributed|distribute|provided\s+for\s+your\s+information|for\s+your\s+information|fyi)$/i.test(extractedTitle);
+          const isPureNoise = EXACT_NOISE_RE.test(extractedTitle);
 
           if (extractedTitle && !isPureNoise) {
             result.title = extractedTitle;
