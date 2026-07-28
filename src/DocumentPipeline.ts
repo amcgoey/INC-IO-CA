@@ -160,7 +160,7 @@ function padSubmittalNumber(numStr?: string): string {
 
 function normalizeSpecSection(secStr?: string): string {
   if (!secStr) return "";
-  return secStr.replace(/\s+/g, "").trim();
+  return secStr.replace(/[\s.-]+/g, "").trim();
 }
 
 function splitNumberAndRevision(numRevStr: string): { submittalNum: string; revNum: string } {
@@ -354,7 +354,7 @@ class EmailIntakeParser {
       matched = EmailIntakeParser.parseFormaEmail_(subject, body);
     } else if (combinedHeaders.includes("cmic") || combinedHeaders.includes("stobg") || combinedHeaders.includes("trn")) {
       matched = EmailIntakeParser.parseCmicEmail_(subject, body);
-    } else if (combinedHeaders.includes("procore") || combinedHeaders.includes("submittal") || combinedHeaders.includes("subm")) {
+    } else if (combinedHeaders.includes("procore")) {
       matched = EmailIntakeParser.parseProcoreEmail_(subject, body);
     }
 

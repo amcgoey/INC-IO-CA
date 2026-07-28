@@ -508,7 +508,26 @@ test("EmailIntakeParser.parseGenericEmail_ parses non-vendor submittal emails co
   assert.equal(parsed3.specSection, "084113");
   assert.equal(parsed3.submittalNum, "011");
   assert.equal(parsed3.revNum, "2");
+
+  const msg4 = {
+    getFrom: () => "contractor@builder.com",
+    getSubject: () => "Submittal 06-20-00-003",
+    getPlainBody: () => ""
+  };
+  const parsed4 = EmailIntakeParser.parseEmail(msg4 as any);
+  assert.equal(parsed4.specSection, "062000");
+  assert.equal(parsed4.submittalNum, "003");
+
+  const msg5 = {
+    getFrom: () => "contractor@builder.com",
+    getSubject: () => "Submittal 06.20.00-17",
+    getPlainBody: () => ""
+  };
+  const parsed5 = EmailIntakeParser.parseEmail(msg5 as any);
+  assert.equal(parsed5.specSection, "062000");
+  assert.equal(parsed5.submittalNum, "017");
 });
+
 
 
 test("No duplicate top-level const/let/var declarations exist across src files (GAS global scope protection)", () => {
