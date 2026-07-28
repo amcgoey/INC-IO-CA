@@ -323,19 +323,25 @@ class EmailIntakeParser {
 
     const combinedHeaders = (sender + " " + replyTo + " " + subject).toLowerCase();
 
+    let res: ParsedData;
     if (combinedHeaders.includes("forma") || combinedHeaders.includes("autodesk")) {
-      return { ...defaultResult, ...EmailIntakeParser.parseFormaEmail_(subject, body) };
+      res = { ...defaultResult, ...EmailIntakeParser.parseFormaEmail_(subject, body) };
+    } else if (combinedHeaders.includes("cmic") || combinedHeaders.includes("stobg") || combinedHeaders.includes("trn")) {
+      res = { ...defaultResult, ...EmailIntakeParser.parseCmicEmail_(subject, body) };
+    } else if (combinedHeaders.includes("procore") || combinedHeaders.includes("submittal")) {
+      res = { ...defaultResult, ...EmailIntakeParser.parseProcoreEmail_(subject, body) };
+    } else {
+      res = defaultResult;
     }
 
-    if (combinedHeaders.includes("cmic") || combinedHeaders.includes("stobg") || combinedHeaders.includes("trn")) {
-      return { ...defaultResult, ...EmailIntakeParser.parseCmicEmail_(subject, body) };
-    }
+    if (res.specSection && !res.section) res.section = res.specSection;
+    if (res.section && !res.specSection) res.specSection = res.section;
+    if (res.submittalNum && !res.number) res.number = res.submittalNum;
+    if (res.number && !res.submittalNum) res.submittalNum = res.number;
+    if (res.revNum && !res.revision) res.revision = res.revNum;
+    if (res.revision && !res.revNum) res.revNum = res.revision;
 
-    if (combinedHeaders.includes("procore") || combinedHeaders.includes("submittal")) {
-      return { ...defaultResult, ...EmailIntakeParser.parseProcoreEmail_(subject, body) };
-    }
-
-    return defaultResult;
+    return res;
   }
 }
 
