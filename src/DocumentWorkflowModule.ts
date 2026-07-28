@@ -6,9 +6,6 @@
  * Coordinates workflow delegation to OutgoingWorkflow and IncomingWorkflow modules.
  */
 
-declare var IncomingWorkflow: any;
-declare var OutgoingWorkflow: any;
-
 declare var require: any;
 
 if (typeof require !== "undefined") {
@@ -61,7 +58,7 @@ if (typeof require !== "undefined") {
  * @param action - The workflow action string (e.g., "Received", "Reviewed", "Referred").
  * @returns WorkflowActionPolicy containing execution instructions.
  */
-export function getActionPolicy(action: string): WorkflowActionPolicy {
+function getActionPolicy(action: string): WorkflowActionPolicy {
   if (action === "Received") {
     return {
       direction: "incoming",
@@ -83,7 +80,7 @@ export function getActionPolicy(action: string): WorkflowActionPolicy {
  * @param doc - The ValidatedDocument instance.
  * @returns FFESubmittalStrategy for FF&E discipline or ArchitectureSubmittalStrategy for Architecture.
  */
-export function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy {
+function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy {
   const details = doc ? doc.disciplineDetails : null;
   if (details && details.discipline === "FF&E") {
     return new FFESubmittalStrategy();
@@ -97,7 +94,7 @@ export function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrat
  * @param doc - The ValidatedDocument instance.
  * @returns Document title string or empty string.
  */
-export function getDocumentTitle(doc: ValidatedDocument): string {
+function getDocumentTitle(doc: ValidatedDocument): string {
   const details = doc ? doc.disciplineDetails : null;
   if (!details) return "";
   return details.discipline === "Architecture" ? details.title : details.specTitle;
@@ -106,7 +103,7 @@ export function getDocumentTitle(doc: ValidatedDocument): string {
 /**
  * Core workflow orchestrator service that delegates to IncomingWorkflow and OutgoingWorkflow modules.
  */
-export class DocumentWorkflowModule {
+class DocumentWorkflowModule {
   /**
    * Executes the end-to-end submittal workflow.
    *
@@ -144,3 +141,8 @@ if (typeof module !== "undefined" && module.exports) {
     DocumentWorkflowModule
   };
 }
+
+(globalThis as any).getActionPolicy = getActionPolicy;
+(globalThis as any).getDocumentLogStrategy = getDocumentLogStrategy;
+(globalThis as any).getDocumentTitle = getDocumentTitle;
+(globalThis as any).DocumentWorkflowModule = DocumentWorkflowModule;

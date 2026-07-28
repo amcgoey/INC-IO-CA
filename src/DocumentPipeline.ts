@@ -29,7 +29,7 @@ function isEmpty(val?: string): boolean {
 /**
  * Parses raw form key-value input maps into normalized `RawDocument` objects.
  */
-export class ListDocumentField implements IListDocumentField {
+class ListDocumentField implements IListDocumentField {
   readonly name: string;
   readonly storedForm: StoredFormType;
   readonly options: ListFieldOption[];
@@ -118,7 +118,7 @@ export class ListDocumentField implements IListDocumentField {
   }
 }
 
-export class FormIntakeParser {
+class FormIntakeParser {
   static parse(formInput: Record<string, string> = {}, context?: ValidationContext): RawDocument {
     const rawDoc: RawDocument = {};
     const keys = Object.keys(formInput);
@@ -149,7 +149,7 @@ export class FormIntakeParser {
   }
 }
 
-export class EmailIntakeParser {
+class EmailIntakeParser {
   static parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> {
     const result: Partial<ParsedData> = {};
     const projectMatch = subject.match(/\[([^\]]+)\]/);
@@ -256,7 +256,7 @@ const DRIVE_FILENAME_PATTERNS: DriveFilenamePattern[] = [
   }
 ];
 
-export class DriveFilenameIntakeParser {
+class DriveFilenameIntakeParser {
   static parse(filename: string = ""): RawDocument {
     const rawDoc: RawDocument = {
       discipline: "Architecture",
@@ -442,7 +442,7 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
   };
 }
 
-export class DocumentPipeline {
+class DocumentPipeline {
   static parseFormIntake(formInput: Record<string, string>, context?: ValidationContext): RawDocument {
     return FormIntakeParser.parse(formInput, context);
   }

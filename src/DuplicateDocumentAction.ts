@@ -10,7 +10,7 @@ declare var defaultDriveFilingRepository: DriveFilingRepository;
  * Primitive workflow action that duplicates a document file or blob in Google Drive.
  * Resolves a distinct file ID while preserving originalFileId in the execution context.
  */
-export class DuplicateDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
+class DuplicateDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
   name: string = 'DuplicateDocument';
 
   /**
@@ -68,7 +68,7 @@ export class DuplicateDocumentAction implements DocumentAction<DocumentActionCon
 }
 
 /** Global default instance seam for DuplicateDocumentAction. */
-export var defaultDuplicateDocumentAction: DuplicateDocumentAction = new DuplicateDocumentAction();
+var defaultDuplicateDocumentAction: DuplicateDocumentAction = new DuplicateDocumentAction();
 if (typeof (globalThis as any).defaultDuplicateDocumentAction === 'undefined') {
   (globalThis as any).defaultDuplicateDocumentAction = defaultDuplicateDocumentAction;
 }
@@ -81,3 +81,6 @@ if (typeof module !== 'undefined' && module.exports) {
     defaultDuplicateDocumentAction
   };
 }
+
+(globalThis as any).DuplicateDocumentAction = DuplicateDocumentAction;
+(globalThis as any).defaultDuplicateDocumentAction = defaultDuplicateDocumentAction;

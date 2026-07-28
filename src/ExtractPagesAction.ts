@@ -22,7 +22,7 @@ function resolvePdfDocumentServiceHelper(): PdfDocumentService {
 /**
  * Primitive action encapsulating PDF page extraction.
  */
-export class ExtractPagesAction implements DocumentAction<ExtractPagesInput | GoogleAppsScript.Base.Blob, ExtractPagesResult> {
+class ExtractPagesAction implements DocumentAction<ExtractPagesInput | GoogleAppsScript.Base.Blob, ExtractPagesResult> {
   private pdfDocumentService?: PdfDocumentService;
   private defaultMaxPages: number;
 
@@ -78,7 +78,7 @@ export class ExtractPagesAction implements DocumentAction<ExtractPagesInput | Go
 }
 
 /** Global default instance seam for ExtractPagesAction. */
-export var defaultExtractPagesAction: ExtractPagesAction = new ExtractPagesAction();
+var defaultExtractPagesAction: ExtractPagesAction = new ExtractPagesAction();
 
 if (typeof (globalThis as any).defaultExtractPagesAction === "undefined") {
   (globalThis as any).defaultExtractPagesAction = defaultExtractPagesAction;
@@ -91,3 +91,6 @@ if (typeof module !== "undefined" && module.exports) {
     defaultExtractPagesAction
   };
 }
+
+(globalThis as any).ExtractPagesAction = ExtractPagesAction;
+(globalThis as any).defaultExtractPagesAction = defaultExtractPagesAction;

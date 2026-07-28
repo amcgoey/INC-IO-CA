@@ -28,7 +28,7 @@ function resolveAiAnalysisService(): AiAnalysisService {
 /**
  * Primitive workflow action that executes AI email triage.
  */
-export class TriageDocumentAction implements DocumentAction<TriageDocumentInput, AiPredictionResult> {
+class TriageDocumentAction implements DocumentAction<TriageDocumentInput, AiPredictionResult> {
   private aiAnalysisService?: AiAnalysisService;
 
   /**
@@ -74,7 +74,7 @@ export class TriageDocumentAction implements DocumentAction<TriageDocumentInput,
 }
 
 /** Global default instance seam for TriageDocumentAction. */
-export var defaultTriageDocumentAction: TriageDocumentAction = new TriageDocumentAction();
+var defaultTriageDocumentAction: TriageDocumentAction = new TriageDocumentAction();
 
 if (typeof (globalThis as any).defaultTriageDocumentAction === "undefined") {
   (globalThis as any).defaultTriageDocumentAction = defaultTriageDocumentAction;
@@ -87,3 +87,6 @@ if (typeof module !== "undefined" && module.exports) {
     defaultTriageDocumentAction
   };
 }
+
+(globalThis as any).TriageDocumentAction = TriageDocumentAction;
+(globalThis as any).defaultTriageDocumentAction = defaultTriageDocumentAction;

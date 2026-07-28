@@ -63,7 +63,7 @@ function safePadNum(val: any, len: number): string {
  * Strategy interface encapsulating discipline-specific rules for grouping, sorting,
  * target key identification, tabular row payload formatting, destination file naming, and subfolder placement.
  */
-export interface DocumentLogStrategy<T = ValidatedDocument> {
+interface DocumentLogStrategy<T = ValidatedDocument> {
   /** Generates the group key used to cluster related submittals in the log sheet (e.g. section-number or specTag). */
   getGroupKey(doc: T): string;
   /** Generates the sort key used to order submittal revisions within a group. */

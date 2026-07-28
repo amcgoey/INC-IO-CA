@@ -30,7 +30,7 @@ function getContactAbbreviation(document: ValidatedDocument): string {
 }
 
 
-function safePadNum(val: any, len: number): string {
+function safePadNumLogEngine_(val: any, len: number): string {
   if (typeof padNum !== "undefined") return padNum(val, len);
   if ((globalThis as any).padNum) return (globalThis as any).padNum(val, len);
   return String(val || "").trim().padStart(len, '0');
@@ -109,7 +109,7 @@ class LogEngine {
         const sec = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
         const num = numIdx !== -1 ? String(row[numIdx] || "").trim() : "";
         const specTag = specTagIdx !== -1 ? String(row[specTagIdx] || "").trim() : "";
-        const rowGroup = sec ? `${safePadNum(sec, 6)}-${safePadNum(num, 3)}`.toLowerCase() : (specTag ? specTag.toLowerCase() : num.toLowerCase());
+        const rowGroup = sec ? `${safePadNumLogEngine_(sec, 6)}-${safePadNumLogEngine_(num, 3)}`.toLowerCase() : (specTag ? specTag.toLowerCase() : num.toLowerCase());
         if (rowGroup === identityData.identityGroup || (row[0] && String(row[0]).trim() === identityData.identity)) {
           matches = true;
         }

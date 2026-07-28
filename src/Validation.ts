@@ -3,8 +3,6 @@
  * @description Core validation module for submittal form inputs.
  */
 
-declare var validateDocFn: any;
-
 function validateDocument(raw: RawDocument, context?: ValidationContext): ValidationResult {
   if (typeof validateDocFn !== "undefined") {
     return validateDocFn(raw, context);

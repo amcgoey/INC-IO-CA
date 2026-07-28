@@ -9,7 +9,7 @@ declare var defaultDriveFilingRepository: DriveFilingRepository;
 /**
  * Pipeline engine executing an ordered sequence of DocumentAction instances.
  */
-export class WorkflowRunner {
+class WorkflowRunner {
   /**
    * Executes actions in order, threading and updating the context through each step.
    *
@@ -72,7 +72,7 @@ function resolveSubfolderPath(context: DocumentActionContext): string[] | undefi
  * Primitive action that files/moves a document into a Google Drive folder/subfolder hierarchy.
  * Decoupled from file renaming.
  */
-export class MoveDocumentAction implements DocumentAction {
+class MoveDocumentAction implements DocumentAction {
   name: string = "MoveDocument";
 
   /**
@@ -109,7 +109,7 @@ export class MoveDocumentAction implements DocumentAction {
 /**
  * Primitive action that renames a document in Google Drive.
  */
-export class RenameDocumentAction implements DocumentAction {
+class RenameDocumentAction implements DocumentAction {
   name: string = "RenameDocument";
 
   /**
@@ -152,3 +152,7 @@ if (typeof module !== "undefined" && module.exports) {
     RenameDocumentAction
   };
 }
+
+(globalThis as any).WorkflowRunner = WorkflowRunner;
+(globalThis as any).MoveDocumentAction = MoveDocumentAction;
+(globalThis as any).RenameDocumentAction = RenameDocumentAction;

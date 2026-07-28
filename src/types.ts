@@ -426,27 +426,7 @@ interface LogRepository {
   ): ReadLogResult;
 }
 
-declare class FormIntakeParser {
-  static parse(formInput?: Record<string, string>): RawDocument;
-}
 
-declare class EmailIntakeParser {
-  static parseProcoreEmail_(subject: string, body: string): Partial<ParsedData>;
-  static parseFormaEmail_(subject: string, body: string): Partial<ParsedData>;
-  static parseEmail(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData;
-}
-
-declare class DriveFilenameIntakeParser {
-  static parse(filename?: string): RawDocument;
-}
-
-declare class DocumentPipeline {
-  static parseFormIntake(formInput: Record<string, string>): RawDocument;
-  static parseEmail(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData;
-  static parseFilename(filename: string): RawDocument;
-  static validate(rawDoc: RawDocument, context?: ValidationContext): ValidationResult;
-  static processFormIntake(formInput: Record<string, string>, context?: ValidationContext): ValidationResult;
-}
 
 declare function validateDocument(rawDoc: RawDocument, context?: ValidationContext): ValidationResult;
 
@@ -489,34 +469,7 @@ interface WriteLogInput {
   logRepository?: LogRepository;
 }
 
-declare class WriteLogAction implements DocumentAction<WriteLogInput, AppendDocumentResult> {
-  execute(input: WriteLogInput): Promise<AppendDocumentResult>;
-}
 
-/** Input options for ReadLogAction. */
-interface ReadLogInput {
-  spreadsheetId: string;
-  identityData?: IdentityData;
-  document?: ValidatedDocument;
-  strategy?: DocumentLogStrategy;
-  sheetName?: string;
-  updatePreviousStatus?: boolean;
-  previousRowStatus?: string;
-  logRepository?: LogRepository;
-}
-
-declare class ReadLogAction implements DocumentAction<ReadLogInput, ReadLogResult> {
-  execute(input: ReadLogInput): Promise<ReadLogResult>;
-}
-
-declare class WorkflowRunner {
-  static runAction<TInput, TOutput>(action: DocumentAction<TInput, TOutput>, input: TInput): Promise<TOutput>;
-  static runSequence(steps: Array<{ action: DocumentAction<any, any>; input: any }>): Promise<any[]>;
-}
-
-declare class InsertPagesAction implements DocumentAction<InsertPagesInput, GoogleAppsScript.Base.Blob> {
-  execute(input: InsertPagesInput): Promise<GoogleAppsScript.Base.Blob>;
-}
 
 /** PDF stamping options. */
 interface StampOptions {
@@ -577,10 +530,18 @@ declare var defaultDriveFilingRepository: DriveFilingRepository;
 declare var defaultPdfDocumentService: PdfDocumentService;
 declare var defaultAiAnalysisService: AiAnalysisService;
 declare var defaultDriveNameProvider: DriveNameProvider;
-declare class ExtractPagesAction implements DocumentAction<ExtractPagesInput | GoogleAppsScript.Base.Blob, ExtractPagesResult> {
-  constructor(options?: { pdfDocumentService?: PdfDocumentService; defaultMaxPages?: number });
-  execute(input: ExtractPagesInput | GoogleAppsScript.Base.Blob): Promise<ExtractPagesResult>;
+/** Input payload for ReadLogAction. */
+interface ReadLogInput {
+  spreadsheetId: string;
+  identityData?: IdentityData;
+  document?: ValidatedDocument;
+  strategy?: DocumentLogStrategy;
+  sheetName?: string;
+  updatePreviousStatus?: boolean;
+  previousRowStatus?: string;
+  logRepository?: LogRepository;
 }
+
 declare var defaultExtractPagesAction: ExtractPagesAction;
 
 /** Input payload for AnalyzeDocumentAction. */
@@ -592,11 +553,6 @@ interface AnalyzeDocumentInput {
   extractPagesAction?: ExtractPagesAction;
 }
 
-/** Action class for AI multimodal document analysis. */
-declare class AnalyzeDocumentAction implements DocumentAction<AnalyzeDocumentInput, DeepAnalysisResult> {
-  constructor(options?: { aiAnalysisService?: AiAnalysisService; extractPagesAction?: ExtractPagesAction });
-  execute(input: AnalyzeDocumentInput): Promise<DeepAnalysisResult>;
-}
 declare var defaultAnalyzeDocumentAction: AnalyzeDocumentAction;
 
 /** Input payload for TriageDocumentAction. */
@@ -606,27 +562,8 @@ interface TriageDocumentInput {
   aiAnalysisService?: AiAnalysisService;
 }
 
-/** Action class for AI email triage. */
-declare class TriageDocumentAction implements DocumentAction<TriageDocumentInput, AiPredictionResult> {
-  constructor(options?: { aiAnalysisService?: AiAnalysisService });
-  execute(input: TriageDocumentInput): Promise<AiPredictionResult>;
-}
 declare var defaultTriageDocumentAction: TriageDocumentAction;
-declare class DuplicateDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
-  name: string;
-  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
-}
 declare var defaultDuplicateDocumentAction: DuplicateDocumentAction;
-
-declare class MoveDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
-  name: string;
-  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
-}
-
-declare class RenameDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
-  name: string;
-  execute(context: DocumentActionContext): Promise<DocumentActionContext>;
-}
 
 
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
@@ -684,46 +621,7 @@ interface DocumentWorkflowResult {
   newFileName: string;
 }
 
-declare function getActionPolicy(action: string): WorkflowActionPolicy;
-declare function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy;
-declare function getDocumentTitle(doc: ValidatedDocument): string;
 
-declare class OutgoingWorkflow {
-  static execute(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult>;
-}
-
-declare class DocumentWorkflowModule {
-  static executeWorkflow(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult>;
-}
-
-// Global declaration for pdf-lib evaluated at runtime
-declare const PDFLib: any;
-
-
-declare class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
-  getFilingSubfolders(doc: ValidatedDocument): string[];
-  getIdentityData(doc: ValidatedDocument): IdentityData;
-  getGroupKey(doc: ValidatedDocument): string;
-  getSortKey(doc: ValidatedDocument): string;
-  getTargetKey(doc: ValidatedDocument): string;
-  getGroupKeyFromRow(row: any[], headers: string[]): string;
-  getSortKeyFromRow(row: any[], headers: string[]): string;
-  getTargetKeyFromRow(row: any[], headers: string[]): string;
-  formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
-  getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string;
-}
-
-declare class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
-  getIdentityData(doc: ValidatedDocument): IdentityData;
-  getGroupKey(doc: ValidatedDocument): string;
-  getSortKey(doc: ValidatedDocument): string;
-  getTargetKey(doc: ValidatedDocument): string;
-  getGroupKeyFromRow(row: any[], headers: string[]): string;
-  getSortKeyFromRow(row: any[], headers: string[]): string;
-  getTargetKeyFromRow(row: any[], headers: string[]): string;
-  formatRowPayload(doc: ValidatedDocument, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
-  getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string;
-}
 
 
 /** Configuration schema encapsulating document-type specific rules and settings. */
@@ -762,4 +660,7 @@ interface DocumentActionContext {
   emptyFallbacks?: string[];
   [key: string]: any;
 }
+
+// Global declaration for pdf-lib evaluated at runtime
+declare const PDFLib: any;
 

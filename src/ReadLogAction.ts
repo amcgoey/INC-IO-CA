@@ -5,7 +5,7 @@
  * Wraps LogRepository.readLog() into a primitive DocumentAction handler operating strictly on IdentityData.
  */
 
-export class ReadLogAction implements DocumentAction<ReadLogInput, ReadLogResult> {
+class ReadLogAction implements DocumentAction<ReadLogInput, ReadLogResult> {
   /**
    * Executes the read log action.
    *

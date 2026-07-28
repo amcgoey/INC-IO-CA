@@ -9,7 +9,7 @@
  * Primitive workflow action that persists validated submittal documents to the log repository
  * using abstract IdentityData (IdentityGroup, IdentityRevisionGroup, Identity).
  */
-export class WriteLogAction implements DocumentAction<WriteLogInput, AppendDocumentResult> {
+class WriteLogAction implements DocumentAction<WriteLogInput, AppendDocumentResult> {
   /**
    * Executes the write log action.
    *

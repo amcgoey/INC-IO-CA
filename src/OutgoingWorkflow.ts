@@ -60,7 +60,7 @@ if (typeof require !== "undefined") {
 declare var defaultDriveFilingRepository: DriveFilingRepository;
 declare var defaultLogRepository: LogRepository;
 
-export class OutgoingWorkflow {
+class OutgoingWorkflow {
   /**
    * Executes the outgoing submittal workflow.
    *

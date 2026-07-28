@@ -78,7 +78,7 @@ declare var defaultLogRepository: LogRepository;
 declare var defaultPdfDocumentService: PdfDocumentService;
 declare var defaultDuplicateDocumentAction: DuplicateDocumentAction;
 
-export class IncomingWorkflow {
+class IncomingWorkflow {
   /**
    * Resolves source document blob from Drive file ID, email attachment, or Drive URL.
    */

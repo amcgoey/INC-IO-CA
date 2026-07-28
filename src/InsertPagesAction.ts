@@ -9,7 +9,7 @@
  * Primitive workflow action that prepends CoverPageDocument onto a PDF blob
  * by delegating to `PdfDocumentService.stampSubmittal()`.
  */
-export class InsertPagesAction implements DocumentAction<InsertPagesInput, GoogleAppsScript.Base.Blob> {
+class InsertPagesAction implements DocumentAction<InsertPagesInput, GoogleAppsScript.Base.Blob> {
   /**
    * Executes the cover page insertion action.
    *

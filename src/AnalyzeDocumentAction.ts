@@ -8,7 +8,7 @@
 
 declare var require: any;
 
-export function resolveAiAnalysisServiceHelper(): AiAnalysisService {
+function resolveAiAnalysisServiceHelper(): AiAnalysisService {
   if (typeof defaultAiAnalysisService !== "undefined" && defaultAiAnalysisService) {
     return defaultAiAnalysisService;
   }
@@ -39,7 +39,7 @@ function resolveExtractPagesActionHelper(): ExtractPagesAction | null {
 /**
  * Primitive workflow action that executes AI submittal document analysis.
  */
-export class AnalyzeDocumentAction implements DocumentAction<AnalyzeDocumentInput, DeepAnalysisResult> {
+class AnalyzeDocumentAction implements DocumentAction<AnalyzeDocumentInput, DeepAnalysisResult> {
   private aiAnalysisService?: AiAnalysisService;
   private extractPagesAction?: ExtractPagesAction;
 
@@ -101,7 +101,7 @@ export class AnalyzeDocumentAction implements DocumentAction<AnalyzeDocumentInpu
 }
 
 /** Global default instance seam for AnalyzeDocumentAction. */
-export var defaultAnalyzeDocumentAction: AnalyzeDocumentAction = new AnalyzeDocumentAction();
+var defaultAnalyzeDocumentAction: AnalyzeDocumentAction = new AnalyzeDocumentAction();
 
 if (typeof (globalThis as any).defaultAnalyzeDocumentAction === "undefined") {
   (globalThis as any).defaultAnalyzeDocumentAction = defaultAnalyzeDocumentAction;
@@ -115,3 +115,6 @@ if (typeof module !== "undefined" && module.exports) {
     resolveAiAnalysisServiceHelper
   };
 }
+
+(globalThis as any).AnalyzeDocumentAction = AnalyzeDocumentAction;
+(globalThis as any).defaultAnalyzeDocumentAction = defaultAnalyzeDocumentAction;
