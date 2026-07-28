@@ -149,49 +149,161 @@ class FormIntakeParser {
   }
 }
 
+function padSubmittalNumber(numStr?: string): string {
+  if (!numStr) return "";
+  const trimmed = numStr.trim();
+  if (/^\d+$/.test(trimmed)) {
+    return trimmed.length < 3 ? trimmed.padStart(3, "0") : trimmed;
+  }
+  return trimmed;
+}
+
+function normalizeSpecSection(secStr?: string): string {
+  if (!secStr) return "";
+  return secStr.replace(/\s+/g, "").trim();
+}
+
+function splitNumberAndRevision(numRevStr: string): { submittalNum: string; revNum: string } {
+  if (!numRevStr) return { submittalNum: "", revNum: "" };
+  const trimmed = numRevStr.trim();
+  if (trimmed.includes(".")) {
+    const parts = trimmed.split(".");
+    return {
+      submittalNum: padSubmittalNumber(parts[0]),
+      revNum: parts.slice(1).join(".")
+    };
+  }
+  if (trimmed.includes("-")) {
+    const parts = trimmed.split("-");
+    return {
+      submittalNum: padSubmittalNumber(parts[0]),
+      revNum: parts.slice(1).join("-")
+    };
+  }
+  return {
+    submittalNum: padSubmittalNumber(trimmed),
+    revNum: trimmed
+  };
+}
+
 class EmailIntakeParser {
   static parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> {
-    const result: Partial<ParsedData> = {};
+    const result: Partial<ParsedData> = {
+      action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
+    };
+
     const projectMatch = subject.match(/\[([^\]]+)\]/);
     if (projectMatch) result.driveName = projectMatch[1].trim();
 
+    // 1. Procore Distributed: Submittal Distributed 099100-17.0, PT432 - Public Spaces Limewash Samples
+    const distMatch = subject.match(/Submittal\s+Distributed\s+([\w.]+)-([\w.]+)(?:,\s*(.*))?/i);
+    if (distMatch) {
+      result.specSection = normalizeSpecSection(distMatch[1]);
+      const { submittalNum, revNum } = splitNumberAndRevision(distMatch[2]);
+      result.submittalNum = submittalNum;
+      result.revNum = revNum;
+      if (distMatch[3]) result.title = distMatch[3].trim();
+      if (/^\d/.test(result.specSection)) result.discipline = "Architecture";
+      return result;
+    }
+
+    // 2. Action Required / Approver Response Updated: for Submittal 084113-11.2, Entrance Canopy Shop Drawing
+    const updatedMatch = subject.match(/for\s+Submittal\s+([\w.]+)-([\w.]+)(?:,\s*(.*))?/i);
+    if (updatedMatch) {
+      result.specSection = normalizeSpecSection(updatedMatch[1]);
+      const { submittalNum, revNum } = splitNumberAndRevision(updatedMatch[2]);
+      result.submittalNum = submittalNum;
+      result.revNum = revNum;
+      if (updatedMatch[3]) result.title = updatedMatch[3].trim();
+      if (/^\d/.test(result.specSection)) result.discipline = "Architecture";
+      return result;
+    }
+
+    // 3. Standard Procore: Submittal # 033000-001 has been submitted / Subm 081100-02
     const submittalMatch = subject.match(/(?:Submittal|Subm)\s*#?\s*([\w.]+)-([\w.]+)/i);
     if (submittalMatch) {
-      result.specSection = submittalMatch[1];
-      result.revNum = submittalMatch[2];
+      result.specSection = normalizeSpecSection(submittalMatch[1]);
+      const { submittalNum, revNum } = splitNumberAndRevision(submittalMatch[2]);
+      result.submittalNum = submittalNum;
+      result.revNum = revNum;
       if (/^\d/.test(result.specSection)) result.discipline = "Architecture";
     }
 
-    if (/returned/i.test(subject) || /reviewed/i.test(subject)) {
-      result.action = "Reviewed";
-    } else if (/submitted/i.test(subject)) {
-      result.action = typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
-    }
     return result;
   }
 
   static parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
-    const result: Partial<ParsedData> = {};
+    const result: Partial<ParsedData> = {
+      action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
+    };
+
     const projectMatch = subject.match(/^([^-]+)-/);
     if (projectMatch) result.driveName = projectMatch[1].trim();
 
-    const subMatch = subject.match(/(?:Submittal\s*)?#\s*([\w\.\-]+)\s+was/i);
+    // Forma subject pattern matching space-separated CSI sections: #06 20 00-003-00
+    const subMatch = subject.match(/(?:Submittal\s*)?#\s*([\d\s]+)-([\w.]+(?:-[\w.]+)*)/i) ||
+                     subject.match(/(?:Submittal\s*)?#\s*([\w\.\-]+)\s+was/i);
     if (subMatch) {
-      const parts = subMatch[1].split('-');
-      result.specSection = parts[0].trim();
-      if (parts.length > 1) result.revNum = parts.slice(1).join('-').trim();
+      const fullSectionStr = subMatch[1].trim();
+      const numRevStr = subMatch[2] ? subMatch[2].trim() : "";
+      result.specSection = normalizeSpecSection(fullSectionStr);
+      if (numRevStr) {
+        const { submittalNum, revNum } = splitNumberAndRevision(numRevStr);
+        result.submittalNum = submittalNum;
+        result.revNum = revNum;
+      }
       if (/^\d/.test(result.specSection)) result.discipline = "Architecture";
     }
 
-    const actionMatch = subject.match(/was\s+(.+)$/i);
-    if (actionMatch) {
-      const intent = actionMatch[1].toLowerCase().trim();
-      if (intent.includes("provided for your information") || intent.includes("submitted") || intent.includes("forwarded")) {
-        result.action = typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
-      } else {
-        result.action = actionMatch[1].trim();
+    // Body fallback for item title (e.g. "item #06 20 00-003-00 Phase 2 Millwork Samples")
+    if (body) {
+      const cleanBody = body.replace(/=\r?\n/g, '').replace(/<[^>]+>/g, ' ');
+      const bodyTitleMatch = cleanBody.match(/item\s*#\s*[\d\s\-.]+\s+([^<>\r\n]+?)(?:\s+was|\s+provided|\s+submitted|\s+for|\r|\n|$)/i);
+      if (bodyTitleMatch) {
+        result.title = bodyTitleMatch[1].replace(/\s+/g, ' ').trim();
       }
     }
+
+    return result;
+  }
+
+  static parseCmicEmail_(subject: string, body: string): Partial<ParsedData> {
+    const result: Partial<ParsedData> = {
+      action: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received"
+    };
+
+    // Subject Pattern: [Fwd: ]New TRNS | TRN00588 | [Project] P2_062200-030-1_Walnut Wood Refinishing_For App
+    const projectMatch = subject.match(/\[([^\]]+)\]/);
+    if (projectMatch) {
+      let rawProj = projectMatch[1].trim();
+      if (rawProj.includes("-")) {
+        const parts = rawProj.split("-");
+        result.driveName = parts.slice(1).join("-").trim();
+      } else {
+        result.driveName = rawProj;
+      }
+    }
+
+    const cmicSubjMatch = subject.match(/(?:P\d+_)?(\d{6})-(\d+)-(\d+)_([^_]+)/i);
+    if (cmicSubjMatch) {
+      result.specSection = normalizeSpecSection(cmicSubjMatch[1]);
+      result.submittalNum = padSubmittalNumber(cmicSubjMatch[2]);
+      result.revNum = cmicSubjMatch[3];
+      result.title = cmicSubjMatch[4].trim();
+      return result;
+    }
+
+    // Body Fallback: Code/Description: 062200-030 - Walnut Wood Refinishing
+    if (body) {
+      const bodyMatch = body.match(/(?:Code\/Description|Transmittal):\s*(?:P\d+_)?(\d{6})-(\d+)(?:-(\d+))?\s*(?:-|_)\s*([^\r\n]+)/i);
+      if (bodyMatch) {
+        result.specSection = normalizeSpecSection(bodyMatch[1]);
+        result.submittalNum = padSubmittalNumber(bodyMatch[2]);
+        if (bodyMatch[3]) result.revNum = bodyMatch[3];
+        if (bodyMatch[4]) result.title = bodyMatch[4].replace(/_For App.*/i, '').trim();
+      }
+    }
+
     return result;
   }
 
@@ -204,15 +316,22 @@ class EmailIntakeParser {
 
     if (!message) return defaultResult;
 
-    const sender = message.getFrom() || "";
-    const subject = message.getSubject() || "";
-    const body = message.getPlainBody() || "";
+    const sender = message.getFrom ? message.getFrom() : "";
+    const replyTo = message.getReplyTo ? message.getReplyTo() : "";
+    const subject = message.getSubject ? message.getSubject() : "";
+    const body = message.getPlainBody ? message.getPlainBody() : "";
 
-    if (sender.toLowerCase().includes("@mail.forma.autodesk.com")) {
+    const combinedHeaders = (sender + " " + replyTo + " " + subject).toLowerCase();
+
+    if (combinedHeaders.includes("forma") || combinedHeaders.includes("autodesk")) {
       return { ...defaultResult, ...EmailIntakeParser.parseFormaEmail_(subject, body) };
     }
 
-    if (sender.toLowerCase().includes("procore.com") || sender.toLowerCase().includes("procoretech.com") || /procore/i.test(sender)) {
+    if (combinedHeaders.includes("cmic") || combinedHeaders.includes("stobg") || combinedHeaders.includes("trn")) {
+      return { ...defaultResult, ...EmailIntakeParser.parseCmicEmail_(subject, body) };
+    }
+
+    if (combinedHeaders.includes("procore") || combinedHeaders.includes("submittal")) {
       return { ...defaultResult, ...EmailIntakeParser.parseProcoreEmail_(subject, body) };
     }
 

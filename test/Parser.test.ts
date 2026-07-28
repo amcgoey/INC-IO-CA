@@ -93,7 +93,7 @@ test("EmailIntakeParser.parseProcoreEmail_ identifies returned or reviewed submi
   assert.equal(result.specSection, "081100");
   assert.equal(result.revNum, "02");
   assert.equal(result.discipline, "Architecture");
-  assert.equal(result.action, "Reviewed");
+  assert.equal(result.action, "Received");
 });
 
 test("EmailIntakeParser.parseFormaEmail_ extracts project driveName, spec section, revision, and action", () => {
@@ -125,13 +125,13 @@ test("EmailIntakeParser.parseFormaEmail_ handles provided for information and fo
   assert.equal(result2.action, "Received");
 });
 
-test("EmailIntakeParser.parseFormaEmail_ preserves non-default action intents like reviewed", () => {
+test("EmailIntakeParser.parseFormaEmail_ defaults action to Received for incoming email notifications", () => {
   const subject = "Project Epsilon - # 055000-01 was Reviewed";
   const result = EmailIntakeParser.parseFormaEmail_(subject, "");
   assert.equal(result.driveName, "Project Epsilon");
   assert.equal(result.specSection, "055000");
   assert.equal(result.revNum, "01");
-  assert.equal(result.action, "Reviewed");
+  assert.equal(result.action, "Received");
 });
 
 test("EmailIntakeParser.parseEmail handles null or undefined message cleanly", () => {
@@ -347,6 +347,131 @@ test('Main.ts buildAddOn - populates parsedData with Forma submittal notificatio
   assert.equal(card.parsedData.revNum, "01");
   assert.equal(card.parsedData.discipline, "Architecture");
   assert.equal(card.parsedData.action, "Received");
+});
+
+test("EmailIntakeParser parses Email 1 (.eml sample: Procore Distributed) correctly", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/24003-01, 38 East 35th Street_ Submittal Distributed 099100-17.0, PT432 - Public Spaces Limewash Samples.eml");
+  const content = fs.readFileSync(emlPath, "utf-8");
+
+  const subjMatch = content.match(/^Subject:\s*([\s\S]*?)(?=\r?\n[A-Z][A-Za-z0-9-]*:|\r?\n\r?\n)/im);
+  const subject = subjMatch ? subjMatch[1].replace(/\r?\n\s+/g, ' ').trim() : '';
+
+  const msg = {
+    getFrom: () => "Olivia O'Rourke (CM & Associates) <CM__Associates@us02.procoretech.com>",
+    getReplyTo: () => "do-not-reply@procore.com",
+    getSubject: () => subject,
+    getPlainBody: () => content
+  };
+
+  const parsed = EmailIntakeParser.parseEmail(msg as any);
+
+  assert.equal(parsed.specSection, "099100");
+  assert.equal(parsed.submittalNum, "017");
+  assert.equal(parsed.revNum, "0");
+  assert.equal(parsed.title, "PT432 - Public Spaces Limewash Samples");
+  assert.equal(parsed.action, "Received");
+});
+
+test("EmailIntakeParser parses Email 2 (.eml sample: Procore Approver Response Updated) correctly", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Action Required_ 24003-01, 38 East 35th Street_ Approver Erwan Malki Updated their Response for Submittal 084113-11.2, Entrance Canopy Shop Drawing.eml");
+  const content = fs.readFileSync(emlPath, "utf-8");
+
+  const subjMatch = content.match(/^Subject:\s*([\s\S]*?)(?=\r?\n[A-Z][A-Za-z0-9-]*:|\r?\n\r?\n)/im);
+  const subject = subjMatch ? subjMatch[1].replace(/\r?\n\s+/g, ' ').trim() : '';
+
+  const msg = {
+    getFrom: () => "'Erwan Malki (Socotec, Inc)' via 26 E 35 CA <26-e-35-ca@inc.nyc>",
+    getReplyTo: () => "do-not-reply@procore.com",
+    getSubject: () => subject,
+    getPlainBody: () => content
+  };
+
+  const parsed = EmailIntakeParser.parseEmail(msg as any);
+
+  assert.equal(parsed.specSection, "084113");
+  assert.equal(parsed.submittalNum, "011");
+  assert.equal(parsed.revNum, "2");
+  assert.equal(parsed.title, "Entrance Canopy Shop Drawing");
+  assert.equal(parsed.action, "Received");
+});
+
+test("EmailIntakeParser parses Email 3 (.eml sample: Procore Approver Response Updated - Variation) correctly", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Action Required_ 24003-01, 38 East 35th Street_ Approver Olivia O'Rourke Updated their Response for Submittal 102820-1.1, Shower Enclosure Hardware.eml");
+  const content = fs.readFileSync(emlPath, "utf-8");
+
+  const subjMatch = content.match(/^Subject:\s*([\s\S]*?)(?=\r?\n[A-Z][A-Za-z0-9-]*:|\r?\n\r?\n)/im);
+  const subject = subjMatch ? subjMatch[1].replace(/\r?\n\s+/g, ' ').trim() : '';
+
+  const msg = {
+    getFrom: () => "'Olivia O'Rourke (CM & Associates)' via 26 E 35 CA <26-e-35-ca@inc.nyc>",
+    getReplyTo: () => "do-not-reply@procore.com",
+    getSubject: () => subject,
+    getPlainBody: () => content
+  };
+
+  const parsed = EmailIntakeParser.parseEmail(msg as any);
+
+  assert.equal(parsed.specSection, "102820");
+  assert.equal(parsed.submittalNum, "001");
+  assert.equal(parsed.revNum, "1");
+  assert.equal(parsed.title, "Shower Enclosure Hardware");
+  assert.equal(parsed.action, "Received");
+});
+
+test("EmailIntakeParser parses Email 4 (.eml sample: Autodesk Forma) correctly", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Ballston Macy's - Submittal #06 20 00-003-00 was provided for your information (1).eml");
+  const content = fs.readFileSync(emlPath, "utf-8");
+
+  const subjMatch = content.match(/^Subject:\s*([\s\S]*?)(?=\r?\n[A-Z][A-Za-z0-9-]*:|\r?\n\r?\n)/im);
+  const subject = subjMatch ? subjMatch[1].replace(/\r?\n\s+/g, ' ').trim() : '';
+
+  const msg = {
+    getFrom: () => "Autodesk Forma <no-reply@mail.forma.autodesk.com>",
+    getReplyTo: () => "",
+    getSubject: () => subject,
+    getPlainBody: () => content
+  };
+
+  const parsed = EmailIntakeParser.parseEmail(msg as any);
+
+  assert.equal(parsed.specSection, "062000");
+  assert.equal(parsed.submittalNum, "003");
+  assert.equal(parsed.revNum, "00");
+  assert.equal(parsed.title, "Phase 2 Millwork Samples");
+  assert.equal(parsed.action, "Received");
+});
+
+test("EmailIntakeParser parses Email 5 (.eml sample: CMiC Collaborate) correctly", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/New TRNS _ TRN00588 _ [11009106AU - Christie's 20 Rockefeller Plaza Reno-Auction Phase 2] P2_062200-030-1_Walnut Wood Refinishing_For App.eml");
+  const content = fs.readFileSync(emlPath, "utf-8");
+
+  const subjMatch = content.match(/^Subject:\s*([\s\S]*?)(?=\r?\n[A-Z][A-Za-z0-9-]*:|\r?\n\r?\n)/im);
+  const subject = subjMatch ? subjMatch[1].replace(/\r?\n\s+/g, ' ').trim() : '';
+
+  const msg = {
+    getFrom: () => "Neil Shah <nshah@inc.nyc>",
+    getReplyTo: () => "",
+    getSubject: () => subject,
+    getPlainBody: () => content
+  };
+
+  const parsed = EmailIntakeParser.parseEmail(msg as any);
+
+  assert.equal(parsed.specSection, "062200");
+  assert.equal(parsed.submittalNum, "030");
+  assert.equal(parsed.revNum, "1");
+  assert.equal(parsed.title, "Walnut Wood Refinishing");
+  assert.equal(parsed.action, "Received");
 });
 
 test("No duplicate top-level const/let/var declarations exist across src files (GAS global scope protection)", () => {
