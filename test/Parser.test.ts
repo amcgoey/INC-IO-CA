@@ -528,6 +528,41 @@ test("EmailIntakeParser.parseGenericEmail_ parses non-vendor submittal emails co
   assert.equal(parsed5.submittalNum, "017");
 });
 
+test("EmailIntakeParser.parseGenericEmail_ extracts titles via delimiters and filters status noise", () => {
+  const msg1 = {
+    getFrom: () => "sub@builder.com",
+    getSubject: () => "Submittal 099100-17.0, PT432 - Public Spaces Limewash Samples",
+    getPlainBody: () => ""
+  };
+  const parsed1 = EmailIntakeParser.parseEmail(msg1 as any);
+  assert.equal(parsed1.title, "PT432 - Public Spaces Limewash Samples");
+
+  const msg2 = {
+    getFrom: () => "sub@builder.com",
+    getSubject: () => "Transmittal for 062000-003 - Phase 2 Millwork Samples for review",
+    getPlainBody: () => ""
+  };
+  const parsed2 = EmailIntakeParser.parseEmail(msg2 as any);
+  assert.equal(parsed2.title, "Phase 2 Millwork Samples");
+
+  const msg3 = {
+    getFrom: () => "sub@builder.com",
+    getSubject: () => "Submittal 084113-11.2 was submitted for approval",
+    getPlainBody: () => ""
+  };
+  const parsed3 = EmailIntakeParser.parseEmail(msg3 as any);
+  assert.equal(parsed3.title, undefined);
+
+  const msg4 = {
+    getFrom: () => "sub@builder.com",
+    getSubject: () => "Submittal 033000-001 | Structural Concrete Mockup",
+    getPlainBody: () => ""
+  };
+  const parsed4 = EmailIntakeParser.parseEmail(msg4 as any);
+  assert.equal(parsed4.title, "Structural Concrete Mockup");
+});
+
+
 
 
 test("No duplicate top-level const/let/var declarations exist across src files (GAS global scope protection)", () => {

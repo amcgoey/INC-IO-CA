@@ -332,6 +332,26 @@ class EmailIntakeParser {
       if (submittalSectionMatch[3] && !result.revNum) {
         result.revNum = submittalSectionMatch[3];
       }
+
+      // Title Extraction: Check text following the matched section/number for delimiters (, , - , _ , | , : )
+      const matchedFullText = submittalSectionMatch[0];
+      const matchIndex = searchableEmailContent.indexOf(matchedFullText);
+      if (matchIndex !== -1) {
+        const remainingText = searchableEmailContent.substring(matchIndex + matchedFullText.length);
+        const delimiterMatch = remainingText.match(/^\s*(?:[,\-_|:]\s*|\s+-\s+)(.+)/);
+        if (delimiterMatch) {
+          let extractedTitle = delimiterMatch[1].replace(/[\r\n].*/s, '').trim();
+
+          // Filter out status noise phrases
+          extractedTitle = extractedTitle.replace(/\s+(?:was\s+submitted|has\s+been\s+submitted|submitted|for\s+review|for\s+approval|for\s+app|notification|distributed|distribute|provided\s+for\s+your\s+information|for\s+your\s+information|fyi).*/i, '').trim();
+
+          const isPureNoise = /^(?:was\s+submitted|has\s+been\s+submitted|submitted|for\s+review|for\s+approval|for\s+app|notification|distributed|distribute|provided\s+for\s+your\s+information|for\s+your\s+information|fyi)$/i.test(extractedTitle);
+
+          if (extractedTitle && !isPureNoise) {
+            result.title = extractedTitle;
+          }
+        }
+      }
     }
 
     return result;
