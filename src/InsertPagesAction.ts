@@ -1,47 +1,137 @@
+/// <reference path="./types.ts" />
 /**
  * @file InsertPagesAction.ts
  * @description DocumentAction implementation for prepending cover sheet pages onto PDF blobs.
  *
  * Wraps `PdfDocumentService.stampSubmittal()` into a primitive `DocumentAction` handler.
+ * Adheres to execute(context: DocumentActionContext): Promise<DocumentActionContext>.
  */
+
+declare var defaultPdfDocumentService: PdfDocumentService;
 
 /**
  * Primitive workflow action that prepends CoverPageDocument onto a PDF blob
  * by delegating to `PdfDocumentService.stampSubmittal()`.
  */
-class InsertPagesAction implements DocumentAction<InsertPagesInput, GoogleAppsScript.Base.Blob> {
+class InsertPagesAction implements DocumentAction<any, any> {
+  name: string = 'InsertPages';
+
   /**
    * Executes the cover page insertion action.
+   * Performs fail-fast early guard validation on required context fields (`blob`, `coverPageTemplateId`) and `pdfService` adapter.
    *
-   * @param input - InsertPagesInput containing sourceBlob, data, options, and optional pdfDocumentService.
-   * @returns A Promise resolving to the stamped PDF blob, or a fallback copy of sourceBlob if templateId is missing.
+   * @param contextOrInput - DocumentActionContext or legacy InsertPagesInput.
+   * @returns Promise resolving to updated DocumentActionContext (or stamped Blob for legacy input).
    */
-  async execute(input: InsertPagesInput): Promise<GoogleAppsScript.Base.Blob> {
-    const pdfDocumentService =
-      input.pdfDocumentService ||
-      (typeof defaultPdfDocumentService !== "undefined"
-        ? defaultPdfDocumentService
-        : (globalThis as any).defaultPdfDocumentService);
-
-    if (!pdfDocumentService) {
-      throw new Error("PdfDocumentService is required for InsertPagesAction");
+  async execute(contextOrInput: DocumentActionContext | InsertPagesInput): Promise<any> {
+    if (!contextOrInput) {
+      throw new Error("InsertPagesAction requires input context");
     }
 
+    const isDirectInput = !('adapters' in contextOrInput) && 'sourceBlob' in contextOrInput && 'data' in contextOrInput && 'options' in contextOrInput;
+
+    if (isDirectInput) {
+      const input = contextOrInput as InsertPagesInput;
+      const pdfService =
+        input.pdfDocumentService ||
+        (typeof defaultPdfDocumentService !== "undefined"
+          ? defaultPdfDocumentService
+          : (globalThis as any).defaultPdfDocumentService);
+
+      if (!pdfService) {
+        throw new Error("PdfDocumentService is required for InsertPagesAction");
+      }
+
+      try {
+        return await pdfService.stampSubmittal(input.sourceBlob, input.data, input.options);
+      } catch (err: any) {
+        if (err && err.message === "TEMPLATE_MISSING") {
+          return input.sourceBlob.copyBlob();
+        }
+        throw err;
+      }
+    }
+
+    // DocumentActionContext execution mode
+    const context = contextOrInput as DocumentActionContext;
+    const blob = context.blob || context.sourceBlob;
+    if (!blob) {
+      throw new Error("InsertPagesAction requires 'blob' in context");
+    }
+
+    const coverPageTemplateId =
+      context.coverPageTemplateId ||
+      context.config?.coverPageTemplateId ||
+      context.options?.templateId;
+
+    if (!coverPageTemplateId) {
+      throw new Error("InsertPagesAction requires 'coverPageTemplateId' in context or config");
+    }
+
+    const pdfService =
+      context.adapters?.pdfService ||
+      context.adapters?.pdfDocumentService ||
+      context.pdfService ||
+      context.pdfDocumentService ||
+      (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : null);
+
+    if (!pdfService) {
+      throw new Error("InsertPagesAction requires 'pdfService' adapter in context.adapters");
+    }
+
+    const data: ParsedData = context.data || (context.validatedDoc ? {
+      title: context.validatedDoc.disciplineDetails?.discipline === 'Architecture' ? context.validatedDoc.disciplineDetails.title : context.validatedDoc.disciplineDetails.specTitle,
+      action: context.validatedDoc.action,
+      section: context.validatedDoc.disciplineDetails?.discipline === 'Architecture' ? context.validatedDoc.disciplineDetails.section : undefined,
+      number: context.validatedDoc.disciplineDetails?.discipline === 'Architecture' ? context.validatedDoc.disciplineDetails.number : undefined,
+      revision: context.validatedDoc.disciplineDetails?.revision
+    } : (context.analysis ? {
+      title: context.analysis.predictedTitle,
+      action: context.analysis.predictedAction,
+      section: context.analysis.predictedSection,
+      number: context.analysis.predictedNumber,
+      revision: context.analysis.predictedRevision
+    } : {}));
+
+    const stampOptions: StampOptions = context.options || {
+      newFileName: context.newFileName || "Stamped_Submittal",
+      stampSubmittalNo: context.stampSubmittalNo || `${data.section || '000000'}-${data.number || '000'}-${data.revision || '0'}`,
+      templateId: coverPageTemplateId
+    };
+
+    let stampedBlob: GoogleAppsScript.Base.Blob;
     try {
-      return await pdfDocumentService.stampSubmittal(input.sourceBlob, input.data, input.options);
+      stampedBlob = await pdfService.stampSubmittal(blob, data, stampOptions);
     } catch (err: any) {
       if (err && err.message === "TEMPLATE_MISSING") {
-        return input.sourceBlob.copyBlob();
+        stampedBlob = blob.copyBlob ? blob.copyBlob() : blob;
+      } else {
+        throw err;
       }
-      throw err;
     }
+
+    return {
+      ...context,
+      blob: stampedBlob
+    };
   }
+}
+
+/** Global default instance seam for InsertPagesAction. */
+var defaultInsertPagesAction: InsertPagesAction = new InsertPagesAction();
+
+if (typeof (globalThis as any).defaultInsertPagesAction === "undefined") {
+  (globalThis as any).defaultInsertPagesAction = defaultInsertPagesAction;
 }
 
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    InsertPagesAction
+    InsertPagesAction,
+    defaultInsertPagesAction
   };
 }
+
+(globalThis as any).InsertPagesAction = InsertPagesAction;
+(globalThis as any).defaultInsertPagesAction = defaultInsertPagesAction;

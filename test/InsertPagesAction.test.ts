@@ -3,9 +3,10 @@ import assert from "node:assert";
 
 const { InsertPagesAction } = require("../src/InsertPagesAction");
 const {
- GoogleAppsScriptPdfDocumentService
+  GoogleAppsScriptPdfDocumentService
 } = require("../src/PdfDocumentService");
 const { FakePdfDocumentService } = require("./harness/index");
+const { createTestContext } = require("../src/WorkflowContextFactory");
 
 test("InsertPagesAction delegates to pdfDocumentService.stampSubmittal and returns stamped blob", async () => {
   const fakePdfService = new FakePdfDocumentService();
@@ -42,6 +43,62 @@ test("InsertPagesAction delegates to pdfDocumentService.stampSubmittal and retur
     stampSubmittalNo: "001-0",
     templateId: "tmpl-123"
   });
+});
+
+test("InsertPagesAction fail-fast guard throws when blob is missing in context", async () => {
+  const fakePdfService = new FakePdfDocumentService();
+  const context = createTestContext(undefined, { pdfDocumentService: fakePdfService }, { blob: undefined, coverPageTemplateId: "tmpl-123" });
+  const action = new InsertPagesAction();
+
+  await assert.rejects(async () => {
+    await action.execute(context);
+  }, /InsertPagesAction requires 'blob' in context/);
+});
+
+test("InsertPagesAction fail-fast guard throws when coverPageTemplateId is missing", async () => {
+  const fakePdfService = new FakePdfDocumentService();
+  const sourceBlob = { getName: () => "input.pdf" } as any;
+  const context = createTestContext(undefined, { pdfDocumentService: fakePdfService }, { blob: sourceBlob, coverPageTemplateId: undefined });
+  if (context.config) context.config.coverPageTemplateId = undefined;
+  const action = new InsertPagesAction();
+
+  await assert.rejects(async () => {
+    await action.execute(context);
+  }, /InsertPagesAction requires 'coverPageTemplateId' in context or config/);
+});
+
+test("InsertPagesAction fail-fast guard throws when pdfService adapter is missing", async () => {
+  const sourceBlob = { getName: () => "input.pdf" } as any;
+  const context = {
+    blob: sourceBlob,
+    coverPageTemplateId: "tmpl-123",
+    adapters: {}
+  } as any;
+  const action = new InsertPagesAction();
+
+  await assert.rejects(async () => {
+    await action.execute(context);
+  }, /InsertPagesAction requires 'pdfService' adapter in context.adapters/);
+});
+
+test("InsertPagesAction context pipeline execution stamps PDF and updates context blob", async () => {
+  const fakePdfService = new FakePdfDocumentService();
+  const sourceBlob = { getName: () => "input.pdf", copyBlob: () => sourceBlob } as any;
+  const stampedBlob = { getName: () => "stamped_cover.pdf" } as any;
+  fakePdfService.setStampResultBlob(stampedBlob);
+
+  const context = createTestContext(undefined, { pdfDocumentService: fakePdfService }, {
+    blob: sourceBlob,
+    coverPageTemplateId: "tmpl-555",
+    analysis: { predictedTitle: "Sample Submittal Title", predictedSection: "033000" }
+  });
+
+  const action = new InsertPagesAction();
+  const updatedContext = await action.execute(context);
+
+  assert.strictEqual(updatedContext.blob, stampedBlob);
+  assert.strictEqual(fakePdfService.stampCalls.length, 1);
+  assert.strictEqual(fakePdfService.stampCalls[0].options.templateId, "tmpl-555");
 });
 
 test("InsertPagesAction with GoogleAppsScriptPdfDocumentService prepends cover page and applies metadata", async () => {
