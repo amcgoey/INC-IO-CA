@@ -62,7 +62,8 @@ The application workflow service that orchestrates file retrieval, PDF stamping,
 _Avoid_: ProcessManager, SubmittalWorkflowModule, WorkflowHelper
 
 **DocumentAction**:
-A primitive, reusable transformation or operation (e.g., `MoveDocument`, `RenameDocument`, `InsertPages`, `ExtractPages`, `WriteLog`, `AnalyzeDocument`, `TriageDocument`) applied to a document during workflow execution.
+The abstract, reusable workflow step interface (`execute(context: DocumentActionContext<TDoc>): Promise<DocumentActionContext<TDoc>>`) representing a primitive transformation or operation (e.g., `MoveDocument`, `RenameDocument`, `InsertPages`, `ExtractPages`, `WriteLog`, `AnalyzeDocument`, `TriageDocument`) executed by `WorkflowRunner`.
+_Avoid_: ActionStep, PipelineTask
 
 **DocumentTypeConfig**:
 Pure, serializable configuration schema encapsulating document-type specific search criteria (root folder and log search terms), closed subfolder maps, cover page template references, filename prefixes, and string adapter selection keys for lazy adapter resolution.
@@ -70,8 +71,20 @@ Pure, serializable configuration schema encapsulating document-type specific sea
 **DocumentTypeConfigRegistry**:
 The application registry that manages, registers, and resolves `DocumentTypeConfig` instances by document type name at runtime.
 
+**WorkflowContextFactory**:
+The application factory that ingests `DocumentTypeConfig`, `AppContext`, document payloads, and optional overrides to construct a `DocumentActionContext` equipped with lazy adapter getter properties.
+_Avoid_: ContextBuilder, ActionContextFactory
+
+**DocumentActionContext**:
+The polymorphic, strongly-typed execution context passed through `DocumentAction` execution steps, containing target document data, configuration, execution state, and lazy adapter instances.
+_Avoid_: ActionPayload, PipelineContext
+
 **WorkflowRunner**:
 The pipeline engine that executes a step-by-step sequence of `DocumentAction` instances for a target `DocumentType` and `AppContext`.
+
+**WorkflowActionRouter**:
+The central application router that resolves ordered step sequences of `DocumentAction` instances for a target document type and workflow direction.
+_Avoid_: ActionResolver, StepMapper
 
 **WorkflowActionPolicy**:
 Encapsulates action-specific execution policies (such as direction, filing subfolder handling, PDF stamping rules, and previous row status updates) to keep document workflow execution generic and extensible.
