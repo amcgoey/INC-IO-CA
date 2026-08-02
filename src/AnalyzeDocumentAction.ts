@@ -1,102 +1,81 @@
+/// <reference path="./types.ts" />
 /**
  * @file AnalyzeDocumentAction.ts
  * @description DocumentAction implementation for AI multimodal submittal document analysis (AnalyzeDocumentAction).
  *
- * Slices up to 3 pages from the target PDF document blob via `ExtractPagesAction` and invokes `AiAnalysisService.analyzeSubmittal`
- * to extract candidate submittal form fields.
+ * Slices up to 3 pages from the target PDF document blob via ExtractPagesAction and invokes AiAnalysisService.analyzeSubmittal
+ * to extract candidate submittal form fields. Adheres to execute(context: DocumentActionContext): Promise<DocumentActionContext>.
  */
 
-declare var require: any;
-
-function resolveAiAnalysisServiceHelper(): AiAnalysisService {
-  if (typeof defaultAiAnalysisService !== "undefined" && defaultAiAnalysisService) {
-    return defaultAiAnalysisService;
-  }
-  if ((globalThis as any).defaultAiAnalysisService) {
-    return (globalThis as any).defaultAiAnalysisService;
-  }
-  try {
-    return require("./AiAnalysisService").defaultAiAnalysisService;
-  } catch (e) {
-    throw new Error("AiAnalysisService is not available");
-  }
-}
-
-function resolveExtractPagesActionHelper(): ExtractPagesAction | null {
-  if (typeof defaultExtractPagesAction !== "undefined" && defaultExtractPagesAction) {
-    return defaultExtractPagesAction;
-  }
-  if ((globalThis as any).defaultExtractPagesAction) {
-    return (globalThis as any).defaultExtractPagesAction;
-  }
-  try {
-    return require("./ExtractPagesAction").defaultExtractPagesAction;
-  } catch (e) {
-    return null;
-  }
-}
+declare var defaultAiAnalysisService: AiAnalysisService;
+declare var defaultExtractPagesAction: ExtractPagesAction;
 
 /**
  * Primitive workflow action that executes AI submittal document analysis.
  */
-class AnalyzeDocumentAction implements DocumentAction<AnalyzeDocumentInput, DeepAnalysisResult> {
-  private aiAnalysisService?: AiAnalysisService;
+class AnalyzeDocumentAction implements DocumentAction<DocumentActionContext> {
+  name: string = "AnalyzeDocument";
   private extractPagesAction?: ExtractPagesAction;
 
-  /**
-   * Constructs an `AnalyzeDocumentAction` instance.
-   *
-   * @param options - Injection options for `aiAnalysisService` and `extractPagesAction`.
-   */
-  constructor(options?: { aiAnalysisService?: AiAnalysisService; extractPagesAction?: ExtractPagesAction }) {
-    if (options && options.aiAnalysisService) {
-      this.aiAnalysisService = options.aiAnalysisService;
-    }
-    if (options && options.extractPagesAction) {
+  constructor(options?: { extractPagesAction?: ExtractPagesAction }) {
+    if (options?.extractPagesAction) {
       this.extractPagesAction = options.extractPagesAction;
     }
   }
 
-  private getAiAnalysisService(): AiAnalysisService {
-    if (this.aiAnalysisService) return this.aiAnalysisService;
-    return resolveAiAnalysisServiceHelper();
-  }
-
-  private getExtractPagesAction(): ExtractPagesAction | null {
-    if (this.extractPagesAction) return this.extractPagesAction;
-    return resolveExtractPagesActionHelper();
-  }
-
   /**
-   * Executes AI submittal analysis on the source PDF blob.
-   * Slices the first 3 pages of the PDF blob before submitting to AI analysis.
+   * Executes AI submittal analysis on the target document context.
+   * Performs fail-fast early guard validation for required context fields and adapters.
    *
-   * @param input - `AnalyzeDocumentInput` containing `sourceBlob`, optional `emailText`, and `contextObj`.
-   * @returns A Promise resolving to `DeepAnalysisResult`.
+   * @param context - Target DocumentActionContext.
+   * @returns Promise resolving to updated DocumentActionContext containing analysis results.
    */
-  async execute(input: AnalyzeDocumentInput): Promise<DeepAnalysisResult> {
-    if (!input || !input.sourceBlob) {
-      throw new Error("INVALID_ANALYZE_INPUT: Missing sourceBlob in AnalyzeDocumentAction input");
+  async execute(context: DocumentActionContext): Promise<DocumentActionContext> {
+    if (!context) {
+      throw new Error("AnalyzeDocumentAction requires context");
     }
 
-    const emailText = input.emailText || "";
-    const contextObj = input.contextObj || { contacts: [], actions: [] };
+    const blob = context.blob || (context as any).sourceBlob;
+    if (!blob) {
+      throw new Error("AnalyzeDocumentAction requires 'blob' in context");
+    }
 
-    let targetBlob = input.sourceBlob;
-    const extractAction = input.extractPagesAction || this.getExtractPagesAction();
+    const aiService =
+      context.adapters?.aiService ||
+      context.adapters?.aiAnalysisService ||
+      context.aiService ||
+      context.aiAnalysisService ||
+      (typeof defaultAiAnalysisService !== "undefined" ? defaultAiAnalysisService : (globalThis as any).defaultAiAnalysisService);
+
+    if (!aiService) {
+      throw new Error("AnalyzeDocumentAction requires 'aiService' adapter in context.adapters");
+    }
+
+    const emailText = context.emailText || (context.emailData ? context.emailData.body : "");
+    const contextObj = context.contextObj || { contacts: [], actions: [] };
+
+    let targetBlob = blob;
+    const extractAction =
+      this.extractPagesAction ||
+      (typeof defaultExtractPagesAction !== "undefined" ? defaultExtractPagesAction : (globalThis as any).defaultExtractPagesAction);
+
     if (extractAction) {
       try {
-        const sliceResult = await extractAction.execute({ sourceBlob: input.sourceBlob, maxPages: 3 });
-        if (sliceResult && sliceResult.blob) {
+        const sliceResult = await extractAction.execute({ sourceBlob: blob, maxPages: 3 });
+        if (sliceResult?.blob) {
           targetBlob = sliceResult.blob;
         }
-      } catch (e) {
-        // Fall back to sourceBlob if slicing fails
-      }
+      } catch (e) {}
     }
 
-    const aiService = input.aiAnalysisService || this.getAiAnalysisService();
-    return await aiService.analyzeSubmittal(targetBlob, emailText, contextObj);
+    const analysisResult = await aiService.analyzeSubmittal(targetBlob, emailText, contextObj);
+    const analysis = analysisResult?.success ? analysisResult.analysis : undefined;
+
+    return {
+      ...context,
+      analysisResult,
+      analysis
+    };
   }
 }
 
@@ -111,8 +90,7 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     AnalyzeDocumentAction,
-    defaultAnalyzeDocumentAction,
-    resolveAiAnalysisServiceHelper
+    defaultAnalyzeDocumentAction
   };
 }
 

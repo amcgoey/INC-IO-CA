@@ -1,50 +1,73 @@
+/// <reference path="./types.ts" />
 /**
  * @file ReadLogAction.ts
  * @description DocumentAction implementation for reading validated document log entries and status transitions using abstract IdentityData.
  *
- * Wraps LogRepository.readLog() into a primitive DocumentAction handler operating strictly on IdentityData.
+ * Operates on DocumentActionContext and wraps LogRepository.readLog() into a primitive DocumentAction handler.
  */
 
-class ReadLogAction implements DocumentAction<ReadLogInput, ReadLogResult> {
+class ReadLogAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
+  name: string = 'ReadLog';
+
   /**
    * Executes the read log action.
    *
-   * @param input - ReadLogInput containing spreadsheetId, identityData or document & strategy, optional options, and logRepository.
-   * @returns A Promise resolving to ReadLogResult.
+   * @param context - Action context containing validatedDoc, logRepository adapter, and optional log options.
+   * @returns A Promise resolving to updated DocumentActionContext.
    */
-  async execute(input: ReadLogInput): Promise<ReadLogResult> {
+  async execute(context: DocumentActionContext): Promise<DocumentActionContext> {
     const logRepository =
-      input.logRepository ||
-      (typeof defaultLogRepository !== 'undefined'
-        ? defaultLogRepository
-        : (globalThis as any).defaultLogRepository);
+      context.adapters?.logRepository ||
+      context.logRepository;
 
     if (!logRepository) {
-      throw new Error('LogRepository is required for ReadLogAction');
+      throw new Error('ReadLogAction requires logRepository adapter');
     }
 
-    const identityData: IdentityData =
-      input.identityData ||
-      (input.strategy && input.document
-        ? input.strategy.getIdentityData(input.document)
-        : (undefined as any));
+    const doc = context.validatedDoc || context.document;
+    if (!doc && !context.identityData) {
+      throw new Error('ReadLogAction requires validatedDoc in context');
+    }
+
+    const getStrategyFn = (globalThis as any).getDocumentLogStrategy || (typeof (globalThis as any).getDocumentLogStrategy !== 'undefined' ? (globalThis as any).getDocumentLogStrategy : undefined);
+
+    const strategy: DocumentLogStrategy | undefined =
+      context.strategy ||
+      (doc && getStrategyFn ? getStrategyFn(doc) : undefined);
+
+    const identityData: IdentityData | undefined =
+      context.identityData ||
+      (strategy && doc ? strategy.getIdentityData(doc) : undefined);
 
     if (!identityData) {
       throw new Error('IdentityData or document & strategy is required for ReadLogAction');
     }
 
+    const spreadsheetId = context.spreadsheetId || context.logFileId || '';
+
     const readOptions: ReadLogOptions = {
-      sheetName: input.sheetName,
-      updatePreviousStatus: input.updatePreviousStatus,
-      previousRowStatus: input.previousRowStatus
+      sheetName: context.config?.logSheetName || context.sheetName,
+      updatePreviousStatus: context.updatePreviousStatus,
+      previousRowStatus: context.previousRowStatus
     };
 
-    return logRepository.readLog(
-      input.spreadsheetId,
+    const readLogResult = await logRepository.readLog(
+      spreadsheetId,
       identityData,
-      input.strategy,
+      strategy,
       readOptions
     );
+
+    return {
+      ...context,
+      found: readLogResult.found,
+      rowIndex: readLogResult.rowIndex,
+      contactHistory: readLogResult.contactHistory,
+      previousStatus: readLogResult.previousStatus,
+      identityData: readLogResult.identityData,
+      previousRowUpdated: readLogResult.previousRowUpdated,
+      readLogResult
+    };
   }
 }
 
@@ -55,3 +78,5 @@ if (typeof module !== 'undefined' && module.exports) {
     ReadLogAction
   };
 }
+
+(globalThis as any).ReadLogAction = ReadLogAction;
