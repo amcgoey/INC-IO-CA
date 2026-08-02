@@ -65,7 +65,10 @@ _Avoid_: ProcessManager, SubmittalWorkflowModule, WorkflowHelper
 A primitive, reusable transformation or operation (e.g., `MoveDocument`, `RenameDocument`, `InsertPages`, `ExtractPages`, `WriteLog`, `AnalyzeDocument`, `TriageDocument`) applied to a document during workflow execution.
 
 **DocumentTypeConfig**:
-Configuration object encapsulating document-type specific parameters (such as root folder names, closed subfolder rules, cover page templates, and filename prefixes) required by workflow actions.
+Pure, serializable configuration schema encapsulating document-type specific search criteria (root folder and log search terms), closed subfolder maps, cover page template references, filename prefixes, and string adapter selection keys for lazy adapter resolution.
+
+**DocumentTypeConfigRegistry**:
+The application registry that manages, registers, and resolves `DocumentTypeConfig` instances by document type name at runtime.
 
 **WorkflowRunner**:
 The pipeline engine that executes a step-by-step sequence of `DocumentAction` instances for a target `DocumentType` and `AppContext`.

@@ -624,14 +624,21 @@ interface DocumentWorkflowResult {
 
 
 
-/** Configuration schema encapsulating document-type specific rules and settings. */
+/** Configuration schema encapsulating document-type specific rules, search criteria, and adapter selection keys. */
 interface DocumentTypeConfig {
-  documentType: string;
-  rootFolderName?: string;
-  closedSubfolderRules?: (doc: ValidatedDocument) => string[];
+  documentType: 'Submittal' | 'RFI' | string;
+  rootFolderSearchTerms: string[];
+  closedRootFolderName: string;
+  closedSubfolderMap?: Record<string, string>;
+  filenamePrefix: string;
   coverPageTemplateId?: string;
-  filenamePrefix?: string;
-  logIdentity?: string;
+  logSearchTerms: string[];
+  logSheetName: string;
+  logParentFolderTerms?: string[];
+  logAdapterKey: string;
+  filingAdapterKey: string;
+  pdfAdapterKey?: string;
+  aiAdapterKey?: string;
 }
 
 /** Execution context passed through action pipeline steps. */
