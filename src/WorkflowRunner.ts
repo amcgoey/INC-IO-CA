@@ -4,7 +4,16 @@
  * @description Action pipeline engine and primitive document actions (MoveDocumentAction & RenameDocumentAction).
  */
 
-declare var defaultDriveFilingRepository: DriveFilingRepository;
+declare var require: any;
+
+if (typeof require !== 'undefined') {
+  try {
+    const _mda = eval("require(\"./MoveDocumentAction\")");
+    if (_mda && _mda.MoveDocumentAction && typeof (globalThis as any).MoveDocumentAction === 'undefined') {
+      (globalThis as any).MoveDocumentAction = _mda.MoveDocumentAction;
+    }
+  } catch (e) {}
+}
 
 /**
  * Pipeline engine executing an ordered sequence of DocumentAction instances.
@@ -60,64 +69,16 @@ class WorkflowRunner {
   }
 }
 
-function resolveSubfolderPath(context: DocumentActionContext): string[] | undefined {
-  if (context.subfolderPath) return context.subfolderPath;
-  if (context.config && context.config.closedSubfolderMap && context.validatedDoc) {
-    const disc = context.validatedDoc.disciplineDetails?.discipline;
-    const mapped = disc ? context.config.closedSubfolderMap[disc] : undefined;
-    return mapped ? [mapped] : undefined;
-  }
-  return undefined;
-}
-
-/**
- * Primitive action that files/moves a document into a Google Drive folder/subfolder hierarchy.
- * Decoupled from file renaming.
- */
-class MoveDocumentAction implements DocumentAction {
-  name: string = "MoveDocument";
-
-  /**
-   * Executes file movement using DriveFilingRepository.
-   *
-   * @param context - Action context containing fileId/blob, targetFolderId, subfolderPath, and options.
-   * @returns Updated context with fileId, url, localPath, and folderId.
-   */
-  async execute(context: DocumentActionContext): Promise<DocumentActionContext> {
-    const repo = context.driveFilingRepository || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
-    if (!repo) {
-      throw new Error("DriveFilingRepository not provided in context and defaultDriveFilingRepository unavailable");
-    }
-
-    const result = repo.fileDocument(
-      { fileId: context.fileId, blob: context.blob },
-      {
-        targetFolderId: context.targetFolderId || "",
-        subfolderPath: resolveSubfolderPath(context),
-        newFileName: context.newFileName
-      }
-    );
-
-    return {
-      ...context,
-      fileId: result.fileId,
-      url: result.url,
-      localPath: result.localPath,
-      folderId: result.folderId
-    };
-  }
-}
-
 /**
  * Primitive action that renames a document in Google Drive.
  */
-class RenameDocumentAction implements DocumentAction {
-  name: string = "RenameDocument";
+class RenameDocumentAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
+  name: string = 'RenameDocument';
 
   /**
    * Executes file renaming using explicit target name.
    *
-   * @param context - Action context containing fileId, newFileName, and optional driveApp reference.
+   * @param context - Action context containing fileId, newFileName, and options.
    * @returns Updated context with newFileName.
    */
   async execute(context: DocumentActionContext): Promise<DocumentActionContext> {
@@ -126,15 +87,14 @@ class RenameDocumentAction implements DocumentAction {
     }
 
     const finalName = context.newFileName;
-
-    const driveApp = context.driveApp || (typeof DriveApp !== "undefined" ? DriveApp : null);
+    const driveApp = context.driveApp || (typeof DriveApp !== 'undefined' ? DriveApp : null);
 
     if (context.fileId && driveApp) {
       const file = driveApp.getFileById(context.fileId);
-      if (file && typeof file.setName === "function") {
+      if (file && typeof file.setName === 'function') {
         file.setName(finalName);
       }
-    } else if (context.blob && typeof context.blob.setName === "function") {
+    } else if (context.blob && typeof context.blob.setName === 'function') {
       context.blob.setName(finalName);
     }
 
@@ -147,14 +107,13 @@ class RenameDocumentAction implements DocumentAction {
 
 declare var module: any;
 
-if (typeof module !== "undefined" && module.exports) {
+if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     WorkflowRunner,
-    MoveDocumentAction,
-    RenameDocumentAction
+    RenameDocumentAction,
+    MoveDocumentAction: (globalThis as any).MoveDocumentAction
   };
 }
 
 (globalThis as any).WorkflowRunner = WorkflowRunner;
-(globalThis as any).MoveDocumentAction = MoveDocumentAction;
 (globalThis as any).RenameDocumentAction = RenameDocumentAction;
