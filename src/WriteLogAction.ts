@@ -30,9 +30,10 @@ class WriteLogAction<TDoc extends ValidatedDocument = ValidatedDocument>
       throw new Error('WriteLogAction requires validatedDoc in context');
     }
 
+    const getStrategyFn = (globalThis as any).getDocumentLogStrategy || (typeof getDocumentLogStrategy !== 'undefined' ? getDocumentLogStrategy : undefined);
     const strategy: DocumentLogStrategy | undefined =
       context.strategy ||
-      (typeof getDocumentLogStrategy !== 'undefined' ? getDocumentLogStrategy(doc) : undefined);
+      (getStrategyFn ? getStrategyFn(doc) : undefined);
 
     if (!strategy) {
       throw new Error('WriteLogAction requires strategy or getDocumentLogStrategy helper');

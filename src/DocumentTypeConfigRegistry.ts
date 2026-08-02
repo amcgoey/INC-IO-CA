@@ -1,4 +1,4 @@
-﻿/// <reference path="./types.ts" />
+/// <reference path="./types.ts" />
 /**
  * @file DocumentTypeConfigRegistry.ts
  * @description Central application registry managing DocumentTypeConfig instances by document type name.
@@ -24,7 +24,7 @@ const DEFAULT_SUBMITTAL_CONFIG: DocumentTypeConfig = {
   aiAdapterKey: 'GeminiAiAnalysisAdapter'
 };
 
-export class DocumentTypeConfigRegistry {
+class DocumentTypeConfigRegistry {
   private configs: Map<string, DocumentTypeConfig>;
 
   constructor() {
@@ -69,7 +69,7 @@ export class DocumentTypeConfigRegistry {
   }
 }
 
-export const defaultDocumentTypeConfigRegistry = new DocumentTypeConfigRegistry();
+const defaultDocumentTypeConfigRegistry = new DocumentTypeConfigRegistry();
 
 declare var module: any;
 if (typeof module !== 'undefined' && module.exports) {
@@ -78,3 +78,6 @@ if (typeof module !== 'undefined' && module.exports) {
     defaultDocumentTypeConfigRegistry
   };
 }
+
+(globalThis as any).DocumentTypeConfigRegistry = DocumentTypeConfigRegistry;
+(globalThis as any).defaultDocumentTypeConfigRegistry = defaultDocumentTypeConfigRegistry;

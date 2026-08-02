@@ -27,10 +27,10 @@ class WorkflowRunner {
    * @param initialContext - Starting DocumentActionContext.
    * @returns Resolves to final updated DocumentActionContext.
    */
-  static async run<TDoc extends ValidatedDocument = ValidatedDocument>(
+  static async run(
     actions: DocumentAction[],
-    initialContext: DocumentActionContext<TDoc>
-  ): Promise<DocumentActionContext<TDoc>> {
+    initialContext: DocumentActionContext
+  ): Promise<DocumentActionContext> {
     let context = { ...initialContext };
     for (const action of actions) {
       try {

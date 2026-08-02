@@ -1,10 +1,8 @@
-﻿/// <reference path="./types.ts" />
+/// <reference path="./types.ts" />
 /**
  * @file WorkflowContextFactory.ts
  * @description Factory for creating DocumentActionContext instances with lazy adapter ES5 property getters.
  */
-
-import { defaultDocumentTypeConfigRegistry } from './DocumentTypeConfigRegistry';
 
 declare var require: any;
 let FakeLogRepoClass: any;
@@ -27,13 +25,13 @@ if (typeof require !== 'undefined') {
   } catch (e) {}
 }
 
-export type AdapterMap = ContextAdapters;
+type AdapterMap = ContextAdapters;
 
-export interface WorkflowContextOptions extends Partial<DocumentActionContext> {
+interface WorkflowContextOptions extends Partial<DocumentActionContext> {
   adapters?: AdapterMap;
 }
 
-export class WorkflowContextFactory {
+class WorkflowContextFactory {
   /**
    * Defines lazy ES5 getters on context.adapters and top-level context aliases.
    */
@@ -60,7 +58,7 @@ export class WorkflowContextFactory {
 
       Object.defineProperty(context, key, {
         get: () => (adaptersObj as any)[key],
-        enumerable: true,
+        enumerable: false,
         configurable: true
       });
     }
@@ -77,7 +75,8 @@ export class WorkflowContextFactory {
     overrides: Partial<AdapterMap> = {},
     options: WorkflowContextOptions = {}
   ): DocumentActionContext {
-    const resolvedConfig = config || defaultDocumentTypeConfigRegistry.getConfig('Submittal');
+    const registry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== 'undefined' ? defaultDocumentTypeConfigRegistry : undefined);
+    const resolvedConfig = config || (registry ? registry.getConfig('Submittal') : undefined);
     const combinedOverrides = { ...options.adapters, ...overrides };
 
     const context: DocumentActionContext = {
@@ -91,14 +90,14 @@ export class WorkflowContextFactory {
       logRepository: () => {
         if (combinedOverrides.logRepository !== undefined) return combinedOverrides.logRepository;
         if (typeof defaultLogRepository !== 'undefined') return defaultLogRepository;
-        const adapterKey = resolvedConfig.logAdapterKey || 'GoogleSheetsLogRepository';
+        const adapterKey = resolvedConfig?.logAdapterKey || 'GoogleSheetsLogRepository';
         if (g[adapterKey]) return new g[adapterKey]();
         return null;
       },
       driveFilingRepository: () => {
         if (combinedOverrides.driveFilingRepository !== undefined) return combinedOverrides.driveFilingRepository;
         if (typeof defaultDriveFilingRepository !== 'undefined') return defaultDriveFilingRepository;
-        const adapterKey = resolvedConfig.filingAdapterKey || 'GoogleDriveFilingRepository';
+        const adapterKey = resolvedConfig?.filingAdapterKey || 'GoogleDriveFilingRepository';
         if (g[adapterKey]) return new g[adapterKey]();
         return null;
       },
@@ -106,7 +105,7 @@ export class WorkflowContextFactory {
       pdfDocumentService: () => {
         if (combinedOverrides.pdfDocumentService !== undefined) return combinedOverrides.pdfDocumentService;
         if (typeof defaultPdfDocumentService !== 'undefined') return defaultPdfDocumentService;
-        const adapterKey = resolvedConfig.pdfAdapterKey || 'PdfDocumentService';
+        const adapterKey = resolvedConfig?.pdfAdapterKey || 'PdfDocumentService';
         if (g[adapterKey]) return new g[adapterKey]();
         return null;
       },
@@ -114,7 +113,7 @@ export class WorkflowContextFactory {
       aiAnalysisService: () => {
         if (combinedOverrides.aiAnalysisService !== undefined) return combinedOverrides.aiAnalysisService;
         if (typeof defaultAiAnalysisService !== 'undefined') return defaultAiAnalysisService;
-        const adapterKey = resolvedConfig.aiAdapterKey || 'GeminiAiAnalysisAdapter';
+        const adapterKey = resolvedConfig?.aiAdapterKey || 'GeminiAiAnalysisAdapter';
         if (g[adapterKey]) return new g[adapterKey]();
         return null;
       },
@@ -133,7 +132,8 @@ export class WorkflowContextFactory {
     overrides: Partial<AdapterMap> = {},
     options: WorkflowContextOptions = {}
   ): DocumentActionContext {
-    const resolvedConfig = config || defaultDocumentTypeConfigRegistry.getConfig('Submittal');
+    const registry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== 'undefined' ? defaultDocumentTypeConfigRegistry : undefined);
+    const resolvedConfig = config || (registry ? registry.getConfig('Submittal') : undefined);
     const combinedOverrides = { ...options.adapters, ...overrides };
 
     const context: DocumentActionContext = {
@@ -175,7 +175,7 @@ export class WorkflowContextFactory {
   }
 }
 
-export function createTestContext(
+function createTestContext(
   config?: DocumentTypeConfig,
   overrides?: Partial<AdapterMap>,
   options?: WorkflowContextOptions
@@ -190,3 +190,6 @@ if (typeof module !== 'undefined' && module.exports) {
     createTestContext
   };
 }
+
+(globalThis as any).WorkflowContextFactory = WorkflowContextFactory;
+(globalThis as any).createTestContext = createTestContext;
