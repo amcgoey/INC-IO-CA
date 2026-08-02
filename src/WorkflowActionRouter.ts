@@ -1,13 +1,15 @@
 /// <reference path="./types.ts" />
 /**
  * @file WorkflowActionRouter.ts
- * @description Registry and routing module for retrieving ordered sequences of DocumentAction handlers.
+ * @description Central application router resolving ordered sequences of DocumentAction instances for document types and workflow directions.
  */
 
 declare var require: any;
 
 let _ReadLogActionClass: any = null;
 let _MoveDocumentActionClass: any = null;
+let _AnalyzeDocumentActionClass: any = null;
+let _InsertPagesActionClass: any = null;
 
 if (typeof require !== 'undefined') {
   try {
@@ -17,6 +19,14 @@ if (typeof require !== 'undefined') {
   try {
     const _mda = eval("require(\"./MoveDocumentAction\")");
     if (_mda && _mda.MoveDocumentAction) _MoveDocumentActionClass = _mda.MoveDocumentAction;
+  } catch (e) {}
+  try {
+    const _ada = eval("require(\"./AnalyzeDocumentAction\")");
+    if (_ada && _ada.AnalyzeDocumentAction) _AnalyzeDocumentActionClass = _ada.AnalyzeDocumentAction;
+  } catch (e) {}
+  try {
+    const _ipa = eval("require(\"./InsertPagesAction\")");
+    if (_ipa && _ipa.InsertPagesAction) _InsertPagesActionClass = _ipa.InsertPagesAction;
   } catch (e) {}
 }
 
@@ -28,26 +38,41 @@ class WorkflowActionRouter {
    * Adheres to ADR 0012 §12.
    *
    * @param documentType - Domain document type (e.g. 'Submittal', 'Transmittal', 'RFI')
-   * @param direction - Workflow direction / sequence type (e.g. 'Incoming_Filing', 'Standard_Filing')
+   * @param directionOrAction - Workflow direction / sequence type (e.g. 'Incoming_Filing', 'Incoming_Analysis')
    * @returns Array of DocumentAction instances to execute in sequence.
    */
-  static getSequence(documentType: string, direction: string): DocumentAction[] {
-    const key = documentType + ':' + direction;
+  static getSequence(documentType: string, directionOrAction: string): DocumentAction[] {
+    const key = documentType + ':' + directionOrAction;
     if (this.sequenceRegistry[key]) {
       return this.sequenceRegistry[key];
     }
 
-    if ((documentType === 'Submittal') && (direction === 'Incoming_Filing' || direction === 'Incoming')) {
-      const RLA = _ReadLogActionClass || (globalThis as any).ReadLogAction;
-      const MDA = _MoveDocumentActionClass || (globalThis as any).MoveDocumentAction;
+    if (documentType === 'Submittal') {
+      if (directionOrAction === 'Incoming_Filing' || directionOrAction === 'Incoming') {
+        const RLA = _ReadLogActionClass || (globalThis as any).ReadLogAction;
+        const MDA = _MoveDocumentActionClass || (globalThis as any).MoveDocumentAction;
 
-      const readLog = RLA ? new RLA() : null;
-      const moveDoc = MDA ? new MDA() : null;
+        const readLog = RLA ? new RLA() : null;
+        const moveDoc = MDA ? new MDA() : null;
 
-      const sequence: DocumentAction[] = [];
-      if (readLog) sequence.push(readLog);
-      if (moveDoc) sequence.push(moveDoc);
-      return sequence;
+        const sequence: DocumentAction[] = [];
+        if (readLog) sequence.push(readLog);
+        if (moveDoc) sequence.push(moveDoc);
+        return sequence;
+      }
+
+      if (directionOrAction === 'Incoming_Analysis') {
+        const AnalyzeCtor = _AnalyzeDocumentActionClass || (globalThis as any).AnalyzeDocumentAction;
+        const InsertCtor = _InsertPagesActionClass || (globalThis as any).InsertPagesAction;
+
+        const analyzeAction = AnalyzeCtor ? new AnalyzeCtor() : (globalThis as any).defaultAnalyzeDocumentAction;
+        const insertAction = InsertCtor ? new InsertCtor() : (globalThis as any).defaultInsertPagesAction;
+
+        const sequence: DocumentAction[] = [];
+        if (analyzeAction) sequence.push(analyzeAction);
+        if (insertAction) sequence.push(insertAction);
+        return sequence;
+      }
     }
 
     return [];

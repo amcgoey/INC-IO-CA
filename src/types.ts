@@ -456,6 +456,11 @@ interface InsertPagesInput {
   data: ParsedData;
   options: StampOptions;
   pdfDocumentService?: PdfDocumentService;
+  pdfService?: PdfDocumentService;
+  aiService?: AiAnalysisService;
+  coverPageTemplateId?: string;
+  analysis?: DeepAnalysisPrediction;
+  analysisResult?: DeepAnalysisResult;
 }
 
 
@@ -681,4 +686,6 @@ interface DocumentActionContext {
 
 // Global declaration for pdf-lib evaluated at runtime
 declare const PDFLib: any;
+
+
 

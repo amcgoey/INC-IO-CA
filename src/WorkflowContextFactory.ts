@@ -102,6 +102,7 @@ export class WorkflowContextFactory {
         if (g[adapterKey]) return new g[adapterKey]();
         return null;
       },
+      pdfService: () => resolvers.pdfDocumentService(),
       pdfDocumentService: () => {
         if (combinedOverrides.pdfDocumentService !== undefined) return combinedOverrides.pdfDocumentService;
         if (typeof defaultPdfDocumentService !== 'undefined') return defaultPdfDocumentService;
@@ -109,14 +110,15 @@ export class WorkflowContextFactory {
         if (g[adapterKey]) return new g[adapterKey]();
         return null;
       },
+      aiService: () => resolvers.aiAnalysisService(),
       aiAnalysisService: () => {
         if (combinedOverrides.aiAnalysisService !== undefined) return combinedOverrides.aiAnalysisService;
         if (typeof defaultAiAnalysisService !== 'undefined') return defaultAiAnalysisService;
         const adapterKey = resolvedConfig.aiAdapterKey || 'GeminiAiAnalysisAdapter';
         if (g[adapterKey]) return new g[adapterKey]();
         return null;
-      }
-    };
+      },
+      };
 
     context.adapters = this.setupLazyAdapters(context, resolvers);
     return context;
@@ -165,8 +167,8 @@ export class WorkflowContextFactory {
         const Ctor = FakeAiAdapterClass || g.FakeAiAnalysisAdapter;
         if (!Ctor) throw new Error('FakeAiAnalysisAdapter unavailable in current test environment');
         return new Ctor();
-      }
-    };
+      },
+      };
 
     context.adapters = this.setupLazyAdapters(context, resolvers);
     return context;

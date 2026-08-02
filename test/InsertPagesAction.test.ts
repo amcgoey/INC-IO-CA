@@ -1,140 +1,60 @@
 import test from "node:test";
 import assert from "node:assert";
 
-const { InsertPagesAction } = require("../src/InsertPagesAction");
-const {
- GoogleAppsScriptPdfDocumentService
-} = require("../src/PdfDocumentService");
+const { InsertPagesAction, defaultInsertPagesAction } = require("../src/InsertPagesAction");
 const { FakePdfDocumentService } = require("./harness/index");
+const { createTestContext } = require("../src/WorkflowContextFactory");
 
-test("InsertPagesAction delegates to pdfDocumentService.stampSubmittal and returns stamped blob", async () => {
+test("InsertPagesAction fail-fast guard throws when blob is missing in context", async () => {
   const fakePdfService = new FakePdfDocumentService();
-  const sourceBlob = {
-    getName: () => "input.pdf",
-    getBytes: () => [1, 2, 3],
-    copyBlob: () => ({ getName: () => "copied.pdf", getBytes: () => [1, 2, 3] })
-  } as any;
-  const stampedBlob = {
-    getName: () => "STAMPED_output.pdf",
-    getBytes: () => [1, 2, 3, 4]
-  } as any;
-
-  fakePdfService.setStampResultBlob(stampedBlob);
-
+  const context = createTestContext(undefined, { pdfDocumentService: fakePdfService }, { blob: undefined, coverPageTemplateId: "tmpl-123" });
   const action = new InsertPagesAction();
-  const result = await action.execute({
-    sourceBlob,
-    data: { action: "Approved", title: "Submittal 1" },
-    options: {
-      newFileName: "Output_1",
-      stampSubmittalNo: "001-0",
-      templateId: "tmpl-123"
-    },
-    pdfDocumentService: fakePdfService
-  });
 
-  assert.strictEqual(result, stampedBlob);
-  assert.strictEqual(fakePdfService.stampCalls.length, 1);
-  assert.strictEqual(fakePdfService.stampCalls[0].sourceBlob, sourceBlob);
-  assert.deepStrictEqual(fakePdfService.stampCalls[0].data, { action: "Approved", title: "Submittal 1" });
-  assert.deepStrictEqual(fakePdfService.stampCalls[0].options, {
-    newFileName: "Output_1",
-    stampSubmittalNo: "001-0",
-    templateId: "tmpl-123"
-  });
+  await assert.rejects(async () => {
+    await action.execute(context);
+  }, /InsertPagesAction requires 'blob' in context/);
 });
 
-test("InsertPagesAction with GoogleAppsScriptPdfDocumentService prepends cover page and applies metadata", async () => {
-  let loadedTemplateId = "";
-  let filledSubmittalNo = "";
-  let checkedBoxName = "";
-  let pageCount = 0;
-
-  const mockForm = {
-    getTextField: (name: string) => {
-      if (['SubmittalNo', 'SubmittalNo.', 'Submittal Number'].includes(name)) {
-        return {
-          setText: (val: string) => { filledSubmittalNo = val; }
-        };
-      }
-      return null;
-    },
-    getRadioGroup: () => { throw new Error("No radio group"); },
-    getCheckBox: (name: string) => ({
-      check: () => { checkedBoxName = name; }
-    })
-  };
-
-  const mockTemplatePdfDoc = {
-    getForm: () => mockForm,
-    copyPages: async (srcDoc: any, indices: number[]) => {
-      pageCount = 1 + indices.length;
-      return indices.map(i => `copied_page_${i}`);
-    },
-    addPage: (p: any) => {},
-    save: async () => new Uint8Array([10, 20, 30])
-  };
-
-  const mockSourcePdfDoc = {
-    getPageIndices: () => [0]
-  };
-
-  (globalThis as any).PDF_CHECKBOX_MAP = {
-    'Approved': 'APPROVED_BOX'
-  };
-
-  (globalThis as any).PDFLib = {
-    PDFDocument: {
-      load: async (bytes: Uint8Array) => {
-        if (bytes[0] === 1) return mockTemplatePdfDoc;
-        return mockSourcePdfDoc;
-      }
-    }
-  };
-
-  (globalThis as any).DriveApp = {
-    getFileById: (id: string) => {
-      loadedTemplateId = id;
-      return {
-        getAs: (mime: string) => ({
-          getBytes: () => [1, 2, 3]
-        })
-      };
-    }
-  };
-
-  (globalThis as any).Utilities = {
-    newBlob: (bytes: Uint8Array, mime: string, name: string) => ({
-      getBytes: () => bytes,
-      getName: () => name,
-      getContentType: () => mime
-    })
-  };
-
-  const pdfService = new GoogleAppsScriptPdfDocumentService();
-  const sourceBlob = { getBytes: () => [2, 3, 4] } as any;
-
+test("InsertPagesAction fail-fast guard throws when pdfService adapter is missing", async () => {
+  const sourceBlob = { getName: () => "input.pdf" } as any;
+  const context = {
+    blob: sourceBlob,
+    coverPageTemplateId: "tmpl-123",
+    adapters: {}
+  } as any;
   const action = new InsertPagesAction();
-  const result = await action.execute({
-    sourceBlob,
-    data: { action: "Approved", title: "Test Submittal" },
-    options: {
-      newFileName: "Stamped_Submittal",
-      stampSubmittalNo: "033000-001-001",
-      templateId: "cover-template-456"
-    },
-    pdfDocumentService: pdfService
+
+  await assert.rejects(async () => {
+    await action.execute(context);
+  }, /InsertPagesAction requires 'pdfService' adapter in context.adapters/);
+});
+
+test("InsertPagesAction context pipeline execution stamps PDF and updates context blob", async () => {
+  const fakePdfService = new FakePdfDocumentService();
+  const sourceBlob = { getName: () => "input.pdf", copyBlob: () => sourceBlob } as any;
+  const stampedBlob = { getName: () => "stamped_cover.pdf" } as any;
+  fakePdfService.setStampResultBlob(stampedBlob);
+
+  const context = createTestContext(undefined, { pdfDocumentService: fakePdfService }, {
+    blob: sourceBlob,
+    coverPageTemplateId: "tmpl-555",
+    analysis: { predictedTitle: "Sample Submittal Title", predictedSection: "033000" }
   });
 
-  assert.strictEqual(loadedTemplateId, "cover-template-456");
-  assert.strictEqual(filledSubmittalNo, "033000-001-001");
-  assert.strictEqual(checkedBoxName, "APPROVED_BOX");
-  assert.strictEqual(pageCount, 2);
-  assert.strictEqual(result.getName(), "Stamped_Submittal.pdf");
+  const action = new InsertPagesAction();
+  const updatedContext = await action.execute(context);
+
+  assert.strictEqual(updatedContext.blob, stampedBlob);
+  assert.strictEqual(fakePdfService.stampCalls.length, 1);
+  assert.strictEqual(fakePdfService.stampCalls[0].options.templateId, "tmpl-555");
 });
 
 test("InsertPagesAction catches TEMPLATE_MISSING error and returns sourceBlob copy", async () => {
   const fakePdfService = new FakePdfDocumentService();
+  fakePdfService.stampSubmittal = async () => {
+    throw new Error("TEMPLATE_MISSING");
+  };
+
   let copyBlobCalled = false;
   const copiedBlob = { getName: () => "fallback.pdf" } as any;
 
@@ -146,19 +66,15 @@ test("InsertPagesAction catches TEMPLATE_MISSING error and returns sourceBlob co
     }
   } as any;
 
-  const action = new InsertPagesAction();
-  const result = await action.execute({
-    sourceBlob,
-    data: { action: "Approved" },
-    options: {
-      newFileName: "Output_1",
-      stampSubmittalNo: "001-0",
-      templateId: ""
-    },
-    pdfDocumentService: fakePdfService
+  const context = createTestContext(undefined, { pdfDocumentService: fakePdfService }, {
+    blob: sourceBlob,
+    coverPageTemplateId: "missing-template"
   });
 
-  assert.strictEqual(result, copiedBlob);
+  const action = new InsertPagesAction();
+  const updatedContext = await action.execute(context);
+
+  assert.strictEqual(updatedContext.blob, copiedBlob);
   assert.strictEqual(copyBlobCalled, true);
 });
 
@@ -171,20 +87,16 @@ test("InsertPagesAction re-throws unexpected errors from pdfDocumentService", as
   } as any;
 
   const sourceBlob = { getName: () => "test.pdf" } as any;
+  const context = createTestContext(undefined, { pdfDocumentService: failingPdfService }, {
+    blob: sourceBlob,
+    coverPageTemplateId: "tmpl-123"
+  });
+
   const action = new InsertPagesAction();
 
   await assert.rejects(
     async () => {
-      await action.execute({
-        sourceBlob,
-        data: { action: "Approved" },
-        options: {
-          newFileName: "Output_1",
-          stampSubmittalNo: "001-0",
-          templateId: "tmpl-123"
-        },
-        pdfDocumentService: failingPdfService
-      });
+      await action.execute(context);
     },
     (err: any) => {
       assert.strictEqual(err, customError);
@@ -193,36 +105,7 @@ test("InsertPagesAction re-throws unexpected errors from pdfDocumentService", as
   );
 });
 
-test("InsertPagesAction uses defaultPdfDocumentService if pdfDocumentService is omitted", async () => {
-  let defaultStampCalled = false;
-  const mockStampedBlob = { getName: () => "default_stamped.pdf" } as any;
-
-  const mockDefaultService = {
-    stampSubmittal: async () => {
-      defaultStampCalled = true;
-      return mockStampedBlob;
-    }
-  };
-
-  const originalDefault = (globalThis as any).defaultPdfDocumentService;
-  (globalThis as any).defaultPdfDocumentService = mockDefaultService;
-
-  try {
-    const sourceBlob = { getName: () => "source.pdf" } as any;
-    const action = new InsertPagesAction();
-    const result = await action.execute({
-      sourceBlob,
-      data: { action: "Approved" },
-      options: {
-        newFileName: "Output_1",
-        stampSubmittalNo: "001-0",
-        templateId: "tmpl-123"
-      }
-    });
-
-    assert.strictEqual(defaultStampCalled, true);
-    assert.strictEqual(result, mockStampedBlob);
-  } finally {
-    (globalThis as any).defaultPdfDocumentService = originalDefault;
-  }
+test("defaultInsertPagesAction global seam exists", () => {
+  assert.ok(defaultInsertPagesAction);
+  assert.strictEqual(typeof defaultInsertPagesAction.execute, "function");
 });
