@@ -62,8 +62,10 @@ class WorkflowRunner {
 
 function resolveSubfolderPath(context: DocumentActionContext): string[] | undefined {
   if (context.subfolderPath) return context.subfolderPath;
-  if (context.config && context.config.closedSubfolderRules && context.validatedDoc) {
-    return context.config.closedSubfolderRules(context.validatedDoc);
+  if (context.config && context.config.closedSubfolderMap && context.validatedDoc) {
+    const disc = context.validatedDoc.disciplineDetails?.discipline;
+    const mapped = disc ? context.config.closedSubfolderMap[disc] : undefined;
+    return mapped ? [mapped] : undefined;
   }
   return undefined;
 }
