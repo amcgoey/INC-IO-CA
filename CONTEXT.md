@@ -4,6 +4,10 @@ Validates and records incoming or outgoing project submittals into the log sheet
 
 ## Language
 
+**DocumentLogWorkbook**:
+The single, standardized Google Sheet workbook that acts as the project source of truth across all document types. Contains consolidated tabs (`_Config`, `_Shared`), discipline/document log tabs (`Submittal Arch`, `Submittal FFE`), and support info tabs.
+_Avoid_: Unified Workbook, Master Sheet, Log Spreadsheet
+
 **Document**:
 The core domain concept representing a formal project correspondence or record (such as a Submittal, RFI, ASI, Bulletin, etc.) processed through the system.
 
