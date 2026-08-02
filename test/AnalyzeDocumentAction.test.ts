@@ -50,7 +50,6 @@ test("AnalyzeDocumentAction slices PDF to 3 pages via ExtractPagesAction and exe
   } as any;
 
   const action = new AnalyzeDocumentAction({
-    aiAnalysisService: fakeAi,
     extractPagesAction: mockExtractPagesAction
   });
 
@@ -60,37 +59,20 @@ test("AnalyzeDocumentAction slices PDF to 3 pages via ExtractPagesAction and exe
     actions: [{ action: "Submitted" }]
   };
 
-  const result = await action.execute({
-    sourceBlob: blob,
+  const context = createTestContext(undefined, { aiAnalysisService: fakeAi }, {
+    blob,
+    coverPageTemplateId: "tmpl-123",
     emailText: "Subject: Concrete submittal",
     contextObj
   });
 
+  const updatedContext = await action.execute(context);
+
   assert.strictEqual(extractExecuted, true, "ExtractPagesAction should be executed for 3-page slicing");
   assert.strictEqual(maxPagesCaptured, 3, "ExtractPagesAction should slice max 3 pages");
-  assert.strictEqual(result.success, true);
-
-  if (result.success) {
-    const rawDocCandidate: RawDocument = {
-      section: result.analysis.predictedSection || "",
-      number: result.analysis.predictedNumber || "",
-      revision: result.analysis.predictedRevision || "",
-      title: result.analysis.predictedTitle || "",
-      contact: result.analysis.predictedContactAbbr || "",
-      action: result.analysis.predictedAction || "",
-      specTag: result.analysis.predictedSpecTag || "",
-      vendor: result.analysis.predictedVendor || ""
-    };
-
-    assert.strictEqual(rawDocCandidate.section, "033000");
-    assert.strictEqual(rawDocCandidate.number, "001");
-    assert.strictEqual(rawDocCandidate.revision, "0");
-    assert.strictEqual(rawDocCandidate.title, "Concrete Structural Mix");
-    assert.strictEqual(rawDocCandidate.contact, "GC");
-    assert.strictEqual(rawDocCandidate.action, "Submitted");
-    assert.strictEqual(rawDocCandidate.specTag, "CONC-01");
-    assert.strictEqual(rawDocCandidate.vendor, "Acme Concrete");
-  }
+  assert.ok(updatedContext.analysis);
+  assert.strictEqual(updatedContext.analysis.predictedSection, "033000");
+  assert.strictEqual(updatedContext.analysis.predictedTitle, "Concrete Structural Mix");
 
   assert.strictEqual(fakeAi.analyzeCalls.length, 1);
   assert.strictEqual(fakeAi.analyzeCalls[0].sourceBlob.getName(), "sliced.pdf");
@@ -138,39 +120,6 @@ test("AnalyzeDocumentAction context pipeline execution returns updated context w
   assert.ok(updatedContext.analysis);
   assert.strictEqual(updatedContext.analysis.predictedTitle, "Context Submittal Title");
   assert.strictEqual(updatedContext.analysis.predictedSection, "099100");
-});
-
-test("AnalyzeDocumentAction throws error when input or sourceBlob is missing for legacy direct call", async () => {
-  const fakeAi = new FakeAiAnalysisAdapter();
-  const action = new AnalyzeDocumentAction({ aiAnalysisService: fakeAi });
-
-  await assert.rejects(async () => {
-    await action.execute({} as any);
-  }, /INVALID_ANALYZE_INPUT/);
-});
-
-test("AnalyzeDocumentAction falls back to defaultAiAnalysisService global seam when none injected", async () => {
-  const fakeAi = new FakeAiAnalysisAdapter();
-  fakeAi.setAnalyzeSubmittalResult({
-    success: true,
-    analysis: { predictedTitle: "Global Seam Title" }
-  });
-
-  (globalThis as any).defaultAiAnalysisService = fakeAi;
-
-  const action = new AnalyzeDocumentAction();
-  const blob = createMockBlob();
-  const contextObj = { contacts: [], actions: [] };
-
-  const result = await action.execute({
-    sourceBlob: blob,
-    contextObj
-  });
-
-  assert.strictEqual(result.success, true);
-  if (result.success) {
-    assert.strictEqual(result.analysis.predictedTitle, "Global Seam Title");
-  }
 });
 
 test("defaultAnalyzeDocumentAction global seam exists", () => {

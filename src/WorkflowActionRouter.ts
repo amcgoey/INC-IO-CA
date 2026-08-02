@@ -25,14 +25,14 @@ class WorkflowActionRouter {
    * Resolves the ordered sequence of DocumentAction instances for the specified document type and direction.
    *
    * @param documentType - Target document type name (e.g., "Submittal", "RFI").
-   * @param directionOrAction - Workflow direction or action key (e.g., "Incoming_Analysis", "Incoming", "Outgoing").
+   * @param directionOrAction - Workflow direction or action key (e.g., "Incoming_Analysis").
    * @returns Array of DocumentAction instances to execute in sequence.
    */
   static getSequence(documentType: string, directionOrAction: string): DocumentAction[] {
     const AnalyzeCtor = AnalyzeDocumentActionClass || (globalThis as any).AnalyzeDocumentAction;
     const InsertCtor = InsertPagesActionClass || (globalThis as any).InsertPagesAction;
 
-    if (documentType === 'Submittal' && (directionOrAction === 'Incoming_Analysis' || directionOrAction === 'Incoming')) {
+    if (documentType === 'Submittal' && directionOrAction === 'Incoming_Analysis') {
       const analyzeAction = AnalyzeCtor ? new AnalyzeCtor() : (globalThis as any).defaultAnalyzeDocumentAction;
       const insertAction = InsertCtor ? new InsertCtor() : (globalThis as any).defaultInsertPagesAction;
       return [analyzeAction, insertAction];

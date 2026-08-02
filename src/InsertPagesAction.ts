@@ -3,7 +3,7 @@
  * @file InsertPagesAction.ts
  * @description DocumentAction implementation for prepending cover sheet pages onto PDF blobs.
  *
- * Wraps `PdfDocumentService.stampSubmittal()` into a primitive `DocumentAction` handler.
+ * Delegates to PdfDocumentService.stampSubmittal() into a primitive DocumentAction handler.
  * Adheres to execute(context: DocumentActionContext): Promise<DocumentActionContext>.
  */
 
@@ -11,61 +11,26 @@ declare var defaultPdfDocumentService: PdfDocumentService;
 
 /**
  * Primitive workflow action that prepends CoverPageDocument onto a PDF blob
- * by delegating to `PdfDocumentService.stampSubmittal()`.
+ * by delegating to PdfDocumentService.stampSubmittal().
  */
-class InsertPagesAction implements DocumentAction<any, any> {
-  name: string = 'InsertPages';
+class InsertPagesAction implements DocumentAction<DocumentActionContext> {
+  name: string = "InsertPages";
 
   /**
    * Executes the cover page insertion action.
-   * Performs fail-fast early guard validation on required context fields (`blob`, `coverPageTemplateId`) and `pdfService` adapter.
+   * Performs fail-fast early guard validation on required context fields (`blob`) and `pdfService` adapter.
    *
-   * @param contextOrInput - DocumentActionContext or legacy InsertPagesInput.
-   * @returns Promise resolving to updated DocumentActionContext (or stamped Blob for legacy input).
+   * @param context - Target DocumentActionContext.
+   * @returns Promise resolving to updated DocumentActionContext containing stamped blob.
    */
-  async execute(contextOrInput: DocumentActionContext | InsertPagesInput): Promise<any> {
-    if (!contextOrInput) {
-      throw new Error("InsertPagesAction requires input context");
+  async execute(context: DocumentActionContext): Promise<DocumentActionContext> {
+    if (!context) {
+      throw new Error("InsertPagesAction requires context");
     }
 
-    const isDirectInput = !('adapters' in contextOrInput) && 'sourceBlob' in contextOrInput && 'data' in contextOrInput && 'options' in contextOrInput;
-
-    if (isDirectInput) {
-      const input = contextOrInput as InsertPagesInput;
-      const pdfService =
-        input.pdfDocumentService ||
-        (typeof defaultPdfDocumentService !== "undefined"
-          ? defaultPdfDocumentService
-          : (globalThis as any).defaultPdfDocumentService);
-
-      if (!pdfService) {
-        throw new Error("PdfDocumentService is required for InsertPagesAction");
-      }
-
-      try {
-        return await pdfService.stampSubmittal(input.sourceBlob, input.data, input.options);
-      } catch (err: any) {
-        if (err && err.message === "TEMPLATE_MISSING") {
-          return input.sourceBlob.copyBlob();
-        }
-        throw err;
-      }
-    }
-
-    // DocumentActionContext execution mode
-    const context = contextOrInput as DocumentActionContext;
-    const blob = context.blob || context.sourceBlob;
+    const blob = context.blob || (context as any).sourceBlob;
     if (!blob) {
       throw new Error("InsertPagesAction requires 'blob' in context");
-    }
-
-    const coverPageTemplateId =
-      context.coverPageTemplateId ||
-      context.config?.coverPageTemplateId ||
-      context.options?.templateId;
-
-    if (!coverPageTemplateId) {
-      throw new Error("InsertPagesAction requires 'coverPageTemplateId' in context or config");
     }
 
     const pdfService =
@@ -73,24 +38,39 @@ class InsertPagesAction implements DocumentAction<any, any> {
       context.adapters?.pdfDocumentService ||
       context.pdfService ||
       context.pdfDocumentService ||
-      (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : null);
+      (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : (globalThis as any).defaultPdfDocumentService);
 
     if (!pdfService) {
       throw new Error("InsertPagesAction requires 'pdfService' adapter in context.adapters");
     }
 
-    const data: ParsedData = context.data || (context.validatedDoc ? {
-      title: context.validatedDoc.disciplineDetails?.discipline === 'Architecture' ? context.validatedDoc.disciplineDetails.title : context.validatedDoc.disciplineDetails.specTitle,
-      action: context.validatedDoc.action,
-      section: context.validatedDoc.disciplineDetails?.discipline === 'Architecture' ? context.validatedDoc.disciplineDetails.section : undefined,
-      number: context.validatedDoc.disciplineDetails?.discipline === 'Architecture' ? context.validatedDoc.disciplineDetails.number : undefined,
-      revision: context.validatedDoc.disciplineDetails?.revision
-    } : (context.analysis ? {
-      title: context.analysis.predictedTitle,
-      action: context.analysis.predictedAction,
-      section: context.analysis.predictedSection,
-      number: context.analysis.predictedNumber,
-      revision: context.analysis.predictedRevision
+    const coverPageTemplateId =
+      context.coverPageTemplateId ||
+      context.config?.coverPageTemplateId ||
+      context.options?.templateId ||
+      "";
+
+    const analysis = context.analysis;
+    const validatedDoc = context.validatedDoc;
+
+    const data: ParsedData = context.data || (validatedDoc ? {
+      title: validatedDoc.disciplineDetails?.discipline === 'Architecture'
+        ? validatedDoc.disciplineDetails.title
+        : validatedDoc.disciplineDetails?.specTitle,
+      action: validatedDoc.action,
+      section: validatedDoc.disciplineDetails?.discipline === 'Architecture'
+        ? validatedDoc.disciplineDetails.section
+        : undefined,
+      number: validatedDoc.disciplineDetails?.discipline === 'Architecture'
+        ? validatedDoc.disciplineDetails.number
+        : undefined,
+      revision: validatedDoc.disciplineDetails?.revision
+    } : (analysis ? {
+      title: analysis.predictedTitle,
+      action: analysis.predictedAction,
+      section: analysis.predictedSection,
+      number: analysis.predictedNumber,
+      revision: analysis.predictedRevision
     } : {}));
 
     const stampOptions: StampOptions = context.options || {
@@ -125,7 +105,6 @@ if (typeof (globalThis as any).defaultInsertPagesAction === "undefined") {
 }
 
 declare var module: any;
-
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     InsertPagesAction,
