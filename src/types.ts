@@ -628,6 +628,7 @@ interface DocumentWorkflowResult {
 interface DocumentTypeConfig {
   documentType: 'Submittal' | 'RFI' | string;
   rootFolderSearchTerms: string[];
+  projectSearchTerms?: string[];
   closedRootFolderName: string;
   closedSubfolderMap?: Record<string, string>;
   filenamePrefix: string;
@@ -639,6 +640,14 @@ interface DocumentTypeConfig {
   filingAdapterKey: string;
   pdfAdapterKey?: string;
   aiAdapterKey?: string;
+}
+
+interface ContextAdapters {
+  logRepository?: LogRepository;
+  driveFilingRepository?: DriveFilingRepository;
+  pdfDocumentService?: PdfDocumentService;
+  aiAnalysisService?: AiAnalysisService;
+  [key: string]: any;
 }
 
 /** Execution context passed through action pipeline steps. */
@@ -654,6 +663,8 @@ interface DocumentActionContext {
   url?: string;
   localPath?: string;
   folderId?: string;
+  adapters?: ContextAdapters;
+  aiAnalysisService?: AiAnalysisService;
   driveFilingRepository?: DriveFilingRepository;
   logRepository?: LogRepository;
   pdfDocumentService?: PdfDocumentService;
