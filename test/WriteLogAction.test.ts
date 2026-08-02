@@ -6,6 +6,52 @@ import { FakeLogRepository } from './harness/fakes/FakeLogRepository';
 import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from '../src/DocumentLogStrategy';
 import { createValidatedArchitectureSubmittal, createValidatedFFESubmittal } from './harness/factories/DocumentFactory';
 import { IdentityData, WriteLogInput } from '../src/types';
+import { createTestContext } from '../src/WorkflowContextFactory';
+
+test('WriteLogAction - early guard validation throws descriptive error when logRepository is missing', async () => {
+  const action = new WriteLogAction();
+  const doc = createValidatedArchitectureSubmittal();
+
+  const context = {
+    validatedDoc: doc
+  };
+
+  await assert.rejects(
+    async () => { await action.execute(context); },
+    /WriteLogAction requires logRepository adapter/
+  );
+});
+
+test('WriteLogAction - early guard validation throws descriptive error when validatedDoc is missing', async () => {
+  const action = new WriteLogAction();
+  const testContext = createTestContext(undefined, undefined, { validatedDoc: null, document: null });
+
+  await assert.rejects(
+    async () => { await action.execute(testContext); },
+    /WriteLogAction requires validatedDoc in context/
+  );
+});
+
+test('WriteLogAction - executes with DocumentActionContext and updates context with append results', async () => {
+  const doc = createValidatedArchitectureSubmittal();
+  const strategy = new ArchitectureSubmittalStrategy();
+  const action = new WriteLogAction();
+
+  const testContext = createTestContext(undefined, undefined, {
+    validatedDoc: doc,
+    strategy,
+    spreadsheetId: 'test-ss-context-123',
+    selectedAction: { action: 'Approved', abbr: 'APP', status: 'Approved' }
+  });
+
+  const resultContext = await action.execute(testContext);
+
+  assert.equal(resultContext.targetKey, '081100-001-01');
+  assert.equal(typeof resultContext.rowIndex, 'number');
+  assert.deepEqual(resultContext.failedColumns, []);
+  assert.ok(resultContext.appendDocumentResult);
+  assert.equal(testContext.adapters.logRepository.appendedDocuments.length, 1);
+});
 
 test('WriteLogAction - resolves IdentityData from ArchitectureSubmittalStrategy and appends document via FakeLogRepository', async () => {
   const fakeRepo = new FakeLogRepository();

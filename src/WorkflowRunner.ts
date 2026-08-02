@@ -8,7 +8,7 @@ declare var require: any;
 
 if (typeof require !== 'undefined') {
   try {
-    const _mda = eval("require(\"./MoveDocumentAction\")");
+    const _mda = eval("require('./MoveDocumentAction')");
     if (_mda && _mda.MoveDocumentAction && typeof (globalThis as any).MoveDocumentAction === 'undefined') {
       (globalThis as any).MoveDocumentAction = _mda.MoveDocumentAction;
     }
@@ -21,18 +21,31 @@ if (typeof require !== 'undefined') {
 class WorkflowRunner {
   /**
    * Executes actions in order, threading and updating the context through each step.
+   * Preserves context.adapters across step executions and enriches step error propagation.
    *
    * @param actions - Array of DocumentAction instances to execute.
    * @param initialContext - Starting DocumentActionContext.
    * @returns Resolves to final updated DocumentActionContext.
    */
-  static async run(
+  static async run<TDoc extends ValidatedDocument = ValidatedDocument>(
     actions: DocumentAction[],
-    initialContext: DocumentActionContext
-  ): Promise<DocumentActionContext> {
+    initialContext: DocumentActionContext<TDoc>
+  ): Promise<DocumentActionContext<TDoc>> {
     let context = { ...initialContext };
     for (const action of actions) {
-      context = await action.execute(context);
+      try {
+        const nextContext = await action.execute(context);
+        context = {
+          ...nextContext,
+          adapters: nextContext.adapters || context.adapters
+        };
+      } catch (error: any) {
+        const actionName = action.name || action.constructor?.name || 'DocumentAction';
+        if (error instanceof Error && !error.message.startsWith('WorkflowRunner step')) {
+          error.message = `WorkflowRunner step [${actionName}] failed: ${error.message}`;
+        }
+        throw error;
+      }
     }
     return context;
   }

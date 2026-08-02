@@ -1,7 +1,7 @@
 /// <reference path="../src/types.ts" />
 /**
  * @file WorkflowActionRouter.test.ts
- * @description Behavioral test suite for WorkflowActionRouter, ReadLogAction, MoveDocumentAction, AnalyzeDocumentAction, InsertPagesAction, and end-to-end WorkflowRunner integration.
+ * @description Behavioral test suite for WorkflowActionRouter, ReadLogAction, MoveDocumentAction, WriteLogAction, AnalyzeDocumentAction, InsertPagesAction, and end-to-end WorkflowRunner integration.
  */
 
 import test from 'node:test';
@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 
 const { ReadLogAction } = require('../src/ReadLogAction');
 const { MoveDocumentAction } = require('../src/MoveDocumentAction');
+const { WriteLogAction } = require('../src/WriteLogAction');
 const { AnalyzeDocumentAction } = require('../src/AnalyzeDocumentAction');
 const { InsertPagesAction } = require('../src/InsertPagesAction');
 const { WorkflowRunner } = require('../src/WorkflowRunner');
@@ -40,6 +41,13 @@ test('WorkflowActionRouter - getSequence Submittal Incoming_Analysis returns ord
   assert.equal(sequence.length, 2);
   assert.ok(sequence[0] instanceof AnalyzeDocumentAction);
   assert.ok(sequence[1] instanceof InsertPagesAction);
+});
+
+test('WorkflowActionRouter - getSequence Submittal Outgoing returns ordered sequence [WriteLogAction, MoveDocumentAction]', () => {
+  const sequence = WorkflowActionRouter.getSequence('Submittal', 'Outgoing');
+  assert.equal(sequence.length, 2);
+  assert.equal(sequence[0].name, 'WriteLog');
+  assert.equal(sequence[1].name, 'MoveDocument');
 });
 
 test('WorkflowActionRouter - custom sequence registration and clearRegistry', () => {
@@ -231,4 +239,36 @@ test('WorkflowActionRouter & WorkflowRunner - End-to-end incoming submittal tria
   assert.equal(fakePdfService.stampCalls.length, 1);
   assert.equal(fakePdfService.stampCalls[0].options.templateId, 'cover-template-999');
   assert.equal(fakePdfService.stampCalls[0].data.title, 'Cast-in-Place Concrete');
+});
+
+test('End-to-End Behavioral Test - WorkflowRunner runs Submittal Outgoing sequence against createTestContext (WriteLogAction + MoveDocumentAction)', async () => {
+  const validatedDoc = createValidatedArchitectureSubmittal();
+  const strategy = new ArchitectureSubmittalStrategy();
+
+  const testContext = createTestContext(undefined, undefined, {
+    validatedDoc,
+    strategy,
+    spreadsheetId: 'outgoing-log-ss-300',
+    targetFolderId: 'target-outgoing-folder-003',
+    subfolderPath: ['Closed', '08 OPENINGS'],
+    selectedAction: { action: 'Approved', abbr: 'APP', status: 'Approved' }
+  });
+
+  const sequence = WorkflowActionRouter.getSequence('Submittal', 'Outgoing');
+  assert.equal(sequence.length, 2);
+  assert.equal(sequence[0].name, 'WriteLog');
+  assert.equal(sequence[1].name, 'MoveDocument');
+
+  const resultContext = await WorkflowRunner.run(sequence, testContext);
+
+  // 1. Assert WriteLogAction executed and updated context
+  assert.equal(resultContext.targetKey, '081100-001-01');
+  assert.equal(testContext.adapters.logRepository.appendedDocuments.length, 1);
+  assert.equal(testContext.adapters.logRepository.appendedDocuments[0].spreadsheetId, 'outgoing-log-ss-300');
+
+  // 2. Assert MoveDocumentAction executed and filed document
+  assert.equal(resultContext.folderId, 'folder-Closed-08 OPENINGS');
+  assert.equal(testContext.adapters.driveFilingRepository.filedDocuments.length, 1);
+  assert.equal(testContext.adapters.driveFilingRepository.filedDocuments[0].options.targetFolderId, 'target-outgoing-folder-003');
+  assert.deepEqual(testContext.adapters.driveFilingRepository.filedDocuments[0].options.subfolderPath, ['Closed', '08 OPENINGS']);
 });

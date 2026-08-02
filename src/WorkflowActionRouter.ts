@@ -10,23 +10,28 @@ let _ReadLogActionClass: any = null;
 let _MoveDocumentActionClass: any = null;
 let _AnalyzeDocumentActionClass: any = null;
 let _InsertPagesActionClass: any = null;
+let _WriteLogActionClass: any = null;
 
 if (typeof require !== 'undefined') {
   try {
-    const _rla = eval("require(\"./ReadLogAction\")");
+    const _rla = eval("require('./ReadLogAction')");
     if (_rla && _rla.ReadLogAction) _ReadLogActionClass = _rla.ReadLogAction;
   } catch (e) {}
   try {
-    const _mda = eval("require(\"./MoveDocumentAction\")");
+    const _mda = eval("require('./MoveDocumentAction')");
     if (_mda && _mda.MoveDocumentAction) _MoveDocumentActionClass = _mda.MoveDocumentAction;
   } catch (e) {}
   try {
-    const _ada = eval("require(\"./AnalyzeDocumentAction\")");
+    const _ada = eval("require('./AnalyzeDocumentAction')");
     if (_ada && _ada.AnalyzeDocumentAction) _AnalyzeDocumentActionClass = _ada.AnalyzeDocumentAction;
   } catch (e) {}
   try {
-    const _ipa = eval("require(\"./InsertPagesAction\")");
+    const _ipa = eval("require('./InsertPagesAction')");
     if (_ipa && _ipa.InsertPagesAction) _InsertPagesActionClass = _ipa.InsertPagesAction;
+  } catch (e) {}
+  try {
+    const _wla = eval("require('./WriteLogAction')");
+    if (_wla && _wla.WriteLogAction) _WriteLogActionClass = _wla.WriteLogAction;
   } catch (e) {}
 }
 
@@ -38,7 +43,7 @@ class WorkflowActionRouter {
    * Adheres to ADR 0012 §12.
    *
    * @param documentType - Domain document type (e.g. 'Submittal', 'Transmittal', 'RFI')
-   * @param directionOrAction - Workflow direction / sequence type (e.g. 'Incoming_Filing', 'Incoming_Analysis')
+   * @param directionOrAction - Workflow direction / sequence type (e.g. 'Incoming_Filing', 'Incoming_Analysis', 'Outgoing')
    * @returns Array of DocumentAction instances to execute in sequence.
    */
   static getSequence(documentType: string, directionOrAction: string): DocumentAction[] {
@@ -71,6 +76,19 @@ class WorkflowActionRouter {
         const sequence: DocumentAction[] = [];
         if (analyzeAction) sequence.push(analyzeAction);
         if (insertAction) sequence.push(insertAction);
+        return sequence;
+      }
+
+      if (directionOrAction === 'Outgoing') {
+        const WLA = _WriteLogActionClass || (globalThis as any).WriteLogAction;
+        const MDA = _MoveDocumentActionClass || (globalThis as any).MoveDocumentAction;
+
+        const writeLog = WLA ? new WLA() : null;
+        const moveDoc = MDA ? new MDA() : null;
+
+        const sequence: DocumentAction[] = [];
+        if (writeLog) sequence.push(writeLog);
+        if (moveDoc) sequence.push(moveDoc);
         return sequence;
       }
     }
