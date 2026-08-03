@@ -1,27 +1,29 @@
 # 0018-unbiased-multi-document-ui-intake-and-generalized-log-disambiguation.md
 
-Establish the unbiased contextual intake card architecture (`UnbiasedIntakeCard`), generalized project log disambiguation, and target-scoped card reload event handlers.
+Establish the AI-first triage pipeline, targeted document email parsers (`SubmittalEmailParser`, `RfiEmailParser`), UserCache persistence, 3-tier confidence threshold guards, and unbiased card reload procedures.
 
 ## Context & Decision
 
-To support multiple document types (Submittals, RFIs, ASIs, Bulletins, Change Orders) during Google Workspace add-on intake while preserving existing vendor parsing logic and preventing hardcoded Submittal-only UI assumptions:
+To support multiple document types (Submittals, RFIs, ASIs, Bulletins, Change Orders) during Google Workspace add-on intake, resolve project-to-shared-drive matching limitations, and avoid monolithic switch statements:
 
-1. **Unified Intake & Disambiguation Pipeline**:
-   - **Multi-Type `EmailIntakeParser`**: Extends existing vendor parsers (Procore, Forma, CMiC) and generic fallback parser to detect `documentType` (`Submittal`, `RFI`, `ASI`, etc.) alongside `driveName` (Project Abbr).
-   - **Single-Pass AI Classifier Fallback**: Serves as a 1-pass triage fallback when regex parsing is unparsed or confidence is low.
-   - **Generalized Project Log Disambiguation**: Binds target `DocumentLogWorkbook` by matching `driveName`, then uses `Config_Manifest` and `DocumentTypeConfig` to resolve the target log tab (`Submittal Arch`, `Submittal FFE`, `RFI Log`).
+1. **Lightweight AI Triage First $\rightarrow$ Targeted Parser Ingestion Second**:
+   - **Step 1: AI Triage (Always Runs First)**: `AiAnalysisService` executes a fast, 1-pass Gemini triage call predicting `predictedProject`, `predictedDocType`, polymorphic `metadata: Record<string, string>`, and 3 separate confidence metrics (`projectConfidence`, `docTypeConfidence`, `metadataConfidence`).
+   - **Step 2: Targeted Email Parser Execution**: Using `predictedDocType`, the pipeline dispatches the docType-specific parser (`SubmittalEmailParser`, `RfiEmailParser`, `AsiEmailParser`). High-precision regex matches **overwrite** initial AI metadata predictions.
 
-2. **Target-Scoped Card Reload & Loss-Less State Preservation**:
-   - `CardPresenter` attaches event handlers (`onProjectChanged`, `onDocumentTypeChanged`, `onLogFileChanged`).
-   - Changing `Project` re-disambiguates the workbook, re-loads `_Config` and `_Shared` settings, and refreshes available `DocumentType` / `LogFile` options.
-   - Changing `DocumentType` swaps type-specific input fields (e.g. `CSI Section` vs `Spec Tag` vs `RFI Number`) while preserving universal user entries (title, date, notes).
+2. **Zero AI Re-runs on Dropdown Changes & `UserCache` Persistence**:
+   - AI is **never** re-invoked on `ProjectDropdown` or `DocumentTypeDropdown` changes.
+   - Initial AI recommendations are cached in `CacheService.getUserCache()` (`AI_TRIAGE_<messageId>`, 2-hour TTL) for 0ms instant reload upon returning to emails/files.
+   - Swapping `DocumentType` re-dispatches the targeted parser for the new type, overwriting fields where regex matches.
+   - Swapping `Project` re-binds the target `DocumentLogWorkbook` and `_Config` settings without calling AI.
 
-3. **Graced Fallback UI & Manual Override Guard**:
-   - Unparsed or low-confidence correspondence displays an informational warning banner.
-   - `ProjectDropdown` defaults to `-- Select Project --` and disables primary submit action until valid Project and DocumentType are bound.
+3. **Confidence Threshold Guards (70%) & Admin UI Rendering**:
+   - `projectConfidence >= 0.70`: Pre-selects `ProjectDropdown`. Below `0.70`, defaults to `-- Select Project --`, disables primary submit action, and displays an informational warning banner.
+   - `docTypeConfidence >= 0.70`: Pre-selects `DocumentTypeDropdown`. Below `0.70`, defaults to `-- Select Document Type --`.
+   - Collapsible **Admin & Status** foldout section renders `projectConfidence`, `docTypeConfidence`, `metadataConfidence`, AI vs. Parser overwrite diff, and a cache reset button.
 
 ## Consequences
 
-- Existing vendor email parsing rules are preserved intact while extending seamless support to all construction document types.
-- Card re-renders remain fast and loss-less, preserving user manual entries when swapping projects or document types.
-- Unparsed email subjects gracefully prompt for manual selection without pipeline crashes or silent filing into incorrect spreadsheets.
+- Project-to-shared-drive disambiguation is handled cleanly by AI Triage at intake start.
+- Email subject parsers are modularized by document type, eliminating monolithic parser switch statements.
+- Interactive card dropdown changes achieve instant re-renders with 0 extra LLM calls or API latency.
+- Users are protected against filing into incorrect projects when AI confidence is low (< 70%).

@@ -1,5 +1,8 @@
 # 0009 Three-Tier Email Intake Parsing Architecture
 
+> [!NOTE]
+> **Extended by [ADR 0018](0018-unbiased-multi-document-ui-intake-and-generalized-log-disambiguation.md)**: Email subject parsers are now modularized by document type (`TargetedDocumentEmailParser`) and run *after* initial AI Triage to overwrite AI metadata guesses with high-precision regex extraction.
+
 ## Context and Problem
 Incoming email notifications arrive in various formats — vendor-specific templates (Procore, Autodesk Forma, CMiC Collaborate), semi-structured submittal emails, and unformatted correspondence. Previously, if an email did not match a known vendor-specific template, parsing immediately fell back to empty strings, placing the full parsing burden on manual user entry or AI triage.
 

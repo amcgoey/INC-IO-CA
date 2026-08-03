@@ -1,5 +1,8 @@
 # 0005-ai-analysis-service-consolidation.md
 
+> [!NOTE]
+> **Extended by [ADR 0018](0018-unbiased-multi-document-ui-intake-and-generalized-log-disambiguation.md)**: AI Triage now executes first at intake activation to classify project and document type, returning 3 separate confidence scores with UserCache persistence.
+
 Consolidate AI auto-triage predictions, deep submittal document analysis, error masking, and caching behind a deep `AiAnalysisService` interface with `GeminiAiAnalysisAdapter` and `FakeAiAnalysisAdapter` implementations.
 
 ## Context & Decision

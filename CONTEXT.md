@@ -60,7 +60,7 @@ The pure application service that ingests raw intake data (email subjects, filen
 _Avoid_: IntakeManager, FormValidator, DataProcessor
 
 **EmailIntakeParser**:
-The email parsing component of `DocumentPipeline` that executes a 3-tier fallback chain (Vendor Parsers -> Generic Submittal Parser -> Unparsed Default Fallback) to extract submittal metadata from incoming email subjects and body text.
+The email parsing component of `DocumentPipeline` that dispatches targeted document-type email parsers (`SubmittalEmailParser`, `RfiEmailParser`, `AsiEmailParser`) following initial AI triage to extract high-precision regex metadata that overwrites initial AI guesses.
 _Avoid_: EmailUtils, MailParser
 
 **GenericEmailParser**:
@@ -164,8 +164,12 @@ The contextual parameters (target folder ID, discipline/document details, destin
 The structured outcome of filing a document in Drive, containing the file ID, web URL, Windows G:\ local path, and destination folder ID.
 
 **AiAnalysisService**:
-The abstract service interface encapsulating AI predictions, triage, and deep document analysis across varying document types.
+The abstract service interface encapsulating 1-pass lightweight AI triage (project, docType, polymorphic metadata with 3 separate confidence scores) and deep document analysis across varying document types.
 _Avoid_: AiTriageModule, AiUtils, AIHelper
+
+**TargetedDocumentEmailParser**:
+DocumentType-specific email parser strategies (`SubmittalEmailParser`, `RfiEmailParser`, `AsiEmailParser`) dispatched after initial AI triage to extract high-precision regex fields that overwrite initial AI metadata guesses.
+_Avoid_: MonolithicEmailParser, GenericSubjectParser
 
 **GeminiAiAnalysisAdapter**:
 The concrete implementation of AiAnalysisService that formats prompts, handles Gemini API retries, error masking, and caching.
