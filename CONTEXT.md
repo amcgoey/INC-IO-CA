@@ -8,6 +8,12 @@ Validates and records incoming or outgoing project submittals into the log sheet
 The single, standardized Google Sheet workbook that acts as the project source of truth across all document types. Contains consolidated tabs (`_Config`, `_Shared`), discipline/document log tabs (`Submittal Arch`, `Submittal FFE`), and support info tabs.
 _Avoid_: Unified Workbook, Master Sheet, Log Spreadsheet
 
+**FormulaRow**:
+The dedicated row immediately following the header row in a log tab that holds formula definitions for calculated columns (`Calc File Name`, `Calc Number`, `Calc Title`, `Calc Contact Chain`, `Calc Sort`) so manual log entries inherit formatting and backup calculations.
+
+**BufferRow**:
+The empty row positioned immediately below the FormulaRow and above active data rows to prevent users from accidentally overwriting formulas during manual entry.
+
 **Document**:
 The core domain concept representing a formal project correspondence or record (such as a Submittal, RFI, ASI, Bulletin, etc.) processed through the system.
 
@@ -72,8 +78,12 @@ _Avoid_: ActionStep, PipelineTask
 **DocumentTypeConfig**:
 Pure, serializable configuration schema encapsulating document-type specific search criteria (root folder and log search terms), closed subfolder maps, cover page template references, filename prefixes, and string adapter selection keys for lazy adapter resolution.
 
+**Config_Manifest**:
+The master Named Range on the `_Config` spreadsheet tab listing all enabled DocumentType entries, their display names, primary log tab names, and strategy key associations.
+_Avoid_: DocTypeIndex, ManifestSheet
+
 **DocumentTypeConfigRegistry**:
-The application registry that manages, registers, and resolves `DocumentTypeConfig` instances by document type name at runtime.
+The application registry that manages, registers, and resolves `DocumentTypeConfig` instances by document type name at runtime, utilizing Google Apps Script `CacheService.getScriptCache()` (6-hour TTL) for zero-latency lookup with automatic fallback to `_Config` spreadsheet tab parsing.
 
 **WorkflowContextFactory**:
 The application factory that ingests `DocumentTypeConfig`, `AppContext`, document payloads, and optional overrides to construct a `DocumentActionContext` equipped with lazy adapter getter properties.
@@ -115,6 +125,18 @@ _Avoid_: KeyExtractor, DocumentFormatter
 The application module that coordinates contact history, status transitions, and generic row positioning for any document type using a DocumentLogStrategy and storage adapter.
 _Avoid_: LogProcessor, LogManager
 
+**LogMigrationEngine**:
+The application service responsible for inspecting, validating, remapping, and transforming legacy standalone log spreadsheets into unified DocumentLogWorkbook log tabs with dry-run audit reporting.
+_Avoid_: SheetConverter, LegacyImporter
+
+**LogMigrationStrategy**:
+Encapsulates discipline-specific rules (`ArchLogMigrationStrategy`, `FfeLogMigrationStrategy`) for mapping legacy headers to target `<TabName>_Headers`, skipping calculated formula columns so they inherit `FormulaRow` formulas, and normalizing date/status cell values.
+_Avoid_: ColumnMapper, MigrationConfig
+
+**MigrationAuditReport**:
+The structured dry-run audit result detailing column mappings, row validation metrics, data quality discrepancies, and the boolean `canProceed` execution gate prior to log migration.
+_Avoid_: DryRunResult, MigrationSummary
+
 **SheetStorageAdapter**:
 The low-level infrastructure adapter that executes physical spreadsheet operations without any business logic or document-type assumptions.
 _Avoid_: SheetHelper
@@ -155,4 +177,8 @@ The in-memory test implementation of AiAnalysisService that returns deterministi
 **CardPresenter**:
 The application presenter module responsible for assembling Google Apps Script CardService action responses, navigation updates (card refreshes and pushes), and notification toasts.
 _Avoid_: UIHelper, CardNavigator, CardResponseBuilder
+
+**UnbiasedIntakeCard**:
+The contextual Google Workspace add-on card rendered upon email or file selection, featuring dynamic Project, DocumentType, and LogFile dropdown controls with loss-less state preservation during re-bind re-renders.
+_Avoid_: SubmittalFormCard, IntakeFormView
 
