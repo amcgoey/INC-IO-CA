@@ -113,6 +113,20 @@ class CardPresenter {
   }
 
   /**
+   * Presents the Unbiased Multi-Document Contextual Intake Card.
+   *
+   * @param e - Google Apps Script event object.
+   * @returns ActionResponse updating Card UI with unbiased intake card.
+   */
+  presentUnbiasedIntakeCard(
+    e: GoogleAppsScriptEvent
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    const card = buildUnbiasedIntakeCard(e);
+    return this.buildUpdateCardResponse(card);
+  }
+
+
+  /**
    * Pushes a new outcome success card onto the navigation stack for outgoing submittals ("Reviewed", "Referred", etc).
    *
    * @param e - Google Apps Script event object.

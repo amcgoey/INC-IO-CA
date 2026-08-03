@@ -3,748 +3,588 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PROTOTYPE — Unbiased Contextual Intake UI Card & Admin Foldout (#121)</title>
+  <title>Google Workspace Add-on UI Prototype — Contextual Intake Card & Admin Foldout (#121)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Google+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-      --card-bg: rgba(30, 41, 59, 0.75);
-      --card-border: rgba(255, 255, 255, 0.12);
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent-blue: #38bdf8;
-      --accent-indigo: #818cf8;
-      --accent-green: #34d399;
-      --accent-amber: #fbbf24;
-      --accent-purple: #c084fc;
-      --input-bg: rgba(15, 23, 42, 0.6);
-      --input-border: rgba(255, 255, 255, 0.15);
-      --radius: 12px;
-      --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
-      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --gsuite-blue: #1a73e8;
+      --gsuite-blue-hover: #1557b0;
+      --gsuite-bg: #f8f9fa;
+      --gsuite-surface: #ffffff;
+      --gsuite-border: #dadce0;
+      --gsuite-text: #202124;
+      --gsuite-text-muted: #5f6368;
+      --gsuite-section-header: #3c4043;
+      --font-google: 'Google Sans', 'Roboto', sans-serif;
+      --font-body: 'Roboto', sans-serif;
       --font-mono: 'JetBrains Mono', monospace;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: var(--font-sans);
-      background: var(--bg-gradient);
-      color: var(--text-main);
+      font-family: var(--font-body);
+      background: #e8eaed;
+      color: var(--gsuite-text);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 2rem 1rem 6rem 1rem;
+      padding: 1.5rem 1rem 4rem 1rem;
     }
 
-    .proto-banner {
-      background: rgba(234, 179, 8, 0.15);
-      border: 1px solid rgba(234, 179, 8, 0.3);
-      color: #fef08a;
-      padding: 0.75rem 1.5rem;
-      border-radius: var(--radius);
-      margin-bottom: 2rem;
-      font-size: 0.875rem;
-      font-weight: 500;
+    .proto-header {
+      width: 100%;
+      max-width: 900px;
+      background: var(--gsuite-surface);
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 1px 3px rgba(60,64,67,0.15);
+      margin-bottom: 1.5rem;
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      backdrop-filter: blur(10px);
-    }
-    .proto-banner span.tag {
-      background: #eab308;
-      color: #0f172a;
-      font-weight: 700;
-      padding: 0.2rem 0.5rem;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      text-transform: uppercase;
+      justify-content: space-between;
     }
 
-    /* Container */
-    .view-container {
-      width: 100%;
-      max-width: 1050px;
+    .proto-header h1 {
+      font-family: var(--font-google);
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: var(--gsuite-text);
       display: flex;
-      justify-content: center;
-    }
-
-    /* Cards Common */
-    .intake-card {
-      background: var(--card-bg);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 1.5rem;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .card-header-badge {
-      display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.35rem 0.75rem;
-      background: rgba(56, 189, 248, 0.15);
-      color: var(--accent-blue);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      border-radius: 20px;
+    }
+
+    .badge-addon {
+      background: #e8f0fe;
+      color: var(--gsuite-blue);
+      font-weight: 600;
       font-size: 0.75rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-    }
-
-    .ai-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
       padding: 0.25rem 0.6rem;
-      background: rgba(52, 211, 153, 0.15);
-      color: var(--accent-green);
-      border: 1px solid rgba(52, 211, 153, 0.3);
-      border-radius: 20px;
-      font-size: 0.7rem;
-      font-weight: 600;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-      margin-bottom: 1.1rem;
+    /* Outer Workspace Grid */
+    .workspace-layout {
+      width: 100%;
+      max-width: 900px;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 1.5rem;
+      align-items: start;
     }
 
-    .form-group label {
+    /* Google Workspace Add-on Side Panel Container */
+    .addon-side-panel {
+      width: 340px;
+      background: var(--gsuite-surface);
+      border: 1px solid var(--gsuite-border);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(60,64,67,0.15);
+      overflow: hidden;
+    }
+
+    /* Card Header */
+    .addon-card-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--gsuite-border);
+      background: #fafafa;
+    }
+
+    .addon-card-header .title {
+      font-family: var(--font-google);
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--gsuite-text);
+    }
+
+    .addon-card-header .subtitle {
+      font-size: 0.75rem;
+      color: var(--gsuite-text-muted);
+      margin-top: 0.2rem;
+    }
+
+    /* Card Section */
+    .addon-card-section {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--gsuite-border);
+    }
+
+    .addon-card-section:last-child {
+      border-bottom: none;
+    }
+
+    .section-header {
+      font-family: var(--font-google);
       font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-muted);
+      font-weight: 500;
+      color: var(--gsuite-section-header);
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    .form-control {
-      background: var(--input-bg);
-      border: 1px solid var(--input-border);
-      border-radius: 8px;
-      padding: 0.65rem 0.85rem;
-      color: var(--text-main);
-      font-family: inherit;
-      font-size: 0.9rem;
+    /* Collapsible Section Header */
+    .section-header.collapsible {
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 0;
+    }
+
+    .section-header.collapsible:hover {
+      color: var(--gsuite-blue);
+    }
+
+    /* Form Widgets */
+    .widget-group {
+      margin-bottom: 0.85rem;
+    }
+
+    .widget-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .widget-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--gsuite-text-muted);
+      margin-bottom: 0.3rem;
+      display: block;
+    }
+
+    .widget-select, .widget-input {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      color: var(--gsuite-text);
+      background: #ffffff;
+      border: 1px solid var(--gsuite-border);
+      border-radius: 4px;
       outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
 
-    .form-control:focus {
-      border-color: var(--accent-blue);
-      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    .widget-select:focus, .widget-input:focus {
+      border-color: var(--gsuite-blue);
+      box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
     }
 
-    select.form-control {
-      appearance: none;
-      background-image: url("data:image/svg+xml;utf8,<svg fill='%2394a3b8' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
-      background-repeat: no-repeat;
-      background-position: right 0.75rem center;
-      background-size: 1.2rem;
-      padding-right: 2.2rem;
+    /* Paragraph Text Widget */
+    .widget-paragraph {
+      font-size: 0.825rem;
+      line-height: 1.45;
+      color: var(--gsuite-text-muted);
+      background: #f1f3f4;
+      padding: 0.6rem 0.75rem;
+      border-radius: 4px;
+      margin-bottom: 0.75rem;
     }
 
-    .btn {
-      display: inline-flex;
+    .widget-paragraph strong {
+      color: var(--gsuite-text);
+    }
+
+    /* Buttons */
+    .btn-set {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .btn-filled {
+      width: 100%;
+      background: var(--gsuite-blue);
+      color: #ffffff;
+      border: none;
+      padding: 0.6rem 1rem;
+      border-radius: 4px;
+      font-family: var(--font-google);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s;
+      display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
-      padding: 0.7rem 1.25rem;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 0.875rem;
-      cursor: pointer;
-      border: none;
-      transition: all 0.2s ease;
+      gap: 0.4rem;
     }
 
-    .btn-primary {
-      background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-      color: white;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    .btn-filled:hover:not(:disabled) {
+      background: var(--gsuite-blue-hover);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
 
-    .btn-primary:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.4;
+    .btn-filled:disabled {
+      background: #dadce0;
+      color: #80868b;
       cursor: not-allowed;
     }
 
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--text-main);
-      border: 1px solid var(--card-border);
-    }
-
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.15);
-    }
-
-    /* Admin Foldout Section */
-    .admin-foldout {
-      margin-top: 1.5rem;
-      border: 1px dashed rgba(255, 255, 255, 0.2);
-      border-radius: 10px;
-      background: rgba(15, 23, 42, 0.4);
-      overflow: hidden;
-    }
-
-    .admin-foldout-header {
-      padding: 0.85rem 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .btn-outlined {
+      background: #ffffff;
+      color: var(--gsuite-blue);
+      border: 1px solid var(--gsuite-border);
+      padding: 0.45rem 0.75rem;
+      border-radius: 4px;
+      font-family: var(--font-google);
+      font-size: 0.75rem;
+      font-weight: 500;
       cursor: pointer;
-      user-select: none;
-      background: rgba(255, 255, 255, 0.03);
       transition: background 0.2s;
     }
 
-    .admin-foldout-header:hover {
-      background: rgba(255, 255, 255, 0.07);
+    .btn-outlined:hover {
+      background: #f8f9fa;
+      border-color: var(--gsuite-blue);
     }
 
-    .admin-foldout-title {
-      font-size: 0.825rem;
-      font-weight: 600;
-      color: var(--accent-purple);
+    /* Right Inspector Pane */
+    .inspector-pane {
+      background: var(--gsuite-surface);
+      border: 1px solid var(--gsuite-border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(60,64,67,0.15);
+    }
+
+    .inspector-title {
+      font-family: var(--font-google);
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--gsuite-text);
+      margin-bottom: 0.75rem;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      justify-content: space-between;
     }
 
-    .admin-foldout-body {
+    .json-preview {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
       padding: 1rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      overflow-x: auto;
+      max-height: 480px;
+      line-height: 1.4;
+    }
+
+    .cascade-indicator {
+      background: #e6f4ea;
+      color: #137333;
+      border: 1px solid #ceead6;
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-size: 0.8rem;
+      margin-bottom: 1rem;
       display: flex;
       flex-direction: column;
-      gap: 0.8rem;
-      font-size: 0.8rem;
-    }
-
-    .config-pill {
-      font-family: var(--font-mono);
-      font-size: 0.725rem;
-      padding: 0.2rem 0.5rem;
-      background: rgba(192, 132, 252, 0.15);
-      color: var(--accent-purple);
-      border: 1px solid rgba(192, 132, 252, 0.3);
-      border-radius: 4px;
-    }
-
-    /* VARIANT A: SIDEBAR (340px) */
-    .variant-a {
-      width: 350px;
-    }
-
-    /* VARIANT B: DUAL-PANE WORKBENCH (850px) */
-    .variant-b {
-      width: 100%;
-      display: grid;
-      grid-template-columns: 1fr 1.2fr;
-      gap: 1.5rem;
-    }
-
-    /* VARIANT C: STEPPER WIZARD (600px) */
-    .variant-c {
-      width: 600px;
-    }
-
-    .wizard-steps {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 1.5rem;
-      position: relative;
-    }
-
-    .wizard-steps::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: rgba(255, 255, 255, 0.1);
-      z-index: 0;
-    }
-
-    .step-item {
-      position: relative;
-      z-index: 1;
-      background: var(--card-bg);
-      border: 2px solid rgba(255, 255, 255, 0.2);
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.8rem;
-      font-weight: 700;
-      color: var(--text-muted);
-    }
-
-    .step-item.active {
-      border-color: var(--accent-blue);
-      color: var(--accent-blue);
-      background: #0f172a;
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
-    }
-
-    .step-item.done {
-      border-color: var(--accent-green);
-      background: var(--accent-green);
-      color: #0f172a;
-    }
-
-    /* Floating Switcher Bar */
-    .switcher-bar {
-      position: fixed;
-      bottom: 1.5rem;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(15, 23, 42, 0.9);
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 40px;
-      padding: 0.5rem 1rem;
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-      z-index: 9999;
-    }
-
-    .switcher-btn {
-      background: rgba(255, 255, 255, 0.1);
-      border: none;
-      color: var(--text-main);
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      transition: background 0.2s;
-    }
-
-    .switcher-btn:hover {
-      background: rgba(255, 255, 255, 0.25);
-    }
-
-    .switcher-label {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--text-main);
-      letter-spacing: 0.02em;
+      gap: 0.3rem;
     }
   </style>
 </head>
 <body>
 
-  <div class="proto-banner">
-    <span class="tag">Prototype</span>
-    <div>
-      <strong>Issue #121 Interactive UI Prototype</strong> — Contextual Intake Card & Admin Foldout Section
+  <div class="proto-header">
+    <h1>
+      <span>Google Workspace Add-on Prototype</span>
+    </h1>
+    <span class="badge-addon">Google Apps Script CardService</span>
+  </div>
+
+  <div class="workspace-layout">
+    <!-- Authentic Google Workspace Add-on Side Panel -->
+    <div class="addon-side-panel">
+      <!-- Card Header -->
+      <div class="addon-card-header">
+        <div class="title">INC.io Contextual Intake Logger</div>
+        <div class="subtitle">Unbiased Multi-Document Add-on Card</div>
+      </div>
+
+      <!-- Section 1: Intake Context & AI Classifier -->
+      <div class="addon-card-section">
+        <div class="section-header">1. Intake Context & AI Triage</div>
+        <div class="widget-paragraph">
+          📩 <strong>Gmail Context:</strong> <i>033000-001 Concrete Submittal.pdf</i>
+        </div>
+        <div class="widget-paragraph" style="background: #e8f0fe;">
+          🤖 <strong>AI 1-Pass Classifier:</strong><br>
+          Project: <strong id="aiProjDisplay">PROJ</strong> | Type: <strong id="aiTypeDisplay">SUBMITTAL_ARCH</strong> (94% High)
+        </div>
+      </div>
+
+      <!-- Section 2: Cascading Selectors -->
+      <div class="addon-card-section">
+        <div class="section-header">2. Project & Document Type</div>
+        
+        <div class="widget-group">
+          <label class="widget-label">Target Project</label>
+          <select class="widget-select" id="projectSelect" onchange="onProjectChange(this.value)">
+            <option value="">-- Select Project --</option>
+            <option value="PROJ" selected>PROJ — Main St Tower</option>
+            <option value="RES">RES — Ocean Beach House</option>
+          </select>
+        </div>
+
+        <div class="widget-group">
+          <label class="widget-label">Document Type</label>
+          <select class="widget-select" id="docTypeSelect" onchange="onDocTypeChange(this.value)">
+            <option value="">-- Select Document Type --</option>
+            <option value="SUBMITTAL_ARCH" selected>Submittal (Architecture)</option>
+            <option value="SUBMITTAL_FFE">Submittal (FF&E)</option>
+            <option value="RFI">RFI (Request for Information)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Section 3: Dynamic Document Attributes (Swaps per DocumentType) -->
+      <div class="addon-card-section" id="attrSection">
+        <div class="section-header">3. Document Attributes</div>
+        <div id="dynamicFieldsContainer"></div>
+        
+        <div class="widget-group">
+          <label class="widget-label">Date (YYMMDD)</label>
+          <input type="text" class="widget-input" id="dateInput" value="260803">
+        </div>
+        
+        <div class="widget-group">
+          <label class="widget-label">Notes / Remarks</label>
+          <input type="text" class="widget-input" id="notesInput" value="Parsed email attachment submittal context.">
+        </div>
+
+        <button class="btn-filled" id="submitBtn" onclick="onFileAndLog()">🚀 File & Log Document</button>
+      </div>
+
+      <!-- Section 4: Collapsible Admin Foldout Section -->
+      <div class="addon-card-section">
+        <div class="section-header collapsible" onclick="toggleAdminSection()">
+          <span>⚙️ Admin & Sheet Config</span>
+          <span id="adminToggleIcon">▼</span>
+        </div>
+        <div id="adminBodyContainer" style="display: none; margin-top: 0.75rem;">
+          <div class="widget-paragraph" style="font-family: var(--font-mono); font-size: 0.75rem;">
+            📊 <strong>Target Log Tab:</strong> <span id="targetTabDisplay">Submittal Arch</span><br>
+            🗂️ <strong>Config Tier:</strong> Config_Manifest ➔ <span id="manifestKeyDisplay">Config_SUBMITTAL_ARCH</span><br>
+            📐 <strong>Relative Offsets:</strong> Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4
+          </div>
+          <div class="btn-set">
+            <button class="btn-outlined" style="flex: 1;" onclick="alert('Re-running 1-Pass AI Classifier...')">⚡ Re-run AI</button>
+            <button class="btn-outlined" style="flex: 1;" onclick="alert('Sheet Manifest Cache Cleared')">🔄 Sync Manifest</button>
+          </div>
+        </div>
+      </div>
+
     </div>
-  </div>
 
-  <div class="view-container" id="protoApp">
-    <!-- Dynamic Variant Container rendered via JS -->
-  </div>
+    <!-- Right Pane: Live Cascading State & CardService JSON Inspector -->
+    <div class="inspector-pane">
+      <div class="inspector-title">
+        <span>Cascading Logic & Card JSON Inspector</span>
+        <span style="font-size: 0.75rem; color: var(--gsuite-text-muted);">CardService.actionResponseToJSON</span>
+      </div>
 
-  <!-- Floating Prototype Switcher Bar -->
-  <div class="switcher-bar">
-    <button class="switcher-btn" id="prevVariantBtn" title="Previous Variant (Left Arrow)">←</button>
-    <div class="switcher-label" id="variantLabel">Variant A — Compact Side-Panel</div>
-    <button class="switcher-btn" id="nextVariantBtn" title="Next Variant (Right Arrow)">→</button>
+      <div class="cascade-indicator" id="cascadeStatus">
+        <div><strong>Cascading Selection Resolution:</strong></div>
+        <div id="cascadeDetails">1. Selected Project 'PROJ' ➔ Binds Workbook 'DocumentLogWorkbook'</div>
+        <div id="cascadeDetails2">2. Selected DocumentType 'SUBMITTAL_ARCH' ➔ Target Log Tab 'Submittal Arch'</div>
+      </div>
+
+      <div class="inspector-title" style="font-size: 0.85rem; margin-top: 1rem;">Generated Add-on Card JSON</div>
+      <pre class="json-preview" id="jsonOutput"></pre>
+    </div>
   </div>
 
   <script>
     // State Store
     const state = {
-      variant: new URLSearchParams(window.location.search).get('variant') || 'A',
-      selectedProject: 'PROJ',
-      selectedDocType: 'SUBMITTAL_ARCH',
-      fileSource: 'Gmail Email',
-      aiConfidence: '94% (High Confidence)',
-      adminOpen: false,
-      wizardStep: 1,
-      // Form Fields
-      title: 'Cast-in-Place Concrete Mockup',
+      project: 'PROJ',
+      documentType: 'SUBMITTAL_ARCH',
       section: '03 30 00',
       number: '001',
-      rev: '0',
+      revision: '0',
+      title: 'Cast-in-Place Concrete',
       specTag: 'CH-01',
       relatedTag: 'CH-02',
       vendor: 'Acme Concrete Co.',
-      rfiNum: 'RFI-014',
-      rfiTitle: 'Beam Flange Tolerances',
+      rfiNumber: 'RFI-042',
       date: '260803',
-      notes: 'Reviewed email attachment. Submittal includes test reports.'
+      notes: 'Parsed email attachment submittal context.',
+      adminOpen: false
     };
 
-    const variants = [
-      { key: 'A', name: 'Variant A — Compact Side-Panel (Add-on Native)' },
-      { key: 'B', name: 'Variant B — Dual-Pane Executive Workbench' },
-      { key: 'C', name: 'Variant C — Step-by-Step Guided Wizard' }
-    ];
-
-    function updateUrl() {
-      const url = new URL(window.location);
-      url.searchParams.set('variant', state.variant);
-      window.history.replaceState({}, '', url);
-    }
-
-    function toggleAdmin() {
-      state.adminOpen = !state.adminOpen;
-      render();
-    }
-
-    function setDocType(val) {
-      state.selectedDocType = val;
-      render();
-    }
-
-    function setProject(val) {
-      state.selectedProject = val;
-      render();
-    }
-
-    function setStep(step) {
-      state.wizardStep = step;
-      render();
-    }
-
-    function renderAdminFoldout() {
-      const sheetName = state.selectedDocType === 'SUBMITTAL_FFE' ? 'Submittal FFE' :
-                        state.selectedDocType === 'RFI' ? 'RFI Log' : 'Submittal Arch';
-      const manifestKey = state.selectedDocType || 'SUBMITTAL_ARCH';
-
-      return `
-        <div class="admin-foldout">
-          <div class="admin-foldout-header" onclick="toggleAdmin()">
-            <div class="admin-foldout-title">
-              <span>⚙️ Admin & Workbook Configuration</span>
-              <span class="config-pill">${state.adminOpen ? 'Expanded' : 'Collapsed'}</span>
-            </div>
-            <div style="font-size: 0.8rem; color: var(--text-muted);">${state.adminOpen ? '▲' : '▼'}</div>
-          </div>
-          ${state.adminOpen ? `
-            <div class="admin-foldout-body">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: var(--text-muted);">Target Log Tab:</span>
-                <strong style="color: var(--accent-blue); font-family: var(--font-mono);">${sheetName}</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: var(--text-muted);">Config Tier:</span>
-                <span class="config-pill">Config_Manifest ➔ Config_${manifestKey}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: var(--text-muted);">Log Offset:</span>
-                <span style="font-family: var(--font-mono);">Row 4 (Header=Row 1)</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: var(--text-muted);">Workbook ID:</span>
-                <a href="#" style="color: var(--accent-indigo); text-decoration: underline; font-family: var(--font-mono);">1BxiM...9kL0</a>
-              </div>
-              <div style="margin-top: 0.4rem; display: flex; gap: 0.5rem;">
-                <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.4rem 0.75rem;" onclick="alert('Re-running 1-Pass AI Triage...')">⚡ Re-run Classifier</button>
-                <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.4rem 0.75rem;" onclick="alert('Sheet Cache Cleared')">🔄 Sync Manifest</button>
-              </div>
-            </div>
-          ` : ''}
-        </div>
-      `;
-    }
-
     function renderDynamicFields() {
-      if (state.selectedDocType === 'SUBMITTAL_ARCH') {
-        return `
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
-            <div class="form-group">
-              <label>CSI Section</label>
-              <input type="text" class="form-control" value="${state.section}" onchange="state.section=this.value">
-            </div>
-            <div class="form-group">
-              <label>Submittal #</label>
-              <input type="text" class="form-control" value="${state.number}" onchange="state.number=this.value">
-            </div>
-            <div class="form-group">
-              <label>Rev #</label>
-              <input type="text" class="form-control" value="${state.rev}" onchange="state.rev=this.value">
-            </div>
+      const container = document.getElementById('dynamicFieldsContainer');
+      if (state.documentType === 'SUBMITTAL_ARCH') {
+        container.innerHTML = `
+          <div class="widget-group">
+            <label class="widget-label">CSI Section #</label>
+            <input type="text" class="widget-input" value="${state.section}" onchange="state.section=this.value; renderJson();">
           </div>
-          <div class="form-group">
-            <label>Submittal Title</label>
-            <input type="text" class="form-control" value="${state.title}" onchange="state.title=this.value">
+          <div class="widget-group">
+            <label class="widget-label">Submittal #</label>
+            <input type="text" class="widget-input" value="${state.number}" onchange="state.number=this.value; renderJson();">
           </div>
-        `;
-      } else if (state.selectedDocType === 'SUBMITTAL_FFE') {
-        return `
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-            <div class="form-group">
-              <label>Spec Tag</label>
-              <input type="text" class="form-control" value="${state.specTag}" onchange="state.specTag=this.value">
-            </div>
-            <div class="form-group">
-              <label>Related Tag</label>
-              <input type="text" class="form-control" value="${state.relatedTag}" onchange="state.relatedTag=this.value">
-            </div>
+          <div class="widget-group">
+            <label class="widget-label">Revision #</label>
+            <input type="text" class="widget-input" value="${state.revision}" onchange="state.revision=this.value; renderJson();">
           </div>
-          <div class="form-group">
-            <label>Spec Title / Description</label>
-            <input type="text" class="form-control" value="Dining Side Chair Specification" onchange="state.title=this.value">
-          </div>
-          <div class="form-group">
-            <label>Vendor / Supplier</label>
-            <input type="text" class="form-control" value="${state.vendor}" onchange="state.vendor=this.value">
+          <div class="widget-group">
+            <label class="widget-label">Submittal Title</label>
+            <input type="text" class="widget-input" value="${state.title}" onchange="state.title=this.value; renderJson();">
           </div>
         `;
-      } else if (state.selectedDocType === 'RFI') {
-        return `
-          <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 0.75rem;">
-            <div class="form-group">
-              <label>RFI Number</label>
-              <input type="text" class="form-control" value="${state.rfiNum}" onchange="state.rfiNum=this.value">
-            </div>
-            <div class="form-group">
-              <label>Subject / Subject Line</label>
-              <input type="text" class="form-control" value="${state.rfiTitle}" onchange="state.rfiTitle=this.value">
-            </div>
+      } else if (state.documentType === 'SUBMITTAL_FFE') {
+        container.innerHTML = `
+          <div class="widget-group">
+            <label class="widget-label">Spec Tag</label>
+            <input type="text" class="widget-input" value="${state.specTag}" onchange="state.specTag=this.value; renderJson();">
+          </div>
+          <div class="widget-group">
+            <label class="widget-label">Related Tags</label>
+            <input type="text" class="widget-input" value="${state.relatedTag}" onchange="state.relatedTag=this.value; renderJson();">
+          </div>
+          <div class="widget-group">
+            <label class="widget-label">Spec Title</label>
+            <input type="text" class="widget-input" value="Dining Side Chair Specification" onchange="state.title=this.value; renderJson();">
+          </div>
+          <div class="widget-group">
+            <label class="widget-label">Vendor / Supplier</label>
+            <input type="text" class="widget-input" value="${state.vendor}" onchange="state.vendor=this.value; renderJson();">
           </div>
         `;
+      } else if (state.documentType === 'RFI') {
+        container.innerHTML = `
+          <div class="widget-group">
+            <label class="widget-label">RFI Number</label>
+            <input type="text" class="widget-input" value="${state.rfiNumber}" onchange="state.rfiNumber=this.value; renderJson();">
+          </div>
+          <div class="widget-group">
+            <label class="widget-label">RFI Subject / Title</label>
+            <input type="text" class="widget-input" value="Beam Flange Tolerances at Column B" onchange="state.title=this.value; renderJson();">
+          </div>
+        `;
+      } else {
+        container.innerHTML = '';
       }
-      return '';
     }
 
-    function renderVariantA() {
-      return `
-        <div class="intake-card variant-a">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div class="card-header-badge">📩 Gmail Intake Context</div>
-            <div class="ai-badge">🤖 ${state.aiConfidence}</div>
-          </div>
-
-          <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.25rem;">Intake Document Logger</h3>
-
-          <div class="form-group">
-            <label>Target Project</label>
-            <select class="form-control" onchange="setProject(this.value)">
-              <option value="">-- Select Project --</option>
-              <option value="PROJ" ${state.selectedProject === 'PROJ' ? 'selected' : ''}>PROJ — Main St Tower</option>
-              <option value="RES" ${state.selectedProject === 'RES' ? 'selected' : ''}>RES — Ocean Beach House</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Document Type</label>
-            <select class="form-control" onchange="setDocType(this.value)">
-              <option value="">-- Select Document Type --</option>
-              <option value="SUBMITTAL_ARCH" ${state.selectedDocType === 'SUBMITTAL_ARCH' ? 'selected' : ''}>Submittal (Architecture)</option>
-              <option value="SUBMITTAL_FFE" ${state.selectedDocType === 'SUBMITTAL_FFE' ? 'selected' : ''}>Submittal (FF&E)</option>
-              <option value="RFI" ${state.selectedDocType === 'RFI' ? 'selected' : ''}>RFI (Request for Information)</option>
-            </select>
-          </div>
-
-          <div style="border-top: 1px solid var(--card-border); padding-top: 1rem; margin-top: 0.5rem;">
-            ${renderDynamicFields()}
-          </div>
-
-          <div class="form-group">
-            <label>Date & Notes</label>
-            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem;">
-              <input type="text" class="form-control" value="${state.date}">
-              <input type="text" class="form-control" value="${state.notes}">
-            </div>
-          </div>
-
-          <button class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" ${(!state.selectedProject || !state.selectedDocType) ? 'disabled' : ''} onclick="alert('Successfully Logged Intake Document!')">
-            🚀 File & Process Document
-          </button>
-
-          ${renderAdminFoldout()}
-        </div>
-      `;
+    function onProjectChange(val) {
+      state.project = val;
+      document.getElementById('aiProjDisplay').innerText = val || 'Unselected';
+      updateCascade();
+      renderJson();
     }
 
-    function renderVariantB() {
-      return `
-        <div class="intake-card variant-b">
-          <!-- Left Pane: Context & Detection -->
-          <div style="border-right: 1px solid var(--card-border); padding-right: 1.5rem;">
-            <div class="card-header-badge">📁 Contextual Source File</div>
-            <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.75rem;">Selected Context</h3>
-            
-            <div style="background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: 8px; border: 1px solid var(--card-border); margin-bottom: 1.25rem;">
-              <div style="font-size: 0.85rem; font-weight: 600; color: var(--accent-blue); font-family: var(--font-mono);">033000-001 Concrete Submittal.pdf</div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Source: Email Attachment (1.4 MB)</div>
-            </div>
-
-            <div style="margin-bottom: 1.25rem;">
-              <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem;">AI SINGLE-PASS CLASSIFIER</div>
-              <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem;">
-                <div style="display: flex; justify-content: space-between;">
-                  <span>Detected Project:</span>
-                  <strong style="color: var(--accent-green);">PROJ (98%)</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                  <span>Detected Type:</span>
-                  <strong style="color: var(--accent-green);">${state.selectedDocType} (94%)</strong>
-                </div>
-              </div>
-            </div>
-
-            ${renderAdminFoldout()}
-          </div>
-
-          <!-- Right Pane: Target Routing & Dynamic Fields -->
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-              <h3 style="font-size: 1.1rem; font-weight: 700;">Target Log & Metadata</h3>
-              <div class="ai-badge">Unbiased Intake</div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-              <div class="form-group">
-                <label>Project</label>
-                <select class="form-control" onchange="setProject(this.value)">
-                  <option value="PROJ" ${state.selectedProject === 'PROJ' ? 'selected' : ''}>PROJ — Main St Tower</option>
-                  <option value="RES" ${state.selectedProject === 'RES' ? 'selected' : ''}>RES — Ocean Beach House</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Document Type</label>
-                <select class="form-control" onchange="setDocType(this.value)">
-                  <option value="SUBMITTAL_ARCH" ${state.selectedDocType === 'SUBMITTAL_ARCH' ? 'selected' : ''}>Submittal (Arch)</option>
-                  <option value="SUBMITTAL_FFE" ${state.selectedDocType === 'SUBMITTAL_FFE' ? 'selected' : ''}>Submittal (FF&E)</option>
-                  <option value="RFI" ${state.selectedDocType === 'RFI' ? 'selected' : ''}>RFI</option>
-                </select>
-              </div>
-            </div>
-
-            <div style="background: rgba(255, 255, 255, 0.02); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 1.25rem;">
-              ${renderDynamicFields()}
-            </div>
-
-            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-              <button class="btn btn-secondary" onclick="alert('Intake Cancelled')">Cancel</button>
-              <button class="btn btn-primary" onclick="alert('Intake Executed!')">🚀 Confirm & Save to Log</button>
-            </div>
-          </div>
-        </div>
-      `;
+    function onDocTypeChange(val) {
+      state.documentType = val;
+      document.getElementById('aiTypeDisplay').innerText = val || 'Unselected';
+      renderDynamicFields();
+      updateCascade();
+      renderJson();
     }
 
-    function renderVariantC() {
-      return `
-        <div class="intake-card variant-c">
-          <div class="wizard-steps">
-            <div class="step-item ${state.wizardStep >= 1 ? (state.wizardStep > 1 ? 'done' : 'active') : ''}">1</div>
-            <div class="step-item ${state.wizardStep >= 2 ? (state.wizardStep > 2 ? 'done' : 'active') : ''}">2</div>
-            <div class="step-item ${state.wizardStep >= 3 ? 'active' : ''}">3</div>
-          </div>
-
-          ${state.wizardStep === 1 ? `
-            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Step 1: Identify Context & Target</h3>
-            <div class="form-group">
-              <label>Target Project</label>
-              <select class="form-control" onchange="setProject(this.value)">
-                <option value="PROJ" ${state.selectedProject === 'PROJ' ? 'selected' : ''}>PROJ — Main St Tower</option>
-                <option value="RES" ${state.selectedProject === 'RES' ? 'selected' : ''}>RES — Ocean Beach House</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Document Type</label>
-              <select class="form-control" onchange="setDocType(this.value)">
-                <option value="SUBMITTAL_ARCH" ${state.selectedDocType === 'SUBMITTAL_ARCH' ? 'selected' : ''}>Submittal (Architecture)</option>
-                <option value="SUBMITTAL_FFE" ${state.selectedDocType === 'SUBMITTAL_FFE' ? 'selected' : ''}>Submittal (FF&E)</option>
-                <option value="RFI" ${state.selectedDocType === 'RFI' ? 'selected' : ''}>RFI</option>
-              </select>
-            </div>
-            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="setStep(2)">Next: Enter Metadata ➔</button>
-          ` : state.wizardStep === 2 ? `
-            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Step 2: Type-Specific Attributes</h3>
-            ${renderDynamicFields()}
-            <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
-              <button class="btn btn-secondary" style="flex: 1;" onclick="setStep(1)">← Back</button>
-              <button class="btn btn-primary" style="flex: 1;" onclick="setStep(3)">Next: Review & File ➔</button>
-            </div>
-          ` : `
-            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Step 3: Review & Admin Foldout</h3>
-            <div style="font-size: 0.85rem; line-height: 1.6; background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: 8px; border: 1px solid var(--card-border);">
-              <div><strong>Project:</strong> ${state.selectedProject}</div>
-              <div><strong>Type:</strong> ${state.selectedDocType}</div>
-              <div><strong>Title:</strong> ${state.title || state.rfiTitle}</div>
-            </div>
-            ${renderAdminFoldout()}
-            <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
-              <button class="btn btn-secondary" style="flex: 1;" onclick="setStep(2)">← Back</button>
-              <button class="btn btn-primary" style="flex: 1;" onclick="alert('Filed via Wizard!')">🚀 Submit Filing</button>
-            </div>
-          `}
-        </div>
-      `;
+    function toggleAdminSection() {
+      state.adminOpen = !state.adminOpen;
+      document.getElementById('adminBodyContainer').style.display = state.adminOpen ? 'block' : 'none';
+      document.getElementById('adminToggleIcon').innerText = state.adminOpen ? '▲' : '▼';
     }
 
-    function render() {
-      const container = document.getElementById('protoApp');
-      const label = document.getElementById('variantLabel');
+    function updateCascade() {
+      const targetTab = state.documentType === 'SUBMITTAL_FFE' ? 'Submittal FFE' :
+                        state.documentType === 'RFI' ? 'RFI Log' : 'Submittal Arch';
+      const manifestKey = state.documentType || 'SUBMITTAL_ARCH';
 
-      const currentVariantObj = variants.find(v => v.key === state.variant) || variants[0];
-      label.innerText = currentVariantObj.name;
+      document.getElementById('targetTabDisplay').innerText = targetTab;
+      document.getElementById('manifestKeyDisplay').innerText = `Config_${manifestKey}`;
 
-      if (state.variant === 'A') {
-        container.innerHTML = renderVariantA();
-      } else if (state.variant === 'B') {
-        container.innerHTML = renderVariantB();
-      } else if (state.variant === 'C') {
-        container.innerHTML = renderVariantC();
-      }
+      const isValid = state.project !== '' && state.documentType !== '';
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = !isValid;
+      submitBtn.innerText = isValid ? '🚀 File & Log Document' : '⚠️ Select Project & Document Type';
 
-      updateUrl();
+      document.getElementById('cascadeDetails').innerText = state.project ? 
+        `1. Selected Project '${state.project}' ➔ Binds Shared Drive Workbook 'DocumentLogWorkbook'` :
+        `1. Project Unselected ➔ Awaiting Selection`;
+
+      document.getElementById('cascadeDetails2').innerText = state.documentType ? 
+        `2. Selected DocumentType '${state.documentType}' ➔ Resolved Target Tab '${targetTab}' (Config_${manifestKey})` :
+        `2. DocumentType Unselected ➔ Awaiting Selection`;
     }
 
-    // Switcher Logic
-    document.getElementById('prevVariantBtn').addEventListener('click', () => {
-      const idx = variants.findIndex(v => v.key === state.variant);
-      const prevIdx = (idx - 1 + variants.length) % variants.length;
-      state.variant = variants[prevIdx].key;
-      render();
-    });
+    function renderJson() {
+      const cardJson = {
+        action: "updateCard",
+        card: {
+          header: {
+            title: "INC.io Contextual Intake Logger",
+            subtitle: "Unbiased Multi-Document Add-on Card"
+          },
+          sections: [
+            {
+              header: "1. Intake Context & AI Triage",
+              widgets: [
+                { type: "TextParagraph", text: "📩 Gmail Context: 033000-001 Concrete Submittal.pdf" },
+                { type: "TextParagraph", text: `🤖 AI 1-Pass Classifier: Project ${state.project} | Type ${state.documentType} (94%)` }
+              ]
+            },
+            {
+              header: "2. Project & Document Type",
+              widgets: [
+                { type: "SelectionInput", fieldName: "project", title: "Target Project", selected: state.project },
+                { type: "SelectionInput", fieldName: "documentType", title: "Document Type", selected: state.documentType }
+              ]
+            },
+            {
+              header: "3. Document Attributes",
+              widgets: state.documentType === 'SUBMITTAL_ARCH' ? [
+                { type: "TextInput", fieldName: "section", title: "CSI Section #", value: state.section },
+                { type: "TextInput", fieldName: "number", title: "Submittal #", value: state.number },
+                { type: "TextInput", fieldName: "revision", title: "Revision #", value: state.revision },
+                { type: "TextInput", fieldName: "title", title: "Submittal Title", value: state.title }
+              ] : state.documentType === 'SUBMITTAL_FFE' ? [
+                { type: "TextInput", fieldName: "specTag", title: "Spec Tag", value: state.specTag },
+                { type: "TextInput", fieldName: "relatedTag", title: "Related Tags", value: state.relatedTag },
+                { type: "TextInput", fieldName: "title", title: "Spec Title", value: "Dining Side Chair Specification" },
+                { type: "TextInput", fieldName: "vendor", title: "Vendor / Supplier", value: state.vendor }
+              ] : [
+                { type: "TextInput", fieldName: "rfiNumber", title: "RFI Number", value: state.rfiNumber },
+                { type: "TextInput", fieldName: "title", title: "RFI Subject / Title", value: "Beam Flange Tolerances at Column B" }
+              ]
+            },
+            {
+              header: "⚙️ Admin & Sheet Config",
+              collapsible: true,
+              widgets: [
+                { type: "TextParagraph", text: `📊 Target Log Tab: ${document.getElementById('targetTabDisplay').innerText}` },
+                { type: "TextParagraph", text: `🗂️ Config Tier: Config_Manifest ➔ ${document.getElementById('manifestKeyDisplay').innerText}` },
+                { type: "TextParagraph", text: "📐 Relative Offsets: Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4" }
+              ]
+            }
+          ]
+        }
+      };
 
-    document.getElementById('nextVariantBtn').addEventListener('click', () => {
-      const idx = variants.findIndex(v => v.key === state.variant);
-      const nextIdx = (idx + 1) % variants.length;
-      state.variant = variants[nextIdx].key;
-      render();
-    });
+      document.getElementById('jsonOutput').innerText = JSON.stringify(cardJson, null, 2);
+    }
 
-    document.addEventListener('keydown', (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
-      if (e.key === 'ArrowLeft') {
-        document.getElementById('prevVariantBtn').click();
-      } else if (e.key === 'ArrowRight') {
-        document.getElementById('nextVariantBtn').click();
-      }
-    });
+    function onFileAndLog() {
+      alert(`Filing document for Project '${state.project}' and Type '${state.documentType}' to log tab '${document.getElementById('targetTabDisplay').innerText}'!`);
+    }
 
     // Initial Render
-    render();
+    renderDynamicFields();
+    updateCascade();
+    renderJson();
   </script>
 </body>
 </html>

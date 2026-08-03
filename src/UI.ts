@@ -655,14 +655,157 @@ function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
   }
 }
 
+/**
+ * Constructs the Unbiased Multi-Document Contextual Intake Card.
+ *
+ * Demonstrates the cascading selection flow (Document Context -> Project -> DocumentType -> Dynamic Log Tab Attributes -> Admin Foldout).
+ *
+ * @param e - Google Apps Script event object containing form inputs and action parameters.
+ * @param initialData - Optional initial parsed data.
+ * @param flashMessage - Optional notification payload.
+ * @returns Fully constructed `GoogleAppsScript.Card_Service.Card` instance.
+ */
+function buildUnbiasedIntakeCard(
+  e: GoogleAppsScriptEvent,
+  initialData: ParsedData | null = null,
+  flashMessage: any = null
+): GoogleAppsScript.Card_Service.Card {
+  const header = CardService.newCardHeader()
+    .setTitle("INC.io Contextual Intake Logger")
+    .setSubtitle("Unbiased Multi-Document Add-on Card");
+  if (CONFIG.LOGO_URL) header.setImageUrl(CONFIG.LOGO_URL);
+
+  const card = CardService.newCardBuilder().setHeader(header);
+
+  const formInput = (e && e.formInput) || {};
+  const p = (e && e.parameters) || {};
+
+  // Resolved Cascading State
+  const state = {
+    project: formInput.project || (initialData && initialData.driveName) || p.project || "PROJ",
+    documentType: formInput.documentType || (initialData && initialData.discipline === "FF&E" ? "SUBMITTAL_FFE" : "SUBMITTAL_ARCH"),
+    fileSource: formInput.fileSource || "Gmail Email Attachment",
+    aiConfidence: "94% (High)",
+    section: formInput.section || (initialData && initialData.section) || "03 30 00",
+    number: formInput.number || (initialData && initialData.number) || "001",
+    revision: formInput.revision || "0",
+    title: formInput.title || (initialData && initialData.title) || "Cast-in-Place Concrete",
+    specTag: formInput.specTag || "CH-01",
+    relatedTag: formInput.relatedTag || "CH-02",
+    vendor: formInput.vendor || "Acme Supplies",
+    rfiNumber: formInput.rfiNumber || "RFI-042",
+    date: formInput.date || formatGasDate(new Date()),
+    notes: formInput.notes || "Parsed context from email intake."
+  };
+
+  const getActionParams = (): Record<string, string> => ({
+    project: state.project,
+    documentType: state.documentType
+  });
+
+  // Section 1: Context & AI Classifier Header Banner
+  const contextSec = CardService.newCardSection()
+    .setHeader("1. Intake Context & AI Classifier")
+    .addWidget(CardService.newTextParagraph().setText("📩 **Context:** Selected Gmail Email — *033000-001 Concrete Submittal.pdf*"))
+    .addWidget(CardService.newTextParagraph().setText(`🤖 **AI 1-Pass Triage:** Project **${state.project || "Unselected"}** | Type **${state.documentType || "Unselected"}** (${state.aiConfidence})`));
+
+  card.addSection(contextSec);
+
+  // Section 2: Cascading Selectors (Project & DocumentType)
+  const cascadeSec = CardService.newCardSection().setHeader("2. Project & Document Type Selection");
+
+  const projDrop = CardService.newSelectionInput()
+    .setType(CardService.SelectionInputType.DROPDOWN)
+    .setTitle("Target Project")
+    .setFieldName("project")
+    .setOnChangeAction(CardService.newAction().setFunctionName("onStateChange").setParameters(getActionParams()));
+  projDrop.addItem("-- Select Project --", "", state.project === "");
+  projDrop.addItem("PROJ — Main St Tower", "PROJ", state.project === "PROJ");
+  projDrop.addItem("RES — Ocean Beach House", "RES", state.project === "RES");
+  cascadeSec.addWidget(projDrop);
+
+  const docTypeDrop = CardService.newSelectionInput()
+    .setType(CardService.SelectionInputType.DROPDOWN)
+    .setTitle("Document Type")
+    .setFieldName("documentType")
+    .setOnChangeAction(CardService.newAction().setFunctionName("onStateChange").setParameters(getActionParams()));
+  docTypeDrop.addItem("-- Select Document Type --", "", state.documentType === "");
+  docTypeDrop.addItem("Submittal (Architecture)", "SUBMITTAL_ARCH", state.documentType === "SUBMITTAL_ARCH");
+  docTypeDrop.addItem("Submittal (FF&E)", "SUBMITTAL_FFE", state.documentType === "SUBMITTAL_FFE");
+  docTypeDrop.addItem("RFI (Request for Information)", "RFI", state.documentType === "RFI");
+  cascadeSec.addWidget(docTypeDrop);
+
+  card.addSection(cascadeSec);
+
+  // Section 3: Dynamic Attribute Form Inputs (Swaps based on DocumentType)
+  const attrSec = CardService.newCardSection().setHeader("3. Document Attributes");
+
+  if (state.documentType === "SUBMITTAL_ARCH") {
+    attrSec.addWidget(CardService.newTextInput().setFieldName("section").setTitle("CSI Section #").setValue(state.section));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("number").setTitle("Submittal #").setValue(state.number));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("revision").setTitle("Revision #").setValue(state.revision));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle("Submittal Title").setValue(state.title));
+  } else if (state.documentType === "SUBMITTAL_FFE") {
+    attrSec.addWidget(CardService.newTextInput().setFieldName("specTag").setTitle("Spec Tag").setValue(state.specTag));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("relatedTag").setTitle("Related Tags").setValue(state.relatedTag));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle("Spec Title").setValue(state.title));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("vendor").setTitle("Vendor / Supplier").setValue(state.vendor));
+  } else if (state.documentType === "RFI") {
+    attrSec.addWidget(CardService.newTextInput().setFieldName("rfiNumber").setTitle("RFI Number").setValue(state.rfiNumber));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle("RFI Subject / Title").setValue(state.title));
+  }
+
+  attrSec.addWidget(CardService.newTextInput().setFieldName("date").setTitle("Date (YYMMDD)").setValue(state.date));
+  attrSec.addWidget(CardService.newTextInput().setFieldName("notes").setTitle("Notes / Remarks").setMultiline(true).setValue(state.notes));
+
+  const isFormValid = state.project !== "" && state.documentType !== "";
+  const subBtn = CardService.newTextButton()
+    .setText(isFormValid ? "🚀 File & Log Document" : "⚠️ Select Project & Document Type")
+    .setOnClickAction(CardService.newAction().setFunctionName("processSubmission").setParameters(getActionParams()))
+    .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
+
+  attrSec.addWidget(CardService.newButtonSet().addButton(subBtn));
+  card.addSection(attrSec);
+
+  // Section 4: Collapsible Admin & Sheet Configuration Foldout
+  const targetTab = state.documentType === "SUBMITTAL_FFE" ? "Submittal FFE" : state.documentType === "RFI" ? "RFI Log" : "Submittal Arch";
+  const manifestKey = state.documentType || "SUBMITTAL_ARCH";
+
+  const adminSec = CardService.newCardSection()
+    .setHeader("⚙️ Admin & Sheet Configuration")
+    .setCollapsible(true)
+    .addWidget(CardService.newTextParagraph().setText(`📊 **Target Sheet Log Tab:** \`${targetTab}\``))
+    .addWidget(CardService.newTextParagraph().setText(`🗂️ **Config Tier:** \`Config_Manifest\` ➔ \`Config_${manifestKey}\``))
+    .addWidget(CardService.newTextParagraph().setText("📐 **Relative Offsets:** Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4"))
+    .addWidget(
+      CardService.newButtonSet()
+        .addButton(
+          CardService.newTextButton()
+            .setText("⚡ Re-run AI Classifier")
+            .setOnClickAction(CardService.newAction().setFunctionName("handleDeepAnalysis").setParameters(getActionParams()))
+        )
+        .addButton(
+          CardService.newTextButton()
+            .setText("🔄 Sync Sheet Manifest")
+            .setOnClickAction(CardService.newAction().setFunctionName("handleRefreshCache").setParameters(getActionParams()))
+        )
+    );
+
+  card.addSection(adminSec);
+
+  return card.build();
+}
+
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   (globalThis as any).buildMainCard = (globalThis as any).buildMainCard || buildMainCard;
   (globalThis as any).buildSuccessCard = (globalThis as any).buildSuccessCard || buildSuccessCard;
+  (globalThis as any).buildUnbiasedIntakeCard = (globalThis as any).buildUnbiasedIntakeCard || buildUnbiasedIntakeCard;
   module.exports = {
     buildMainCard,
     buildSuccessCard,
+    buildUnbiasedIntakeCard,
     onStateChange,
     onSpecTagChange,
     processSubmissionWithNewTag,
@@ -673,3 +816,4 @@ if (typeof module !== "undefined" && module.exports) {
     createDraftEmail
   };
 }
+

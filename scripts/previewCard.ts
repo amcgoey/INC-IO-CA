@@ -77,8 +77,13 @@ export function generateCardSnapshots() {
   const ffeSuccessResponse = presenter.presentOutgoingSuccess(ffeEvent, ffeResult, ffeParams);
   const ffeSuccessCardJson = CardSerializer.actionResponseToJSON(ffeSuccessResponse);
 
+  // 7. Unbiased Intake Card
+  const unbiasedResponse = presenter.presentUnbiasedIntakeCard(mainEvent);
+  const unbiasedCardJson = CardSerializer.actionResponseToJSON(unbiasedResponse);
+
   const snapshots: Record<string, any> = {
     main_card: mainCardJson,
+    unbiased_intake_card: unbiasedCardJson,
     validation_error_card: validationCardJson,
     interaction_prompt_tag_card: promptTagCardJson,
     interaction_prompt_vendor_card: promptVendorCardJson,
