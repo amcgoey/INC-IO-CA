@@ -658,11 +658,12 @@ function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
 /**
  * Constructs the Unbiased Multi-Document Contextual Intake Card.
  *
- * Demonstrates the cascading selection flow (Document Context -> Project -> DocumentType -> Dynamic Log Tab Attributes -> Admin Foldout).
+ * Card Title: "File Document"
+ * Demonstrates the cascading selection flow (Project -> DocumentType -> Dynamic Attributes -> Admin & Status foldout).
  *
  * @param e - Google Apps Script event object containing form inputs and action parameters.
  * @param initialData - Optional initial parsed data.
- * @param flashMessage - Optional notification payload.
+ * @param flashMessage - Optional notification payload containing warnings or errors.
  * @returns Fully constructed `GoogleAppsScript.Card_Service.Card` instance.
  */
 function buildUnbiasedIntakeCard(
@@ -670,9 +671,7 @@ function buildUnbiasedIntakeCard(
   initialData: ParsedData | null = null,
   flashMessage: any = null
 ): GoogleAppsScript.Card_Service.Card {
-  const header = CardService.newCardHeader()
-    .setTitle("INC.io Contextual Intake Logger")
-    .setSubtitle("Unbiased Multi-Document Add-on Card");
+  const header = CardService.newCardHeader().setTitle("File Document");
   if (CONFIG.LOGO_URL) header.setImageUrl(CONFIG.LOGO_URL);
 
   const card = CardService.newCardBuilder().setHeader(header);
@@ -684,9 +683,7 @@ function buildUnbiasedIntakeCard(
   const state = {
     project: formInput.project || (initialData && initialData.driveName) || p.project || "PROJ",
     documentType: formInput.documentType || (initialData && initialData.discipline === "FF&E" ? "SUBMITTAL_FFE" : "SUBMITTAL_ARCH"),
-    fileSource: formInput.fileSource || "Gmail Email Attachment",
-    aiConfidence: "94% (High)",
-    section: formInput.section || (initialData && initialData.section) || "03 30 00",
+    section: formInput.section || (initialData && initialData.section) || "033000",
     number: formInput.number || (initialData && initialData.number) || "001",
     revision: formInput.revision || "0",
     title: formInput.title || (initialData && initialData.title) || "Cast-in-Place Concrete",
@@ -695,7 +692,7 @@ function buildUnbiasedIntakeCard(
     vendor: formInput.vendor || "Acme Supplies",
     rfiNumber: formInput.rfiNumber || "RFI-042",
     date: formInput.date || formatGasDate(new Date()),
-    notes: formInput.notes || "Parsed context from email intake."
+    notes: formInput.notes || ""
   };
 
   const getActionParams = (): Record<string, string> => ({
@@ -703,16 +700,18 @@ function buildUnbiasedIntakeCard(
     documentType: state.documentType
   });
 
-  // Section 1: Context & AI Classifier Header Banner
-  const contextSec = CardService.newCardSection()
-    .setHeader("1. Intake Context & AI Classifier")
-    .addWidget(CardService.newTextParagraph().setText("📩 **Context:** Selected Gmail Email — *033000-001 Concrete Submittal.pdf*"))
-    .addWidget(CardService.newTextParagraph().setText(`🤖 **AI 1-Pass Triage:** Project **${state.project || "Unselected"}** | Type **${state.documentType || "Unselected"}** (${state.aiConfidence})`));
+  // 1. Status Message Box (Conditional — only added if a message is displayed)
+  if (flashMessage && (flashMessage.error || flashMessage.warning)) {
+    const msgText = flashMessage.error ? `⚠️ ${flashMessage.error}` : `⚠️ ${flashMessage.warning}`;
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextParagraph().setText(msgText)
+      )
+    );
+  }
 
-  card.addSection(contextSec);
-
-  // Section 2: Cascading Selectors (Project & DocumentType)
-  const cascadeSec = CardService.newCardSection().setHeader("2. Project & Document Type Selection");
+  // 2. Cascading Selectors (Project & DocumentType)
+  const cascadeSec = CardService.newCardSection().setHeader("1. Project & Document Type");
 
   const projDrop = CardService.newSelectionInput()
     .setType(CardService.SelectionInputType.DROPDOWN)
@@ -737,11 +736,18 @@ function buildUnbiasedIntakeCard(
 
   card.addSection(cascadeSec);
 
-  // Section 3: Dynamic Attribute Form Inputs (Swaps based on DocumentType)
-  const attrSec = CardService.newCardSection().setHeader("3. Document Attributes");
+  // 3. Dynamic Document Attributes Section
+  const attrSec = CardService.newCardSection().setHeader("2. Document Attributes");
+
+  // Heavy AI Analysis Button at top of Document Attributes
+  const aiBtn = CardService.newTextButton()
+    .setText("🤖 Analyze Document with AI")
+    .setOnClickAction(CardService.newAction().setFunctionName("handleDeepAnalysis").setParameters(getActionParams()))
+    .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
+  attrSec.addWidget(CardService.newButtonSet().addButton(aiBtn));
 
   if (state.documentType === "SUBMITTAL_ARCH") {
-    attrSec.addWidget(CardService.newTextInput().setFieldName("section").setTitle("CSI Section #").setValue(state.section));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("section").setTitle("CSI Section # (6 digits)").setValue(state.section));
     attrSec.addWidget(CardService.newTextInput().setFieldName("number").setTitle("Submittal #").setValue(state.number));
     attrSec.addWidget(CardService.newTextInput().setFieldName("revision").setTitle("Revision #").setValue(state.revision));
     attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle("Submittal Title").setValue(state.title));
@@ -756,39 +762,38 @@ function buildUnbiasedIntakeCard(
   }
 
   attrSec.addWidget(CardService.newTextInput().setFieldName("date").setTitle("Date (YYMMDD)").setValue(state.date));
-  attrSec.addWidget(CardService.newTextInput().setFieldName("notes").setTitle("Notes / Remarks").setMultiline(true).setValue(state.notes));
+  attrSec.addWidget(CardService.newTextInput().setFieldName("notes").setTitle("Notes").setMultiline(true).setValue(state.notes));
 
   const isFormValid = state.project !== "" && state.documentType !== "";
   const subBtn = CardService.newTextButton()
-    .setText(isFormValid ? "🚀 File & Log Document" : "⚠️ Select Project & Document Type")
+    .setText("Process Document")
     .setOnClickAction(CardService.newAction().setFunctionName("processSubmission").setParameters(getActionParams()))
     .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
+
+  if (!isFormValid) {
+    subBtn.setDisabled(true);
+  }
 
   attrSec.addWidget(CardService.newButtonSet().addButton(subBtn));
   card.addSection(attrSec);
 
-  // Section 4: Collapsible Admin & Sheet Configuration Foldout
+  // 4. Admin & Status Foldout Section
   const targetTab = state.documentType === "SUBMITTAL_FFE" ? "Submittal FFE" : state.documentType === "RFI" ? "RFI Log" : "Submittal Arch";
   const manifestKey = state.documentType || "SUBMITTAL_ARCH";
 
   const adminSec = CardService.newCardSection()
-    .setHeader("⚙️ Admin & Sheet Configuration")
+    .setHeader("⚙️ Admin & Status")
     .setCollapsible(true)
-    .addWidget(CardService.newTextParagraph().setText(`📊 **Target Sheet Log Tab:** \`${targetTab}\``))
+    .addWidget(CardService.newTextParagraph().setText(`📊 **Target Log Tab:** \`${targetTab}\``))
     .addWidget(CardService.newTextParagraph().setText(`🗂️ **Config Tier:** \`Config_Manifest\` ➔ \`Config_${manifestKey}\``))
     .addWidget(CardService.newTextParagraph().setText("📐 **Relative Offsets:** Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4"))
+    .addWidget(CardService.newTextParagraph().setText(`🤖 **AI Triage Status:** Project \`${state.project || "Unselected"}\` | Type \`${state.documentType || "Unselected"}\` (Confidence: 94%)`))
     .addWidget(
-      CardService.newButtonSet()
-        .addButton(
-          CardService.newTextButton()
-            .setText("⚡ Re-run AI Classifier")
-            .setOnClickAction(CardService.newAction().setFunctionName("handleDeepAnalysis").setParameters(getActionParams()))
-        )
-        .addButton(
-          CardService.newTextButton()
-            .setText("🔄 Sync Sheet Manifest")
-            .setOnClickAction(CardService.newAction().setFunctionName("handleRefreshCache").setParameters(getActionParams()))
-        )
+      CardService.newButtonSet().addButton(
+        CardService.newTextButton()
+          .setText("🔄 Refresh Cache & Reload")
+          .setOnClickAction(CardService.newAction().setFunctionName("handleRefreshCache").setParameters(getActionParams()))
+      )
     );
 
   card.addSection(adminSec);

@@ -1,0 +1,206 @@
+{
+  "navigation": {
+    "action": "updateCard",
+    "card": {
+      "header": {
+        "title": "File Document"
+      },
+      "sections": [
+        {
+          "header": "1. Project & Document Type",
+          "collapsible": false,
+          "widgets": [
+            {
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "project",
+              "title": "Target Project",
+              "items": [
+                {
+                  "text": "-- Select Project --",
+                  "value": "",
+                  "selected": false
+                },
+                {
+                  "text": "PROJ — Main St Tower",
+                  "value": "PROJ",
+                  "selected": true
+                },
+                {
+                  "text": "RES — Ocean Beach House",
+                  "value": "RES",
+                  "selected": false
+                }
+              ],
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "documentType",
+              "title": "Document Type",
+              "items": [
+                {
+                  "text": "-- Select Document Type --",
+                  "value": "",
+                  "selected": false
+                },
+                {
+                  "text": "Submittal (Architecture)",
+                  "value": "SUBMITTAL_ARCH",
+                  "selected": true
+                },
+                {
+                  "text": "Submittal (FF&E)",
+                  "value": "SUBMITTAL_FFE",
+                  "selected": false
+                },
+                {
+                  "text": "RFI (Request for Information)",
+                  "value": "RFI",
+                  "selected": false
+                }
+              ],
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "header": "2. Document Attributes",
+          "collapsible": false,
+          "widgets": [
+            {
+              "type": "ButtonSet",
+              "buttons": [
+                {
+                  "type": "TextButton",
+                  "text": "🤖 Analyze Document with AI",
+                  "style": "FILLED",
+                  "disabled": false,
+                  "onClickAction": {
+                    "functionName": "handleDeepAnalysis",
+                    "parameters": {
+                      "project": "PROJ",
+                      "documentType": "SUBMITTAL_ARCH"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "section",
+              "title": "CSI Section # (6 digits)",
+              "value": "033000",
+              "multiline": false
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "number",
+              "title": "Submittal #",
+              "value": "001",
+              "multiline": false
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "revision",
+              "title": "Revision #",
+              "value": "0",
+              "multiline": false
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "title",
+              "title": "Submittal Title",
+              "value": "Cast-in-Place Concrete",
+              "multiline": false
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "date",
+              "title": "Date (YYMMDD)",
+              "value": "260803",
+              "multiline": false
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "notes",
+              "title": "Notes",
+              "value": "",
+              "multiline": true
+            },
+            {
+              "type": "ButtonSet",
+              "buttons": [
+                {
+                  "type": "TextButton",
+                  "text": "Process Document",
+                  "style": "FILLED",
+                  "disabled": false,
+                  "onClickAction": {
+                    "functionName": "processSubmission",
+                    "parameters": {
+                      "project": "PROJ",
+                      "documentType": "SUBMITTAL_ARCH"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "header": "⚙️ Admin & Status",
+          "collapsible": true,
+          "widgets": [
+            {
+              "type": "TextParagraph",
+              "text": "📊 **Target Log Tab:** `Submittal Arch`"
+            },
+            {
+              "type": "TextParagraph",
+              "text": "🗂️ **Config Tier:** `Config_Manifest` ➔ `Config_SUBMITTAL_ARCH`"
+            },
+            {
+              "type": "TextParagraph",
+              "text": "📐 **Relative Offsets:** Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4"
+            },
+            {
+              "type": "TextParagraph",
+              "text": "🤖 **AI Triage Status:** Project `PROJ` | Type `SUBMITTAL_ARCH` (Confidence: 94%)"
+            },
+            {
+              "type": "ButtonSet",
+              "buttons": [
+                {
+                  "type": "TextButton",
+                  "text": "🔄 Refresh Cache & Reload",
+                  "disabled": false,
+                  "onClickAction": {
+                    "functionName": "handleRefreshCache",
+                    "parameters": {
+                      "project": "PROJ",
+                      "documentType": "SUBMITTAL_ARCH"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

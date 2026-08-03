@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Google Workspace Add-on UI Prototype — Contextual Intake Card & Admin Foldout (#121)</title>
+  <title>File Document — Google Workspace Add-on UI Prototype (#121)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Google+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -53,9 +53,6 @@
       font-size: 1.1rem;
       font-weight: 500;
       color: var(--gsuite-text);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
     }
 
     .badge-addon {
@@ -98,15 +95,19 @@
 
     .addon-card-header .title {
       font-family: var(--font-google);
-      font-size: 1rem;
+      font-size: 1.1rem;
       font-weight: 500;
       color: var(--gsuite-text);
     }
 
-    .addon-card-header .subtitle {
-      font-size: 0.75rem;
-      color: var(--gsuite-text-muted);
-      margin-top: 0.2rem;
+    /* Status Banner (Conditional) */
+    .status-banner {
+      background: #fef7e0;
+      border-bottom: 1px solid #feedb3;
+      padding: 0.6rem 1rem;
+      font-size: 0.8rem;
+      color: #b06000;
+      display: none;
     }
 
     /* Card Section */
@@ -132,7 +133,6 @@
       justify-content: space-between;
     }
 
-    /* Collapsible Section Header */
     .section-header.collapsible {
       cursor: pointer;
       user-select: none;
@@ -178,9 +178,8 @@
       box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
     }
 
-    /* Paragraph Text Widget */
     .widget-paragraph {
-      font-size: 0.825rem;
+      font-size: 0.8rem;
       line-height: 1.45;
       color: var(--gsuite-text-muted);
       background: #f1f3f4;
@@ -194,12 +193,6 @@
     }
 
     /* Buttons */
-    .btn-set {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-
     .btn-filled {
       width: 100%;
       background: var(--gsuite-blue);
@@ -216,6 +209,7 @@
       align-items: center;
       justify-content: center;
       gap: 0.4rem;
+      margin-top: 0.5rem;
     }
 
     .btn-filled:hover:not(:disabled) {
@@ -229,6 +223,30 @@
       cursor: not-allowed;
     }
 
+    .btn-ai {
+      width: 100%;
+      background: #f1f3f4;
+      color: var(--gsuite-blue);
+      border: 1px solid #dadce0;
+      padding: 0.55rem 0.75rem;
+      border-radius: 4px;
+      font-family: var(--font-google);
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-bottom: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+
+    .btn-ai:hover {
+      background: #e8f0fe;
+      border-color: var(--gsuite-blue);
+    }
+
     .btn-outlined {
       background: #ffffff;
       color: var(--gsuite-blue);
@@ -240,6 +258,7 @@
       font-weight: 500;
       cursor: pointer;
       transition: background 0.2s;
+      width: 100%;
     }
 
     .btn-outlined:hover {
@@ -296,9 +315,7 @@
 <body>
 
   <div class="proto-header">
-    <h1>
-      <span>Google Workspace Add-on Prototype</span>
-    </h1>
+    <h1>Google Workspace Add-on Prototype</h1>
     <span class="badge-addon">Google Apps Script CardService</span>
   </div>
 
@@ -307,25 +324,17 @@
     <div class="addon-side-panel">
       <!-- Card Header -->
       <div class="addon-card-header">
-        <div class="title">INC.io Contextual Intake Logger</div>
-        <div class="subtitle">Unbiased Multi-Document Add-on Card</div>
+        <div class="title">File Document</div>
       </div>
 
-      <!-- Section 1: Intake Context & AI Classifier -->
-      <div class="addon-card-section">
-        <div class="section-header">1. Intake Context & AI Triage</div>
-        <div class="widget-paragraph">
-          📩 <strong>Gmail Context:</strong> <i>033000-001 Concrete Submittal.pdf</i>
-        </div>
-        <div class="widget-paragraph" style="background: #e8f0fe;">
-          🤖 <strong>AI 1-Pass Classifier:</strong><br>
-          Project: <strong id="aiProjDisplay">PROJ</strong> | Type: <strong id="aiTypeDisplay">SUBMITTAL_ARCH</strong> (94% High)
-        </div>
+      <!-- Status Banner (Only visible if message present) -->
+      <div class="status-banner" id="statusBanner">
+        ⚠️ Please select Target Project and Document Type.
       </div>
 
-      <!-- Section 2: Cascading Selectors -->
+      <!-- Section 1: Cascading Selectors (Project & DocumentType) -->
       <div class="addon-card-section">
-        <div class="section-header">2. Project & Document Type</div>
+        <div class="section-header">1. Project & Document Type</div>
         
         <div class="widget-group">
           <label class="widget-label">Target Project</label>
@@ -347,9 +356,13 @@
         </div>
       </div>
 
-      <!-- Section 3: Dynamic Document Attributes (Swaps per DocumentType) -->
+      <!-- Section 2: Dynamic Document Attributes -->
       <div class="addon-card-section" id="attrSection">
-        <div class="section-header">3. Document Attributes</div>
+        <div class="section-header">2. Document Attributes</div>
+        
+        <!-- Heavy AI Analysis Button -->
+        <button class="btn-ai" onclick="runHeavyAiAnalysis()">🤖 Analyze Document with AI</button>
+
         <div id="dynamicFieldsContainer"></div>
         
         <div class="widget-group">
@@ -358,29 +371,27 @@
         </div>
         
         <div class="widget-group">
-          <label class="widget-label">Notes / Remarks</label>
-          <input type="text" class="widget-input" id="notesInput" value="Parsed email attachment submittal context.">
+          <label class="widget-label">Notes</label>
+          <input type="text" class="widget-input" id="notesInput" value="" placeholder="(Optional remarks)">
         </div>
 
-        <button class="btn-filled" id="submitBtn" onclick="onFileAndLog()">🚀 File & Log Document</button>
+        <button class="btn-filled" id="submitBtn" onclick="onProcessDocument()">Process Document</button>
       </div>
 
-      <!-- Section 4: Collapsible Admin Foldout Section -->
+      <!-- Section 3: Collapsible Admin & Status Section -->
       <div class="addon-card-section">
         <div class="section-header collapsible" onclick="toggleAdminSection()">
-          <span>⚙️ Admin & Sheet Config</span>
+          <span>⚙️ Admin & Status</span>
           <span id="adminToggleIcon">▼</span>
         </div>
         <div id="adminBodyContainer" style="display: none; margin-top: 0.75rem;">
           <div class="widget-paragraph" style="font-family: var(--font-mono); font-size: 0.75rem;">
             📊 <strong>Target Log Tab:</strong> <span id="targetTabDisplay">Submittal Arch</span><br>
             🗂️ <strong>Config Tier:</strong> Config_Manifest ➔ <span id="manifestKeyDisplay">Config_SUBMITTAL_ARCH</span><br>
-            📐 <strong>Relative Offsets:</strong> Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4
+            📐 <strong>Relative Offsets:</strong> Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4<br>
+            🤖 <strong>AI Triage Status:</strong> Project <span id="aiProjStatus">PROJ</span> | Type <span id="aiTypeStatus">SUBMITTAL_ARCH</span> (94% Confidence)
           </div>
-          <div class="btn-set">
-            <button class="btn-outlined" style="flex: 1;" onclick="alert('Re-running 1-Pass AI Classifier...')">⚡ Re-run AI</button>
-            <button class="btn-outlined" style="flex: 1;" onclick="alert('Sheet Manifest Cache Cleared')">🔄 Sync Manifest</button>
-          </div>
+          <button class="btn-outlined" onclick="onRefreshCache()">🔄 Refresh Cache & Reload</button>
         </div>
       </div>
 
@@ -409,7 +420,7 @@
     const state = {
       project: 'PROJ',
       documentType: 'SUBMITTAL_ARCH',
-      section: '03 30 00',
+      section: '033000',
       number: '001',
       revision: '0',
       title: 'Cast-in-Place Concrete',
@@ -418,7 +429,7 @@
       vendor: 'Acme Concrete Co.',
       rfiNumber: 'RFI-042',
       date: '260803',
-      notes: 'Parsed email attachment submittal context.',
+      notes: '',
       adminOpen: false
     };
 
@@ -427,7 +438,7 @@
       if (state.documentType === 'SUBMITTAL_ARCH') {
         container.innerHTML = `
           <div class="widget-group">
-            <label class="widget-label">CSI Section #</label>
+            <label class="widget-label">CSI Section # (6 digits)</label>
             <input type="text" class="widget-input" value="${state.section}" onchange="state.section=this.value; renderJson();">
           </div>
           <div class="widget-group">
@@ -480,14 +491,12 @@
 
     function onProjectChange(val) {
       state.project = val;
-      document.getElementById('aiProjDisplay').innerText = val || 'Unselected';
       updateCascade();
       renderJson();
     }
 
     function onDocTypeChange(val) {
       state.documentType = val;
-      document.getElementById('aiTypeDisplay').innerText = val || 'Unselected';
       renderDynamicFields();
       updateCascade();
       renderJson();
@@ -506,11 +515,21 @@
 
       document.getElementById('targetTabDisplay').innerText = targetTab;
       document.getElementById('manifestKeyDisplay').innerText = `Config_${manifestKey}`;
+      document.getElementById('aiProjStatus').innerText = state.project || 'Unselected';
+      document.getElementById('aiTypeStatus').innerText = state.documentType || 'Unselected';
 
       const isValid = state.project !== '' && state.documentType !== '';
       const submitBtn = document.getElementById('submitBtn');
+      const banner = document.getElementById('statusBanner');
+      
       submitBtn.disabled = !isValid;
-      submitBtn.innerText = isValid ? '🚀 File & Log Document' : '⚠️ Select Project & Document Type';
+
+      if (!isValid) {
+        banner.style.display = 'block';
+        banner.innerText = '⚠️ Please select Target Project and Document Type.';
+      } else {
+        banner.style.display = 'none';
+      }
 
       document.getElementById('cascadeDetails').innerText = state.project ? 
         `1. Selected Project '${state.project}' ➔ Binds Shared Drive Workbook 'DocumentLogWorkbook'` :
@@ -521,53 +540,66 @@
         `2. DocumentType Unselected ➔ Awaiting Selection`;
     }
 
+    function runHeavyAiAnalysis() {
+      alert('Running Heavy AI Document Analysis (AiAnalysisService deep PDF extraction)... Auto-filling exact section, submittal #, title, and dates!');
+      state.section = '033000';
+      state.number = '001';
+      state.title = 'Cast-in-Place Concrete Architectural Submittal';
+      renderDynamicFields();
+      renderJson();
+    }
+
+    function onRefreshCache() {
+      alert('handleRefreshCache: Cleared UserCache keys (log_search, log_settings, shared_drives). Reloading UI card...');
+    }
+
     function renderJson() {
       const cardJson = {
         action: "updateCard",
         card: {
           header: {
-            title: "INC.io Contextual Intake Logger",
-            subtitle: "Unbiased Multi-Document Add-on Card"
+            title: "File Document"
           },
           sections: [
             {
-              header: "1. Intake Context & AI Triage",
-              widgets: [
-                { type: "TextParagraph", text: "📩 Gmail Context: 033000-001 Concrete Submittal.pdf" },
-                { type: "TextParagraph", text: `🤖 AI 1-Pass Classifier: Project ${state.project} | Type ${state.documentType} (94%)` }
-              ]
-            },
-            {
-              header: "2. Project & Document Type",
+              header: "1. Project & Document Type",
               widgets: [
                 { type: "SelectionInput", fieldName: "project", title: "Target Project", selected: state.project },
                 { type: "SelectionInput", fieldName: "documentType", title: "Document Type", selected: state.documentType }
               ]
             },
             {
-              header: "3. Document Attributes",
-              widgets: state.documentType === 'SUBMITTAL_ARCH' ? [
-                { type: "TextInput", fieldName: "section", title: "CSI Section #", value: state.section },
-                { type: "TextInput", fieldName: "number", title: "Submittal #", value: state.number },
-                { type: "TextInput", fieldName: "revision", title: "Revision #", value: state.revision },
-                { type: "TextInput", fieldName: "title", title: "Submittal Title", value: state.title }
-              ] : state.documentType === 'SUBMITTAL_FFE' ? [
-                { type: "TextInput", fieldName: "specTag", title: "Spec Tag", value: state.specTag },
-                { type: "TextInput", fieldName: "relatedTag", title: "Related Tags", value: state.relatedTag },
-                { type: "TextInput", fieldName: "title", title: "Spec Title", value: "Dining Side Chair Specification" },
-                { type: "TextInput", fieldName: "vendor", title: "Vendor / Supplier", value: state.vendor }
-              ] : [
-                { type: "TextInput", fieldName: "rfiNumber", title: "RFI Number", value: state.rfiNumber },
-                { type: "TextInput", fieldName: "title", title: "RFI Subject / Title", value: "Beam Flange Tolerances at Column B" }
+              header: "2. Document Attributes",
+              widgets: [
+                { type: "ButtonSet", buttons: [{ type: "TextButton", text: "🤖 Analyze Document with AI", onClickAction: "handleDeepAnalysis" }] },
+                ...(state.documentType === 'SUBMITTAL_ARCH' ? [
+                  { type: "TextInput", fieldName: "section", title: "CSI Section # (6 digits)", value: state.section },
+                  { type: "TextInput", fieldName: "number", title: "Submittal #", value: state.number },
+                  { type: "TextInput", fieldName: "revision", title: "Revision #", value: state.revision },
+                  { type: "TextInput", fieldName: "title", title: "Submittal Title", value: state.title }
+                ] : state.documentType === 'SUBMITTAL_FFE' ? [
+                  { type: "TextInput", fieldName: "specTag", title: "Spec Tag", value: state.specTag },
+                  { type: "TextInput", fieldName: "relatedTag", title: "Related Tags", value: state.relatedTag },
+                  { type: "TextInput", fieldName: "title", title: "Spec Title", value: "Dining Side Chair Specification" },
+                  { type: "TextInput", fieldName: "vendor", title: "Vendor / Supplier", value: state.vendor }
+                ] : [
+                  { type: "TextInput", fieldName: "rfiNumber", title: "RFI Number", value: state.rfiNumber },
+                  { type: "TextInput", fieldName: "title", title: "RFI Subject / Title", value: "Beam Flange Tolerances at Column B" }
+                ]),
+                { type: "TextInput", fieldName: "date", title: "Date (YYMMDD)", value: state.date },
+                { type: "TextInput", fieldName: "notes", title: "Notes", value: state.notes },
+                { type: "ButtonSet", buttons: [{ type: "TextButton", text: "Process Document", onClickAction: "processSubmission", disabled: (!state.project || !state.documentType) }] }
               ]
             },
             {
-              header: "⚙️ Admin & Sheet Config",
+              header: "⚙️ Admin & Status",
               collapsible: true,
               widgets: [
                 { type: "TextParagraph", text: `📊 Target Log Tab: ${document.getElementById('targetTabDisplay').innerText}` },
                 { type: "TextParagraph", text: `🗂️ Config Tier: Config_Manifest ➔ ${document.getElementById('manifestKeyDisplay').innerText}` },
-                { type: "TextParagraph", text: "📐 Relative Offsets: Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4" }
+                { type: "TextParagraph", text: "📐 Relative Offsets: Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4" },
+                { type: "TextParagraph", text: `🤖 AI Triage Status: Project ${state.project} | Type ${state.documentType} (94%)` },
+                { type: "ButtonSet", buttons: [{ type: "TextButton", text: "🔄 Refresh Cache & Reload", onClickAction: "handleRefreshCache" }] }
               ]
             }
           ]
@@ -577,8 +609,8 @@
       document.getElementById('jsonOutput').innerText = JSON.stringify(cardJson, null, 2);
     }
 
-    function onFileAndLog() {
-      alert(`Filing document for Project '${state.project}' and Type '${state.documentType}' to log tab '${document.getElementById('targetTabDisplay').innerText}'!`);
+    function onProcessDocument() {
+      alert(`Processing Document for Project '${state.project}' and Type '${state.documentType}' to log tab '${document.getElementById('targetTabDisplay').innerText}'!`);
     }
 
     // Initial Render
