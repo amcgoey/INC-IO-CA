@@ -24,6 +24,11 @@ export class InMemoryCacheAdapter implements CacheAdapter {
     const expiresAt = Date.now() + ttlSeconds * 1000;
     this.store.set(key, { value, expiresAt });
   }
+
+  /** @override */
+  remove(key: string): void {
+    this.store.delete(key);
+  }
 }
 
 export var FakeCacheAdapter = InMemoryCacheAdapter;
