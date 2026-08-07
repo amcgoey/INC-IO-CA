@@ -12,7 +12,9 @@
     "test": "npx tsx --test test/**/*.ts",
     "check-models": "npx tsx scripts/check-models.ts",
     "preview:card": "npx tsx scripts/previewCard.ts",
-    "prototype:intake-card": "npx tsx scripts/prototype-intake-card.ts"
+    "prototype:intake-card": "npx tsx scripts/prototype-intake-card.ts",
+    "prototype:formula-benchmark": "npx tsx scripts/prototype-formula-benchmark.ts",
+    "prototype:resilient-config": "npx tsx scripts/prototype-resilient-config.ts"
   },
   "devDependencies": {
     "@google/clasp": "^2.4.2",
