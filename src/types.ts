@@ -361,7 +361,26 @@ interface IdentityData {
 }
 
 /** Options for appending submittals to log repository. */
+
+/** Audit log event input options. */
+interface AuditLogEventInput {
+  category: string;
+  eventType: string;
+  actor?: string;
+  status: string;
+  details?: string | Record<string, unknown>;
+  timestamp?: string;
+}
+
+/** Result object returned from logging an audit event. */
+interface AuditLogResult {
+  sheetName: string;
+  rowIndex: number;
+  event: AuditLogEventInput;
+}
+
 interface AppendDocumentOptions {
+  actor?: string;
   sheetName?: string;
   headers?: string[];
   link?: string;

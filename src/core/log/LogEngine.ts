@@ -71,6 +71,41 @@ export class LogEngine {
     return getBoundedData(logData);
   }
 
+
+  /**
+   * Appends a standardized 6-column audit event entry to the _AuditLog system tab.
+   *
+   * @param spreadsheetId - Target spreadsheet ID.
+   * @param event - Audit log event payload.
+   */
+    logAuditEvent(_spreadsheetId: string, event: AuditLogEventInput): AuditLogResult {
+    const sheetName = "_AuditLog";
+    const timestamp = event.timestamp || new Date().toISOString();
+    const actor = event.actor || "GoogleAppsScript";
+    const details = typeof event.details === "object" && event.details !== null
+      ? JSON.stringify(event.details)
+      : String(event.details || "");
+
+    const auditHeaders = ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"];
+    const logData = this.storageAdapter.getSheetValues(sheetName);
+    const boundedData = getBoundedData(logData);
+
+    let targetRowIndex = boundedData.length + 1;
+    if (logData.length === 0) {
+      this.storageAdapter.setRowValues(sheetName, 1, auditHeaders, auditHeaders);
+      targetRowIndex = 2;
+    }
+
+    const rowData = [timestamp, event.category, event.eventType, actor, event.status, details];
+    this.storageAdapter.setRowValues(sheetName, targetRowIndex, auditHeaders, rowData);
+
+    return {
+      sheetName,
+      rowIndex: targetRowIndex,
+      event
+    };
+  }
+
   constructor(storageAdapter: SheetStorageAdapter) {
     this.storageAdapter = storageAdapter;
   }
@@ -260,6 +295,23 @@ export class LogEngine {
     );
 
     const writeResult = this.storageAdapter.insertLogRow(sheetName, headers, rowData, plan);
+
+    try {
+      this.logAuditEvent(spreadsheetId, {
+        category: "SUBMITTAL_LOG",
+        eventType: "SUBMITTAL_APPENDED",
+        actor: options.actor || "GoogleAppsScript",
+        status: "SUCCESS",
+        details: {
+          targetKey,
+          newFileName,
+          contactHistory: newChain,
+          rowIndex: writeResult.rowIndex
+        }
+      });
+    } catch (err) {
+      if (typeof console !== "undefined" && console.warn) console.warn("Audit log write warning:", err);
+    }
 
     return {
       targetKey,

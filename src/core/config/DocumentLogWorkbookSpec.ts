@@ -77,7 +77,7 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       columnCount: 10,
       isAuditLogTab: true,
       seedRows: [
-        ["Timestamp", "EventType", "Category", "Actor", "Status", "Details"]
+        ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"]
       ]
     },
     {
@@ -129,7 +129,7 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:A20", scope: "Workbook" },
     { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "B2:B20", scope: "Workbook" },
     { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "C2:C20", scope: "Workbook" },
-    { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A1:F100", scope: "Workbook" },
+    { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A1:F500", scope: "Workbook" },
     { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A1:K2", scope: "Sheet" },
     { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Sheet" },
     { name: "Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Sheet" },
