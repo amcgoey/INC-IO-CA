@@ -228,13 +228,24 @@ class IncomingWorkflow {
       driveFilingRepository: driveFilingRepo
     });
 
+    const finalPdfUrl = reviewContext.url || origContext.url || (reviewContext.fileId ? `https://drive.google.com/file/d/${reviewContext.fileId}/view` : "");
+
+    if (finalPdfUrl && input.logFileId && appendResult.rowIndex > 0 && logRepo && typeof (logRepo as any).updateDocumentLink === "function") {
+      const targetSheetName = input.sheetName || (strategy && strategy.logSheetName ? strategy.logSheetName : null) || (input.validatedDoc?.disciplineDetails?.discipline === "FF&E" ? "Submittal FFE" : "Submittal Arch");
+      (logRepo as any).updateDocumentLink(input.logFileId, {
+        sheetName: targetSheetName,
+        rowIndex: appendResult.rowIndex,
+        url: finalPdfUrl
+      });
+    }
+
     const urlFn = (globalThis as any).buildDirectRowUrl || (typeof buildDirectRowUrl !== "undefined" ? buildDirectRowUrl : null);
     const directRowUrl = urlFn ? urlFn(input.logFileId, appendResult.rowIndex, input.logSheetId, spreadsheetApp) : `https://docs.google.com/spreadsheets/d/${input.logFileId}/edit#gid=0&range=A${appendResult.rowIndex}`;
 
     return {
       fileId: reviewContext.fileId || origContext.fileId || "",
       targetKey: appendResult.targetKey,
-      url: reviewContext.url || origContext.url || "",
+      url: finalPdfUrl,
       localPath: reviewContext.localPath || origContext.localPath || "",
       title: itemTitle || "",
       action: action,
