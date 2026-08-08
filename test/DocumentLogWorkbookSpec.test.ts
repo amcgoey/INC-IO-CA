@@ -177,13 +177,13 @@ test('DocumentLogWorkbookSpec - Submittal Arch and Submittal FFE MAP/LAMBDA form
   assert.ok(archTab?.columns, 'Submittal Arch columns must be defined');
   assert.ok(ffeTab?.columns, 'Submittal FFE columns must be defined');
 
-  archTab.columns.filter(c => c.formula).forEach(col => {
-    assert.ok(!col.formula.includes('6:'), 'Submittal Arch column ' + col.id + ' formula must not contain Row 6 range reference: ' + col.formula);
-    assert.ok(col.formula.includes('4:'), 'Submittal Arch column ' + col.id + ' formula must reference Row 4 input range: ' + col.formula);
-  });
+  const verifyRow4Formulas = (tabName: string, columns: NonNullable<typeof archTab.columns>) => {
+    columns.filter(c => c.formula).forEach(col => {
+      assert.ok(!col.formula!.includes('6:'), `${tabName} column ${col.id} formula must not contain Row 6 range reference: ${col.formula}`);
+      assert.ok(col.formula!.includes('4:'), `${tabName} column ${col.id} formula must reference Row 4 input range: ${col.formula}`);
+    });
+  };
 
-  ffeTab.columns.filter(c => c.formula).forEach(col => {
-    assert.ok(!col.formula.includes('6:'), 'Submittal FFE column ' + col.id + ' formula must not contain Row 6 range reference: ' + col.formula);
-    assert.ok(col.formula.includes('4:'), 'Submittal FFE column ' + col.id + ' formula must reference Row 4 input range: ' + col.formula);
-  });
+  verifyRow4Formulas('Submittal Arch', archTab.columns);
+  verifyRow4Formulas('Submittal FFE', ffeTab.columns);
 });
