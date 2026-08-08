@@ -104,8 +104,8 @@
       "seedRows": [
         [
           "Timestamp",
-          "EventType",
           "Category",
+          "EventType",
           "Actor",
           "Status",
           "Details"
@@ -184,11 +184,11 @@
         "",
         "",
         "",
-        "",
-        "",
-        "",
-        "",
-        ""
+        "=MAP(A4:A, B4:B, C4:C, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), \"\", tag & IF(ISBLANK(rel), \"\", \"-\" & rel) & \"-\" & rev)))",
+        "=MAP(A4:A, C4:C, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"-\" & rev)))",
+        "=MAP(A4:A, D4:D, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), \"\", title), IFERROR(VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE), title))))",
+        "=MAP(G4:G, H4:H, LAMBDA(c, a, IF(ISBLANK(c), \"\", c & IF(ISBLANK(a), \"\", \" (\" & a & \")\"))))",
+        "=MAP(A4:A, C4:C, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"_\" & rev)))"
       ],
       "seedRows": []
     },
@@ -200,13 +200,13 @@
       "isSharedTab": false,
       "isAuditLogTab": false,
       "isLogTab": false,
-      "isSupportTab": true,
-      "headers": [
-        "Section Key",
-        "Section Label"
-      ],
+      "headers": [],
       "formulaRow": [],
       "seedRows": [
+        [
+          "Section Key",
+          "Section Label"
+        ],
         [
           "033000",
           "Cast-in-Place Concrete"
@@ -215,7 +215,8 @@
           "081100",
           "Metal Doors"
         ]
-      ]
+      ],
+      "isSupportTab": true
     },
     {
       "name": "Submittal FFE Support",
@@ -225,15 +226,15 @@
       "isSharedTab": false,
       "isAuditLogTab": false,
       "isLogTab": false,
-      "isSupportTab": true,
-      "headers": [
-        "Vendor Key",
-        "Vendor Label",
-        "SpecTag Key",
-        "SpecTag Label"
-      ],
+      "headers": [],
       "formulaRow": [],
       "seedRows": [
+        [
+          "Vendor Key",
+          "Vendor Label",
+          "SpecTag Key",
+          "SpecTag Label"
+        ],
         [
           "ACME",
           "Acme Supplies",
@@ -246,7 +247,8 @@
           "TBL-01",
           "Conference Table"
         ]
-      ]
+      ],
+      "isSupportTab": true
     }
   ],
   "namedRanges": [
@@ -266,6 +268,12 @@
       "name": "Config_Submittal_Arch",
       "tabName": "_Config",
       "rangeNotation": "A5:D6",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Config_Submittal_FFE",
+      "tabName": "_Config",
+      "rangeNotation": "A5:D7",
       "scope": "Workbook"
     },
     {
@@ -289,7 +297,7 @@
     {
       "name": "AuditLog_Events",
       "tabName": "_AuditLog",
-      "rangeNotation": "A1:F100",
+      "rangeNotation": "A1:F500",
       "scope": "Workbook"
     },
     {
@@ -329,30 +337,6 @@
       "scope": "Workbook"
     },
     {
-      "name": "Sections",
-      "tabName": "Submittal Arch Support",
-      "rangeNotation": "A2:B20",
-      "scope": "Sheet"
-    },
-    {
-      "name": "Vendors",
-      "tabName": "Submittal FFE Support",
-      "rangeNotation": "A2:B20",
-      "scope": "Sheet"
-    },
-    {
-      "name": "SpecTags",
-      "tabName": "Submittal FFE Support",
-      "rangeNotation": "C2:D20",
-      "scope": "Sheet"
-    },
-    {
-      "name": "Config_Submittal_FFE",
-      "tabName": "_Config",
-      "rangeNotation": "A5:D7",
-      "scope": "Workbook"
-    },
-    {
       "name": "Headers",
       "tabName": "Submittal FFE",
       "rangeNotation": "A1:O2",
@@ -387,6 +371,24 @@
       "tabName": "Submittal FFE",
       "rangeNotation": "A4:O1000",
       "scope": "Workbook"
+    },
+    {
+      "name": "Sections",
+      "tabName": "Submittal Arch Support",
+      "rangeNotation": "A2:B20",
+      "scope": "Sheet"
+    },
+    {
+      "name": "Vendors",
+      "tabName": "Submittal FFE Support",
+      "rangeNotation": "A2:B20",
+      "scope": "Sheet"
+    },
+    {
+      "name": "SpecTags",
+      "tabName": "Submittal FFE Support",
+      "rangeNotation": "C2:D20",
+      "scope": "Sheet"
     }
   ]
 }

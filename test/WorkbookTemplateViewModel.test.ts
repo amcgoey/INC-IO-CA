@@ -136,3 +136,65 @@ test("WorkbookTemplateViewModel binds spec and view spec to export complete fixt
   assert.ok(headersNR, "Fixture JSON must contain Submittal_FFE_Headers named range");
   assert.strictEqual(headersNR.rangeNotation, "A1:O2");
 });
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE Support tab with Vendor and SpecTag seed rows and sheet-scoped named ranges", () => {
+  const supportTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "Submittal FFE Support");
+  assert.ok(supportTab, "Submittal FFE Support tab must exist");
+  assert.strictEqual(supportTab.isSupportTab, true, "isSupportTab should be true");
+  assert.strictEqual(supportTab.rowCount, 100);
+  assert.strictEqual(supportTab.columnCount, 10);
+  assert.ok(supportTab.seedRows, "seedRows must be defined on Submittal FFE Support");
+  assert.strictEqual(supportTab.seedRows.length, 3);
+  assert.deepStrictEqual(supportTab.seedRows[0], ["Vendor Key", "Vendor Label", "SpecTag Key", "SpecTag Label"]);
+  assert.deepStrictEqual(supportTab.seedRows[1], ["ACME", "Acme Supplies", "CH-01", "Dining Chair"]);
+  assert.deepStrictEqual(supportTab.seedRows[2], ["GLOBAL", "Global Materials", "TBL-01", "Conference Table"]);
+
+  const vendorsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
+    (nr: NamedRangeSpec) => nr.name === "Vendors" && nr.tabName === "Submittal FFE Support"
+  );
+  assert.ok(vendorsNR, "Vendors named range must exist on Submittal FFE Support");
+  assert.strictEqual(vendorsNR.rangeNotation, "A2:B20");
+  assert.strictEqual(vendorsNR.scope, "Sheet");
+
+  const specTagsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
+    (nr: NamedRangeSpec) => nr.name === "SpecTags" && nr.tabName === "Submittal FFE Support"
+  );
+  assert.ok(specTagsNR, "SpecTags named range must exist on Submittal FFE Support");
+  assert.strictEqual(specTagsNR.rangeNotation, "C2:D20");
+  assert.strictEqual(specTagsNR.scope, "Sheet");
+});
+
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines MAP/LAMBDA formulas in Submittal FFE including calcTitle tag VLOOKUP", () => {
+  const ffeTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "Submittal FFE");
+  assert.ok(ffeTab, "Submittal FFE tab must exist");
+  assert.ok(ffeTab.columns, "columns must exist");
+
+  const calcTitleCol = ffeTab.columns.find((c) => c.id === "calcTitle");
+  assert.ok(calcTitleCol, "calcTitle column must exist");
+  assert.ok(calcTitleCol.formula, "calcTitle formula must be defined");
+  assert.ok(calcTitleCol.formula.includes("MAP(A4:A, D4:D, LAMBDA("), "calcTitle formula must be a MAP/LAMBDA expression");
+  assert.ok(calcTitleCol.formula.includes("VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE)"), "calcTitle formula must perform VLOOKUP against SpecTags");
+
+  const calcFileNameCol = ffeTab.columns.find((c) => c.id === "calcFileName");
+  assert.ok(calcFileNameCol && calcFileNameCol.formula, "calcFileName formula must be defined");
+
+  const calcNumberCol = ffeTab.columns.find((c) => c.id === "calcNumber");
+  assert.ok(calcNumberCol && calcNumberCol.formula, "calcNumber formula must be defined");
+
+  const calcSortCol = ffeTab.columns.find((c) => c.id === "calcSort");
+  assert.ok(calcSortCol && calcSortCol.formula, "calcSort formula must be defined");
+});
+
+test("WorkbookTemplateViewModel toFixtureJson exports Submittal FFE formulaRow with tag VLOOKUP formula", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const fixtureJson = viewModel.toFixtureJson();
+
+  const ffeTab = fixtureJson.tabs.find((t: any) => t.name === "Submittal FFE");
+  assert.ok(ffeTab, "Submittal FFE tab must exist in fixture JSON");
+  assert.strictEqual(ffeTab.formulaRow.length, 15);
+  
+  const calcTitleIdx = ffeTab.headers.indexOf("Calc Title");
+  assert.ok(calcTitleIdx >= 0, "Calc Title header must exist in fixture headers");
+  const calcTitleFormula = ffeTab.formulaRow[calcTitleIdx];
+  assert.ok(calcTitleFormula, "calcTitle formula must be non-empty in formulaRow");
+  assert.ok(calcTitleFormula.includes("VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE)"));
+});

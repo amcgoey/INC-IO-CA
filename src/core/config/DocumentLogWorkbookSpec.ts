@@ -116,11 +116,11 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "action", header: "Action" },
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
-        { id: "calcFileName", header: "Calc File Name" },
-        { id: "calcNumber", header: "Calc Number" },
-        { id: "calcTitle", header: "Calc Title" },
-        { id: "calcContactChain", header: "Calc Contact Chain" },
-        { id: "calcSort", header: "Calc Sort" }
+        { id: "calcFileName", header: "Calc File Name", formula: "=MAP(A4:A, B4:B, C4:C, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), \"\", tag & IF(ISBLANK(rel), \"\", \"-\" & rel) & \"-\" & rev)))" },
+        { id: "calcNumber", header: "Calc Number", formula: "=MAP(A4:A, C4:C, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"-\" & rev)))" },
+        { id: "calcTitle", header: "Calc Title", formula: "=MAP(A4:A, D4:D, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), \"\", title), IFERROR(VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE), title))))" },
+        { id: "calcContactChain", header: "Calc Contact Chain", formula: "=MAP(G4:G, H4:H, LAMBDA(c, a, IF(ISBLANK(c), \"\", c & IF(ISBLANK(a), \"\", \" (\" & a & \")\"))))" },
+        { id: "calcSort", header: "Calc Sort", formula: "=MAP(A4:A, C4:C, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"_\" & rev)))" }
       ]
     },
     {
