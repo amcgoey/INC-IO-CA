@@ -49,12 +49,12 @@ if (typeof require !== "undefined") {
 
 if (typeof require !== "undefined") {
   try {
-    const documentWorkflowModule = eval('require("./DocumentWorkflowModule")');
+    const documentWorkflowModule = eval('require("./core/workflow/DocumentWorkflowModule")');
     if (documentWorkflowModule) {
-      if (documentWorkflowModule.DocumentWorkflowModule && typeof DocumentWorkflowModule === "undefined") {
+      if (documentWorkflowModule.DocumentWorkflowModule && typeof (globalThis as any).DocumentWorkflowModule === "undefined") {
         (globalThis as any).DocumentWorkflowModule = documentWorkflowModule.DocumentWorkflowModule;
       }
-      if (documentWorkflowModule.getActionPolicy && typeof getActionPolicy === "undefined") {
+      if (documentWorkflowModule.getActionPolicy && typeof (globalThis as any).getActionPolicy === "undefined") {
         (globalThis as any).getActionPolicy = documentWorkflowModule.getActionPolicy;
       }
     }
@@ -144,8 +144,10 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
       selectedAction
     };
 
-    const result: DocumentWorkflowResult = await DocumentWorkflowModule.executeWorkflow(input);
-    const policy = getActionPolicy(result.action);
+    const dwm = typeof DocumentWorkflowModule !== "undefined" ? DocumentWorkflowModule : (globalThis as any).DocumentWorkflowModule;
+    const policyFn = typeof getActionPolicy !== "undefined" ? getActionPolicy : (globalThis as any).getActionPolicy;
+    const result: DocumentWorkflowResult = await dwm.executeWorkflow(input);
+    const policy = policyFn(result.action);
 
     if (policy.direction === "incoming") {
       return CardService.newActionResponseBuilder()

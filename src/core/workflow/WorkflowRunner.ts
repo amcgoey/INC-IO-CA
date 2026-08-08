@@ -1,4 +1,4 @@
-/// <reference path="./types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file WorkflowRunner.ts
  * @description Action pipeline engine and primitive document actions (MoveDocumentAction & RenameDocumentAction).
@@ -9,7 +9,7 @@ declare var require: any;
 let _MoveDocumentActionRunner: any = null;
 if (typeof require !== 'undefined') {
   try {
-    const _mda = eval("require('./core/workflow/MoveDocumentAction')");
+    const _mda = eval("require('./MoveDocumentAction')");
     if (_mda && _mda.MoveDocumentAction) {
       _MoveDocumentActionRunner = _mda.MoveDocumentAction;
       if (typeof (globalThis as any).MoveDocumentAction === 'undefined') {
