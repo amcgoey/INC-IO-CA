@@ -15,6 +15,42 @@ class CardPresenter implements UserInterfacePresenter {
    * @param card - Target `CardService.Card` instance.
    * @returns ActionResponse updating the Card UI.
    */
+
+  /**
+   * Formats display title and diagnostic hint text for UI form fields.
+   * Required fields that fail submit validation are prefixed with '❌ '.
+   * AI fields with confidence < 0.85 are prefixed with '⚠️ ' and assigned diagnostic hint text.
+   *
+   * @param field - Document field specification.
+   * @param missingFields - List of missing field keys failing validation.
+   * @param fieldConfidence - Map of field key to numerical confidence float (0.00 to 1.00).
+   * @returns Object containing formatted displayTitle and hintText.
+   */
+  formatFieldTitleAndHint(
+    field: DocumentFieldSpec,
+    missingFields: string[] = [],
+    fieldConfidence: Record<string, number> = {}
+  ): { displayTitle: string; hintText: string } {
+    const isMissing = field.required && missingFields.includes(field.key);
+    const confidence = fieldConfidence[field.key];
+    const isLowConfidence = confidence !== undefined && confidence < 0.85;
+
+    let displayTitle = field.label || field.key;
+    if (isMissing) {
+      displayTitle = "❌ " + displayTitle;
+    } else if (isLowConfidence) {
+      displayTitle = "⚠️ " + displayTitle;
+    }
+
+    let hintText = field.description || "";
+    if (isLowConfidence && !isMissing) {
+      const pct = Math.round(confidence * 100);
+      hintText = "Low AI confidence (" + pct + "%) — please verify";
+    }
+
+    return { displayTitle, hintText };
+  }
+
   private buildUpdateCardResponse(card: any): GoogleAppsScript.Card_Service.ActionResponse {
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(card))
