@@ -16,6 +16,7 @@ export interface ColumnSpec {
 
 export interface TabSpec {
   name: string;
+  title?: string;
   rowCount: number;
   columnCount: number;
   isConfigTab?: boolean;
@@ -59,11 +60,11 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "status", header: "Status", validationRange: "Actions_Submittal" },
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
-        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(A4:A, B4:B, C4:C, D4:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & title & "-" & rev)))' },
-        { id: "calcNumber", header: "Calc Number", formula: '=MAP(A4:A, B4:B, D4:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & rev)))' },
-        { id: "calcTitle", header: "Calc Title", formula: '=MAP(A4:A, C4:C, LAMBDA(sec, title, IF(ISBLANK(sec), "", title)))' },
-        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(A4:A, F4:F, LAMBDA(sec, contact, IF(ISBLANK(sec), "", contact)))' },
-        { id: "calcSort", header: "Calc Sort", formula: '=MAP(A4:A, B4:B, LAMBDA(sec, num, IF(ISBLANK(sec), "", TEXT(sec, "000000") & TEXT(num, "0000"))))'
+        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(A6:A, B6:B, C6:C, D6:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & title & "-" & rev)))' },
+        { id: "calcNumber", header: "Calc Number", formula: '=MAP(A6:A, B6:B, D6:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & rev)))' },
+        { id: "calcTitle", header: "Calc Title", formula: '=MAP(A6:A, C6:C, LAMBDA(sec, title, IF(ISBLANK(sec), "", title)))' },
+        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(A6:A, F6:F, LAMBDA(sec, contact, IF(ISBLANK(sec), "", contact)))' },
+        { id: "calcSort", header: "Calc Sort", formula: '=MAP(A6:A, B6:B, LAMBDA(sec, num, IF(ISBLANK(sec), "", TEXT(sec, "000000") & TEXT(num, "0000"))))'
  }
       ]
     },
@@ -83,11 +84,11 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "action", header: "Action" },
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
-        { id: "calcFileName", header: "Calc File Name", formula: "=MAP(A4:A, B4:B, C4:C, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), \"\", tag & IF(ISBLANK(rel), \"\", \"-\" & rel) & \"-\" & rev)))" },
-        { id: "calcNumber", header: "Calc Number", formula: "=MAP(A4:A, C4:C, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"-\" & rev)))" },
-        { id: "calcTitle", header: "Calc Title", formula: "=MAP(A4:A, D4:D, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), \"\", title), IFERROR(VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE), title))))" },
-        { id: "calcContactChain", header: "Calc Contact Chain", formula: "=MAP(G4:G, H4:H, LAMBDA(c, a, IF(ISBLANK(c), \"\", c & IF(ISBLANK(a), \"\", \" (\" & a & \")\"))))" },
-        { id: "calcSort", header: "Calc Sort", formula: "=MAP(A4:A, C4:C, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"_\" & rev)))" }
+        { id: "calcFileName", header: "Calc File Name", formula: "=MAP(A6:A, B6:B, C6:C, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), \"\", tag & IF(ISBLANK(rel), \"\", \"-\" & rel) & \"-\" & rev)))" },
+        { id: "calcNumber", header: "Calc Number", formula: "=MAP(A6:A, C6:C, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"-\" & rev)))" },
+        { id: "calcTitle", header: "Calc Title", formula: "=MAP(A6:A, D6:D, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), \"\", title), IFERROR(VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE), title))))" },
+        { id: "calcContactChain", header: "Calc Contact Chain", formula: "=MAP(G6:G, H6:H, LAMBDA(c, a, IF(ISBLANK(c), \"\", c & IF(ISBLANK(a), \"\", \" (\" & a & \")\"))))" },
+        { id: "calcSort", header: "Calc Sort", formula: "=MAP(A6:A, C6:C, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"_\" & rev)))" }
       ]
     },
     {
@@ -143,11 +144,17 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     },
     {
       name: "_AuditLog",
+      title: "Audit Log",
       rowCount: 500,
       columnCount: 10,
       isAuditLogTab: true,
-      seedRows: [
-        ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"]
+      columns: [
+        { id: "timestamp", header: "Timestamp" },
+        { id: "category", header: "Category" },
+        { id: "eventType", header: "EventType" },
+        { id: "actor", header: "Actor" },
+        { id: "status", header: "Status" },
+        { id: "details", header: "Details" }
       ]
     }
   ],
@@ -159,19 +166,19 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:C3", scope: "Workbook" },
     { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "A4:C5", scope: "Workbook" },
     { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "E2:G6", scope: "Workbook" },
-    { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A1:F500", scope: "Workbook" },
-    { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A1:O2", scope: "Sheet" },
-    { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:O2", scope: "Sheet" },
-    { name: "Data", tabName: "Submittal Arch", rangeNotation: "A4:O1000", scope: "Sheet" },
-    { name: "Submittal_Arch_Headers", tabName: "Submittal Arch", rangeNotation: "A1:O2", scope: "Workbook" },
-    { name: "Submittal_Arch_FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:O2", scope: "Workbook" },
-    { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A4:O1000", scope: "Workbook" },
-    { name: "Headers", tabName: "Submittal FFE", rangeNotation: "A1:O2", scope: "Sheet" },
-    { name: "FormulaRow", tabName: "Submittal FFE", rangeNotation: "A2:O2", scope: "Sheet" },
-    { name: "Data", tabName: "Submittal FFE", rangeNotation: "A4:O1000", scope: "Sheet" },
-    { name: "Submittal_FFE_Headers", tabName: "Submittal FFE", rangeNotation: "A1:O2", scope: "Workbook" },
-    { name: "Submittal_FFE_FormulaRow", tabName: "Submittal FFE", rangeNotation: "A2:O2", scope: "Workbook" },
-    { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A4:O1000", scope: "Workbook" },
+    { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A6:F500", scope: "Workbook" },
+    { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A3:O4", scope: "Sheet" },
+    { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A4:O4", scope: "Sheet" },
+    { name: "Data", tabName: "Submittal Arch", rangeNotation: "A6:O1000", scope: "Sheet" },
+    { name: "Submittal_Arch_Headers", tabName: "Submittal Arch", rangeNotation: "A3:O4", scope: "Workbook" },
+    { name: "Submittal_Arch_FormulaRow", tabName: "Submittal Arch", rangeNotation: "A4:O4", scope: "Workbook" },
+    { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A6:O1000", scope: "Workbook" },
+    { name: "Headers", tabName: "Submittal FFE", rangeNotation: "A3:O4", scope: "Sheet" },
+    { name: "FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:O4", scope: "Sheet" },
+    { name: "Data", tabName: "Submittal FFE", rangeNotation: "A6:O1000", scope: "Sheet" },
+    { name: "Submittal_FFE_Headers", tabName: "Submittal FFE", rangeNotation: "A3:O4", scope: "Workbook" },
+    { name: "Submittal_FFE_FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:O4", scope: "Workbook" },
+    { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A6:O1000", scope: "Workbook" },
     { name: "Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Sheet" },
     { name: "Submittal_Arch_Support_Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Workbook" },
     { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Sheet" },

@@ -231,9 +231,11 @@ export async function runLiveVerification(
   });
 
   const viewSpecPass =
-    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.HEADER_ROW_INDEX === 1 &&
-    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.FORMULA_ROW_INDEX === 2 &&
-    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.FIRST_DATA_ROW_INDEX === 4;
+    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.TITLE_ROW_INDEX === 1 &&
+    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.DATE_ROW_INDEX === 2 &&
+    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.HEADER_ROW_INDEX === 3 &&
+    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.FORMULA_ROW_INDEX === 4 &&
+    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.FIRST_DATA_ROW_INDEX === 6;
   checks.push({
     dimension: "4. Aesthetic Design Tokens and Layout Offsets",
     status: viewSpecPass ? "PASS" : "FAIL",
@@ -286,7 +288,7 @@ export async function runLiveVerification(
       const targetSheetId = submittalArchTab?.properties?.sheetId ?? 3;
 
       console.log(`[LIVE VERIFICATION] Appending mock test submittal row to live spreadsheet (Tab sheetId: ${targetSheetId})...`);
-      const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!A5:Z5:append?valueInputOption=USER_ENTERED`;
+      const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!A7:Z7:append?valueInputOption=USER_ENTERED`;
       const rowValues = [
         sampleRow.section,
         sampleRow.number,
@@ -306,7 +308,7 @@ export async function runLiveVerification(
       });
 
       console.log(`[LIVE VERIFICATION] Reading back evaluated calculated values via FORMATTED_VALUE...`);
-      const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!H5:L5?valueRenderOption=FORMATTED_VALUE`;
+      const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!H7:L7?valueRenderOption=FORMATTED_VALUE`;
       const readRes = (await executeWithRetry(async () => {
         const res = await fetcher(readUrl, {
           method: "GET",

@@ -133,25 +133,25 @@ test("Submittal Arch - GasMockHarness loads WorkbookSpec and verifies calculated
     const archSheet = ss.getSheetByName("Submittal Arch");
     assert.ok(archSheet, "Submittal Arch sheet must exist in mock spreadsheet");
 
-    const row1Headers = archSheet.getRange(1, 1, 1, 15).getValues()[0];
-    assert.strictEqual(row1Headers[0], "Section");
-    assert.strictEqual(row1Headers[10], "Calc File Name");
-    assert.strictEqual(row1Headers[11], "Calc Number");
-    assert.strictEqual(row1Headers[12], "Calc Title");
-    assert.strictEqual(row1Headers[13], "Calc Contact Chain");
-    assert.strictEqual(row1Headers[14], "Calc Sort");
+    const row3Headers = archSheet.getRange(3, 1, 1, 15).getValues()[0];
+    assert.strictEqual(row3Headers[0], "Section");
+    assert.strictEqual(row3Headers[10], "Calc File Name");
+    assert.strictEqual(row3Headers[11], "Calc Number");
+    assert.strictEqual(row3Headers[12], "Calc Title");
+    assert.strictEqual(row3Headers[13], "Calc Contact Chain");
+    assert.strictEqual(row3Headers[14], "Calc Sort");
 
-    const row2Formulas = archSheet.getRange(2, 1, 1, 15).getValues()[0];
-    assert.strictEqual(row2Formulas[0], "");
-    assert.ok(row2Formulas[10].startsWith("=MAP("), "Row 2 Calc File Name formula");
-    assert.ok(row2Formulas[11].startsWith("=MAP("), "Row 2 Calc Number formula");
-    assert.ok(row2Formulas[12].startsWith("=MAP("), "Row 2 Calc Title formula");
-    assert.ok(row2Formulas[13].startsWith("=MAP("), "Row 2 Calc Contact Chain formula");
-    assert.ok(row2Formulas[14].startsWith("=MAP("), "Row 2 Calc Sort formula");
+    const row4Formulas = archSheet.getRange(4, 1, 1, 15).getValues()[0];
+    assert.strictEqual(row4Formulas[0], "");
+    assert.ok(row4Formulas[10].startsWith("=MAP("), "Row 4 Calc File Name formula");
+    assert.ok(row4Formulas[11].startsWith("=MAP("), "Row 4 Calc Number formula");
+    assert.ok(row4Formulas[12].startsWith("=MAP("), "Row 4 Calc Title formula");
+    assert.ok(row4Formulas[13].startsWith("=MAP("), "Row 4 Calc Contact Chain formula");
+    assert.ok(row4Formulas[14].startsWith("=MAP("), "Row 4 Calc Sort formula");
 
-    archSheet.setGridSlice(4, 1, [["033000", 1, "Concrete Mix Design", "0", "2026-08-08", "arch-reviewer@example.com", "For Approval", "For Approval", "Notes", "https://link.com", "", "", "", "", ""]]);
+    archSheet.setGridSlice(6, 1, [["033000", 1, "Concrete Mix Design", "0", "2026-08-08", "arch-reviewer@example.com", "For Approval", "For Approval", "Notes", "https://link.com", "", "", "", "", ""]]);
 
-    const dataRowValues = archSheet.getRange(4, 1, 1, 15).getValues()[0];
+    const dataRowValues = archSheet.getRange(6, 1, 1, 15).getValues()[0];
     for (let i = 10; i < 15; i++) {
       assert.strictEqual(dataRowValues[i], "", "Data row index " + i + " must remain empty for formula spill");
     }
@@ -163,7 +163,7 @@ test("Submittal Arch - GasMockHarness loads WorkbookSpec and verifies calculated
       revision: dataRowValues[3],
       contact: dataRowValues[5]
     };
-    assert.strictEqual(evaluateArchFormula(row2Formulas[11], sampleRow), "033000-001-0");
+    assert.strictEqual(evaluateArchFormula(row4Formulas[11], sampleRow), "033000-001-0");
   } finally {
     GasMockHarness.uninstall();
   }

@@ -84,7 +84,7 @@ export class WorkbookTemplateViewModel {
 
   public toBatchUpdateRequestPayload(): BatchUpdateRequestPayload {
     const requests: object[] = [];
-    const { headerStyle, formulaRowStyle, offsets, columnWidths, defaultColumnWidth } = this.viewSpec;
+    const { titleRowStyle, dateRowStyle, headerStyle, formulaRowStyle, offsets, columnWidths, defaultColumnWidth } = this.viewSpec;
 
     const tabIndexMap = new Map<string, number>();
     this.model.tabs.forEach((tab, index) => {
@@ -139,7 +139,7 @@ export class WorkbookTemplateViewModel {
         });
       }
 
-      if (tab.isLogTab && tab.columns) {
+      if ((tab.isLogTab || tab.isAuditLogTab) && tab.columns) {
         const headerValues = tab.columns.map(c => ({
           userEnteredValue: { stringValue: c.header }
         }));
@@ -150,6 +150,33 @@ export class WorkbookTemplateViewModel {
           return { userEnteredValue: { stringValue: "" } };
         });
 
+        // Row 1: Title
+        requests.push({
+          updateCells: {
+            range: {
+              sheetId: index,
+              startRowIndex: offsets.TITLE_ROW_INDEX - 1,
+              startColumnIndex: 0
+            },
+            rows: [{ values: [{ userEnteredValue: { stringValue: tab.title || tab.name } }] }],
+            fields: "userEnteredValue"
+          }
+        });
+
+        // Row 2: Date
+        requests.push({
+          updateCells: {
+            range: {
+              sheetId: index,
+              startRowIndex: offsets.DATE_ROW_INDEX - 1,
+              startColumnIndex: 0
+            },
+            rows: [{ values: [{ userEnteredValue: { formulaValue: "=TODAY()" } }] }],
+            fields: "userEnteredValue"
+          }
+        });
+
+        // Row 3: Headers
         requests.push({
           updateCells: {
             range: {
@@ -162,6 +189,7 @@ export class WorkbookTemplateViewModel {
           }
         });
 
+        // Row 4: Formulas
         requests.push({
           updateCells: {
             range: {
@@ -177,7 +205,58 @@ export class WorkbookTemplateViewModel {
     });
 
     this.model.tabs.forEach((tab, tabIndex) => {
-      if (tab.isLogTab && tab.columns) {
+      if ((tab.isLogTab || tab.isAuditLogTab) && tab.columns) {
+        // Row 1: Title Style (16pt bold)
+        requests.push({
+          repeatCell: {
+            range: {
+              sheetId: tabIndex,
+              startRowIndex: offsets.TITLE_ROW_INDEX - 1,
+              endRowIndex: offsets.TITLE_ROW_INDEX,
+              startColumnIndex: 0,
+              endColumnIndex: tab.columns.length
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: titleRowStyle.fillRgb,
+                textFormat: {
+                  foregroundColor: titleRowStyle.fontColorRgb,
+                  bold: titleRowStyle.bold,
+                  fontSize: titleRowStyle.fontSize,
+                  fontFamily: titleRowStyle.fontFamily
+                }
+              }
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat)"
+          }
+        });
+
+        // Row 2: Date Style (10pt italic)
+        requests.push({
+          repeatCell: {
+            range: {
+              sheetId: tabIndex,
+              startRowIndex: offsets.DATE_ROW_INDEX - 1,
+              endRowIndex: offsets.DATE_ROW_INDEX,
+              startColumnIndex: 0,
+              endColumnIndex: tab.columns.length
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: dateRowStyle.fillRgb,
+                textFormat: {
+                  foregroundColor: dateRowStyle.fontColorRgb,
+                  italic: dateRowStyle.italic,
+                  fontSize: dateRowStyle.fontSize,
+                  fontFamily: dateRowStyle.fontFamily
+                }
+              }
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat)"
+          }
+        });
+
+        // Row 3: Header Style (11pt bold)
         requests.push({
           repeatCell: {
             range: {
@@ -202,6 +281,7 @@ export class WorkbookTemplateViewModel {
           }
         });
 
+        // Row 4: FormulaRow Style (9pt italic)
         requests.push({
           repeatCell: {
             range: {

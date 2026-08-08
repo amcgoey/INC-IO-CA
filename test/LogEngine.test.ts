@@ -709,11 +709,11 @@ test("LogEngine.getBoundedData tolerates up to 5 consecutive blank spacer rows i
 test("LogEngine respects 2-row Headers named range taxonomy and BufferRow bounded Data range", () => {
   const templateSpec = require("./fixtures/document-log-workbook-template.json");
   const headersNamedRange = templateSpec.namedRanges.find((nr: any) => nr.name === "Headers" && nr.tabName === "Submittal Arch");
-  assert.strictEqual(headersNamedRange.rangeNotation, "A1:O2");
+  assert.strictEqual(headersNamedRange.rangeNotation, "A3:O4");
   assert.strictEqual(headersNamedRange.scope, "Sheet");
 
   const dataNamedRange = templateSpec.namedRanges.find((nr: any) => nr.name === "Data" && nr.tabName === "Submittal Arch");
-  assert.strictEqual(dataNamedRange.rangeNotation, "A4:O1000");
+  assert.strictEqual(dataNamedRange.rangeNotation, "A6:O1000");
   assert.strictEqual(dataNamedRange.scope, "Sheet");
 });
 
@@ -726,7 +726,7 @@ test("LogEngine integration with GasMockHarness and FakeLogRepository validates 
   const strategy = new ArchitectureSubmittalStrategy();
 
   const headersNR = templateSpec.namedRanges.find((nr: any) => nr.name === "Headers" && nr.tabName === "Submittal Arch");
-  assert.strictEqual(headersNR.rangeNotation, "A1:O2");
+  assert.strictEqual(headersNR.rangeNotation, "A3:O4");
 
   const doc = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",

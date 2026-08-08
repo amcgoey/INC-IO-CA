@@ -92,7 +92,7 @@ test("Single-Submittal Architecture Incoming Workflow - End-to-End Integration",
     assert.ok(grid.length >= 4, "Row should be inserted into Submittal Arch tab");
 
     // 8. Verify Cell Hyperlink Insertion in "Link" column (Col 10)
-    const headers = grid[0].map((h: any) => String(h || "").trim());
+    const headers = grid[2].map((h: any) => String(h || "").trim());
     const linkIdx = headers.indexOf("Link");
     assert.equal(linkIdx, 9, "Link column should be at index 9 (Column J)");
 
@@ -172,7 +172,7 @@ test("Single-Submittal FF&E Incoming Workflow - End-to-End Integration", async (
     const ffeSheet = ss.getSheetByName("Submittal FFE");
     assert.ok(ffeSheet, "Submittal FFE sheet must exist");
     const grid = ffeSheet!.getDataRange().getValues();
-    const headers = grid[0].map((h: any) => String(h || "").trim());
+    const headers = grid[2].map((h: any) => String(h || "").trim());
     const linkIdx = headers.indexOf("Link");
     assert.notEqual(linkIdx, -1);
 
@@ -232,7 +232,7 @@ test("Single-Submittal Architecture Outgoing Workflow - End-to-End Integration",
 
     const archSheet = ss.getSheetByName("Submittal Arch");
     const grid = archSheet!.getDataRange().getValues();
-    const headers = grid[0].map((h: any) => String(h || "").trim());
+    const headers = grid[2].map((h: any) => String(h || "").trim());
     const linkIdx = headers.indexOf("Link");
     const lastRowIndex = grid.length - 1;
     const linkCellValue = grid[lastRowIndex][linkIdx];

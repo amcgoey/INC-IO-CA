@@ -5,6 +5,8 @@
  * Provides caching for settings, header schema verification/formatting, interactive tag/vendor additions,
  * and delegates document appending to `LogEngine` via `GoogleSheetsStorageAdapter`.
  */
+import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./core/config/DocumentLogWorkbookViewSpec";
+
 
 class GoogleSheetsLogRepository implements LogRepository {
   /**
@@ -369,8 +371,24 @@ class GoogleSheetsLogRepository implements LogRepository {
     const sheetName = options.sheetName || "Submittal Arch";
     const grid = adapter.getSheetValues(sheetName);
     if (!grid || grid.length === 0) return;
-    const headers = grid[0].map((h: any) => String(h || "").trim());
-    const linkColIdx = headers.indexOf("Link");
+    const headerRowIdx = (typeof DOCUMENT_LOG_WORKBOOK_VIEW_SPEC !== "undefined" && DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets)
+      ? DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.HEADER_ROW_INDEX - 1
+      : 2;
+    let linkColIdx = -1;
+    if (grid.length > headerRowIdx) {
+      const headers = grid[headerRowIdx].map((h: any) => String(h || "").trim());
+      linkColIdx = headers.indexOf("Link");
+    }
+    if (linkColIdx === -1) {
+      for (let r = 0; r < Math.min(5, grid.length); r++) {
+        const rowHeaders = grid[r].map((h: any) => String(h || "").trim());
+        const idx = rowHeaders.indexOf("Link");
+        if (idx !== -1) {
+          linkColIdx = idx;
+          break;
+        }
+      }
+    }
     if (linkColIdx !== -1) {
       adapter.setRangeValue(sheetName, options.rowIndex, linkColIdx + 1, options.url);
     }
