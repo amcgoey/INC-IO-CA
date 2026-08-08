@@ -1,9 +1,11 @@
 /**
  * @file PicklistResolver.ts
  * @description Tier 1 pure module for sheet-scoped 2D optionsRange picklist option resolution,
- * single-quoted sheet tab qualification retry, defensive exception handling, JSON fallback defaults,
- * and key normalization (normalizePicklistValue) adhering to ADR 0038.
+ * single-quoted sheet tab qualification retry against DocumentLogWorkbookSpec, defensive exception handling,
+ * static JSON fallback defaults, and key normalization (normalizePicklistValue) adhering to ADR 0038.
  */
+
+import { DOCUMENT_LOG_WORKBOOK_SPEC, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
 
 export interface PicklistOption {
   label: string;
@@ -15,6 +17,26 @@ export interface PicklistResolveResult {
   success: boolean;
   isFallback: boolean;
   warningBanner?: string;
+  auditEvent?: {
+    eventType: string;
+    details: string;
+  };
+}
+
+export interface MinimalFieldSpec {
+  key: string;
+  label?: string;
+  optionsRange?: string;
+  options?: PicklistOption[];
+  keyNormalizationRule?: "picklist" | "code" | "exact";
+}
+
+export interface SpreadsheetRangeLike {
+  getValues(): unknown[][];
+}
+
+export interface SpreadsheetLike {
+  getRangeByName(name: string): SpreadsheetRangeLike | null;
 }
 
 export class PicklistResolver {
@@ -23,7 +45,7 @@ export class PicklistResolver {
    * row[0] = value (canonical key)
    * row[1] = label (display text, defaults to row[0] if omitted/blank)
    */
-  public static resolveFrom2DArray(rows: any[][]): PicklistOption[] {
+  public static resolveFrom2DArray(rows: unknown[][]): PicklistOption[] {
     if (!rows || !Array.isArray(rows)) return [];
     const options: PicklistOption[] = [];
 
@@ -45,20 +67,23 @@ export class PicklistResolver {
 
   /**
    * Resolves options range using 3-tier lookup sequence:
-   * Tier 1: getRangeByName(optionsRange)
-   * Tier 2: retry with single-quoted active sheet prefix if bare name
-   * Tier 3: catch exceptions defensively, emit audit event, return JSON defaults & warning banner
+   * Tier 1: Direct getRangeByName(optionsRange)
+   * Tier 2: Tab-qualification retry against DocumentLogWorkbookSpec & active sheet
+   * Tier 3: Defensive exception handling, diagnostic audit logging, JSON field options fallback & warning banner
    */
   public static resolvePicklistOptionsRange(
     optionsRange: string | undefined,
-    spreadsheet: any,
+    spreadsheet: SpreadsheetLike | null | undefined,
     docTypeKey: string = 'Submittal_Arch',
-    activeSheetName: string = 'Submittal Arch'
+    activeSheetName: string = 'Submittal Arch',
+    fieldSpec?: MinimalFieldSpec
   ): PicklistResolveResult {
-    const fallbackOptions: PicklistOption[] = [
-      { value: "DEFAULT_1", label: "Default Option 1" },
-      { value: "DEFAULT_2", label: "Default Option 2" }
-    ];
+    const fallbackOptions: PicklistOption[] = (fieldSpec && Array.isArray(fieldSpec.options) && fieldSpec.options.length > 0)
+      ? fieldSpec.options
+      : [
+          { value: "DEFAULT_1", label: "Default Option 1" },
+          { value: "DEFAULT_2", label: "Default Option 2" }
+        ];
 
     if (!optionsRange || typeof optionsRange !== 'string' || optionsRange.trim() === '') {
       return {
@@ -69,6 +94,9 @@ export class PicklistResolver {
     }
 
     const cleanRangeStr = optionsRange.trim();
+    const bareRangeName = cleanRangeStr.includes('!')
+      ? cleanRangeStr.split('!')[1].replace(/^'|'$/g, '')
+      : cleanRangeStr;
 
     // Tier 1: Direct getRangeByName lookup
     try {
@@ -83,13 +111,44 @@ export class PicklistResolver {
         }
       }
     } catch (_err) {
-      // Catch and proceed to Tier 2/3
+      // Catch and proceed to Tier 2
     }
 
-    // Tier 2: Retry with active sheet qualification if missing '!'
-    if (!cleanRangeStr.includes('!') && activeSheetName) {
+    // Tier 2: Retry with sheet qualification from DocumentLogWorkbookSpec or active sheet
+    const candidateTabNames: string[] = [];
+
+    // Check DocumentLogWorkbookSpec namedRanges matching bareRangeName
+    const specRanges: NamedRangeSpec[] = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges || [];
+    const matchedSpec = specRanges.find(r => r.name === bareRangeName || r.name === cleanRangeStr);
+    if (matchedSpec && matchedSpec.tabName) {
+      candidateTabNames.push(matchedSpec.tabName);
+    }
+
+    if (activeSheetName && !candidateTabNames.includes(activeSheetName)) {
+      candidateTabNames.push(activeSheetName);
+    }
+
+    if (matchedSpec && matchedSpec.tabName && matchedSpec.rangeNotation && spreadsheet && typeof (spreadsheet as any).getSheetByName === 'function') {
       try {
-        const qualifiedName = `'${activeSheetName.replace(/'/g, "\\'")}'!${cleanRangeStr}`;
+        const specSheet = (spreadsheet as any).getSheetByName(matchedSpec.tabName);
+        if (specSheet && typeof specSheet.getRange === 'function') {
+          const range = specSheet.getRange(matchedSpec.rangeNotation);
+          if (range && typeof range.getValues === 'function') {
+            const values = range.getValues();
+            const options = PicklistResolver.resolveFrom2DArray(values);
+            if (options.length > 0) {
+              return { options, success: true, isFallback: false };
+            }
+          }
+        }
+      } catch (_err) {
+        // Proceed
+      }
+    }
+
+    for (const tabName of candidateTabNames) {
+      try {
+        const qualifiedName = `'${tabName.replace(/'/g, "\\'")}'!${bareRangeName}`;
         if (spreadsheet && typeof spreadsheet.getRangeByName === 'function') {
           const range = spreadsheet.getRangeByName(qualifiedName);
           if (range && typeof range.getValues === 'function') {
@@ -101,16 +160,15 @@ export class PicklistResolver {
           }
         }
       } catch (_err) {
-        // Catch and proceed to Tier 3
+        // Continue trying remaining candidate tabs
       }
     }
 
-    // Tier 3: Defensive exception handling, diagnostic audit logging, JSON fallback
-    try {
-      if (typeof Logger !== "undefined" && Logger.log) {
-        Logger.log(`[AuditLog] AUDIT_EVENT_MISSING_OPTIONS_RANGE: Options range '${cleanRangeStr}' missing or invalid.`);
-      }
-    } catch (_err) {}
+    // Tier 3: Defensive exception handling, diagnostic audit logging, JSON field options fallback
+    const auditEvent = {
+      eventType: "AUDIT_EVENT_MISSING_OPTIONS_RANGE",
+      details: `Options range '${cleanRangeStr}' missing or invalid for docType '${docTypeKey}'. Displaying fallback options.`
+    };
 
     const warningBanner = `⚠️ Options range '${cleanRangeStr}' is missing or invalid. Displaying fallback defaults.`;
 
@@ -118,7 +176,8 @@ export class PicklistResolver {
       options: fallbackOptions,
       success: false,
       isFallback: true,
-      warningBanner
+      warningBanner,
+      auditEvent
     };
   }
 
@@ -128,7 +187,7 @@ export class PicklistResolver {
    * 'code': Strips whitespace and extracts leading section code before dashes
    * 'exact': Trim + uppercase matching only
    */
-  public static normalizePicklistValue(value: string, fieldSpec?: any): string {
+  public static normalizePicklistValue(value: string, fieldSpec?: MinimalFieldSpec): string {
     if (!value || typeof value !== 'string') return '';
     const rawVal = value.trim();
     if (!rawVal) return '';

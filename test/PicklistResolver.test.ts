@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { CardSerializer } from "./harness/CardSerializer";
 
-// Load modules
+// Register globals and load modules
 require("../src/DocumentTypeConfigRegistry");
 const { PicklistResolver } = require("../src/core/config/PicklistResolver");
 const { renderDynamicFormFields } = require("../src/adapters/gas/UI");
@@ -56,35 +56,44 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
       ]);
     });
 
-    it("should defensively handle missing or deleted support tabs and fall back to JSON options", () => {
+    it("should defensively handle missing or deleted support tabs and fall back to configured JSON field options", () => {
       const ss = harness.sheetsService.openById("test-ss-missing");
+      const fieldSpec = {
+        key: "vendor",
+        label: "Vendor",
+        type: "list" as const,
+        optionsRange: "'Missing Tab'!Vendors",
+        options: [
+          { value: "JSON_1", label: "JSON Vendor 1" },
+          { value: "JSON_2", label: "JSON Vendor 2" }
+        ]
+      };
 
       const result = PicklistResolver.resolvePicklistOptionsRange(
-        "'Missing Tab'!NonExistentRange",
+        fieldSpec.optionsRange,
         ss,
         "Submittal_FFE",
-        "Submittal FFE"
+        "Submittal FFE",
+        fieldSpec
       );
 
       assert.equal(result.success, false);
       assert.equal(result.isFallback, true);
       assert.ok(result.warningBanner.includes("missing or invalid"));
-      assert.ok(Array.isArray(result.options));
-      assert.ok(result.options.length > 0);
+      assert.deepEqual(result.options, fieldSpec.options);
+      assert.equal(result.auditEvent?.eventType, "AUDIT_EVENT_MISSING_OPTIONS_RANGE");
     });
 
-    it("should retry bare range names with active sheet prefix if direct lookup fails", () => {
-      const ss = harness.sheetsService.openById("test-ss-bare");
-      const activeSheet = ss.insertSheet("Submittal FFE");
-      activeSheet.setGrid([
-        ["Tag", "Label"],
-        ["CH-01", "Chair"],
-        ["TBL-01", "Table"]
+    it("should retry bare range names against DocumentLogWorkbookSpec tab declarations if direct lookup fails", () => {
+      const ss = harness.sheetsService.openById("test-ss-spec-retry");
+      const supportSheet = ss.insertSheet("Submittal FFE Support");
+      supportSheet.setGrid([
+        ["Vendor Key", "Vendor Label"],
+        ["VEND-01", "Acme Supplies"]
       ]);
-      ss.setNamedRange("'Submittal FFE'!SpecTags", "Submittal FFE", "A2:B3");
 
       const result = PicklistResolver.resolvePicklistOptionsRange(
-        "SpecTags",
+        "Vendors",
         ss,
         "Submittal_FFE",
         "Submittal FFE"
@@ -92,8 +101,7 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
 
       assert.equal(result.success, true);
       assert.deepEqual(result.options, [
-        { value: "CH-01", label: "Chair" },
-        { value: "TBL-01", label: "Table" }
+        { value: "VEND-01", label: "Acme Supplies" }
       ]);
     });
   });

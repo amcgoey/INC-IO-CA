@@ -35,8 +35,8 @@ function renderDynamicFormFields(
 
   const { missingFields = [], fieldConfidence = {}, onStateActionName = "onStateChange", actionParams = {} } = validationContext;
 
-  const resolveValue = (globalThis as any).resolve5TierFieldValue || (typeof require !== "undefined" ? require("../../DocumentTypeConfigRegistry").resolve5TierFieldValue : null);
-  const resolver = (globalThis as any).PicklistResolver || (typeof require !== "undefined" ? require("../../core/config/PicklistResolver").PicklistResolver : null);
+  const resolveValue = (globalThis as any).resolve5TierFieldValue;
+  const resolver = (globalThis as any).PicklistResolver;
 
   fields.forEach(field => {
     // Rule 1: Exclude calculated fields
@@ -74,10 +74,13 @@ function renderDynamicFormFields(
 
       let optionsList: Array<{ label: string; value: string }> = field.options || [];
 
-      if ((!optionsList || optionsList.length === 0) && field.optionsRange && resolver) {
+      if (field.optionsRange && resolver) {
         const ss = (hydrationContext as any).spreadsheet || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp.getActiveSpreadsheet() : null);
-        const resolvedResult = resolver.resolvePicklistOptionsRange(field.optionsRange, ss);
-        optionsList = resolvedResult.options || [];
+        const docTypeKey = (hydrationContext as any).docTypeKey || "Submittal_Arch";
+        const activeSheetName = (hydrationContext as any).activeSheetName || "Submittal Arch";
+
+        const resolvedResult = resolver.resolvePicklistOptionsRange(field.optionsRange, ss, docTypeKey, activeSheetName, field);
+        optionsList = resolvedResult.options || optionsList;
         if (resolvedResult.warningBanner) {
           section.addWidget(
             CardService.newTextParagraph().setText(resolvedResult.warningBanner)
@@ -103,9 +106,9 @@ function renderDynamicFormFields(
     }
 
     if (field.type === 'date') {
-      let dateWidget: any = null;
+      let dateWidget: GoogleAppsScript.Card_Service.Widget | null = null;
       if (typeof CardService !== "undefined" && typeof CardService.newDatePicker === "function") {
-        dateWidget = CardService.newDatePicker()
+        const picker = CardService.newDatePicker()
           .setFieldName(field.key)
           .setTitle(displayTitle);
 
@@ -124,32 +127,35 @@ function renderDynamicFormFields(
               epochMs = Date.parse(hydratedValue);
             }
           }
-          if (epochMs !== null && typeof dateWidget.setValueInMsSinceEpoch === "function") {
-            dateWidget.setValueInMsSinceEpoch(epochMs);
+          if (epochMs !== null && typeof (picker as any).setValueInMsSinceEpoch === "function") {
+            (picker as any).setValueInMsSinceEpoch(epochMs);
           }
         }
+        dateWidget = picker as any;
       } else {
         // Fallback to TextInput if DatePicker not available
         dateWidget = CardService.newTextInput()
           .setFieldName(field.key)
           .setTitle(displayTitle)
-          .setValue(hydratedValue);
+          .setValue(hydratedValue) as any;
         if (!hintText) hintText = "Date (YYMMDD)";
       }
 
-      if (hintText && typeof dateWidget.setHint === "function") {
-        dateWidget.setHint(hintText);
+      if (hintText && dateWidget && typeof (dateWidget as any).setHint === "function") {
+        (dateWidget as any).setHint(hintText);
       }
 
-      if (onStateActionName && typeof dateWidget.setOnChangeAction === "function") {
-        dateWidget.setOnChangeAction(
+      if (onStateActionName && dateWidget && typeof (dateWidget as any).setOnChangeAction === "function") {
+        (dateWidget as any).setOnChangeAction(
           CardService.newAction()
             .setFunctionName(onStateActionName)
             .setParameters(actionParams)
         );
       }
 
-      section.addWidget(dateWidget);
+      if (dateWidget) {
+        section.addWidget(dateWidget);
+      }
       return;
     }
 
