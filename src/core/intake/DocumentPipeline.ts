@@ -163,8 +163,8 @@ function normalizeSpecSection(secStr?: string): string {
   if (typeof PicklistResolver !== "undefined" && typeof PicklistResolver.normalizePicklistValue === "function") {
     return PicklistResolver.normalizePicklistValue(secStr, { key: "section", keyNormalizationRule: "code" });
   }
-  const parts = secStr.trim().split(/\s+-\s+/);
-  return parts[0].replace(/[\s.-]+/g, '').toUpperCase();
+  const codePart = secStr.trim().split(/\s*-\s*(?![0-9\s])/)[0];
+  return codePart.replace(/[\s.-]+/g, '').toUpperCase();
 }
 
 function splitNumberAndRevision(numRevStr: string): { submittalNum: string; revNum: string } {
