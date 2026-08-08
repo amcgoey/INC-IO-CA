@@ -1,4 +1,5 @@
 /// <reference path="../../types.ts" />
+/// <reference path="../interfaces/LogRepository.ts" />
 /**
  * @file LogEngine.ts
  * @description Tier 1 Pure Core application domain engine coordinating contact history chains, status transitions, row insertion plans, and log persistence.
@@ -6,14 +7,25 @@
  * Consumes Tier 1 LogRepository interface and SheetStorageAdapter without GAS globals or Node built-in imports.
  */
 
+import { LogRepository } from "../interfaces/LogRepository";
+
 declare var require: any;
+
+let getBoundedDataFn: (logData: any[][]) => any[][] = (globalThis as any).getBoundedData;
+let computeRowInsertionPlanFn: (
+  boundedData: any[][],
+  headers: string[],
+  rowData: any[],
+  disciplineOrGroupKeyFn: string | RowKeyFn,
+  sortKeyFn?: RowKeyFn
+) => RowInsertionPlan = (globalThis as any).computeRowInsertionPlan;
 
 if (typeof require !== "undefined") {
   try {
-    const _rpc = eval('require("../../RowPositionCalculator")');
-    if (_rpc) {
-      if (typeof getBoundedData === "undefined" && _rpc.getBoundedData) (globalThis as any).getBoundedData = _rpc.getBoundedData;
-      if (typeof computeRowInsertionPlan === "undefined" && _rpc.computeRowInsertionPlan) (globalThis as any).computeRowInsertionPlan = _rpc.computeRowInsertionPlan;
+    const rpc = require("../../RowPositionCalculator");
+    if (rpc) {
+      if (rpc.getBoundedData) getBoundedDataFn = rpc.getBoundedData;
+      if (rpc.computeRowInsertionPlan) computeRowInsertionPlanFn = rpc.computeRowInsertionPlan;
     }
   } catch (e) {}
 }
@@ -28,7 +40,7 @@ function getContactAbbreviation(document: ValidatedDocument): string {
   return document.listFields?.contact?.abbreviation || "";
 }
 
-function safePadNumLogEngine_(val: any, len: number): string {
+function safePadNumLogEngine_(val: unknown, len: number): string {
   if (typeof padNum !== "undefined") return padNum(val, len);
   if ((globalThis as any).padNum) return (globalThis as any).padNum(val, len);
   return String(val || "").trim().padStart(len, '0');
@@ -37,18 +49,18 @@ function safePadNumLogEngine_(val: any, len: number): string {
 /**
  * Domain engine responsible for inserting validated submittals into tabular log sheets.
  * Calculates contact history chains, handles previous row status transitions (e.g. marking previous revisions Closed),
- * computes group/sort row insertion plans, and writes rows via the storage adapter.
+ * computes group/sort row insertion plans, and writes rows via the storage adapter or repository.
  */
 export class LogEngine {
-  /** Low-level storage adapter executing spreadsheet operations. */
-  private storageAdapter: SheetStorageAdapter;
+  /** Low-level storage adapter or repository seam executing spreadsheet operations. */
+  private storageAdapter: SheetStorageAdapter | LogRepository;
 
   /**
-   * Constructs a new `LogEngine` instance.
+   * Constructs a new `LogEngine` instance consuming a `LogRepository` or `SheetStorageAdapter` seam.
    *
-   * @param storageAdapter - Concrete or test implementation of `SheetStorageAdapter`.
+   * @param storageAdapter - Concrete, fake, or storage adapter implementation.
    */
-  constructor(storageAdapter: SheetStorageAdapter) {
+  constructor(storageAdapter: SheetStorageAdapter | LogRepository) {
     this.storageAdapter = storageAdapter;
   }
 
@@ -68,29 +80,38 @@ export class LogEngine {
     strategy?: DocumentLogStrategy,
     options: ReadLogOptions = {}
   ): ReadLogResult {
-    const sheetName = options.sheetName || CONFIG.LOG_SHEET_NAME;
-    const logData = this.storageAdapter.getSheetValues(sheetName);
+    if (typeof (this.storageAdapter as LogRepository).readLog === "function") {
+      const repo = this.storageAdapter as LogRepository;
+      if ((repo as any).isDelegatedEngine !== true && repo !== (this as unknown as LogRepository)) {
+        return repo.readLog(spreadsheetId, identityData, strategy, options);
+      }
+    }
 
-    const headerRowIdx = CONFIG.LOG_HEADER_ROW > 0 ? CONFIG.LOG_HEADER_ROW - 1 : 2;
+    const adapter = this.storageAdapter as SheetStorageAdapter;
+    const sheetName = options.sheetName || (typeof CONFIG !== "undefined" ? CONFIG.LOG_SHEET_NAME : "Submittals Log");
+    const logData = adapter.getSheetValues(sheetName);
+
+    const headerRowSetting = typeof CONFIG !== "undefined" ? CONFIG.LOG_HEADER_ROW : 3;
+    const headerRowIdx = headerRowSetting > 0 ? headerRowSetting - 1 : 2;
 
     const headers = options.headers || (
       logData.length > headerRowIdx
-        ? logData[headerRowIdx].map((h: any) => String(h || "").trim())
+        ? logData[headerRowIdx].map((h: unknown) => String(h || "").trim())
         : []
     );
 
-    const boundedData = getBoundedData(logData);
+    const boundedData = getBoundedDataFn ? getBoundedDataFn(logData) : logData;
     const historyColIdx = headers.indexOf("Contact History");
     const calcChainColIdx = headers.indexOf("Calc Contact Chain");
     const statusColIdx = headers.indexOf("Status");
 
-    const dataStartIdx = CONFIG.LOG_HEADER_ROW > 0 ? CONFIG.LOG_HEADER_ROW : 3;
+    const dataStartIdx = headerRowSetting > 0 ? headerRowSetting : 3;
 
     let found = false;
     let rowIndex: number | null = null;
     let contactHistory = "";
     let previousStatus = "";
-    let rowDataMap: Record<string, any> | null = null;
+    let rowDataMap: Record<string, unknown> | null = null;
 
     for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
       const row = boundedData[i];
@@ -135,7 +156,7 @@ export class LogEngine {
     let previousRowUpdated = false;
     if (options.updatePreviousStatus && rowIndex !== null && statusColIdx !== -1) {
       const newStatus = options.previousRowStatus || "Closed";
-      this.storageAdapter.setRangeValue(sheetName, rowIndex, statusColIdx + 1, newStatus);
+      adapter.setRangeValue(sheetName, rowIndex, statusColIdx + 1, newStatus);
       previousRowUpdated = true;
     }
 
@@ -159,18 +180,27 @@ export class LogEngine {
     strategy: DocumentLogStrategy,
     options: AppendDocumentOptions = {}
   ): AppendDocumentResult {
-    const sheetName = options.sheetName || CONFIG.LOG_SHEET_NAME;
-    const logData = this.storageAdapter.getSheetValues(sheetName);
+    if (typeof (this.storageAdapter as LogRepository).appendDocument === "function") {
+      const repo = this.storageAdapter as LogRepository;
+      if ((repo as any).isDelegatedEngine !== true && repo !== (this as unknown as LogRepository)) {
+        return repo.appendDocument(spreadsheetId, document, strategy, options);
+      }
+    }
 
-    const headerRowIdx = CONFIG.LOG_HEADER_ROW > 0 ? CONFIG.LOG_HEADER_ROW - 1 : 2;
+    const adapter = this.storageAdapter as SheetStorageAdapter;
+    const sheetName = options.sheetName || (typeof CONFIG !== "undefined" ? CONFIG.LOG_SHEET_NAME : "Submittals Log");
+    const logData = adapter.getSheetValues(sheetName);
+
+    const headerRowSetting = typeof CONFIG !== "undefined" ? CONFIG.LOG_HEADER_ROW : 3;
+    const headerRowIdx = headerRowSetting > 0 ? headerRowSetting - 1 : 2;
 
     const headers = options.headers || (
       logData.length > headerRowIdx
-        ? logData[headerRowIdx].map((h: any) => String(h || "").trim())
+        ? logData[headerRowIdx].map((h: unknown) => String(h || "").trim())
         : []
     );
 
-    const boundedData = getBoundedData(logData);
+    const boundedData = getBoundedDataFn ? getBoundedDataFn(logData) : logData;
     const identityData: IdentityData = options.identityData || (strategy.getIdentityData ? strategy.getIdentityData(document) : {
       identityGroup: strategy.getGroupKey(document),
       identityRevisionGroup: strategy.getSortKey(document),
@@ -183,7 +213,7 @@ export class LogEngine {
     let previousChain = "";
     let previousRowSheetIndex: number | null = null;
 
-    const dataStartIdx = CONFIG.LOG_HEADER_ROW > 0 ? CONFIG.LOG_HEADER_ROW : 3;
+    const dataStartIdx = headerRowSetting > 0 ? headerRowSetting : 3;
 
     for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
       const row = boundedData[i];
@@ -203,7 +233,7 @@ export class LogEngine {
       const statusColIdx = headers.indexOf("Status");
       if (statusColIdx !== -1) {
         const newStatus = options.previousRowStatus || "Closed";
-        this.storageAdapter.setRangeValue(sheetName, previousRowSheetIndex, statusColIdx + 1, newStatus);
+        adapter.setRangeValue(sheetName, previousRowSheetIndex, statusColIdx + 1, newStatus);
         previousRowUpdated = true;
       }
     }
@@ -225,15 +255,15 @@ export class LogEngine {
       }
     }
 
-    const plan = computeRowInsertionPlan(
+    const plan = computeRowInsertionPlanFn(
       boundedData,
       headers,
       rowData,
-      (r: any[], h: string[]) => strategy.getGroupKeyFromRow(r, h),
-      (r: any[], h: string[]) => strategy.getSortKeyFromRow(r, h)
+      (r: unknown[], h: string[]) => strategy.getGroupKeyFromRow(r as any[], h),
+      (r: unknown[], h: string[]) => strategy.getSortKeyFromRow(r as any[], h)
     );
 
-    const writeResult = this.storageAdapter.insertLogRow(sheetName, headers, rowData, plan);
+    const writeResult = adapter.insertLogRow(sheetName, headers, rowData, plan);
 
     return {
       targetKey,

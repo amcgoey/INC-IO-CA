@@ -1,24 +1,17 @@
-import test, { beforeEach, afterEach } from "node:test";
+import test, { beforeEach } from "node:test";
 import assert from "node:assert";
 
-const { GasMockHarness, DocumentFactory, createTestContext, InMemorySheetStorageAdapter } = require("./harness");
+beforeEach(() => {
+  (globalThis as any).CONFIG = {
+    LOG_HEADER_ROW: 3,
+    LOG_SHEET_NAME: "Submittals Log",
+    CLOSED_FOLDER_NAME: "Closed"
+  };
+});
+const { DocumentFactory, InMemorySheetStorageAdapter } = require("./harness");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
 const { LogEngine } = require("../src/core/log/LogEngine");
 const { FakeLogRepository } = require("../src/adapters/fakes/FakeLogRepository");
-
-beforeEach(() => {
-  GasMockHarness.install({
-    configOverrides: {
-      LOG_HEADER_ROW: 3,
-      LOG_SHEET_NAME: "Submittals Log",
-      CLOSED_FOLDER_NAME: "Closed"
-    }
-  });
-});
-
-afterEach(() => {
-  GasMockHarness.uninstall();
-});
 
 test("ArchitectureSubmittalStrategy extracts keys, formats filename and payload", () => {
   const strategy = new ArchitectureSubmittalStrategy();
@@ -84,7 +77,6 @@ test("ArchitectureSubmittalStrategy handles empty section (non-CSI submittal) wi
 });
 
 test("LogEngine appends new Architecture document end-to-end with InMemorySheetStorageAdapter", () => {
-  const context = createTestContext();
   const headers = [
     "Section", "Number", "Title", "Revision", "Date",
     "Contact", "Action", "Status", "Notes", "Link", "Contact History"

@@ -1,6 +1,4 @@
 /// <reference path="../../types.ts" />
-/// <reference path="../../core/interfaces/LogRepository.ts" />
-
 /**
  * @file FakeLogRepository.ts
  * @description Pure in-memory fake implementation of `LogRepository` for fast offline testing without Google Sheets runtime dependencies.
@@ -9,10 +7,10 @@
 import { LogRepository } from "../../core/interfaces/LogRepository";
 
 export class FakeLogRepository implements LogRepository {
-  public calls: Array<{ method: string; args: any[] }> = [];
+  public calls: Array<{ method: string; args: unknown[] }> = [];
   public configuredSettings: Record<string, LogSettings> = {};
   public configuredMissingHeaders: string[] = [];
-  public insertedRows: Array<{ spreadsheetId: string; headers: string[]; rowData: any[]; plan: RowInsertionPlan }> = [];
+  public insertedRows: Array<{ spreadsheetId: string; headers: string[]; rowData: unknown[]; plan: RowInsertionPlan }> = [];
   public appendedDocuments: Array<{ spreadsheetId: string; document: ValidatedDocument; strategy: DocumentLogStrategy; options?: AppendDocumentOptions }> = [];
   public readLogEntries: Array<{ spreadsheetId: string; identityData: IdentityData; strategy?: DocumentLogStrategy; options?: ReadLogOptions }> = [];
   public customReadResult?: ReadLogResult;
@@ -67,7 +65,7 @@ export class FakeLogRepository implements LogRepository {
   insertLogRow(
     spreadsheetId: string,
     headers: string[],
-    rowData: any[],
+    rowData: unknown[],
     plan: RowInsertionPlan
   ): { rowIndex: number; failedColumns: string[] } {
     this.calls.push({ method: "insertLogRow", args: [spreadsheetId, headers, rowData, plan] });
