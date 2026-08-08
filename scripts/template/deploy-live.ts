@@ -75,6 +75,7 @@ export function parseDeployArgs(
   let spreadsheetId = "";
   let target: "test" | "prod" = "test";
   let dryRun = false;
+  let create = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -96,10 +97,12 @@ export function parseDeployArgs(
       target = rawTarget;
     } else if (arg === "--dry-run") {
       dryRun = true;
+    } else if (arg === "--create") {
+      create = true;
     }
   }
 
-  if (!spreadsheetId) {
+  if (!spreadsheetId && !create) {
     const env = envOverride || getEnvVars();
     if (target === "test") {
       spreadsheetId = env.TEST_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
@@ -108,13 +111,13 @@ export function parseDeployArgs(
     }
   }
 
-  if (!spreadsheetId) {
+  if (!spreadsheetId && !create) {
     throw new Error(
-      `Spreadsheet ID is required for target "${target}". Specify --spreadsheet-id=<id> or configure ${target === "test" ? "TEST_SPREADSHEET_ID" : "PROD_SPREADSHEET_ID"} in .env.local.`
+      `Spreadsheet ID is required for target "${target}". Specify --spreadsheet-id=<id>, use --create to create a new sheet, or configure ${target === "test" ? "TEST_SPREADSHEET_ID" : "PROD_SPREADSHEET_ID"} in .env.local.`
     );
   }
 
-  return { spreadsheetId, target, dryRun };
+  return { spreadsheetId, target, dryRun, create };
 }
 
 export function buildDeploymentPayload(
@@ -169,27 +172,48 @@ export async function executeWithRetry<T>(
   }
 }
 
+export async function createSpreadsheet(
+  title: string = "INC Project Document Log (MVT Template)",
+  token?: string,
+  fetcher?: (url: string, init: any) => Promise<any>
+): Promise<{ spreadsheetId: string; spreadsheetUrl: string }> {
+  const endpoint = "https://sheets.googleapis.com/v4/spreadsheets";
+  const customFetcher = fetcher || (async (url: string, init: any) => {
+    const res = await fetch(url, init);
+    if (!res.ok) {
+      const errText = await res.text();
+      const err: any = new Error(`Google Sheets API Create Error (${res.status}): ${errText}`);
+      err.status = res.status;
+      throw err;
+    }
+    return res;
+  });
+
+  const init = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ properties: { title } })
+  };
+
+  const res = await executeWithRetry(async () => {
+    const response = await customFetcher(endpoint, init);
+    return typeof response.json === "function" ? await response.json() : response;
+  });
+
+  return {
+    spreadsheetId: res.spreadsheetId,
+    spreadsheetUrl: res.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${res.spreadsheetId}/edit`
+  };
+}
+
 export async function deployLiveTemplate(
   options: DeployLiveOptions,
   deps: DeployDependencies = {}
 ): Promise<DeployLiveResult> {
   console.log(`=== Deploying DocumentLogWorkbook Template [Target: ${options.target.toUpperCase()}] ===`);
-  console.log(`Target Spreadsheet ID: ${options.spreadsheetId}`);
-
-  const payload = buildDeploymentPayload();
-  const requestCount = payload.requests.length;
-  console.log(`Single-Pass Batch Payload constructed with ${requestCount} batch update requests.`);
-
-  if (options.dryRun) {
-    console.log(`[DRY-RUN MODE] Payload construction verified clean. Skipping network call.`);
-    return {
-      success: true,
-      spreadsheetId: options.spreadsheetId,
-      target: options.target,
-      dryRun: true,
-      totalRequests: requestCount
-    };
-  }
 
   const token = deps.authToken || process.env.GOOGLE_AUTH_TOKEN || process.env.ACCESS_TOKEN;
   const fetcher = deps.apiFetcher || (async (url: string, init: any) => {
@@ -203,18 +227,41 @@ export async function deployLiveTemplate(
     return res;
   });
 
-  if (!token && !deps.apiFetcher) {
-    console.warn(`[WARN] No GOOGLE_AUTH_TOKEN found in environment. Executing dry-run deployment validation.`);
+  let spreadsheetId = options.spreadsheetId;
+
+  if (options.create) {
+    if (!token && !deps.apiFetcher) {
+      console.log(`[DRY-RUN CREATE] Skipping Google API creation call because no GOOGLE_AUTH_TOKEN is present.`);
+      spreadsheetId = "DRY_RUN_CREATED_SHEET_ID";
+    } else {
+      console.log(`[CREATE] Creating new Google Spreadsheet via Sheets API v4...`);
+      const created = await createSpreadsheet("INC Project Document Log (MVT Template)", token, fetcher);
+      spreadsheetId = created.spreadsheetId;
+      console.log(`[OK] Created new Spreadsheet: ${created.spreadsheetUrl}`);
+    }
+  }
+
+  console.log(`Target Spreadsheet ID: ${spreadsheetId}`);
+
+  const payload = buildDeploymentPayload();
+  const requestCount = payload.requests.length;
+  console.log(`Single-Pass Batch Payload constructed with ${requestCount} batch update requests.`);
+
+  if (options.dryRun || (!token && !deps.apiFetcher)) {
+    console.log(`[DRY-RUN MODE] Payload construction verified clean. Skipping network call.`);
+    if (!token && !deps.apiFetcher) {
+      console.warn(`[WARN] No GOOGLE_AUTH_TOKEN found in environment.`);
+    }
     return {
       success: true,
-      spreadsheetId: options.spreadsheetId,
+      spreadsheetId: spreadsheetId,
       target: options.target,
       dryRun: true,
       totalRequests: requestCount
     };
   }
 
-  const endpoint = `https://sheets.googleapis.com/v4/spreadsheets/${options.spreadsheetId}:batchUpdate`;
+  const endpoint = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`;
   const init = {
     method: "POST",
     headers: {
@@ -229,10 +276,10 @@ export async function deployLiveTemplate(
     return typeof res.json === "function" ? await res.json() : res;
   });
 
-  console.log(`[OK] Successfully deployed single-pass batch update to Google Sheet ${options.spreadsheetId}`);
+  console.log(`[OK] Successfully deployed single-pass batch update to Google Sheet ${spreadsheetId}`);
   return {
     success: true,
-    spreadsheetId: options.spreadsheetId,
+    spreadsheetId: spreadsheetId,
     target: options.target,
     dryRun: false,
     totalRequests: requestCount,
