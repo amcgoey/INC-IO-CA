@@ -354,7 +354,8 @@ class GoogleSheetsLogRepository implements LogRepository {
     options: AppendDocumentOptions = {}
   ): AppendDocumentResult {
     const adapter = new GoogleSheetsStorageAdapter(spreadsheetId);
-    const engine = new LogEngine(adapter);
+    const LogEngineClass = (globalThis as any).LogEngine || require("./core/log/LogEngine").LogEngine;
+    const engine = new LogEngineClass(adapter);
     return engine.appendDocument(spreadsheetId, document, strategy, options);
   }
   readLog(
@@ -364,7 +365,8 @@ class GoogleSheetsLogRepository implements LogRepository {
     options: ReadLogOptions = {}
   ): ReadLogResult {
     const adapter = new GoogleSheetsStorageAdapter(spreadsheetId);
-    const engine = new LogEngine(adapter);
+    const LogEngineClass = (globalThis as any).LogEngine || require("./core/log/LogEngine").LogEngine;
+    const engine = new LogEngineClass(adapter);
     return engine.readLog(spreadsheetId, identityData, strategy, options);
   }
 }
