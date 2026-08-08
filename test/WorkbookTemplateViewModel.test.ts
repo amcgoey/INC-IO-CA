@@ -8,6 +8,24 @@ import {
 import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, ThemeColors } from "../src/core/config/DocumentLogWorkbookViewSpec";
 import { WorkbookTemplateViewModel } from "../src/core/config/WorkbookTemplateViewModel";
 
+interface RepeatCellReq {
+  repeatCell?: {
+    range?: {
+      sheetId?: number;
+      startRowIndex?: number;
+      endRowIndex?: number;
+      startColumnIndex?: number;
+      endColumnIndex?: number;
+    };
+    cell?: {
+      userEnteredFormat?: {
+        backgroundColor?: { red: number; green: number; blue: number };
+        textFormat?: { foregroundColor?: { red: number; green: number; blue: number }; bold?: boolean };
+      };
+    };
+  };
+}
+
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE log tab (1000x26) with 15 columns", () => {
   const ffeTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "Submittal FFE");
   assert.ok(ffeTab, "Submittal FFE log tab must be defined in tabs");
@@ -249,60 +267,45 @@ test("DOCUMENT_LOG_WORKBOOK_VIEW_SPEC specifies namedRangeFills and settingHeade
   assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges["Submittal FFE Support"], ["A1:D1"]);
 });
 
-test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell requests for setting headers with #666666 fill & white text", () => {
+test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell requests for setting headers with #666666 fill & white text AFTER named range fills", () => {
   const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
   const payload = viewModel.toBatchUpdateRequestPayload();
 
-  interface RepeatCellReq {
-    repeatCell?: {
-      range?: {
-        sheetId?: number;
-        startRowIndex?: number;
-        endRowIndex?: number;
-        startColumnIndex?: number;
-        endColumnIndex?: number;
-      };
-      cell?: {
-        userEnteredFormat?: {
-          backgroundColor?: { red: number; green: number; blue: number };
-          textFormat?: { foregroundColor?: { red: number; green: number; blue: number }; bold?: boolean };
-        };
-      };
-    };
-  }
+  const allRequests = payload.requests as RepeatCellReq[];
 
-  const repeatCells = (payload.requests as RepeatCellReq[]).filter(r => r.repeatCell && r.repeatCell.cell?.userEnteredFormat?.textFormat?.bold);
+  // Find index of _Config pale fill request for Config_Manifest (sheetId 5, startRow 0, endRow 3)
+  const manifestFillIdx = allRequests.findIndex(
+    r => r.repeatCell?.range?.sheetId === 5 &&
+         r.repeatCell?.range?.startRowIndex === 0 &&
+         r.repeatCell?.range?.endRowIndex === 3 &&
+         r.repeatCell?.cell?.userEnteredFormat?.backgroundColor &&
+         !r.repeatCell?.cell?.userEnteredFormat?.textFormat
+  );
+  assert.ok(manifestFillIdx >= 0, "Config_Manifest pale fill request must exist");
 
-  // Verify headers on _Config (sheetId 5): A1:B1 (row 0, cols 0-2) and A5:D5 (row 4, cols 0-4)
-  const configHeader1 = repeatCells.find(r => r.repeatCell?.range?.sheetId === 5 && r.repeatCell?.range?.startRowIndex === 0 && r.repeatCell?.range?.endRowIndex === 1 && r.repeatCell?.range?.startColumnIndex === 0 && r.repeatCell?.range?.endColumnIndex === 2);
-  assert.ok(configHeader1, "_Config A1:B1 repeatCell header request must exist with exact range boundaries");
-  assert.deepStrictEqual(configHeader1?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.fillRgb);
-  assert.strictEqual(configHeader1?.repeatCell?.cell?.userEnteredFormat?.textFormat?.bold, true);
+  // Find index of _Config header request for A1:B1 (sheetId 5, startRow 0, endRow 1)
+  const configHeader1Idx = allRequests.findIndex(
+    r => r.repeatCell?.range?.sheetId === 5 &&
+         r.repeatCell?.range?.startRowIndex === 0 &&
+         r.repeatCell?.range?.endRowIndex === 1 &&
+         r.repeatCell?.cell?.userEnteredFormat?.textFormat?.bold === true
+  );
+  assert.ok(configHeader1Idx >= 0, "_Config A1:B1 repeatCell header request must exist");
 
-  const configHeader2 = repeatCells.find(r => r.repeatCell?.range?.sheetId === 5 && r.repeatCell?.range?.startRowIndex === 4 && r.repeatCell?.range?.endRowIndex === 5 && r.repeatCell?.range?.startColumnIndex === 0 && r.repeatCell?.range?.endColumnIndex === 4);
-  assert.ok(configHeader2, "_Config A5:D5 repeatCell header request must exist with exact range boundaries");
+  // CRITICAL ASSERTION: Header request MUST be emitted AFTER named range fill request so Dark Gray headers are never overwritten!
+  assert.ok(
+    configHeader1Idx > manifestFillIdx,
+    `_Config A1:B1 header repeatCell request (index ${configHeader1Idx}) must be emitted AFTER Config_Manifest pale fill request (index ${manifestFillIdx})`
+  );
+  assert.deepStrictEqual(
+    allRequests[configHeader1Idx]?.repeatCell?.cell?.userEnteredFormat?.backgroundColor,
+    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.fillRgb
+  );
 });
 
-test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell requests for settings named ranges with pale fills", () => {
+test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell requests for settings named ranges with pale fills without duplicate requests", () => {
   const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
   const payload = viewModel.toBatchUpdateRequestPayload();
-
-  interface RepeatCellReq {
-    repeatCell?: {
-      range?: {
-        sheetId?: number;
-        startRowIndex?: number;
-        endRowIndex?: number;
-        startColumnIndex?: number;
-        endColumnIndex?: number;
-      };
-      cell?: {
-        userEnteredFormat?: {
-          backgroundColor?: { red: number; green: number; blue: number };
-        };
-      };
-    };
-  }
 
   const repeatCells = (payload.requests as RepeatCellReq[]).filter(
     r => r.repeatCell && r.repeatCell.cell?.userEnteredFormat?.backgroundColor && !r.repeatCell.cell?.userEnteredFormat?.textFormat
@@ -329,26 +332,21 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell req
   );
   assert.ok(actionsReq, "Actions_Submittal pale red fill repeatCell request must exist with exact range boundaries");
   assert.deepStrictEqual(actionsReq?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, ThemeColors.PALE_RED_RGB);
+
+  // Verify no duplicate fill requests for dual-scoped range Sections / Submittal_Arch_Support_Sections (sheetId 2, A2:B20)
+  const sectionsReqs = repeatCells.filter(
+    r => r.repeatCell?.range?.sheetId === 2 &&
+         r.repeatCell?.range?.startRowIndex === 1 &&
+         r.repeatCell?.range?.endRowIndex === 20 &&
+         r.repeatCell?.range?.startColumnIndex === 0 &&
+         r.repeatCell?.range?.endColumnIndex === 2
+  );
+  assert.strictEqual(sectionsReqs.length, 1, "Exactly 1 repeatCell request must be emitted for dual-scoped Sections range");
 });
 
 test("Log data rows remain unstyled white #FFFFFF without background fill repeatCell requests", () => {
   const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
   const payload = viewModel.toBatchUpdateRequestPayload();
-
-  interface RepeatCellReq {
-    repeatCell?: {
-      range?: {
-        sheetId?: number;
-        startRowIndex?: number;
-        endRowIndex?: number;
-      };
-      cell?: {
-        userEnteredFormat?: {
-          backgroundColor?: { red: number; green: number; blue: number };
-        };
-      };
-    };
-  }
 
   // Check Submittal Arch (sheetId 0) and Submittal FFE (sheetId 1) rows 3 to 999 (A4:O1000)
   const logDataFills = (payload.requests as RepeatCellReq[]).filter(

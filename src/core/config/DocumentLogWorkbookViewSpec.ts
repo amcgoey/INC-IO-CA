@@ -68,6 +68,11 @@ export interface DocumentLogWorkbookViewSpec {
   settingHeaderRanges?: Record<string, string[]>;
 }
 
+const PALE_GRAY_HEX = '#F1F3F4';
+const PALE_BLUE_HEX = '#E8F0FE';
+const PALE_GREEN_HEX = '#E6F4EA';
+const PALE_RED_HEX = '#FCE8E6';
+
 export const ThemeColors = {
   HEADER_FILL_HEX: '#666666',
   HEADER_FILL_RGB: { red: 0.4, green: 0.4, blue: 0.4 },
@@ -77,14 +82,14 @@ export const ThemeColors = {
   FORMULA_ROW_FONT_RGB: { red: 0.4, green: 0.4, blue: 0.4 },
   FORMULA_ROW_FILL_HEX: '#F3F3F3',
   FORMULA_ROW_FILL_RGB: { red: 0.95, green: 0.95, blue: 0.95 },
-  PALE_GRAY_HEX: '#F1F3F4',
-  PALE_GRAY_RGB: hexToRgb('#F1F3F4'),
-  PALE_BLUE_HEX: '#E8F0FE',
-  PALE_BLUE_RGB: hexToRgb('#E8F0FE'),
-  PALE_GREEN_HEX: '#E6F4EA',
-  PALE_GREEN_RGB: hexToRgb('#E6F4EA'),
-  PALE_RED_HEX: '#FCE8E6',
-  PALE_RED_RGB: hexToRgb('#FCE8E6')
+  PALE_GRAY_HEX,
+  PALE_GRAY_RGB: hexToRgb(PALE_GRAY_HEX),
+  PALE_BLUE_HEX,
+  PALE_BLUE_RGB: hexToRgb(PALE_BLUE_HEX),
+  PALE_GREEN_HEX,
+  PALE_GREEN_RGB: hexToRgb(PALE_GREEN_HEX),
+  PALE_RED_HEX,
+  PALE_RED_RGB: hexToRgb(PALE_RED_HEX)
 };
 
 export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {

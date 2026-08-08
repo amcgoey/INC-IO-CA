@@ -6,7 +6,7 @@
  */
 
 import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
-import { DocumentLogWorkbookViewSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./DocumentLogWorkbookViewSpec";
+import { DocumentLogWorkbookViewSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, HeaderStyleSpec } from "./DocumentLogWorkbookViewSpec";
 
 export interface FixtureTabSpec {
   name: string;
@@ -273,12 +273,12 @@ export class WorkbookTemplateViewModel {
     });
 
     const addedNames = new Set<string>();
-    this.model.namedRanges.forEach(nr => {
-      const sheetId = tabIndexMap.get(nr.tabName) ?? 0;
-      const gridRange = parseA1ToGridRange(nr.rangeNotation, sheetId);
-      let name = nr.name;
+    this.model.namedRanges.forEach(namedRange => {
+      const sheetId = tabIndexMap.get(namedRange.tabName) ?? 0;
+      const gridRange = parseA1ToGridRange(namedRange.rangeNotation, sheetId);
+      let name = namedRange.name;
       if (addedNames.has(name)) {
-        name = `${nr.tabName.replace(/ /g, "_")}_${nr.name}`;
+        name = `${namedRange.tabName.replace(/ /g, "_")}_${namedRange.name}`;
       }
       if (addedNames.has(name)) {
         return; // skip if exact name already added
@@ -296,58 +296,74 @@ export class WorkbookTemplateViewModel {
       });
     });
 
+    // 1. Settings Named Range Fills (Emitted FIRST so header styling is applied on top)
+    if (this.viewSpec.namedRangeFills) {
+      const processedFillRanges = new Set<string>();
+      this.model.namedRanges.forEach(namedRange => {
+        const fillRgb = this.viewSpec.namedRangeFills?.[namedRange.name];
+        if (fillRgb) {
+          const sheetId = tabIndexMap.get(namedRange.tabName);
+          if (sheetId !== undefined) {
+            const rangeKey = `${sheetId}:${namedRange.rangeNotation}`;
+            if (processedFillRanges.has(rangeKey)) {
+              return; // skip duplicate requests for identical range notations
+            }
+            processedFillRanges.add(rangeKey);
+            const gridRange = parseA1ToGridRange(namedRange.rangeNotation, sheetId);
+            requests.push(createRepeatCellBackgroundRequest(gridRange, fillRgb));
+          }
+        }
+      });
+    }
+
+    // 2. Settings Header Formatting (Emitted SECOND to guarantee Dark Gray #666666 headers take precedence over pale fills)
     if (this.viewSpec.settingHeaderRanges) {
       Object.entries(this.viewSpec.settingHeaderRanges).forEach(([tabName, ranges]) => {
         const sheetId = tabIndexMap.get(tabName);
         if (sheetId === undefined) return;
         ranges.forEach(rangeStr => {
           const gridRange = parseA1ToGridRange(rangeStr, sheetId);
-          requests.push({
-            repeatCell: {
-              range: gridRange,
-              cell: {
-                userEnteredFormat: {
-                  backgroundColor: headerStyle.fillRgb,
-                  textFormat: {
-                    foregroundColor: headerStyle.fontColorRgb,
-                    bold: headerStyle.bold,
-                    fontSize: headerStyle.fontSize,
-                    fontFamily: headerStyle.fontFamily
-                  }
-                }
-              },
-              fields: "userEnteredFormat(backgroundColor,textFormat)"
-            }
-          });
+          requests.push(createRepeatCellHeaderRequest(gridRange, headerStyle));
         });
-      });
-    }
-
-    if (this.viewSpec.namedRangeFills) {
-      this.model.namedRanges.forEach(nr => {
-        const fillRgb = this.viewSpec.namedRangeFills?.[nr.name];
-        if (fillRgb) {
-          const sheetId = tabIndexMap.get(nr.tabName);
-          if (sheetId !== undefined) {
-            const gridRange = parseA1ToGridRange(nr.rangeNotation, sheetId);
-            requests.push({
-              repeatCell: {
-                range: gridRange,
-                cell: {
-                  userEnteredFormat: {
-                    backgroundColor: fillRgb
-                  }
-                },
-                fields: "userEnteredFormat(backgroundColor)"
-              }
-            });
-          }
-        }
       });
     }
 
     return { requests };
   }
+}
+
+function createRepeatCellBackgroundRequest(gridRange: object, backgroundColor: object) {
+  return {
+    repeatCell: {
+      range: gridRange,
+      cell: {
+        userEnteredFormat: {
+          backgroundColor
+        }
+      },
+      fields: "userEnteredFormat(backgroundColor)"
+    }
+  };
+}
+
+function createRepeatCellHeaderRequest(gridRange: object, headerStyle: HeaderStyleSpec) {
+  return {
+    repeatCell: {
+      range: gridRange,
+      cell: {
+        userEnteredFormat: {
+          backgroundColor: headerStyle.fillRgb,
+          textFormat: {
+            foregroundColor: headerStyle.fontColorRgb,
+            bold: headerStyle.bold,
+            fontSize: headerStyle.fontSize,
+            fontFamily: headerStyle.fontFamily
+          }
+        }
+      },
+      fields: "userEnteredFormat(backgroundColor,textFormat)"
+    }
+  };
 }
 
 export function colLetterToIndex(colStr: string): number {
