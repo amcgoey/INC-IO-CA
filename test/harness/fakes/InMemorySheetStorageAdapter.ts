@@ -4,6 +4,9 @@
  */
 
 export class InMemorySheetStorageAdapter implements SheetStorageAdapter {
+  getTabNames(): string[] {
+    return Array.from(this.sheets.keys());
+  }
   private sheets: Map<string, any[][]> = new Map();
 
   /**
