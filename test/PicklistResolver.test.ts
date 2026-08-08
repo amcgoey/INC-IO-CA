@@ -209,4 +209,70 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
       assert.equal(widget.fieldName, "date");
     });
   });
+
+  describe("_Shared Tab Contact Lists & Submittal Actions Picklists (Issue #182)", () => {
+    it("should resolve Shared_Contacts_Arch from _Shared tab in mock spreadsheet", () => {
+      const ss = harness.sheetsService.openById("test-ss-shared");
+      const { DOCUMENT_LOG_WORKBOOK_SPEC } = require("../src/core/config/DocumentLogWorkbookSpec");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+      const result = PicklistResolver.resolvePicklistOptionsRange(
+        "Shared_Contacts_Arch",
+        ss,
+        "Submittal_Arch",
+        "Submittal Arch"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      assert.deepEqual(result.options, [
+        { value: "arch-reviewer@example.com", label: "arch-reviewer@example.com" },
+        { value: "arch-lead@example.com", label: "arch-lead@example.com" }
+      ]);
+    });
+
+    it("should resolve Shared_Contacts_FFE from _Shared tab in mock spreadsheet", () => {
+      const ss = harness.sheetsService.openById("test-ss-shared-ffe");
+      const { DOCUMENT_LOG_WORKBOOK_SPEC } = require("../src/core/config/DocumentLogWorkbookSpec");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+      const result = PicklistResolver.resolvePicklistOptionsRange(
+        "Shared_Contacts_FFE",
+        ss,
+        "Submittal_FFE",
+        "Submittal FFE"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      assert.deepEqual(result.options, [
+        { value: "ffe-reviewer@example.com", label: "ffe-reviewer@example.com" },
+        { value: "ffe-lead@example.com", label: "ffe-lead@example.com" }
+      ]);
+    });
+
+    it("should resolve Actions_Submittal picklist array from _Shared tab in mock spreadsheet", () => {
+      const ss = harness.sheetsService.openById("test-ss-actions");
+      const { DOCUMENT_LOG_WORKBOOK_SPEC } = require("../src/core/config/DocumentLogWorkbookSpec");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+      const result = PicklistResolver.resolvePicklistOptionsRange(
+        "Actions_Submittal",
+        ss,
+        "Submittal_Arch",
+        "Submittal Arch"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      assert.deepEqual(result.options, [
+        { value: "For Approval", label: "For Approval" },
+        { value: "Approved as Noted", label: "Approved as Noted" },
+        { value: "Revise and Resubmit", label: "Revise and Resubmit" },
+        { value: "Rejected", label: "Rejected" },
+        { value: "For Information Only", label: "For Information Only" }
+      ]);
+    });
+  });
+
 });

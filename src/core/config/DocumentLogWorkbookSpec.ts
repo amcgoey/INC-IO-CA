@@ -63,9 +63,12 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       columnCount: 20,
       isSharedTab: true,
       seedRows: [
-        ["Contacts_Arch"],
-        ["arch-reviewer@example.com"],
-        ["arch-lead@example.com"]
+        ["Contacts_Arch", "Contacts_FFE", "Actions_Submittal"],
+        ["arch-reviewer@example.com", "ffe-reviewer@example.com", "For Approval"],
+        ["arch-lead@example.com", "ffe-lead@example.com", "Approved as Noted"],
+        ["", "", "Revise and Resubmit"],
+        ["", "", "Rejected"],
+        ["", "", "For Information Only"]
       ]
     },
     {
@@ -124,6 +127,8 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Config_Manifest", tabName: "_Config", rangeNotation: "A1:B3", scope: "Workbook" },
     { name: "Config_Submittal_Arch", tabName: "_Config", rangeNotation: "A5:D6", scope: "Workbook" },
     { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:A20", scope: "Workbook" },
+    { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "B2:B20", scope: "Workbook" },
+    { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "C2:C20", scope: "Workbook" },
     { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A1:F100", scope: "Workbook" },
     { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A1:K2", scope: "Sheet" },
     { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Sheet" },
