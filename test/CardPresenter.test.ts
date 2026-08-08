@@ -602,3 +602,48 @@ test("UI.ts - processSubmissionWithNewTag / processSubmissionWithNewVendor deleg
     defaultCardPresenter.presentNotification = originalPresentNotification;
   }
 });
+
+test("CardPresenter - formatFieldTitleAndHint formats low AI confidence (<0.85) with ⚠️ title prefix and diagnostic hint text", () => {
+  const presenter = new CardPresenter();
+  const field: any = { key: "title", label: "Submittal Title", description: "Enter title", required: false };
+  const fieldConfidence = { title: 0.65 };
+
+  const result = presenter.formatFieldTitleAndHint(field, [], fieldConfidence);
+
+  assert.equal(result.displayTitle, "⚠️ Submittal Title");
+  assert.equal(result.hintText, "Low AI confidence (65%) — please verify");
+});
+
+test("CardPresenter - formatFieldTitleAndHint formats missing required field failing validation with ❌ title prefix", () => {
+  const presenter = new CardPresenter();
+  const field: any = { key: "section", label: "CSI Section", description: "CSI section number", required: true };
+  const missingFields = ["section"];
+
+  const result = presenter.formatFieldTitleAndHint(field, missingFields, {});
+
+  assert.equal(result.displayTitle, "❌ CSI Section");
+  assert.equal(result.hintText, "CSI section number");
+});
+
+test("CardPresenter - formatFieldTitleAndHint missing required field takes precedence (❌) over low AI confidence (⚠️)", () => {
+  const presenter = new CardPresenter();
+  const field: any = { key: "section", label: "CSI Section", description: "CSI section number", required: true };
+  const missingFields = ["section"];
+  const fieldConfidence = { section: 0.50 };
+
+  const result = presenter.formatFieldTitleAndHint(field, missingFields, fieldConfidence);
+
+  assert.equal(result.displayTitle, "❌ CSI Section");
+  assert.equal(result.hintText, "CSI section number");
+});
+
+test("CardPresenter - formatFieldTitleAndHint high AI confidence (>=0.85) renders default title and description", () => {
+  const presenter = new CardPresenter();
+  const field: any = { key: "title", label: "Submittal Title", description: "Enter title", required: false };
+  const fieldConfidence = { title: 0.92 };
+
+  const result = presenter.formatFieldTitleAndHint(field, [], fieldConfidence);
+
+  assert.equal(result.displayTitle, "Submittal Title");
+  assert.equal(result.hintText, "Enter title");
+});
