@@ -6,35 +6,35 @@
  */
 
 import { DriveNameProvider, SharedDriveInfo } from './core/intake/DriveNameProvider';
-import { CacheAdapter, defaultCacheAdapter } from './CacheAdapter';
 
 export class GoogleDriveNameProvider implements DriveNameProvider {
-  private cacheAdapter: CacheAdapter;
+  private cacheAdapter?: any;
   private readonly CACHE_KEY = "cached_shared_drives";
   private readonly CACHE_TTL_SECONDS = 21600; // 6 hours
 
-  constructor(cacheAdapter?: CacheAdapter) {
+  constructor(cacheAdapter?: any) {
     if (cacheAdapter) {
       this.cacheAdapter = cacheAdapter;
     } else if (typeof defaultCacheAdapter !== "undefined") {
       this.cacheAdapter = defaultCacheAdapter;
-    } else {
-      this.cacheAdapter = require("./CacheAdapter").defaultCacheAdapter;
     }
   }
 
   getSharedDrives(): SharedDriveInfo[] {
-    const cached = this.cacheAdapter.get(this.CACHE_KEY);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) {
-          return parsed.map((item: any) => {
-            if (typeof item === "string") return { id: "", name: item };
-            return { id: item.id || "", name: item.name || "" };
-          });
-        }
-      } catch (e) {}
+    const cache = this.cacheAdapter || (typeof defaultCacheAdapter !== "undefined" ? defaultCacheAdapter : null);
+    if (cache && typeof cache.get === "function") {
+      const cached = cache.get(this.CACHE_KEY);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) {
+            return parsed.map((item: any) => {
+              if (typeof item === "string") return { id: "", name: item };
+              return { id: item.id || "", name: item.name || "" };
+            });
+          }
+        } catch (e) {}
+      }
     }
 
     let drives: SharedDriveInfo[] = [];
@@ -58,9 +58,9 @@ export class GoogleDriveNameProvider implements DriveNameProvider {
       }
     } catch (err: any) {}
 
-    if (querySuccess) {
+    if (querySuccess && cache && typeof cache.put === "function") {
       try {
-        this.cacheAdapter.put(this.CACHE_KEY, JSON.stringify(drives), this.CACHE_TTL_SECONDS);
+        cache.put(this.CACHE_KEY, JSON.stringify(drives), this.CACHE_TTL_SECONDS);
       } catch (e) {}
     }
 

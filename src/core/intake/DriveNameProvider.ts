@@ -3,6 +3,7 @@
  * @description Pure core interface for querying available Shared Drive details and names.
  *
  * Classified as Tier 1 (Pure Core Logic) under ADR 0013 / CODING_STANDARDS.md.
+ * Dual-compatible with GAS V8 engine and Node.js test environment.
  * Zero GAS ambient API dependencies and zero Node.js built-in imports.
  */
 
@@ -21,8 +22,6 @@ export interface DriveNameProvider {
   /** Retrieves structured `SharedDriveInfo` objects (ID and name) for all accessible Shared Drives. */
   getSharedDrives(): SharedDriveInfo[];
 }
-
-declare var defaultDriveNameProvider: DriveNameProvider;
 
 declare var module: any;
 

@@ -11,7 +11,7 @@ export class FakeAiAnalysisAdapter implements AiAnalysisService {
   /** Recorded triage calls. */
   public triageCalls: Array<{ emailData: EmailData; messageId?: string; }> = [];
   /** Recorded analyze calls. */
-  public analyzeCalls: Array<{ sourceBlob: DocumentBlob | any; emailText: string; contextObj: DeepAnalysisContext }> = [];
+  public analyzeCalls: Array<{ sourceBlob: DocumentBlob; emailText: string; contextObj: DeepAnalysisContext }> = [];
   private triageResult: AiPredictionResult = {
     success: true,
     prediction: { predictedProjectName: "Default Project", predictedDiscipline: "Architecture" }
@@ -46,7 +46,7 @@ export class FakeAiAnalysisAdapter implements AiAnalysisService {
 
   /** @override */
   async analyzeSubmittal(
-    sourceBlob: DocumentBlob | any,
+    sourceBlob: DocumentBlob,
     emailText: string,
     contextObj: DeepAnalysisContext
   ): Promise<DeepAnalysisResult> {
