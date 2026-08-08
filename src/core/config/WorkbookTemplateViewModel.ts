@@ -5,7 +5,7 @@
  * and Google Sheets API batchUpdate request payloads.
  */
 
-import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC } from "./DocumentLogWorkbookSpec";
+import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
 import { DocumentLogWorkbookViewSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./DocumentLogWorkbookViewSpec";
 
 export interface FixtureTabSpec {
@@ -25,7 +25,11 @@ export interface FixtureTabSpec {
 export interface FixtureSpec {
   schemaVersion: string;
   tabs: FixtureTabSpec[];
-  namedRanges: any[];
+  namedRanges: NamedRangeSpec[];
+}
+
+export interface BatchUpdateRequestPayload {
+  requests: object[];
 }
 
 export class WorkbookTemplateViewModel {
@@ -70,9 +74,14 @@ export class WorkbookTemplateViewModel {
     };
   }
 
-  public toBatchUpdateRequestPayload(): { requests: any[] } {
-    const requests: any[] = [];
+  public toBatchUpdateRequestPayload(): BatchUpdateRequestPayload {
+    const requests: object[] = [];
     const { headerStyle, formulaRowStyle, offsets, columnWidths, defaultColumnWidth } = this.viewSpec;
+
+    const tabIndexMap = new Map<string, number>();
+    this.model.tabs.forEach((tab, index) => {
+      tabIndexMap.set(tab.name, index);
+    });
 
     this.model.tabs.forEach((tab, tabIndex) => {
       if (tab.isLogTab && tab.columns) {
@@ -145,12 +154,13 @@ export class WorkbookTemplateViewModel {
     });
 
     this.model.namedRanges.forEach(nr => {
+      const sheetId = tabIndexMap.get(nr.tabName) ?? 0;
       requests.push({
         addNamedRange: {
           namedRange: {
             name: nr.name,
             range: {
-              sheetId: 0,
+              sheetId,
               namedRangeId: nr.name
             }
           }
@@ -161,6 +171,7 @@ export class WorkbookTemplateViewModel {
     return { requests };
   }
 }
+
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
