@@ -67,12 +67,12 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       seedRows: [
         ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Actions Key", "Actions Label"],
         ["INC", "INC Architecture and Design", "INC", "INC Architecture & Design", "Received", "Received"],
-        ["PMG", "Pavarini McGovern", "BW", "Benjamin West", "Referred", "_REF"],
-        ["FXC", "FX Collaborative", "Lighting", "Lighting", "Not Reviewed", "_NR"],
-        ["IE", "Interface Engineering", "Brand", "Brand", "Rejected", "_REJ"],
-        ["VLD", "Ventresca Lighting Design", "", "", "Revise & Resubmit", "_RR"],
-        ["", "", "", "", "No Objection as Corrected", "_NOC"],
-        ["", "", "", "", "No Exceptions Taken", "_NET"]
+        ["PMG", "Pavarini McGovern", "BW", "Benjamin West", "Referred", "Referred"],
+        ["FXC", "FX Collaborative", "Lighting", "Lighting", "Not Reviewed", "Not Reviewed"],
+        ["IE", "Interface Engineering", "Brand", "Brand", "Rejected", "Rejected"],
+        ["VLD", "Ventresca Lighting Design", "", "", "Revise & Resubmit", "Revise & Resubmit"],
+        ["", "", "", "", "No Objection as Corrected", "No Objection as Corrected"],
+        ["", "", "", "", "No Exceptions Taken", "No Exceptions Taken"]
       ]
     },
     {
@@ -135,9 +135,9 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "MANIFEST_SCHEMA_VERSION", tabName: "_Config", rangeNotation: "B2", scope: "Workbook" },
     { name: "Config_Manifest", tabName: "_Config", rangeNotation: "A1:B5", scope: "Workbook" },
     { name: "Config_Submittal_Arch", tabName: "_Config", rangeNotation: "A7:D8", scope: "Workbook" },
-    { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:B6", scope: "Workbook" },
-    { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "C2:D5", scope: "Workbook" },
-    { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "E2:F8", scope: "Workbook" },
+    { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:B20", scope: "Workbook" },
+    { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "C2:D20", scope: "Workbook" },
+    { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "E2:F20", scope: "Workbook" },
     { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A1:F100", scope: "Workbook" },
     { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A1:K2", scope: "Sheet" },
     { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Sheet" },
@@ -146,8 +146,8 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Submittal_Arch_FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Workbook" },
     { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Workbook" },
     { name: "Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Sheet" },
-    { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B8", scope: "Sheet" },
-    { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D7", scope: "Sheet" }
+    { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Sheet" },
+    { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Sheet" }
   ]
 };
 

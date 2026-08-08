@@ -1,12 +1,11 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { GasMockHarness } from "./harness/GasMockHarness";
+import { DOCUMENT_LOG_WORKBOOK_SPEC, TabSpec, NamedRangeSpec } from "../src/core/config/DocumentLogWorkbookSpec";
+import { PicklistResolver, PicklistOption } from "../src/core/config/PicklistResolver";
+import templateJson from "./fixtures/document-log-workbook-template.json";
 
-const { DOCUMENT_LOG_WORKBOOK_SPEC } = require("../src/core/config/DocumentLogWorkbookSpec");
-const { PicklistResolver } = require("../src/core/config/PicklistResolver");
-const templateJson = require("./fixtures/document-log-workbook-template.json");
-
-describe("Canonical Reference Seed Data for Contacts, Actions and Project Settings (Issue #200)", () => {
+describe("Canonical Reference Seed Data for Contacts, Actions & Project Settings (Issue #200)", () => {
   let harness: GasMockHarness;
 
   beforeEach(() => {
@@ -15,16 +14,16 @@ describe("Canonical Reference Seed Data for Contacts, Actions and Project Settin
 
   describe("DOCUMENT_LOG_WORKBOOK_SPEC seed rows and named ranges", () => {
     it("should include canonical Shared_Contacts_Arch seed data in _Shared tab", () => {
-      const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_Shared");
+      const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
       assert.ok(sharedTab, "_Shared tab must exist in spec");
 
-      const contactsArchRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: any) => r.name === "Shared_Contacts_Arch");
+      const contactsArchRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "Shared_Contacts_Arch");
       assert.ok(contactsArchRange, "Shared_Contacts_Arch named range must exist");
       assert.equal(contactsArchRange.tabName, "_Shared");
-      assert.equal(contactsArchRange.rangeNotation, "A2:B6");
+      assert.equal(contactsArchRange.rangeNotation, "A2:B20");
 
       const seedRows = sharedTab.seedRows || [];
-      const archContacts = seedRows.slice(1, 6).map((r: any) => [r[0], r[1]]);
+      const archContacts = seedRows.slice(1, 6).map((r: (string | number | boolean)[]) => [r[0], r[1]]);
       assert.deepEqual(archContacts, [
         ["INC", "INC Architecture and Design"],
         ["PMG", "Pavarini McGovern"],
@@ -35,14 +34,14 @@ describe("Canonical Reference Seed Data for Contacts, Actions and Project Settin
     });
 
     it("should include canonical Shared_Contacts_FFE seed data in _Shared tab", () => {
-      const contactsFfeRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: any) => r.name === "Shared_Contacts_FFE");
+      const contactsFfeRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "Shared_Contacts_FFE");
       assert.ok(contactsFfeRange, "Shared_Contacts_FFE named range must exist");
       assert.equal(contactsFfeRange.tabName, "_Shared");
-      assert.equal(contactsFfeRange.rangeNotation, "C2:D5");
+      assert.equal(contactsFfeRange.rangeNotation, "C2:D20");
 
-      const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_Shared");
-      const seedRows = sharedTab.seedRows || [];
-      const ffeContacts = seedRows.slice(1, 5).map((r: any) => [r[2], r[3]]);
+      const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
+      const seedRows = sharedTab?.seedRows || [];
+      const ffeContacts = seedRows.slice(1, 5).map((r: (string | number | boolean)[]) => [r[2], r[3]]);
       assert.deepEqual(ffeContacts, [
         ["INC", "INC Architecture & Design"],
         ["BW", "Benjamin West"],
@@ -52,27 +51,27 @@ describe("Canonical Reference Seed Data for Contacts, Actions and Project Settin
     });
 
     it("should include canonical Actions_Submittal seed data matching Order 1-7", () => {
-      const actionsRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: any) => r.name === "Actions_Submittal");
+      const actionsRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "Actions_Submittal");
       assert.ok(actionsRange, "Actions_Submittal named range must exist");
       assert.equal(actionsRange.tabName, "_Shared");
-      assert.equal(actionsRange.rangeNotation, "E2:F8");
+      assert.equal(actionsRange.rangeNotation, "E2:F20");
 
-      const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_Shared");
-      const seedRows = sharedTab.seedRows || [];
-      const actions = seedRows.slice(1, 8).map((r: any) => [r[4], r[5]]);
+      const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
+      const seedRows = sharedTab?.seedRows || [];
+      const actions = seedRows.slice(1, 8).map((r: (string | number | boolean)[]) => [r[4], r[5]]);
       assert.deepEqual(actions, [
         ["Received", "Received"],
-        ["Referred", "_REF"],
-        ["Not Reviewed", "_NR"],
-        ["Rejected", "_REJ"],
-        ["Revise & Resubmit", "_RR"],
-        ["No Objection as Corrected", "_NOC"],
-        ["No Exceptions Taken", "_NET"]
+        ["Referred", "Referred"],
+        ["Not Reviewed", "Not Reviewed"],
+        ["Rejected", "Rejected"],
+        ["Revise & Resubmit", "Revise & Resubmit"],
+        ["No Objection as Corrected", "No Objection as Corrected"],
+        ["No Exceptions Taken", "No Exceptions Taken"]
       ]);
     });
 
     it("should include Contact Chain Max (-5) and Project Abbreviation (INC) in _Config and _Shared", () => {
-      const configTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_Config");
+      const configTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Config");
       assert.ok(configTab, "_Config tab must exist");
 
       const keyValues = new Map(configTab.seedRows as [string, string][]);
@@ -81,19 +80,19 @@ describe("Canonical Reference Seed Data for Contacts, Actions and Project Settin
     });
 
     it("should include canonical Vendors and SpecTags in Submittal FFE Support tab", () => {
-      const ffeSupportTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "Submittal FFE Support");
+      const ffeSupportTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "Submittal FFE Support");
       assert.ok(ffeSupportTab, "Submittal FFE Support tab must exist");
 
-      const vendorsRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: any) => r.name === "Vendors");
+      const vendorsRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "Vendors");
       assert.ok(vendorsRange, "Vendors named range must exist");
-      assert.equal(vendorsRange.rangeNotation, "A2:B8");
+      assert.equal(vendorsRange.rangeNotation, "A2:B20");
 
-      const specTagsRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: any) => r.name === "SpecTags");
+      const specTagsRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "SpecTags");
       assert.ok(specTagsRange, "SpecTags named range must exist");
-      assert.equal(specTagsRange.rangeNotation, "C2:D7");
+      assert.equal(specTagsRange.rangeNotation, "C2:D20");
 
       const seedRows = ffeSupportTab.seedRows || [];
-      const vendors = seedRows.slice(1, 8).map((r: any) => [r[0], r[1]]);
+      const vendors = seedRows.slice(1, 8).map((r: (string | number | boolean)[]) => [r[0], r[1]]);
       assert.deepEqual(vendors, [
         ["BERMAN FALK", "Berman Falk"],
         ["ASHLEY", "Ashley Lighting"],
@@ -104,7 +103,7 @@ describe("Canonical Reference Seed Data for Contacts, Actions and Project Settin
         ["MOHAWK", "Mohawk"]
       ]);
 
-      const specTags = seedRows.slice(1, 7).map((r: any) => [r[2], r[3]]);
+      const specTags = seedRows.slice(1, 7).map((r: (string | number | boolean)[]) => [r[2], r[3]]);
       assert.deepEqual(specTags, [
         ["AC102", "HOOK"],
         ["CG104", "BED - KING"],
@@ -120,15 +119,15 @@ describe("Canonical Reference Seed Data for Contacts, Actions and Project Settin
     it("should match DOCUMENT_LOG_WORKBOOK_SPEC tab seed rows and named ranges", () => {
       assert.equal(templateJson.schemaVersion, DOCUMENT_LOG_WORKBOOK_SPEC.schemaVersion);
 
-      const sharedTabJson = templateJson.tabs.find((t: any) => t.name === "_Shared");
+      const sharedTabJson = templateJson.tabs.find((t: { name: string }) => t.name === "_Shared");
       assert.ok(sharedTabJson);
 
-      const ffeSupportJson = templateJson.tabs.find((t: any) => t.name === "Submittal FFE Support");
+      const ffeSupportJson = templateJson.tabs.find((t: { name: string }) => t.name === "Submittal FFE Support");
       assert.ok(ffeSupportJson);
 
-      const actionsNr = templateJson.namedRanges.find((r: any) => r.name === "Actions_Submittal");
+      const actionsNr = templateJson.namedRanges.find((r: { name: string }) => r.name === "Actions_Submittal");
       assert.ok(actionsNr);
-      assert.equal(actionsNr.rangeNotation, "E2:F8");
+      assert.equal(actionsNr.rangeNotation, "E2:F20");
     });
   });
 
@@ -161,7 +160,7 @@ describe("Canonical Reference Seed Data for Contacts, Actions and Project Settin
       assert.equal(res.success, true);
       assert.equal(res.options.length, 7);
       assert.deepEqual(res.options[0], { value: "Received", label: "Received" });
-      assert.deepEqual(res.options[6], { value: "No Exceptions Taken", label: "_NET" });
+      assert.deepEqual(res.options[6], { value: "No Exceptions Taken", label: "No Exceptions Taken" });
     });
 
     it("should resolve Vendors and SpecTags options via PicklistResolver", () => {

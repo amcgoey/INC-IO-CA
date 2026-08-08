@@ -83,7 +83,7 @@
           "BW",
           "Benjamin West",
           "Referred",
-          "_REF"
+          "Referred"
         ],
         [
           "FXC",
@@ -91,7 +91,7 @@
           "Lighting",
           "Lighting",
           "Not Reviewed",
-          "_NR"
+          "Not Reviewed"
         ],
         [
           "IE",
@@ -99,7 +99,7 @@
           "Brand",
           "Brand",
           "Rejected",
-          "_REJ"
+          "Rejected"
         ],
         [
           "VLD",
@@ -107,7 +107,7 @@
           "",
           "",
           "Revise & Resubmit",
-          "_RR"
+          "Revise & Resubmit"
         ],
         [
           "",
@@ -115,7 +115,7 @@
           "",
           "",
           "No Objection as Corrected",
-          "_NOC"
+          "No Objection as Corrected"
         ],
         [
           "",
@@ -123,7 +123,7 @@
           "",
           "",
           "No Exceptions Taken",
-          "_NET"
+          "No Exceptions Taken"
         ]
       ]
     },
@@ -293,19 +293,19 @@
     {
       "name": "Shared_Contacts_Arch",
       "tabName": "_Shared",
-      "rangeNotation": "A2:B6",
+      "rangeNotation": "A2:B20",
       "scope": "Workbook"
     },
     {
       "name": "Shared_Contacts_FFE",
       "tabName": "_Shared",
-      "rangeNotation": "C2:D5",
+      "rangeNotation": "C2:D20",
       "scope": "Workbook"
     },
     {
       "name": "Actions_Submittal",
       "tabName": "_Shared",
-      "rangeNotation": "E2:F8",
+      "rangeNotation": "E2:F20",
       "scope": "Workbook"
     },
     {
@@ -359,13 +359,13 @@
     {
       "name": "Vendors",
       "tabName": "Submittal FFE Support",
-      "rangeNotation": "A2:B8",
+      "rangeNotation": "A2:B20",
       "scope": "Sheet"
     },
     {
       "name": "SpecTags",
       "tabName": "Submittal FFE Support",
-      "rangeNotation": "C2:D7",
+      "rangeNotation": "C2:D20",
       "scope": "Sheet"
     }
   ]
