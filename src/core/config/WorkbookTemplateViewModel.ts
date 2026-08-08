@@ -89,6 +89,91 @@ export class WorkbookTemplateViewModel {
     const tabIndexMap = new Map<string, number>();
     this.model.tabs.forEach((tab, index) => {
       tabIndexMap.set(tab.name, index);
+      if (index === 0) {
+        requests.push({
+          updateSheetProperties: {
+            properties: {
+              sheetId: 0,
+              title: tab.name,
+              gridProperties: {
+                rowCount: tab.rowCount,
+                columnCount: tab.columnCount
+              }
+            },
+            fields: "title,gridProperties(rowCount,columnCount)"
+          }
+        });
+      } else {
+        requests.push({
+          addSheet: {
+            properties: {
+              sheetId: index,
+              title: tab.name,
+              gridProperties: {
+                rowCount: tab.rowCount,
+                columnCount: tab.columnCount
+              }
+            }
+          }
+        });
+      }
+
+      if (tab.seedRows && tab.seedRows.length > 0) {
+        const rows = tab.seedRows.map((row: any[]) => ({
+          values: row.map((val: any) => ({
+            userEnteredValue: {
+              stringValue: String(val)
+            }
+          }))
+        }));
+        requests.push({
+          updateCells: {
+            range: {
+              sheetId: index,
+              startRowIndex: 0,
+              startColumnIndex: 0
+            },
+            rows,
+            fields: "userEnteredValue"
+          }
+        });
+      }
+
+      if (tab.isLogTab && tab.columns) {
+        const headerValues = tab.columns.map(c => ({
+          userEnteredValue: { stringValue: c.header }
+        }));
+        const formulaValues = tab.columns.map(c => {
+          if (c.formula) {
+            return { userEnteredValue: { formulaValue: c.formula } };
+          }
+          return { userEnteredValue: { stringValue: "" } };
+        });
+
+        requests.push({
+          updateCells: {
+            range: {
+              sheetId: index,
+              startRowIndex: offsets.HEADER_ROW_INDEX - 1,
+              startColumnIndex: 0
+            },
+            rows: [{ values: headerValues }],
+            fields: "userEnteredValue"
+          }
+        });
+
+        requests.push({
+          updateCells: {
+            range: {
+              sheetId: index,
+              startRowIndex: offsets.FORMULA_ROW_INDEX - 1,
+              startColumnIndex: 0
+            },
+            rows: [{ values: formulaValues }],
+            fields: "userEnteredValue"
+          }
+        });
+      }
     });
 
     this.model.tabs.forEach((tab, tabIndex) => {
@@ -187,16 +272,25 @@ export class WorkbookTemplateViewModel {
       }
     });
 
+    const addedNames = new Set<string>();
     this.model.namedRanges.forEach(nr => {
       const sheetId = tabIndexMap.get(nr.tabName) ?? 0;
+      const gridRange = parseA1ToGridRange(nr.rangeNotation, sheetId);
+      let name = nr.name;
+      if (addedNames.has(name)) {
+        name = `${nr.tabName.replace(/ /g, "_")}_${nr.name}`;
+      }
+      if (addedNames.has(name)) {
+        return; // skip if exact name already added
+      }
+      addedNames.add(name);
+      const safeId = `nr_${sheetId}_${name.replace(/[^a-zA-Z0-9_]/g, "_")}`;
       requests.push({
         addNamedRange: {
           namedRange: {
-            name: nr.name,
-            range: {
-              sheetId,
-              namedRangeId: nr.name
-            }
+            namedRangeId: safeId,
+            name: name,
+            range: gridRange
           }
         }
       });
@@ -204,6 +298,32 @@ export class WorkbookTemplateViewModel {
 
     return { requests };
   }
+}
+
+function colLetterToIndex(colStr: string): number {
+  let index = 0;
+  for (let i = 0; i < colStr.length; i++) {
+    index = index * 26 + (colStr.charCodeAt(i) - 64);
+  }
+  return index - 1;
+}
+
+function parseA1ToGridRange(rangeStr: string, sheetId: number) {
+  const match = rangeStr.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
+  if (!match) {
+    return { sheetId };
+  }
+  const startCol = colLetterToIndex(match[1].toUpperCase());
+  const startRow = parseInt(match[2], 10) - 1;
+  const endCol = colLetterToIndex(match[3].toUpperCase()) + 1;
+  const endRow = parseInt(match[4], 10);
+  return {
+    sheetId,
+    startRowIndex: startRow,
+    endRowIndex: endRow,
+    startColumnIndex: startCol,
+    endColumnIndex: endCol
+  };
 }
 
 declare var module: any;

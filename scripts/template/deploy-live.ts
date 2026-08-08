@@ -70,40 +70,45 @@ export async function resolveGoogleAuthToken(): Promise<string> {
   }
 
   const homeDir = process.env.USERPROFILE || process.env.HOME || "";
-  const clasprcPath = path.join(homeDir, ".clasprc.json");
+  const clasprcPaths = [
+    path.resolve(process.cwd(), ".clasprc.json"),
+    path.join(homeDir, ".clasprc.json")
+  ];
 
-  if (fs.existsSync(clasprcPath)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(clasprcPath, "utf-8"));
-      const refreshToken = data.token?.refresh_token || data.tokens?.default?.refresh_token;
-      const clientId = data.oauth2ClientSettings?.clientId || data.tokens?.default?.client_id;
-      const clientSecret = data.oauth2ClientSettings?.clientSecret || data.tokens?.default?.client_secret;
+  for (const clasprcPath of clasprcPaths) {
+    if (fs.existsSync(clasprcPath)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(clasprcPath, "utf-8"));
+        const refreshToken = data.token?.refresh_token || data.tokens?.default?.refresh_token;
+        const clientId = data.oauth2ClientSettings?.clientId || data.tokens?.default?.client_id;
+        const clientSecret = data.oauth2ClientSettings?.clientSecret || data.tokens?.default?.client_secret;
 
-      if (refreshToken && clientId && clientSecret) {
-        console.log(`[AUTH] Resolving live Google OAuth token from ~/.clasprc.json...`);
-        const res = await fetch("https://oauth2.googleapis.com/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            refresh_token: refreshToken,
-            grant_type: "refresh_token"
-          })
-        });
+        if (refreshToken && clientId && clientSecret) {
+          console.log(`[AUTH] Resolving live Google OAuth token from ${path.basename(clasprcPath)} (${clientId.split("-")[0]})...`);
+          const res = await fetch("https://oauth2.googleapis.com/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              client_id: clientId,
+              client_secret: clientSecret,
+              refresh_token: refreshToken,
+              grant_type: "refresh_token"
+            })
+          });
 
-        if (res.ok) {
-          const json = await res.json();
-          if (json.access_token) {
-            console.log(`[AUTH] Successfully refreshed OAuth access token via clasp credentials.`);
-            return json.access_token;
+          if (res.ok) {
+            const json = await res.json();
+            if (json.access_token) {
+              console.log(`[AUTH] Successfully refreshed OAuth access token for project ${clientId.split("-")[0]}.`);
+              return json.access_token;
+            }
           }
+        } else if (data.token?.access_token) {
+          return data.token.access_token;
         }
-      } else if (data.token?.access_token) {
-        return data.token.access_token;
+      } catch (err: any) {
+        console.warn(`[AUTH WARN] Could not parse ${clasprcPath}: ${err.message}`);
       }
-    } catch (err: any) {
-      console.warn(`[AUTH WARN] Could not parse .clasprc.json: ${err.message}`);
     }
   }
   return "";
