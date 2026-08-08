@@ -4,6 +4,9 @@ Establish the AI-first triage pipeline, targeted document email parsers (`Submit
 
 ## Context & Decision
 
+> [!NOTE]
+> **Precedence Notice**: Log workbook discovery and disambiguation rules defined in this document are superseded by **ADR 0030 ([Decision] DocumentType-Aware Log Workbook Disambiguation Engine)**. ADR 0030 replaces unbiased general log queries with DocumentType-aware disjunctive search queries (`logSearchTerms`) and DocumentType-scoped cache keys (`log_search_<DriveId>_<DocTypeKey>`).
+
 To support multiple document types (Submittals, RFIs, ASIs, Bulletins, Change Orders) during Google Workspace add-on intake, resolve project-to-shared-drive matching limitations, and avoid monolithic switch statements:
 
 1. **Lightweight AI Triage First $\rightarrow$ Targeted Parser Ingestion Second**:

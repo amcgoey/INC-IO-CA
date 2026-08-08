@@ -12,13 +12,13 @@ _Avoid_: Unified Workbook, Master Sheet, Log Spreadsheet
 The dedicated row immediately following the header row in a log tab that holds formula definitions for calculated columns (`Calc File Name`, `Calc Number`, `Calc Title`, `Calc Contact Chain`, `Calc Sort`) so manual log entries inherit formatting and backup calculations. Occupies the second row of the `<TabName>_Headers` Named Range.
 
 **BufferRow**:
-An empty, data-protected row used as a boundary marker. In log tabs, a top BufferRow sits immediately below the FormulaRow, and a bottom BufferRow sits at the bottom of the log. These two buffer rows bound the sheet-scoped `Data` Named Range, ensuring new rows inserted between them automatically expand the `Data` range without breaking named boundaries.
+An empty, data-protected row used as a boundary marker. In log tabs, a top BufferRow sits immediately below the FormulaRow, and a bottom BufferRow sits at the bottom of the log. These two buffer rows bound the sheet-scoped `Data` Named Range. When the `Data` Named Range exists, the bottom BufferRow serves as the absolute hard cutoff for `LogEngine` read operations.
 
 **Headers Named Range (`Headers`)**:
 The generic Sheet-Scoped 2-row Named Range on a log tab spanning the header row (Row 1) and the FormulaRow (Row 2), serving as the primary anchor for dynamic header column resolution. Sheet-scoped naming (`Headers`) allows log tabs to be cloned or duplicated for new document types without breaking or renaming range references.
 
 **Data Named Range (`Data`)**:
-The generic Sheet-Scoped dynamic Named Range on a log tab enclosing active data rows, anchored at the top and bottom by protected BufferRows (`Data`). Sheet-scoped naming permits tab duplication without range renaming overhead.
+The generic Sheet-Scoped dynamic Named Range on a log tab enclosing active data rows, anchored at the top and bottom by protected BufferRows (`Data`). `LogEngine` reads all data rows bounded by top and bottom BufferRows without applying blank-row cutoffs; $K=5$ sparse blank row tolerance is used strictly as an un-bounded fallback heuristic when `Data` range cannot be identified.
 
 **Dual-Tier Named Range Scoping Taxonomy**:
 The architectural convention categorizing workbook Named Ranges into:
@@ -177,6 +177,16 @@ The normalized string key used to group document revisions for contact history c
 **Identity**:
 The target string key that uniquely identifies a specific document submission/revision instance (`[IdentityRevisionGroup]-[Date]`). Serves as the primary sort key.
 
+**normalizePicklistValue**:
+The Tier 1 pure helper that performs in-memory normalization of picklist string values during `RowKeyFn` identity calculation, trimming whitespace, uppercasing comparison strings, and dynamically resolving `options.label` $\rightarrow$ `options.value` using `DocumentFieldSpec.options` without hardcoding TypeScript alias maps.
+
+**keyNormalizationRule**:
+The declarative property on `DocumentFieldSpec` (`'picklist'` | `'code'` | `'exact'`) that specifies field-specific key normalization behavior during identity key calculation, controlling whether values resolve via picklists, strip labels from numeric codes, or perform exact string matching.
+
+**resolvePicklistOptionsRange**:
+The 3-tier picklist range resolution mechanism in `PicklistResolver` that resolves sheet-scoped named ranges (`'<SheetTabName>'!<RangeName>`), defensively retries bare range names against the active sheet tab, and falls back to static JSON defaults (`src/config/defaults/<DocTypeKey>.json`) for 100% offline execution.
+
+
 
 **LogEngine**:
 The application module that coordinates contact history, status transitions, and generic row positioning for any document type using a DocumentLogStrategy and storage adapter.
@@ -190,22 +200,36 @@ _Avoid_: SheetConverter, LegacyImporter
 Encapsulates discipline-specific rules (`ArchLogMigrationStrategy`, `FfeLogMigrationStrategy`) for mapping legacy headers to target `<TabName>_Headers`, skipping calculated formula columns so they inherit `FormulaRow` formulas, and normalizing date/status cell values.
 
 **Calculated Column Null Coercion**:
-The migration rule within `LogMigrationEngine` that systematically forces data row cells mapping to calculated columns (`isCalculated: true`) to empty values (`null` or `""`), ensuring `FormulaRow` top-level `MAP`/`LAMBDA` formulas spill down across migrated rows without triggering `#SPILL!` collision errors.
+The migration rule within `LogMigrationEngine` that systematically forces data row cells mapping to calculated columns (`isCalculated: true`) to empty values (`null` or `""`), clearing inline formulas so `FormulaRow` top-level `MAP`/`LAMBDA` formulas take over and spill down across migrated rows without triggering `#SPILL!` collision errors.
 
 **Legacy Inline Formula Coercion**:
-The migration process within `LogMigrationEngine` that detects custom legacy formulas in non-calculated columns during Pass 1 dry-run audit (`MigrationAuditReport.inlineFormulasDetected`), and coerces them to evaluated static snapshot values (`getValues()`) during Pass 2 live migration to prevent broken coordinate offsets ($\Delta row$) and volatile recalculations.
-
-
-_Avoid_: ColumnMapper, MigrationConfig
+The 4-tier migration formula policy within `LogMigrationEngine`:
+1. *Calculated columns*: Inline formulas are cleared (`null`/`""`) so `FormulaRow` `MAP`/`LAMBDA` formulas spill down.
+2. *Standard non-calculated columns*: Custom inline formulas are coerced to evaluated static snapshot values (`getValues()`) and migrated.
+3. *User-created columns (data rows)*: Custom inline formulas in user-created columns are coerced to evaluated static snapshot values (`getValues()`) and migrated.
+4. *User-created columns (`FormulaRow`)*: Top-level `FormulaRow` formulas (Row 2) in user-created columns are preserved, allowing post-migration user editing.
 
 **MigrationAuditReport**:
-The structured dry-run audit result detailing column mappings, row validation metrics, formula coercion stats (`calculatedColumnsCoercedCount`, `inlineFormulasDetectedCount`), target spill collision risk (`targetSpillCollisionBlocked`), and the boolean `canProceed` execution gate (blocked if `targetSpillCollisionBlocked === true`) prior to log migration.
+The structured dry-run audit result detailing column mappings, row validation metrics, formula coercion stats (`calculatedColumnsCoercedCount`, `inlineFormulasDetectedCount`, `legacyCalculatedFormulaDiscrepancies`), target spill collision risk (`targetSpillCollisionBlocked`), and the boolean `canProceed` execution gate (blocked if `targetSpillCollisionBlocked === true`) prior to log migration.
 
 _Avoid_: DryRunResult, MigrationSummary
 
 **TargetTabSnapshot**:
 The temporary duplicate tab (`_Backup_<TabName>_<Timestamp>`) created at the tail end of the tab list within `DocumentLogWorkbook` prior to data transformation to enable lossless atomic rollback in case of migration execution failures.
 _Avoid_: SheetBackup, TemporaryTab
+
+**AtomicWorkbookTransactionBoundary**:
+The transactional boundary rule mandating that individual workbook migrations operate atomically within a `TargetTabSnapshot`; if a 270s quota timekeeper limit (`GasTimeoutBudget`) or execution failure occurs mid-write, the transaction immediately executes `restoreFromSnapshot()`, releases `PropertiesService` locks, sets manifest status to `PAUSED_TIMEOUT`, and schedules continuation, resuming cleanly from a fresh pre-migration snapshot.
+
+**SpreadsheetScopedTransactionLock**:
+The dual-layer concurrency lock protocol where short-lived native `LockService.getScriptLock()` acquisitions guard atomic reads and writes of `LOCK_MIGRATION_<SpreadsheetId>` key payloads stored in `PropertiesService.getScriptProperties()`. Ensures non-colliding, spreadsheet-isolated transaction locks during multi-minute migrations while eliminating global script lock contention across concurrent workbook executions.
+_Avoid_: ScriptWideLock, MonolithicScriptLock
+
+**TwoPhaseBatchHyperlinkRepair**:
+The 2-phase execution sequence for multi-workbook batch migrations where Phase 1 completes row migration and validation across all workbooks (`MIGRATION_COMPLETE`), followed by Phase 2 (`repairCrossLogReferences`) executing cross-log hyperlink repair across all workbooks once target spreadsheet IDs, tab GIDs, and row positions are 100% finalized. Phase 2 hyperlink repairs use isolated per-workbook `TargetTabSnapshot` boundaries.
+
+**BatchMigrationLifecyclePhases**:
+The explicit state machine governing `migration_batch_manifest.json` execution phases (`PHASE_1_ROW_MIGRATION`, `PHASE_2_HYPERLINK_REPAIR`, `PAUSED_TIMEOUT`, `COMPLETED`, `FAILED`) and per-workbook entry statuses (`PENDING`, `IN_PROGRESS`, `PAUSED_TIMEOUT`, `MIGRATION_COMPLETE`, `REPAIR_IN_PROGRESS`, `COMPLETED`, `FAILED`), supporting automated stale snapshot crash recovery upon trigger resumption.
 
 **AuditLogTab (`_AuditLog`)**:
 The dedicated, system-managed administrative tab within `DocumentLogWorkbook` used to persist structured execution logs, telemetry, and event history across system features (e.g. `MIGRATION`, `SCHEMA_DRIFT`, `CACHE_PURGE`, `ADMIN_ACTION`). Includes a dedicated `Category` column alongside `Timestamp`, `EventType`, `Actor`, `Status`, and `Details` JSON for structured filtering and parsing, keeping telemetry completely separate from `_Config`.
@@ -279,12 +303,31 @@ The contextual Google Workspace add-on card rendered upon email or file selectio
 _Avoid_: SubmittalFormCard, IntakeFormView
 
 **TemplateDriftAuditor**:
-The inspection tool and service that audits live Google Sheet workbooks across 6 structural dimensions against `DocumentLogWorkbookSpec` to detect version, tab, named range, header, formula, or validation discrepancies prior to template deployment or runtime config loading.
+The inspection tool and service that audits live Google Sheet workbooks across 6 structural dimensions against `DocumentLogWorkbookSpec` to detect version, tab, named range, header, formula, or validation discrepancies prior to template deployment or runtime config loading. Always performs direct, uncached live reads (`bypassCache: true`) of target workbooks to guarantee structural ground truth without stale `ScriptCache` / `UserCache` masking.
 _Avoid_: SheetInspector, SchemaChecker
+
+**Single-Pass Structural Audit**:
+The batch inspection pattern where `TemplateDriftAuditor` delegates uncached spreadsheet reads across all 15+ tabs to `Sheets.Spreadsheets.get` (Advanced Sheets Service v4), fetching named ranges, headers, formulas, and validations in 1-2 HTTP roundtrips to collapse execution times from >30s down to <1-3s.
+
+**SpreadsheetBatchReaderAdapter**:
+The Tier 2 infrastructure adapter (`SpreadsheetBatchReaderAdapter`) wrapping `Sheets.Spreadsheets.get` with strict range (`_Config!A1:Z100` and rows `1:2`) and field mask (`namedRanges,sheets(properties(sheetId,title),data(rowData(values(userEnteredValue,dataValidation))))`) bounding, throwing `SpreadsheetBatchReadException` on API failures.
+
+**Uncached Audit Eviction Policy**:
+The cache invalidation protocol where `TemplateDriftAuditor` executes uncached live sheet reads (`bypassCache: true`) and triggers `PrefixCacheManager.invalidatePrefix("DOC_CONFIG_" + spreadsheetId)` strictly when structural drift is detected or an auto-repair operation is performed, leaving existing valid cache entries untouched during zero-drift audits.
+
+**Lazy Cache Hydration**:
+The cache management design where `TemplateDriftAuditor` invalidates stale cache keys (`invalidatePrefix`) upon drift/repair without performing direct cache warm-up, delegating cache re-population to `DocumentTypeConfigRegistry` upon subsequent runtime lookups.
 
 **TemplateDriftReport**:
 The structured audit result generated by `TemplateDriftAuditor`, containing the overall alignment status (`MATCH`, `MINOR_DRIFT`, `MAJOR_DRIFT`, `INCOMPATIBLE`), live vs. code version comparison, categorized drift issues, and the boolean `canAutoPatch` execution gate.
 _Avoid_: DriftSummary, AuditResult
+
+**Concurrent Auto-Patching Protocol**:
+The mutual exclusion protocol where `TemplateDriftAuditor.autoPatchWorkbook` acquires `SpreadsheetLockAdapter.acquireLock(spreadsheetId)` (`LOCK_MIGRATION_<SpreadsheetId>`) under a 5-second bounded timeout with double-checked audit verification, while dry-run `auditWorkbook` executions remain lock-free.
+
+**Auto-Patch Eligibility Boundary**:
+The drift classification contract restricting automated patching (`canAutoPatch: true`) strictly to non-destructive `MINOR_DRIFT` issues (missing named ranges, missing default `_Config` fallback rows, `_AuditLog` initialization, non-destructive header labels), while `MAJOR_DRIFT` and `INCOMPATIBLE` strictly reject auto-patching (`canAutoPatch: false`) to prevent data loss.
+
 
 **SheetsRootCard**:
 The dedicated Google Workspace Add-on root card rendered when running in GoogleSheets context (`AppContext.GoogleSheets`). Minimal layout consisting of a top Workbook Status Header and a bottom `SheetAdminFoldOut` for dry-run schema drift audits (`TemplateDriftAuditor`) and ScriptCache clearing. Handles non-log spreadsheets with a friendly fallback state (Header: "Unrecognized Document Log", Description: "The active spreadsheet is not a Document Log (missing configuration information)."). Includes a manual "Refresh Card" context button to re-inspect active sheet and tab context on demand.
@@ -314,6 +357,18 @@ The architectural rule strictly isolating administrative cache eviction controls
 
 **Centralized Workspace Add-on Execution Policy**:
 The architectural decision and policy mandating that all `DocumentLogWorkbook` administration, cache management, diagnostic auditing (`TemplateDriftAuditor`), and document intake operations are driven exclusively through the Google Workspace Add-on (`AppContext.GoogleSheets`, `SheetsRootCard`, `SheetAdminFoldOut`). Prohibits container-bound Apps Script code and custom menus (`onOpen`/`onEdit`) in individual log workbooks to eliminate script fragmentation and version drift across cloned spreadsheets.
+
+**SheetsUserCacheDraftKey**:
+The `UserCache` key format (`CARD_DRAFT_V1_SHEETS_<SpreadsheetId>_<TabName>`) used when running in `AppContext.GoogleSheets` to isolate unsubmitted form draft state per active spreadsheet ID and sheet tab name, ensuring switching tabs in a log workbook preserves draft inputs on each tab without cross-tab leakage.
+
+**SystemTabContextBinding**:
+The context binding rule in `AppContext.GoogleSheets` specifying that system tabs (`_Config`, `_AuditLog`), documentation tabs, and user-created non-log tabs resolve `documentType = null` and display their classified tab role header with `DocType: N/A`. Omits log entry form rendering and bypasses draft state hydration when viewing non-log system tabs.
+
+**PolymorphicDraftContextKey**:
+The abstract context key parameter (`contextKey: string`) accepted by `CardDraftStateManager` to isolate `UserCache` draft state across execution environments (`GMAIL_<messageId>` for `AppContext.Gmail` vs `SHEETS_<SpreadsheetId>_<TabName>` for `AppContext.GoogleSheets`), ensuring state resolution logic remains generic, decoupled, and testable across all add-on execution modes.
+
+
+
 
 
 
