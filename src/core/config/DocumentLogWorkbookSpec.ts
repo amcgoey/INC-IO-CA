@@ -44,44 +44,6 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
   schemaVersion: DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION,
   tabs: [
     {
-      name: "_Config",
-      rowCount: 100,
-      columnCount: 20,
-      isConfigTab: true,
-      seedRows: [
-        ["Key", "Value"],
-        ["MANIFEST_SCHEMA_VERSION", DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION],
-        ["LOG_TITLE", "INC Project Document Log"],
-        ["", ""],
-        ["DocTypeKey", "DisplayName", "Prefix", "LogTabName"],
-        ["Submittal_Arch", "Architectural Submittals", "SUB-ARCH", "Submittal Arch"],
-        ["Submittal_FFE", "FFE Submittals", "SUB-FFE", "Submittal FFE"]
-      ]
-    },
-    {
-      name: "_Shared",
-      rowCount: 100,
-      columnCount: 20,
-      isSharedTab: true,
-      seedRows: [
-        ["Contacts_Arch", "Contacts_FFE", "Actions_Submittal"],
-        ["arch-reviewer@example.com", "ffe-reviewer@example.com", "For Approval"],
-        ["arch-lead@example.com", "ffe-lead@example.com", "Approved as Noted"],
-        ["", "", "Revise and Resubmit"],
-        ["", "", "Rejected"],
-        ["", "", "For Information Only"]
-      ]
-    },
-    {
-      name: "_AuditLog",
-      rowCount: 500,
-      columnCount: 10,
-      isAuditLogTab: true,
-      seedRows: [
-        ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"]
-      ]
-    },
-    {
       name: "Submittal Arch",
       rowCount: 1000,
       columnCount: 26,
@@ -149,6 +111,44 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         ["ACME", "Acme Supplies", "CH-01", "Dining Chair"],
         ["GLOBAL", "Global Materials", "TBL-01", "Conference Table"]
       ]
+    },
+    {
+      name: "_Shared",
+      rowCount: 100,
+      columnCount: 20,
+      isSharedTab: true,
+      seedRows: [
+        ["Contact Type", "Contact Abbr.", "Contact Full Name", "", "Action Order", "Actions", "Action Abbr."],
+        ["Arch", "ARCH", "arch-reviewer@example.com", "", 1, "For Approval", "_NET"],
+        ["Arch", "ARCH-LEAD", "arch-lead@example.com", "", 2, "Approved as Noted", "_NOC"],
+        ["FFE", "FFE", "ffe-reviewer@example.com", "", 3, "Revise and Resubmit", "_RR"],
+        ["FFE", "FFE-LEAD", "ffe-lead@example.com", "", 4, "Rejected", "_REJ"],
+        ["", "", "", "", 5, "For Information Only", "_REF"]
+      ]
+    },
+    {
+      name: "_Config",
+      rowCount: 100,
+      columnCount: 20,
+      isConfigTab: true,
+      seedRows: [
+        ["Key", "Value"],
+        ["MANIFEST_SCHEMA_VERSION", DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION],
+        ["LOG_TITLE", "INC Project Document Log"],
+        ["", ""],
+        ["DocTypeKey", "DisplayName", "Prefix", "LogTabName"],
+        ["Submittal_Arch", "Architectural Submittals", "SUB-ARCH", "Submittal Arch"],
+        ["Submittal_FFE", "FFE Submittals", "SUB-FFE", "Submittal FFE"]
+      ]
+    },
+    {
+      name: "_AuditLog",
+      rowCount: 500,
+      columnCount: 10,
+      isAuditLogTab: true,
+      seedRows: [
+        ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"]
+      ]
     }
   ],
   namedRanges: [
@@ -156,9 +156,9 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Config_Manifest", tabName: "_Config", rangeNotation: "A1:B3", scope: "Workbook" },
     { name: "Config_Submittal_Arch", tabName: "_Config", rangeNotation: "A5:D6", scope: "Workbook" },
     { name: "Config_Submittal_FFE", tabName: "_Config", rangeNotation: "A5:D7", scope: "Workbook" },
-    { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:A20", scope: "Workbook" },
-    { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "B2:B20", scope: "Workbook" },
-    { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "C2:C20", scope: "Workbook" },
+    { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:C3", scope: "Workbook" },
+    { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "A4:C5", scope: "Workbook" },
+    { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "E2:G6", scope: "Workbook" },
     { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A1:F500", scope: "Workbook" },
     { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A1:O2", scope: "Sheet" },
     { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:O2", scope: "Sheet" },
