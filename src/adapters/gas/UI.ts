@@ -143,12 +143,12 @@ function renderDynamicFormFields(
         if (!hintText) hintText = "Date (YYMMDD)";
       }
 
-      if (hintText && dateWidget && typeof dateWidget.setHint === "function") {
-        dateWidget.setHint(hintText);
+      if (hintText && dateWidget && typeof (dateWidget as any).setHint === "function") {
+        (dateWidget as any).setHint(hintText);
       }
 
-      if (onStateActionName && dateWidget && typeof dateWidget.setOnChangeAction === "function") {
-        dateWidget.setOnChangeAction(
+      if (onStateActionName && dateWidget && typeof (dateWidget as any).setOnChangeAction === "function") {
+        (dateWidget as any).setOnChangeAction(
           CardService.newAction()
             .setFunctionName(onStateActionName)
             .setParameters(actionParams)

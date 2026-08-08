@@ -663,6 +663,13 @@ interface ValidationUIContext {
   actionParams?: Record<string, string>;
 }
 
+interface PicklistOption {
+  label: string;
+  value: string;
+}
+
+declare var PicklistResolver: any;
+
 interface DocumentFieldSpec {
   key: string;
   label: string;
@@ -672,7 +679,7 @@ interface DocumentFieldSpec {
   defaultValue?: string;
   isCalculated?: boolean;
   optionsRange?: string;
-  options?: Array<{ label: string; value: string }>;
+  options?: PicklistOption[];
   keyNormalizationRule?: 'picklist' | 'code' | 'exact';
   header?: string;
   formulaOrFunction?: string;

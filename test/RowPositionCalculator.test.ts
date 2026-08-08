@@ -190,3 +190,51 @@ test("computeRowInsertionPlan places new entry inside existing custom group", ()
   assert.strictEqual(plan.insertBlankBefore, false);
   assert.strictEqual(plan.insertBlankAfter, false);
 });
+
+test("getRowGroupKey normalizes section code with trailing description and whitespace under code rule", () => {
+  const headers = ["Section", "Number", "Revision", "Date"];
+  const row = ["08 11 00 - Metal Doors", "1", "1", "240101"];
+  const key = getRowGroupKey(row, "Architecture", headers);
+  assert.strictEqual(key, "081100-001");
+});
+
+test("computeRowInsertionPlan places new entry inside existing group with raw cased section text", () => {
+  const headers = ["Section", "Number", "Revision", "Date", "Title"];
+  const boundedData = [
+    ["Banner"],
+    ["Subtitle"],
+    headers,
+    ["08 11 00 - Metal Doors", "001", "001", "240101", "Submittal 1"],
+    ["08 11 00 - Metal Doors", "001", "002", "240102", "Submittal 2"]
+  ];
+  // New submittal with clean code "081100"
+  const newRow = ["081100", "001", "003", "240103", "Submittal 3"];
+
+  const plan = computeRowInsertionPlan(boundedData, headers, newRow, "Architecture");
+  // Target index should insert within group after row 5 (boundedData[4]), finalRowIndex 6
+  assert.strictEqual(plan.targetRowIndex, 5);
+  assert.strictEqual(plan.finalRowIndex, 6);
+  assert.strictEqual(plan.insertBlankBefore, false);
+  assert.strictEqual(plan.insertBlankAfter, false);
+  // Verify boundedData cell contents were preserved intact
+  assert.strictEqual(boundedData[3][0], "08 11 00 - Metal Doors");
+});
+
+test("computeRowInsertionPlan performs case-insensitive group matching while preserving raw cell casing", () => {
+  const boundedData = [
+    ["Banner"],
+    ["Subtitle"],
+    FF_E_HEADERS,
+    ["Ch-01", "Dining Chair", "Herman Miller", "001", "240101"]
+  ];
+  // New submittal with uppercase "CH-01"
+  const newRow = ["CH-01", "Dining Chair", "Herman Miller", "002", "240102"];
+
+  const plan = computeRowInsertionPlan(boundedData, FF_E_HEADERS, newRow, "FF&E");
+  assert.strictEqual(plan.targetRowIndex, 4);
+  assert.strictEqual(plan.finalRowIndex, 5);
+  assert.strictEqual(plan.insertBlankBefore, false);
+  assert.strictEqual(plan.insertBlankAfter, false);
+  // Cell text preserved as "Ch-01"
+  assert.strictEqual(boundedData[3][0], "Ch-01");
+});

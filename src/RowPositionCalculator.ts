@@ -66,6 +66,24 @@ function getBoundedData(logData: unknown[][]): unknown[][] {
  * @param headers - Sheet header columns array.
  * @returns Lowercase group key string.
  */
+let normalizePicklistValueFn: ((val: string, fieldSpec?: any) => string) | null = null;
+try {
+  const pr = require("./core/config/PicklistResolver");
+  if (pr && pr.PicklistResolver && typeof pr.PicklistResolver.normalizePicklistValue === "function") {
+    normalizePicklistValueFn = pr.PicklistResolver.normalizePicklistValue;
+  }
+} catch (e) {}
+
+function normalizeValueForGroupKey(val: string, rule: 'picklist' | 'code' | 'exact'): string {
+  if (normalizePicklistValueFn) {
+    return normalizePicklistValueFn(val, { keyNormalizationRule: rule });
+  }
+  if (rule === 'code') {
+    return val.split('-')[0].replace(/\s+/g, '').toUpperCase();
+  }
+  return val.trim().toUpperCase();
+}
+
 function getRowGroupKey(row: any[], discipline: string, headers: string[]): string {
   if (discipline === "Architecture") {
     const secIdx = headers.indexOf("Section");
@@ -73,14 +91,16 @@ function getRowGroupKey(row: any[], discipline: string, headers: string[]): stri
     let secVal = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
     let num = padNum(numIdx !== -1 ? row[numIdx] : "", 3);
     if (secVal) {
-      let sec = padNum(secVal, 6);
+      let secCode = normalizeValueForGroupKey(secVal, 'code');
+      let sec = padNum(secCode, 6);
       return `${sec}-${num}`.toLowerCase();
     }
     return num.toLowerCase();
   } else {
     const tagIdx = headers.indexOf("Spec Tag");
     let tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim();
-    return tag.toLowerCase();
+    let normalizedTag = normalizeValueForGroupKey(tag, 'exact');
+    return normalizedTag.toLowerCase();
   }
 }
 
@@ -230,17 +250,6 @@ function computeRowInsertionPlan(
       finalRowIndex: newRowIndex
     };
   }
-}
-
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    getBoundedData,
-    getRowGroupKey,
-    getRowSortKey,
-    computeRowInsertionPlan
-  };
 }
 
 declare var module: any;
