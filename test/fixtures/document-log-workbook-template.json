@@ -156,7 +156,7 @@
     {
       "name": "Headers",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A1:K1",
+      "rangeNotation": "A1:K2",
       "scope": "Sheet"
     },
     {
@@ -174,7 +174,7 @@
     {
       "name": "Submittal_Arch_Headers",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A1:K1",
+      "rangeNotation": "A1:K2",
       "scope": "Workbook"
     },
     {

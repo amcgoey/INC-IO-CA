@@ -103,10 +103,10 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Config_Submittal_Arch", tabName: "_Config", rangeNotation: "A5:D6", scope: "Workbook" },
     { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:A20", scope: "Workbook" },
     { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A1:F100", scope: "Workbook" },
-    { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A1:K1", scope: "Sheet" },
+    { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A1:K2", scope: "Sheet" },
     { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Sheet" },
     { name: "Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Sheet" },
-    { name: "Submittal_Arch_Headers", tabName: "Submittal Arch", rangeNotation: "A1:K1", scope: "Workbook" },
+    { name: "Submittal_Arch_Headers", tabName: "Submittal Arch", rangeNotation: "A1:K2", scope: "Workbook" },
     { name: "Submittal_Arch_FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Workbook" },
     { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Workbook" }
   ]
