@@ -152,16 +152,18 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     },
     {
       name: "_Shared",
-      rowCount: 6,
+      rowCount: 100,
       columnCount: 20,
       isSharedTab: true,
       seedRows: [
-        ["Contact Type", "Contact Abbr.", "Contact Full Name", "", "Action Order", "Actions", "Action Abbr."],
-        ["Arch", "ARCH", "arch-reviewer@example.com", "", 1, "For Approval", "_NET"],
-        ["Arch", "ARCH-LEAD", "arch-lead@example.com", "", 2, "Approved as Noted", "_NOC"],
-        ["FFE", "FFE", "ffe-reviewer@example.com", "", 3, "Revise and Resubmit", "_RR"],
-        ["FFE", "FFE-LEAD", "ffe-lead@example.com", "", 4, "Rejected", "_REJ"],
-        ["", "", "", "", 5, "For Information Only", "_REF"]
+        ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Actions Key", "Actions Label"],
+        ["INC", "INC Architecture and Design", "INC", "INC Architecture & Design", "Received", "Received"],
+        ["PMG", "Pavarini McGovern", "BW", "Benjamin West", "Referred", "Referred"],
+        ["FXC", "FX Collaborative", "Lighting", "Lighting", "Not Reviewed", "Not Reviewed"],
+        ["IE", "Interface Engineering", "Brand", "Brand", "Rejected", "Rejected"],
+        ["VLD", "Ventresca Lighting Design", "", "", "Revise & Resubmit", "Revise & Resubmit"],
+        ["", "", "", "", "No Objection as Corrected", "No Objection as Corrected"],
+        ["", "", "", "", "No Exceptions Taken", "No Exceptions Taken"]
       ]
     },
     {
@@ -223,8 +225,8 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A6:P18", scope: "Workbook" },
     { name: "Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Sheet" },
     { name: "Submittal_Arch_Support_Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Workbook" },
-    { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Sheet" },
-    { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Sheet" }
+    { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B7", scope: "Sheet" },
+    { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D7", scope: "Sheet" }
   ]
 };
 

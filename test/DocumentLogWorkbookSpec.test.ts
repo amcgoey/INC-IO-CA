@@ -128,12 +128,12 @@ test('DocumentLogWorkbookSpec - defines Sections sheet-scoped and workbook-scope
   const namedRanges = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges;
   const sectionsSheet = namedRanges.find(r => r.name === 'Sections' && r.tabName === 'Submittal Arch Support');
   assert.ok(sectionsSheet, 'Sheet-Scoped Sections named range must exist on Submittal Arch Support');
-  assert.equal(sectionsSheet.rangeNotation, 'A2:B6');
+  assert.equal(sectionsSheet.rangeNotation, 'A2:B20');
   assert.equal(sectionsSheet.scope, 'Sheet');
 
   const sectionsWb = namedRanges.find(r => r.name === 'Submittal_Arch_Support_Sections');
   assert.ok(sectionsWb, 'Workbook-Scoped Submittal_Arch_Support_Sections range must exist');
-  assert.equal(sectionsWb.rangeNotation, 'A2:B6');
+  assert.equal(sectionsWb.rangeNotation, 'A2:B20');
   assert.equal(sectionsWb.scope, 'Workbook');
 });
 
@@ -143,28 +143,22 @@ test('DocumentLogWorkbookSpec - places _Shared, _Config, _AuditLog system tabs a
   assert.deepEqual(lastThreeTabs, ['_Shared', '_Config', '_AuditLog'], 'System tabs must appear at the far right');
 });
 
-test('DocumentLogWorkbookSpec - defines Actions multi-column picklist schema in _Shared tab', () => {
+test('DocumentLogWorkbookSpec - defines Actions picklist schema in _Shared tab', () => {
   const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === '_Shared');
   assert.ok(sharedTab, '_Shared tab must exist');
   assert.ok(sharedTab.seedRows, 'seedRows must be defined on _Shared tab');
 
   const headers = sharedTab.seedRows[0];
-  assert.ok(headers.includes('Action Order'), 'Header must contain Action Order');
-  assert.ok(headers.includes('Actions'), 'Header must contain Actions');
-  assert.ok(headers.includes('Action Abbr.'), 'Header must contain Action Abbr.');
-
-  const actionAbbrIdx = headers.indexOf('Action Abbr.');
-  const abbreviations = sharedTab.seedRows.slice(1).map(r => r[actionAbbrIdx]).filter(Boolean);
-  assert.deepEqual(abbreviations, ['_NET', '_NOC', '_RR', '_REJ', '_REF']);
+  assert.ok(headers.includes('Actions Key'), 'Header must contain Actions Key');
+  assert.ok(headers.includes('Actions Label'), 'Header must contain Actions Label');
 });
 
-test('DocumentLogWorkbookSpec - defines Contacts multi-column picklist schema in _Shared tab', () => {
+test('DocumentLogWorkbookSpec - defines Contacts picklist schema in _Shared tab', () => {
   const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === '_Shared');
   assert.ok(sharedTab, '_Shared tab must exist');
   assert.ok(sharedTab.seedRows, 'seedRows must be defined on _Shared tab');
 
   const headers = sharedTab.seedRows[0];
-  assert.ok(headers.includes('Contact Type'), 'Header must contain Contact Type');
-  assert.ok(headers.includes('Contact Abbr.'), 'Header must contain Contact Abbr.');
-  assert.ok(headers.includes('Contact Full Name'), 'Header must contain Contact Full Name');
+  assert.ok(headers.includes('Contacts_Arch Key'), 'Header must contain Contacts_Arch Key');
+  assert.ok(headers.includes('Contacts_Arch Label'), 'Header must contain Contacts_Arch Label');
 });

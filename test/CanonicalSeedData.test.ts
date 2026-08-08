@@ -85,32 +85,31 @@ describe("Canonical Reference Seed Data for Contacts, Actions & Project Settings
 
       const vendorsRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "Vendors");
       assert.ok(vendorsRange, "Vendors named range must exist");
-      assert.equal(vendorsRange.rangeNotation, "A2:B20");
+      assert.equal(vendorsRange.rangeNotation, "A2:B7");
 
       const specTagsRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "SpecTags");
       assert.ok(specTagsRange, "SpecTags named range must exist");
-      assert.equal(specTagsRange.rangeNotation, "C2:D20");
+      assert.equal(specTagsRange.rangeNotation, "C2:D7");
 
       const seedRows = ffeSupportTab.seedRows || [];
-      const vendors = seedRows.slice(1, 8).map((r: (string | number | boolean)[]) => [r[0], r[1]]);
+      const vendors = seedRows.slice(1, 7).map((r: (string | number | boolean)[]) => [r[0], r[1]]);
       assert.deepEqual(vendors, [
-        ["BERMAN FALK", "Berman Falk"],
-        ["ASHLEY", "Ashley Lighting"],
-        ["CARNEGIE", "Carnegie"],
-        ["DELTA", "Delta"],
-        ["FIL DOUX", "Fil Doux Textiles"],
-        ["LIGHT ANNEX", "Light Annex"],
-        ["MOHAWK", "Mohawk"]
+        ["Ashley Lighting", "Ashley Lighting"],
+        ["Fil Doux Textiles", "Fil Doux Textiles"],
+        ["Carnegie", "Carnegie"],
+        ["Light Annex", "Light Annex"],
+        ["ACME", "Acme Supplies"],
+        ["GLOBAL", "Global Materials"]
       ]);
 
       const specTags = seedRows.slice(1, 7).map((r: (string | number | boolean)[]) => [r[2], r[3]]);
       assert.deepEqual(specTags, [
-        ["AC102", "HOOK"],
-        ["CG104", "BED - KING"],
-        ["CG126", "BED - DOUBLE QUEEN"],
-        ["CG138", "CREDENZA"],
-        ["CG138M", "CREDENZA - MIRRORED"],
-        ["CP112", "CARPET - CORRIDOR"]
+        ["AC102", "Hook"],
+        ["CG138", "Credenza"],
+        ["FB132B", "Fabric Woven"],
+        ["LT150", "Pendant"],
+        ["CH-01", "Dining Chair"],
+        ["TBL-01", "Conference Table"]
       ]);
     });
   });
@@ -168,13 +167,13 @@ describe("Canonical Reference Seed Data for Contacts, Actions & Project Settings
       ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
       const resVendors = PicklistResolver.resolvePicklistOptionsRange("Vendors", ss, "Submittal_FFE", "Submittal FFE");
       assert.equal(resVendors.success, true);
-      assert.equal(resVendors.options.length, 7);
-      assert.deepEqual(resVendors.options[0], { value: "BERMAN FALK", label: "Berman Falk" });
+      assert.equal(resVendors.options.length, 6);
+      assert.deepEqual(resVendors.options[0], { value: "Ashley Lighting", label: "Ashley Lighting" });
 
       const resSpecTags = PicklistResolver.resolvePicklistOptionsRange("SpecTags", ss, "Submittal_FFE", "Submittal FFE");
       assert.equal(resSpecTags.success, true);
       assert.equal(resSpecTags.options.length, 6);
-      assert.deepEqual(resSpecTags.options[0], { value: "AC102", label: "HOOK" });
+      assert.deepEqual(resSpecTags.options[0], { value: "AC102", label: "Hook" });
     });
   });
 });

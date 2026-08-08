@@ -229,7 +229,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Config tab (7x20), MANIFEST_SCHEMA_VER
 
   const configTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_Config");
   assert.ok(configTab, "_Config tab must be defined");
-  assert.strictEqual(configTab.rowCount, 7, "_Config tab rowCount should be 7");
+  assert.strictEqual(configTab.rowCount, 10, "_Config tab rowCount should be 10");
   assert.strictEqual(configTab.columnCount, 20, "_Config tab columnCount should be 20");
   assert.strictEqual(configTab.isConfigTab, true, "_Config tab isConfigTab flag should be true");
 
@@ -274,32 +274,32 @@ test("GasMockHarness resolves MANIFEST_SCHEMA_VERSION from _Config tab in mock s
   assert.strictEqual(configSheet.getRange("B2").getValue(), "1.0.0");
 });
 
-test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (6x20), contact lists, action picklists, and named ranges", () => {
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (100x20), contact lists, action picklists, and named ranges", () => {
   const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
   assert.ok(sharedTab, "_Shared tab must be defined");
-  assert.strictEqual(sharedTab.rowCount, 6, "_Shared tab rowCount should be 6");
+  assert.strictEqual(sharedTab.rowCount, 100, "_Shared tab rowCount should be 100");
   assert.strictEqual(sharedTab.columnCount, 20, "_Shared tab columnCount should be 20");
   assert.strictEqual(sharedTab.isSharedTab, true, "_Shared tab isSharedTab flag should be true");
 
   assert.ok(sharedTab.seedRows, "_Shared seedRows must be present");
-  assert.deepStrictEqual(sharedTab.seedRows[0], ["Contact Type", "Contact Abbr.", "Contact Full Name", "", "Action Order", "Actions", "Action Abbr."]);
+  assert.deepStrictEqual(sharedTab.seedRows[0], ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Actions Key", "Actions Label"]);
 
   const archContactsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: NamedRangeSpec) => nr.name === "Shared_Contacts_Arch");
   assert.ok(archContactsNR, "Shared_Contacts_Arch named range must exist");
   assert.strictEqual(archContactsNR.tabName, "_Shared");
-  assert.strictEqual(archContactsNR.rangeNotation, "A2:C3");
+  assert.strictEqual(archContactsNR.rangeNotation, "A2:B20");
   assert.strictEqual(archContactsNR.scope, "Workbook");
 
   const ffeContactsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: NamedRangeSpec) => nr.name === "Shared_Contacts_FFE");
   assert.ok(ffeContactsNR, "Shared_Contacts_FFE named range must exist");
   assert.strictEqual(ffeContactsNR.tabName, "_Shared");
-  assert.strictEqual(ffeContactsNR.rangeNotation, "A4:C5");
+  assert.strictEqual(ffeContactsNR.rangeNotation, "C2:D20");
   assert.strictEqual(ffeContactsNR.scope, "Workbook");
 
   const actionsSubmittalNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: NamedRangeSpec) => nr.name === "Actions_Submittal");
   assert.ok(actionsSubmittalNR, "Actions_Submittal named range must exist");
   assert.strictEqual(actionsSubmittalNR.tabName, "_Shared");
-  assert.strictEqual(actionsSubmittalNR.rangeNotation, "E2:G6");
+  assert.strictEqual(actionsSubmittalNR.rangeNotation, "E2:F20");
   assert.strictEqual(actionsSubmittalNR.scope, "Workbook");
 });
 

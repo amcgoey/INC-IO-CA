@@ -98,7 +98,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
   );
   assert.ok(wbConfigFFE, "Workbook-scoped Config_Submittal_FFE named range must exist");
   assert.strictEqual(wbConfigFFE.tabName, "_Config");
-  assert.strictEqual(wbConfigFFE.rangeNotation, "A5:D7");
+  assert.strictEqual(wbConfigFFE.rangeNotation, "A7:D9");
   assert.strictEqual(wbConfigFFE.scope, "Workbook");
 
   const wbHeaders = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
@@ -274,11 +274,11 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell req
 
   const allRequests = payload.requests as RepeatCellReq[];
 
-  // Find index of _Config pale fill request for Config_Manifest (sheetId 5, startRow 0, endRow 3)
+  // Find index of _Config pale fill request for Config_Manifest (sheetId 5, startRow 0, endRow 5)
   const manifestFillIdx = allRequests.findIndex(
     r => r.repeatCell?.range?.sheetId === 5 &&
          r.repeatCell?.range?.startRowIndex === 0 &&
-         r.repeatCell?.range?.endRowIndex === 3 &&
+         r.repeatCell?.range?.endRowIndex === 5 &&
          r.repeatCell?.cell?.userEnteredFormat?.backgroundColor &&
          !r.repeatCell?.cell?.userEnteredFormat?.textFormat
   );
@@ -323,22 +323,22 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell req
   assert.ok(schemaVersionReq, "MANIFEST_SCHEMA_VERSION pale gray fill repeatCell request must exist with exact single-cell boundaries");
   assert.deepStrictEqual(schemaVersionReq?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, ThemeColors.PALE_GRAY_RGB);
 
-  // Actions_Submittal: _Shared (sheetId 4), E2:G6 -> row 1..6, col 4..7, pale red
+  // Actions_Submittal: _Shared (sheetId 4), E2:F20 -> row 1..20, col 4..6, pale red
   const actionsReq = repeatCells.find(
     r => r.repeatCell?.range?.sheetId === 4 &&
          r.repeatCell?.range?.startRowIndex === 1 &&
-         r.repeatCell?.range?.endRowIndex === 6 &&
+         r.repeatCell?.range?.endRowIndex === 20 &&
          r.repeatCell?.range?.startColumnIndex === 4 &&
-         r.repeatCell?.range?.endColumnIndex === 7
+         r.repeatCell?.range?.endColumnIndex === 6
   );
   assert.ok(actionsReq, "Actions_Submittal pale red fill repeatCell request must exist with exact range boundaries");
   assert.deepStrictEqual(actionsReq?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, ThemeColors.PALE_RED_RGB);
 
-  // Verify no duplicate fill requests for dual-scoped range Sections / Submittal_Arch_Support_Sections (sheetId 2, A2:B3)
+  // Verify no duplicate fill requests for dual-scoped range Sections / Submittal_Arch_Support_Sections (sheetId 2, A2:B20)
   const sectionsReqs = repeatCells.filter(
     r => r.repeatCell?.range?.sheetId === 2 &&
          r.repeatCell?.range?.startRowIndex === 1 &&
-         r.repeatCell?.range?.endRowIndex === 6 &&
+         r.repeatCell?.range?.endRowIndex === 20 &&
          r.repeatCell?.range?.startColumnIndex === 0 &&
          r.repeatCell?.range?.endColumnIndex === 2
   );

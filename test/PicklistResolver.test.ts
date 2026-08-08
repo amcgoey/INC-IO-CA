@@ -226,8 +226,11 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
       assert.equal(result.success, true);
       assert.equal(result.isFallback, false);
       assert.deepEqual(result.options, [
-        { value: "arch-reviewer@example.com", label: "arch-reviewer@example.com" },
-        { value: "arch-lead@example.com", label: "arch-lead@example.com" }
+        { value: "INC", label: "INC Architecture and Design" },
+        { value: "PMG", label: "Pavarini McGovern" },
+        { value: "FXC", label: "FX Collaborative" },
+        { value: "IE", label: "Interface Engineering" },
+        { value: "VLD", label: "Ventresca Lighting Design" }
       ]);
     });
 
@@ -245,8 +248,10 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
       assert.equal(result.success, true);
       assert.equal(result.isFallback, false);
       assert.deepEqual(result.options, [
-        { value: "ffe-reviewer@example.com", label: "ffe-reviewer@example.com" },
-        { value: "ffe-lead@example.com", label: "ffe-lead@example.com" }
+        { value: "INC", label: "INC Architecture & Design" },
+        { value: "BW", label: "Benjamin West" },
+        { value: "Lighting", label: "Lighting" },
+        { value: "Brand", label: "Brand" }
       ]);
     });
 
@@ -264,11 +269,13 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
       assert.equal(result.success, true);
       assert.equal(result.isFallback, false);
       assert.deepEqual(result.options, [
-        { value: "For Approval", label: "For Approval" },
-        { value: "Approved as Noted", label: "Approved as Noted" },
-        { value: "Revise and Resubmit", label: "Revise and Resubmit" },
+        { value: "Received", label: "Received" },
+        { value: "Referred", label: "Referred" },
+        { value: "Not Reviewed", label: "Not Reviewed" },
         { value: "Rejected", label: "Rejected" },
-        { value: "For Information Only", label: "For Information Only" }
+        { value: "Revise & Resubmit", label: "Revise & Resubmit" },
+        { value: "No Objection as Corrected", label: "No Objection as Corrected" },
+        { value: "No Exceptions Taken", label: "No Exceptions Taken" }
       ]);
     });
   });
