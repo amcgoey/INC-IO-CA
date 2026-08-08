@@ -207,34 +207,48 @@ test("deployLiveTemplate - dry-run execution returns deployment summary without 
   assert.strictEqual(result.target, "test");
 });
 
-test("deployLiveTemplate - live execution sends batchUpdate request to Google API with retry wrapper", async () => {
+test("parseDeployArgs - parses --create flag when no spreadsheet ID is provided", () => {
+  const args = ["--create", "--target=test"];
+  const options = parseDeployArgs(args);
+
+  assert.strictEqual(options.create, true);
+  assert.strictEqual(options.target, "test");
+  assert.strictEqual(options.spreadsheetId, "");
+});
+
+test("deployLiveTemplate - --create flag invokes createSpreadsheet and provisions new sheet", async () => {
   const options: DeployLiveOptions = {
-    spreadsheetId: "1TEST_LIVE_ID",
+    spreadsheetId: "",
     target: "test",
-    dryRun: false
+    dryRun: false,
+    create: true
   };
 
-  let apiCallUrl = "";
-  let apiCallBody: any = null;
+  const calls: string[] = [];
   const fakeApiFetcher = async (url: string, init: any) => {
-    apiCallUrl = url;
-    apiCallBody = JSON.parse(init.body);
+    calls.push(url);
+    if (url === "https://sheets.googleapis.com/v4/spreadsheets") {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ spreadsheetId: "NEWLY_CREATED_SHEET_999", spreadsheetUrl: "https://docs.google.com/spreadsheets/d/NEWLY_CREATED_SHEET_999/edit" })
+      };
+    }
     return {
       ok: true,
       status: 200,
-      json: async () => ({ spreadsheetId: "1TEST_LIVE_ID", replies: [] })
+      json: async () => ({ spreadsheetId: "NEWLY_CREATED_SHEET_999", replies: [] })
     };
   };
 
   const result = await deployLiveTemplate(options, {
     apiFetcher: fakeApiFetcher,
-    authToken: "ya29.fake_test_token"
+    authToken: "ya29.fake_token"
   });
 
   assert.strictEqual(result.success, true);
-  assert.strictEqual(result.dryRun, false);
-  assert.strictEqual(result.spreadsheetId, "1TEST_LIVE_ID");
-  assert.ok(apiCallUrl.includes("/spreadsheets/1TEST_LIVE_ID:batchUpdate"));
-  assert.ok(Array.isArray(apiCallBody.requests));
-  assert.ok(apiCallBody.requests.length > 0);
+  assert.strictEqual(result.spreadsheetId, "NEWLY_CREATED_SHEET_999");
+  assert.strictEqual(calls.length, 2);
+  assert.strictEqual(calls[0], "https://sheets.googleapis.com/v4/spreadsheets");
+  assert.ok(calls[1].includes("/spreadsheets/NEWLY_CREATED_SHEET_999:batchUpdate"));
 });
