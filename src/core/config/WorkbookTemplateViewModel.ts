@@ -6,7 +6,7 @@
  */
 
 import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
-import { DocumentLogWorkbookViewSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, HeaderStyleSpec } from "./DocumentLogWorkbookViewSpec";
+import { DocumentLogWorkbookViewSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, HeaderStyleSpec, ColorRgb } from "./DocumentLogWorkbookViewSpec";
 
 export interface FixtureTabSpec {
   name: string;
@@ -26,6 +26,14 @@ export interface FixtureSpec {
   schemaVersion: string;
   tabs: FixtureTabSpec[];
   namedRanges: NamedRangeSpec[];
+}
+
+export interface GridRangeSpec {
+  sheetId: number;
+  startRowIndex?: number;
+  endRowIndex?: number;
+  startColumnIndex?: number;
+  endColumnIndex?: number;
 }
 
 export interface BatchUpdateRequestPayload {
@@ -332,7 +340,7 @@ export class WorkbookTemplateViewModel {
   }
 }
 
-function createRepeatCellBackgroundRequest(gridRange: object, backgroundColor: object) {
+function createRepeatCellBackgroundRequest(gridRange: GridRangeSpec, backgroundColor: ColorRgb) {
   return {
     repeatCell: {
       range: gridRange,
@@ -346,7 +354,7 @@ function createRepeatCellBackgroundRequest(gridRange: object, backgroundColor: o
   };
 }
 
-function createRepeatCellHeaderRequest(gridRange: object, headerStyle: HeaderStyleSpec) {
+function createRepeatCellHeaderRequest(gridRange: GridRangeSpec, headerStyle: HeaderStyleSpec) {
   return {
     repeatCell: {
       range: gridRange,
@@ -374,7 +382,7 @@ export function colLetterToIndex(colStr: string): number {
   return index - 1;
 }
 
-export function parseA1ToGridRange(rangeStr: string, sheetId: number) {
+export function parseA1ToGridRange(rangeStr: string, sheetId: number): GridRangeSpec {
   const rangeMatch = rangeStr.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
   if (rangeMatch) {
     const startCol = colLetterToIndex(rangeMatch[1].toUpperCase());
