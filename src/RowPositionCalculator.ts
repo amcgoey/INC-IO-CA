@@ -67,8 +67,10 @@ function normalizeValueForGroupKey(val: string, fieldSpec?: MinimalFieldSpec): s
   }
   const rule = fieldSpec?.keyNormalizationRule || 'exact';
   if (rule === 'code') {
-    const parts = val.trim().split(/\s+-\s+/);
-    return parts[0].replace(/[\s.-]+/g, '').toUpperCase();
+    const rawVal = val.trim();
+    const match = rawVal.match(/^([\d\s.-]+?)(?:\s*-\s*[A-Za-z]|\s+-\s+|$)/);
+    const codePart = match ? match[1] : rawVal.split(/\s+-\s+/)[0];
+    return codePart.replace(/[\s.-]+/g, '').toUpperCase();
   }
   return val.trim().toUpperCase();
 }
