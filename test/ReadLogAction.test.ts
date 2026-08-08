@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ReadLogAction } from "../src/ReadLogAction";
-import { WorkflowRunner } from "../src/WorkflowRunner";
+import { WorkflowRunner } from "../src/core/workflow/WorkflowRunner";
 import { FakeLogRepository } from "./harness/fakes/FakeLogRepository";
 import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "../src/DocumentLogStrategy";
 import { createValidatedArchitectureSubmittal, createValidatedFFESubmittal } from "./harness/factories/DocumentFactory";

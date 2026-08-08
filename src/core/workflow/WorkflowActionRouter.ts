@@ -1,4 +1,4 @@
-/// <reference path="./types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file WorkflowActionRouter.ts
  * @description Central application router resolving ordered sequences of DocumentAction instances for document types and workflow directions.
@@ -7,30 +7,30 @@
 declare var require: any;
 
 let _ReadLogActionClass: any = null;
-let _MoveDocumentActionClass: any = null;
+let _MoveDocumentActionRouter: any = null;
 let _AnalyzeDocumentActionClass: any = null;
 let _InsertPagesActionClass: any = null;
 let _WriteLogActionClass: any = null;
 
 if (typeof require !== 'undefined') {
   try {
-    const _rla = eval("require('./ReadLogAction')");
+    const _rla = eval("require('../../ReadLogAction')");
     if (_rla && _rla.ReadLogAction) _ReadLogActionClass = _rla.ReadLogAction;
   } catch (e) {}
   try {
     const _mda = eval("require('./MoveDocumentAction')");
-    if (_mda && _mda.MoveDocumentAction) _MoveDocumentActionClass = _mda.MoveDocumentAction;
+    if (_mda && _mda.MoveDocumentAction) _MoveDocumentActionRouter = _mda.MoveDocumentAction;
   } catch (e) {}
   try {
-    const _ada = eval("require('./AnalyzeDocumentAction')");
+    const _ada = eval("require('../../AnalyzeDocumentAction')");
     if (_ada && _ada.AnalyzeDocumentAction) _AnalyzeDocumentActionClass = _ada.AnalyzeDocumentAction;
   } catch (e) {}
   try {
-    const _ipa = eval("require('./InsertPagesAction')");
+    const _ipa = eval("require('../../InsertPagesAction')");
     if (_ipa && _ipa.InsertPagesAction) _InsertPagesActionClass = _ipa.InsertPagesAction;
   } catch (e) {}
   try {
-    const _wla = eval("require('./WriteLogAction')");
+    const _wla = eval("require('../../WriteLogAction')");
     if (_wla && _wla.WriteLogAction) _WriteLogActionClass = _wla.WriteLogAction;
   } catch (e) {}
 }
@@ -55,7 +55,7 @@ class WorkflowActionRouter {
     if (documentType === 'Submittal') {
       if (directionOrAction === 'Incoming_Filing' || directionOrAction === 'Incoming') {
         const RLA = _ReadLogActionClass || (globalThis as any).ReadLogAction;
-        const MDA = _MoveDocumentActionClass || (globalThis as any).MoveDocumentAction;
+        const MDA = _MoveDocumentActionRouter || (globalThis as any).MoveDocumentAction;
 
         const readLog = RLA ? new RLA() : null;
         const moveDoc = MDA ? new MDA() : null;
@@ -81,7 +81,7 @@ class WorkflowActionRouter {
 
       if (directionOrAction === 'Outgoing') {
         const WLA = _WriteLogActionClass || (globalThis as any).WriteLogAction;
-        const MDA = _MoveDocumentActionClass || (globalThis as any).MoveDocumentAction;
+        const MDA = _MoveDocumentActionRouter || (globalThis as any).MoveDocumentAction;
 
         const writeLog = WLA ? new WLA() : null;
         const moveDoc = MDA ? new MDA() : null;

@@ -8,13 +8,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const { ReadLogAction } = require('../src/ReadLogAction');
-const { MoveDocumentAction } = require('../src/MoveDocumentAction');
+const { MoveDocumentAction } = require('../src/core/workflow/MoveDocumentAction');
 const { WriteLogAction } = require('../src/WriteLogAction');
 const { AnalyzeDocumentAction } = require('../src/AnalyzeDocumentAction');
 const { InsertPagesAction } = require('../src/InsertPagesAction');
-const { WorkflowRunner } = require('../src/WorkflowRunner');
-const { WorkflowActionRouter } = require('../src/WorkflowActionRouter');
-const { createTestContext } = require('../src/WorkflowContextFactory');
+const { WorkflowRunner } = require('../src/core/workflow/WorkflowRunner');
+const { WorkflowActionRouter } = require('../src/core/workflow/WorkflowActionRouter');
+const { createTestContext } = require('../src/core/workflow/WorkflowContextFactory');
 const { ArchitectureSubmittalStrategy } = require('../src/DocumentLogStrategy');
 const { createValidatedArchitectureSubmittal } = require('./harness/factories/DocumentFactory');
 const { FakeAiAnalysisAdapter } = require('./harness/fakes/FakeAiAnalysisAdapter');

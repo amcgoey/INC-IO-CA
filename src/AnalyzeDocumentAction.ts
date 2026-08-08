@@ -57,7 +57,7 @@ class AnalyzeDocumentAction implements DocumentAction<DocumentActionContext> {
     let targetBlob = blob;
     const extractAction =
       this.extractPagesAction ||
-      (typeof defaultExtractPagesAction !== "undefined" ? defaultExtractPagesAction : (globalThis as any).defaultExtractPagesAction);
+      (typeof defaultExtractPagesAction !== "undefined" ? defaultExtractPagesAction : ((globalThis as any).defaultExtractPagesAction || (typeof require !== "undefined" ? require("./core/workflow/ExtractPagesAction").defaultExtractPagesAction : undefined)));
 
     if (extractAction) {
       try {

@@ -1,4 +1,4 @@
-/// <reference path="./types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file WorkflowRunner.ts
  * @description Action pipeline engine and primitive document actions (MoveDocumentAction & RenameDocumentAction).
@@ -6,11 +6,15 @@
 
 declare var require: any;
 
+let _MoveDocumentActionRunner: any = null;
 if (typeof require !== 'undefined') {
   try {
     const _mda = eval("require('./MoveDocumentAction')");
-    if (_mda && _mda.MoveDocumentAction && typeof (globalThis as any).MoveDocumentAction === 'undefined') {
-      (globalThis as any).MoveDocumentAction = _mda.MoveDocumentAction;
+    if (_mda && _mda.MoveDocumentAction) {
+      _MoveDocumentActionRunner = _mda.MoveDocumentAction;
+      if (typeof (globalThis as any).MoveDocumentAction === 'undefined') {
+        (globalThis as any).MoveDocumentAction = _mda.MoveDocumentAction;
+      }
     }
   } catch (e) {}
 }
@@ -42,7 +46,7 @@ class WorkflowRunner {
       } catch (error: any) {
         const actionName = action.name || action.constructor?.name || 'DocumentAction';
         if (error instanceof Error && !error.message.startsWith('WorkflowRunner step')) {
-          error.message = `WorkflowRunner step [${actionName}] failed: ${error.message}`;
+          error.message = "WorkflowRunner step [" + actionName + "] failed: " + error.message;
         }
         throw error;
       }
@@ -124,7 +128,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     WorkflowRunner,
     RenameDocumentAction,
-    MoveDocumentAction: (globalThis as any).MoveDocumentAction
+    MoveDocumentAction: (globalThis as any).MoveDocumentAction || _MoveDocumentActionRunner
   };
 }
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ListDocumentField, DocumentPipeline, FormIntakeParser } from '../src/DocumentPipeline';
+import { ListDocumentField, DocumentPipeline, FormIntakeParser } from '../src/core/intake/DocumentPipeline';
 import { ValidationContext } from '../src/types';
 
 test('ListDocumentField.resolve - contact field resolves long form to stored abbreviation', () => {

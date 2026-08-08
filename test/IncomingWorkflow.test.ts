@@ -1,25 +1,11 @@
 import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 
-const { GasMockHarness, DocumentFactory, createTestContext } = require("./harness");
+const { DocumentFactory, createTestContext } = require("./harness");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
-const { IncomingWorkflow } = require("../src/IncomingWorkflow");
+const { IncomingWorkflow } = require("../src/core/workflow/IncomingWorkflow");
 
-beforeEach(() => {
-  GasMockHarness.install({
-    configOverrides: {
-      LOG_HEADER_ROW: 3,
-      LOG_SHEET_NAME: "Submittals Log",
-      STAMPED_FILE_PREFIX: "STAMPED_",
-      TRANSMITTAL_TEMPLATE_ID: "tmpl-transmittal",
-      PDF_TEMPLATE_ID: "tmpl-pdf"
-    }
-  });
-});
 
-afterEach(() => {
-  GasMockHarness.uninstall();
-});
 
 test("IncomingWorkflow.execute processes Architecture incoming submittal with dual-path filing", async () => {
   const context = createTestContext();
@@ -32,6 +18,7 @@ test("IncomingWorkflow.execute processes Architecture incoming submittal with du
       disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
     }),
     logFileId: "log-ss-123",
+    logSheetId: 101,
     targetFolderId: "submittals-root-folder-id",
     driveFileId: "file-orig-1",
     incomingRouting: "To Refer",
@@ -54,7 +41,7 @@ test("IncomingWorkflow.execute processes Architecture incoming submittal with du
   // 2. Verify OriginalDocument filed in Submittals\Closed\<Subfolder>
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 2);
   const originalFiling = context.driveFilingRepository.filedDocuments[0];
-  assert.deepStrictEqual(originalFiling.options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.deepStrictEqual(originalFiling.options.subfolderPath, ["Closed", "03 Concrete"]);
   assert.strictEqual(originalFiling.options.targetFolderId, "submittals-root-folder-id");
 
   // 3. Verify ReviewDocument duplicated and placed in Submittals\ root with STAMPED_ prefix
@@ -97,6 +84,7 @@ test("IncomingWorkflow.execute processes FF&E incoming submittal with dual-path 
       disciplineDetails: { specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", revision: "001" }
     }),
     logFileId: "log-ss-ffe",
+    logSheetId: 101,
     targetFolderId: "submittals-root-folder-id",
     driveFileId: "file-ffe-1",
     incomingRouting: "To Review",

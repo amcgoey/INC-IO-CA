@@ -14,6 +14,8 @@ export * from "./fakes/FakePdfDocumentService";
 export * from "./fakes/FakeAiAnalysisAdapter";
 export * from "./fakes/FakeDriveNameProvider";
 export * from "./fakes/FakeCacheAdapter";
+export * from "../../src/adapters/fakes/FakeSpreadsheetLockAdapter";
+export * from "../../src/adapters/fakes/FakeUserInterfacePresenter";
 export * from "./fakes/InMemorySheetStorageAdapter";
 export * from "./TestContext";
 
@@ -28,6 +30,8 @@ const { FakePdfDocumentService } = require("./fakes/FakePdfDocumentService");
 const { FakeAiAnalysisAdapter } = require("./fakes/FakeAiAnalysisAdapter");
 const { FakeDriveNameProvider } = require("./fakes/FakeDriveNameProvider");
 const { InMemoryCacheAdapter, FakeCacheAdapter } = require("./fakes/FakeCacheAdapter");
+const { FakeSpreadsheetLockAdapter } = require("../../src/adapters/fakes/FakeSpreadsheetLockAdapter");
+const { FakeUserInterfacePresenter } = require("../../src/adapters/fakes/FakeUserInterfacePresenter");
 const { InMemorySheetStorageAdapter, FakeSheetStorageAdapter } = require("./fakes/InMemorySheetStorageAdapter");
 const { TestContext, createTestContext } = require("./TestContext");
 
@@ -35,6 +39,8 @@ declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    FakeSpreadsheetLockAdapter,
+    FakeUserInterfacePresenter,
     GasMockHarness,
     CardSerializer,
     CardServiceMocks,

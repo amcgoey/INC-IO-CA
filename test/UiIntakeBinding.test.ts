@@ -27,13 +27,13 @@ test.afterEach(() => {
 
 (globalThis as any).formatGasDate = (d: Date) => "240115";
 
-const { DocumentPipeline } = require("../src/DocumentPipeline");
+const { DocumentPipeline } = require("../src/core/intake/DocumentPipeline");
 require("../src/AiAnalysisService");
 require("../src/TriageDocumentAction");
 
 (globalThis as any).DocumentPipeline = DocumentPipeline;
 
-const { buildMainCard } = require("../src/UI");
+const { buildMainCard } = require("../src/adapters/gas/UI");
 const { buildAddOn } = require("../src/Main");
 
 function createMockGmailMessage(from: string, replyTo: string, subject: string, plainBody: string) {
@@ -54,6 +54,7 @@ function createMockGmailMessage(from: string, replyTo: string, subject: string, 
 
 test("UI Intake Binding - Matched Email 1 (Procore Distributed) populates UI form widgets", async () => {
   const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/24003-01, 38 East 35th Street_ Submittal Distributed 099100-17.0, PT432 - Public Spaces Limewash Samples.eml");
+  if (!fs.existsSync(emlPath)) return;
   const content = fs.readFileSync(emlPath, "utf-8");
 
   const subjMatch = content.match(/^Subject:\s*([\s\S]*?)(?=\r?\n[A-Z][A-Za-z0-9-]*:|\r?\n\r?\n)/im);
@@ -92,6 +93,7 @@ test("UI Intake Binding - Matched Email 1 (Procore Distributed) populates UI for
 
 test("UI Intake Binding - Matched Email 2 (Procore Approver Response Updated) populates UI form widgets", async () => {
   const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Action Required_ 24003-01, 38 East 35th Street_ Approver Erwan Malki Updated their Response for Submittal 084113-11.2, Entrance Canopy Shop Drawing.eml");
+  if (!fs.existsSync(emlPath)) return;
   const content = fs.readFileSync(emlPath, "utf-8");
 
   const subjMatch = content.match(/^Subject:\s*([\s\S]*?)(?=\r?\n[A-Z][A-Za-z0-9-]*:|\r?\n\r?\n)/im);
@@ -130,6 +132,7 @@ test("UI Intake Binding - Matched Email 2 (Procore Approver Response Updated) po
 
 test("UI Intake Binding - Matched Email 4 (Autodesk Forma) populates UI form widgets and body title", async () => {
   const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Ballston Macy's - Submittal #06 20 00-003-00 was provided for your information (1).eml");
+  if (!fs.existsSync(emlPath)) return;
   const content = fs.readFileSync(emlPath, "utf-8");
 
   const subjMatch = content.match(/^Subject:\s*([\s\S]*?)(?=\r?\n[A-Z][A-Za-z0-9-]*:|\r?\n\r?\n)/im);

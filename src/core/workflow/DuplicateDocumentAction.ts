@@ -1,4 +1,4 @@
-/// <reference path="./types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file DuplicateDocumentAction.ts
  * @description DocumentAction implementation for duplicating document files and blobs with clean ID resolution.

@@ -1,3 +1,4 @@
+import { AiAnalysisService, EmailData, AiPredictionResult, DeepAnalysisContext, DeepAnalysisResult, DeepAnalysisPrediction, AIPrediction, DocumentBlob } from './core/interfaces/AiAnalysisService';
 /**
  * @file AiAnalysisService.ts
  * @description Service interface and implementations for Gemini AI email triage and submittal document deep analysis.
@@ -12,6 +13,14 @@
  * @param errorStr - The raw error message or exception object.
  * @returns Redacted error string.
  */
+/** Result container for internal Gemini HTTP fetch operations. */
+interface GeminiFetchResult {
+  success: boolean;
+  response?: GoogleAppsScript.URL_Fetch.HTTPResponse;
+  statusCode?: number | string;
+  errorText?: string;
+}
+
 const sanitizeErrorStringHelper = (errorStr: any): string => {
   if (typeof (globalThis as any).sanitizeErrorString === "function") {
     return (globalThis as any).sanitizeErrorString(errorStr);
@@ -129,7 +138,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (this.driveNameProvider) return this.driveNameProvider;
     if (typeof defaultDriveNameProvider !== "undefined") return defaultDriveNameProvider;
     try {
-      return require("./DriveNameProvider").defaultDriveNameProvider;
+      return require("./GoogleDriveNameProvider").defaultDriveNameProvider;
     } catch (e) {
       return null;
     }
@@ -139,7 +148,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (this.cacheAdapter) return this.cacheAdapter;
     if (typeof defaultCacheAdapter !== "undefined") return defaultCacheAdapter;
     try {
-      return require("./CacheAdapter").defaultCacheAdapter;
+      return (globalThis as any).defaultCacheAdapter || null;
     } catch (e) {
       return null;
     }
@@ -151,12 +160,12 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (pdfService) {
       const ExtractActionClass = typeof ExtractPagesAction !== "undefined"
         ? ExtractPagesAction
-        : require("./ExtractPagesAction").ExtractPagesAction;
+        : require("./core/workflow/ExtractPagesAction").ExtractPagesAction;
       return new ExtractActionClass({ pdfDocumentService: pdfService });
     }
     if (typeof defaultExtractPagesAction !== "undefined") return defaultExtractPagesAction;
     try {
-      return require("./ExtractPagesAction").defaultExtractPagesAction;
+      return require("./core/workflow/ExtractPagesAction").defaultExtractPagesAction;
     } catch (e) {
       return null;
     }

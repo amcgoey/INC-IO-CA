@@ -1,55 +1,11 @@
 /**
  * @file FakeAiAnalysisAdapter.ts
- * @description In-memory fake implementation of `AiAnalysisService` for testing.
+ * @description Test harness re-export of FakeAiAnalysisAdapter from src/adapters/fakes/FakeAiAnalysisAdapter.
  */
 
-export class FakeAiAnalysisAdapter implements AiAnalysisService {
-  /** Recorded triage calls. */
-  public triageCalls: Array<{ emailData: EmailData; messageId?: string; }> = [];
-  /** Recorded analyze calls. */
-  public analyzeCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; emailText: string; contextObj: DeepAnalysisContext }> = [];
-  private triageResult: AiPredictionResult = {
-    success: true,
-    prediction: { predictedProjectName: "Default Project", predictedDiscipline: "Architecture" }
-  };
-  private analysisResult: DeepAnalysisResult = {
-    success: true,
-    analysis: {}
-  };
+import { FakeAiAnalysisAdapter } from '../../../src/adapters/fakes/FakeAiAnalysisAdapter';
 
-  reset(): void {
-    this.triageCalls = [];
-    this.analyzeCalls = [];
-  }
-
-  setTriageResult(result: AiPredictionResult): void {
-    this.triageResult = result;
-  }
-
-  setAnalyzeSubmittalResult(result: DeepAnalysisResult): void {
-    this.analysisResult = result;
-  }
-
-  setAnalysisResult(result: DeepAnalysisResult): void {
-    this.analysisResult = result;
-  }
-
-  /** @override */
-  async triageEmail(emailData: EmailData, messageId?: string): Promise<AiPredictionResult> {
-    this.triageCalls.push({ emailData, messageId });
-    return this.triageResult;
-  }
-
-  /** @override */
-  async analyzeSubmittal(
-    sourceBlob: GoogleAppsScript.Base.Blob,
-    emailText: string,
-    contextObj: DeepAnalysisContext
-  ): Promise<DeepAnalysisResult> {
-    this.analyzeCalls.push({ sourceBlob, emailText, contextObj });
-    return this.analysisResult;
-  }
-}
+export { FakeAiAnalysisAdapter };
 
 declare var module: any;
 if (typeof module !== "undefined" && module.exports) {

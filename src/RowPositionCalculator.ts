@@ -40,7 +40,8 @@ function getBoundedData(logData: any[][]): any[][] {
 
   for (let i = 0; i < logData.length; i++) {
     boundedData.push(logData[i]);
-    if (i >= CONFIG.LOG_HEADER_ROW) {
+    const headerRow = typeof CONFIG !== "undefined" && CONFIG.LOG_HEADER_ROW ? CONFIG.LOG_HEADER_ROW : 3;
+    if (i >= headerRow) {
       let blank = isRowBlank(logData[i]);
       if (String(logData[i][0] || "").toLowerCase().includes("formula row")) {
         blank = false;
@@ -153,7 +154,8 @@ function computeRowInsertionPlan(
   let currentGroup: { val: string; start: number; end: number; rows: Array<{ index: number; key: string }> } | null = null;
   let firstDataRowIdx = -1;
 
-  for (let i = CONFIG.LOG_HEADER_ROW; i < boundedData.length; i++) {
+  const headerRowIdx = typeof CONFIG !== "undefined" && CONFIG.LOG_HEADER_ROW ? CONFIG.LOG_HEADER_ROW : 3;
+  for (let i = headerRowIdx; i < boundedData.length; i++) {
     let row = boundedData[i];
     if (String(row[0] || "").toLowerCase().includes("formula row")) continue;
     if (isRowBlank(row)) {
@@ -198,7 +200,8 @@ function computeRowInsertionPlan(
     };
   } else {
     const firstDataRow1Based = firstDataRowIdx !== -1 ? firstDataRowIdx + 1 : -1;
-    let insertAfterRow1Based = firstDataRow1Based !== -1 ? firstDataRow1Based - 1 : CONFIG.LOG_HEADER_ROW;
+    const headerRowConfig = typeof CONFIG !== "undefined" && CONFIG.LOG_HEADER_ROW ? CONFIG.LOG_HEADER_ROW : 3;
+    let insertAfterRow1Based = firstDataRow1Based !== -1 ? firstDataRow1Based - 1 : headerRowConfig;
     for (let g of groups) {
       if (normalizedTargetGroupKey.localeCompare(g.val) > 0) insertAfterRow1Based = g.end + 1;
     }

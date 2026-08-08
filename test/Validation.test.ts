@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateDocument, FormIntakeParser, DocumentPipeline } from '../src/DocumentPipeline';
+import { validateDocument, FormIntakeParser, DocumentPipeline } from '../src/core/intake/DocumentPipeline';
 
 test('validateDocument - Architecture success path with all fields', () => {
   const raw = {

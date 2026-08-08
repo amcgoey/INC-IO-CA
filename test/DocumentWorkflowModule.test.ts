@@ -1,25 +1,11 @@
 import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 
-const { GasMockHarness, DocumentFactory, createTestContext } = require("./harness");
+const { DocumentFactory, createTestContext } = require("./harness");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
-const { getActionPolicy, getDocumentLogStrategy, getDocumentTitle, DocumentWorkflowModule } = require("../src/DocumentWorkflowModule");
+const { getActionPolicy, getDocumentLogStrategy, getDocumentTitle, DocumentWorkflowModule } = require("../src/core/workflow/DocumentWorkflowModule");
 
-beforeEach(() => {
-  GasMockHarness.install({
-    configOverrides: {
-      LOG_HEADER_ROW: 3,
-      LOG_SHEET_NAME: "Submittals Log",
-      STAMPED_FILE_PREFIX: "STAMPED_",
-      TRANSMITTAL_TEMPLATE_ID: "tmpl-transmittal",
-      PDF_TEMPLATE_ID: "tmpl-pdf"
-    }
-  });
-});
 
-afterEach(() => {
-  GasMockHarness.uninstall();
-});
 
 test("getActionPolicy returns incoming policy for 'Received'", () => {
   const policy = getActionPolicy("Received");
@@ -68,6 +54,7 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
       disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
     }),
     logFileId: "log-ss-123",
+    logSheetId: 101,
     targetFolderId: "folder-target",
     driveFileId: "file-1",
     incomingRouting: "To Refer",
@@ -98,7 +85,7 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
   assert.strictEqual(result.directRowUrl, "https://docs.google.com/spreadsheets/d/log-ss-123/edit#gid=101&range=A5");
 
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 2);
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03 Concrete"]);
   assert.strictEqual(context.driveFilingRepository.filedDocuments[1].options.subfolderPath, undefined);
 
   assert.strictEqual(context.pdfDocumentService.stampCalls.length, 1);
@@ -107,8 +94,7 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
 
 test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl with hyphens and underscores", async () => {
   const context = createTestContext();
-  const driveState = GasMockHarness.instance!.getDriveState();
-  driveState.ensureFile("1234567890abcdefghijklmnopqrst_-ABC", "Test.pdf");
+  // driveFileId provided in input for pure fake filing
 
   const input = {
     validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
@@ -118,8 +104,10 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl with hyphens 
       disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
     }),
     logFileId: "log-ss-123",
+    logSheetId: 101,
     targetFolderId: "folder-target",
     fileSource: "Google Drive URL",
+    driveFileId: "1234567890abcdefghijklmnopqrst_-ABC",
     driveFileUrl: "https://drive.google.com/file/d/1234567890abcdefghijklmnopqrst_-ABC/view",
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
@@ -176,6 +164,7 @@ test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", 
       disciplineDetails: { specTag: "CH-01", specTitle: "Side Chair", vendor: "Furniture Co", revision: "001" }
     }),
     logFileId: "log-ss-ffe",
+    logSheetId: 101,
     targetFolderId: "folder-target",
     driveFileId: "file-ffe-1",
     incomingRouting: "To Review",
@@ -197,15 +186,7 @@ test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", 
 });
 
 test("DocumentWorkflowModule.executeWorkflow handles TEMPLATE_MISSING fallback during PDF stamping", async () => {
-  GasMockHarness.install({
-    configOverrides: {
-      LOG_HEADER_ROW: 3,
-      LOG_SHEET_NAME: "Submittals Log",
-      STAMPED_FILE_PREFIX: "STAMPED_",
-      TRANSMITTAL_TEMPLATE_ID: "tmpl-transmittal",
-      PDF_TEMPLATE_ID: ""
-    }
-  });
+
   const context = createTestContext();
 
   const input = {
@@ -216,6 +197,7 @@ test("DocumentWorkflowModule.executeWorkflow handles TEMPLATE_MISSING fallback d
       disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
     }),
     logFileId: "log-ss-123",
+    logSheetId: 101,
     targetFolderId: "folder-target",
     driveFileId: "file-1",
     incomingRouting: "To Review",
@@ -255,8 +237,7 @@ test("DocumentWorkflowModule.executeWorkflow returns stamped fileId when PDF is 
 
 test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl even when fileSource is omitted", async () => {
   const context = createTestContext();
-  const driveState = GasMockHarness.instance!.getDriveState();
-  driveState.ensureFile("9876543210abcdefghijklmnopqrstuv", "File.pdf");
+  // driveFileId provided in input for pure fake filing
 
   const input = {
     validatedDoc: DocumentFactory.createValidatedArchitectureSubmittal({
@@ -266,7 +247,9 @@ test("DocumentWorkflowModule.executeWorkflow resolves driveFileUrl even when fil
       disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
     }),
     logFileId: "log-ss-123",
+    logSheetId: 101,
     targetFolderId: "folder-target",
+    driveFileId: "9876543210abcdefghijklmnopqrstuv",
     driveFileUrl: "https://drive.google.com/file/d/9876543210abcdefghijklmnopqrstuv/view",
     incomingRouting: "To Review",
     selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
@@ -392,7 +375,7 @@ test("For Incoming Architectural Submittals, original file is saved to Submittal
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
 
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 2);
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03 Concrete"]);
   assert.strictEqual(context.driveFilingRepository.filedDocuments[1].options.subfolderPath, undefined);
   assert.strictEqual(context.driveFilingRepository.filedDocuments[0].options.targetFolderId, "submittals-root-folder-id");
   assert.ok(result.fileId);
@@ -418,6 +401,7 @@ test("DocumentWorkflowModule.executeWorkflow GoogleDrive AppContext OutgoingWork
       disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
     }),
     logFileId: "log-ss-123",
+    logSheetId: 101,
     targetFolderId: "folder-target",
     driveFileId: "file-1",
     selectedAction: { action: "Approved", abbr: " App", status: "Approved" },

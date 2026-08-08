@@ -1,26 +1,12 @@
 import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 
-const { GasMockHarness, DocumentFactory, createTestContext } = require("./harness");
+const { DocumentFactory, createTestContext } = require("./harness");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
-const { OutgoingWorkflow } = require("../src/OutgoingWorkflow");
-const { DocumentWorkflowModule } = require("../src/DocumentWorkflowModule");
+const { OutgoingWorkflow } = require("../src/core/workflow/OutgoingWorkflow");
+const { DocumentWorkflowModule } = require("../src/core/workflow/DocumentWorkflowModule");
 
-beforeEach(() => {
-  GasMockHarness.install({
-    configOverrides: {
-      LOG_HEADER_ROW: 3,
-      LOG_SHEET_NAME: "Submittals Log",
-      STAMPED_FILE_PREFIX: "STAMPED_",
-      TRANSMITTAL_TEMPLATE_ID: "tmpl-transmittal",
-      PDF_TEMPLATE_ID: "tmpl-pdf"
-    }
-  });
-});
 
-afterEach(() => {
-  GasMockHarness.uninstall();
-});
 
 test("OutgoingWorkflow - AppContext = 'Gmail' executes log writing, file renaming, and Closed subfolder move in a single pass", async () => {
   const context = createTestContext();
@@ -68,7 +54,7 @@ test("OutgoingWorkflow - AppContext = 'Gmail' executes log writing, file renamin
 
   // Assert single pass immediate filing into Closed subfolder hierarchy
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03 Concrete"]);
 });
 
 test("OutgoingWorkflow - AppContext = 'Gmail' handles FF&E outgoing submittals with immediate filing", async () => {
@@ -207,7 +193,7 @@ test("OutgoingWorkflow - auto-detects 'Gmail' context when fileSource is 'Email 
   await OutgoingWorkflow.execute(input as any);
 
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03 Concrete"]);
 });
 
 test("DocumentWorkflowModule.executeWorkflow delegates outgoing workflow to OutgoingWorkflow for Gmail context", async () => {
@@ -241,5 +227,5 @@ test("DocumentWorkflowModule.executeWorkflow delegates outgoing workflow to Outg
 
   assert.strictEqual(result.targetKey, "033000-001-001");
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03 Concrete"]);
 });
