@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
 const { GoogleScriptCacheAdapter, defaultCacheAdapter } = require("../src/adapters/gas/GoogleScriptCacheAdapter");
-const { InMemoryCacheAdapter, FakeSpreadsheetLockAdapter, FakeUserInterfacePresenter } = require("../src/adapters/fakes/FakeCacheAdapter");
+const { InMemoryCacheAdapter } = require("../src/adapters/fakes/FakeCacheAdapter");
 const { FakeSpreadsheetLockAdapter: LockAdapter } = require("../src/adapters/fakes/FakeSpreadsheetLockAdapter");
 const { FakeUserInterfacePresenter: UIPresenter } = require("../src/adapters/fakes/FakeUserInterfacePresenter");
 

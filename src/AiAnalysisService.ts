@@ -139,7 +139,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (this.cacheAdapter) return this.cacheAdapter;
     if (typeof defaultCacheAdapter !== "undefined") return defaultCacheAdapter;
     try {
-      return require("./adapters/gas/GoogleScriptCacheAdapter").defaultCacheAdapter;
+      return (globalThis as any).defaultCacheAdapter || null;
     } catch (e) {
       return null;
     }

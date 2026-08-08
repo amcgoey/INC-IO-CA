@@ -9,12 +9,12 @@
  * Interface defining user interface presentation operations.
  */
 interface UserInterfacePresenter {
-  presentValidationError(event: any, errors: string[], missingFields?: string[]): any;
-  presentInteractionPrompt(event: any, promptType: "ADD_TAG" | "ADD_VENDOR", warningMessage: string): any;
-  presentIncomingSuccess(event: any, result: any): any;
-  presentOutgoingSuccess(event: any, result: any, eventParams: Record<string, string>): any;
-  presentCardReload(event: any, isTagChange?: boolean): any;
-  presentNotification(notificationText: string): any;
+  presentValidationError(event: GoogleAppsScriptEvent, errors: string[], missingFields?: string[]): unknown;
+  presentInteractionPrompt(event: GoogleAppsScriptEvent, promptType: "ADD_TAG" | "ADD_VENDOR", warningMessage: string): unknown;
+  presentIncomingSuccess(event: GoogleAppsScriptEvent, result: DocumentWorkflowResult): unknown;
+  presentOutgoingSuccess(event: GoogleAppsScriptEvent, result: DocumentWorkflowResult, eventParams: Record<string, string>): unknown;
+  presentCardReload(event: GoogleAppsScriptEvent, isTagChange?: boolean): unknown;
+  presentNotification(notificationText: string): unknown;
 }
 
 declare var module: any;
