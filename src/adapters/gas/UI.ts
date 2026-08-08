@@ -465,7 +465,7 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
   const analyzeAction = (typeof defaultAnalyzeDocumentAction !== "undefined" && defaultAnalyzeDocumentAction)
     ? defaultAnalyzeDocumentAction
     : ((globalThis as any).defaultAnalyzeDocumentAction || (function() {
-        try { return require("./AnalyzeDocumentAction").defaultAnalyzeDocumentAction; }
+        try { return require("../../AnalyzeDocumentAction").defaultAnalyzeDocumentAction; }
         catch(e) { return new AnalyzeDocumentAction(); }
       })());
   const result = await analyzeAction.execute({ sourceBlob, emailText, contextObj });

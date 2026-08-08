@@ -36,7 +36,17 @@ class GoogleDriveNameProvider implements DriveNameProvider {
     } else if (typeof defaultCacheAdapter !== "undefined") {
       this.cacheAdapter = defaultCacheAdapter;
     } else {
-      this.cacheAdapter = require("./CacheAdapter").defaultCacheAdapter;
+      if (typeof defaultCacheAdapter !== "undefined") {
+      this.cacheAdapter = defaultCacheAdapter;
+    } else if (typeof (globalThis as any).defaultCacheAdapter !== "undefined") {
+      this.cacheAdapter = (globalThis as any).defaultCacheAdapter;
+    } else {
+      try {
+        this.cacheAdapter = require("./adapters/gas/GoogleScriptCacheAdapter").defaultCacheAdapter;
+      } catch (e) {
+        this.cacheAdapter = new (require("./adapters/fakes/FakeCacheAdapter").FakeCacheAdapter)();
+      }
+    }
     }
   }
 

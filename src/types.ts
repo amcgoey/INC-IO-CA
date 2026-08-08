@@ -661,7 +661,7 @@ interface DocumentActionContext<TDoc extends ValidatedDocument = ValidatedDocume
   appContext?: AppContext;
   fileId?: string;
   blob?: GoogleAppsScript.Base.Blob;
-  validatedDoc?: ValidatedDocument;
+  validatedDoc?: TDoc;
   config?: DocumentTypeConfig;
   targetFolderId?: string;
   subfolderPath?: string[];

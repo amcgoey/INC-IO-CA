@@ -1,0 +1,24 @@
+/**
+ * @file UserInterfacePresenter.ts
+ * @description Tier 1 pure core interface defining host-agnostic presentation outcomes for user interface events and workflow results.
+ *
+ * Dual-compatible with Google Apps Script V8 and Node.js without GAS dependencies or Node built-in imports.
+ */
+
+/**
+ * Interface defining user interface presentation operations.
+ */
+interface UserInterfacePresenter {
+  presentValidationError(event: any, errors: string[], missingFields?: string[]): unknown;
+  presentInteractionPrompt(event: any, promptType: "ADD_TAG" | "ADD_VENDOR", warningMessage: string): unknown;
+  presentIncomingSuccess(event: any, result: any): unknown;
+  presentOutgoingSuccess(event: any, result: any, eventParams: Record<string, string>): unknown;
+  presentCardReload(event: any, isTagChange?: boolean): unknown;
+  presentNotification(notificationText: string): unknown;
+}
+
+declare var module: any;
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {};
+}

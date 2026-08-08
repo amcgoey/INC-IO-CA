@@ -7,6 +7,7 @@
  */
 
 class PrefixCacheManager {
+  private static readonly DEFAULT_INDEX_TTL_SECONDS = 21600;
   private cacheAdapter: CacheAdapter;
 
   constructor(cacheAdapter: CacheAdapter) {
@@ -70,7 +71,7 @@ class PrefixCacheManager {
 
     if (filtered.length > 0) {
       // Re-save index with remaining keys (using fallback 21,600s TTL)
-      this.cacheAdapter.put(indexKey, JSON.stringify(filtered), 21600);
+      this.cacheAdapter.put(indexKey, JSON.stringify(filtered), PrefixCacheManager.DEFAULT_INDEX_TTL_SECONDS);
     } else {
       this.cacheAdapter.remove(indexKey);
     }

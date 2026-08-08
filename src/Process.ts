@@ -8,7 +8,7 @@
 
 if (typeof require !== "undefined") {
   try {
-    const cardPresenterModule = eval('require("./CardPresenter")');
+    const cardPresenterModule = eval('require("./adapters/gas/CardPresenter")');
     if (cardPresenterModule) {
       if (cardPresenterModule.defaultCardPresenter && typeof defaultCardPresenter === "undefined") {
         (globalThis as any).defaultCardPresenter = cardPresenterModule.defaultCardPresenter;

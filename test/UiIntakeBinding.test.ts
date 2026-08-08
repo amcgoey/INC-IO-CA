@@ -33,7 +33,7 @@ require("../src/TriageDocumentAction");
 
 (globalThis as any).DocumentPipeline = DocumentPipeline;
 
-const { buildMainCard } = require("../src/UI");
+const { buildMainCard } = require("../src/adapters/gas/UI");
 const { buildAddOn } = require("../src/Main");
 
 function createMockGmailMessage(from: string, replyTo: string, subject: string, plainBody: string) {
