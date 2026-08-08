@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
 const { InMemoryCacheAdapter, FakeCacheAdapter } = require("./harness/index");
-const { GoogleDriveNameProvider, defaultDriveNameProvider } = require("../src/DriveNameProvider");
+const { GoogleDriveNameProvider, defaultDriveNameProvider } = require("../src/core/intake/DriveNameProvider");
 const { FakeDriveNameProvider } = require("./harness/index");
 
 test("FakeCacheAdapter alias is exported and equivalent to InMemoryCacheAdapter", () => {

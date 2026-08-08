@@ -7,7 +7,7 @@
  */
 
 class WriteLogAction<TDoc extends ValidatedDocument = ValidatedDocument>
-  implements DocumentAction<DocumentActionContext<TDoc>, DocumentActionContext<TDoc>> {
+  implements DocumentAction<DocumentActionContext, DocumentActionContext> {
   name: string = 'WriteLog';
 
   /**
@@ -16,7 +16,7 @@ class WriteLogAction<TDoc extends ValidatedDocument = ValidatedDocument>
    * @param context - Action context containing validatedDoc, logRepository adapter, and optional log options.
    * @returns A Promise resolving to updated DocumentActionContext.
    */
-  async execute(context: DocumentActionContext<TDoc>): Promise<DocumentActionContext<TDoc>> {
+  async execute(context: DocumentActionContext): Promise<DocumentActionContext> {
     const logRepository =
       context.adapters?.logRepository ||
       context.logRepository;

@@ -1,3 +1,4 @@
+import { AiAnalysisService, EmailData, AiPredictionResult, DeepAnalysisContext, DeepAnalysisResult, DeepAnalysisPrediction, AIPrediction, GeminiFetchResult } from './core/interfaces/AiAnalysisService';
 /**
  * @file AiAnalysisService.ts
  * @description Service interface and implementations for Gemini AI email triage and submittal document deep analysis.
@@ -129,7 +130,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (this.driveNameProvider) return this.driveNameProvider;
     if (typeof defaultDriveNameProvider !== "undefined") return defaultDriveNameProvider;
     try {
-      return require("./DriveNameProvider").defaultDriveNameProvider;
+      return require("./core/intake/DriveNameProvider").defaultDriveNameProvider;
     } catch (e) {
       return null;
     }
