@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Issue #150 — Google Sheets Contextual Add-on UI Card Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-workspace: #f8f9fa;
+      --bg-sheets-header: #ffffff;
+      --bg-card: #ffffff;
+      --border-color: #e0e0e0;
+      --primary-color: #1a73e8;
+      --primary-hover: #1557b0;
+      --sheets-green: #0f9d58;
+      --text-main: #202124;
+      --text-secondary: #5f6368;
+      --text-muted: #80868b;
+      --badge-log: #e6f4ea;
+      --badge-log-text: #137333;
+      --badge-config: #feefc3;
+      --badge-config-text: #b06000;
+      --badge-audit: #e8eaed;
+      --badge-audit-text: #3c4043;
+      --shadow-sm: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-workspace);
+      color: var(--text-main);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Mock Google Sheets Environment Layout */
+    .sheets-workspace {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #ffffff;
+      border-right: 1px solid var(--border-color);
+    }
+
+    .sheets-top-bar {
+      height: 64px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      background: var(--bg-sheets-header);
+    }
+
+    .sheets-logo {
+      width: 32px;
+      height: 32px;
+      background: var(--sheets-green);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .sheets-title-container {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sheets-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .sheets-menu-bar {
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 12px;
+      margin-top: 2px;
+    }
+
+    .sheets-grid-view {
+      flex: 1;
+      background: #f1f3f4;
+      background-image: 
+        linear-gradient(to right, #e0e0e0 1px, transparent 1px),
+        linear-gradient(to bottom, #e0e0e0 1px, transparent 1px);
+      background-size: 80px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .sheets-tab-bar {
+      height: 36px;
+      background: #ffffff;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      gap: 4px;
+      overflow-x: auto;
+    }
+
+    .sheets-tab {
+      padding: 6px 14px;
+      font-size: 13px;
+      border-radius: 4px 4px 0 0;
+      cursor: pointer;
+      color: var(--text-secondary);
+      background: #f1f3f4;
+      border: 1px solid transparent;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sheets-tab.active {
+      background: #ffffff;
+      color: var(--primary-color);
+      border-color: var(--border-color);
+      border-bottom-color: #ffffff;
+      font-weight: 600;
+    }
+
+    .tab-role-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot-log { background: var(--sheets-green); }
+    .dot-config { background: #f9ab00; }
+    .dot-audit { background: #5f6368; }
+    .dot-doc { background: #1a73e8; }
+    .dot-user { background: #9334e6; }
+
+    /* Google Workspace Add-on Sidebar Container */
+    .addon-sidebar {
+      width: 380px;
+      height: 100vh;
+      background: var(--bg-card);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -2px 0 8px rgba(0,0,0,0.05);
+    }
+
+    .addon-header {
+      height: 56px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: #ffffff;
+    }
+
+    .addon-header-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .addon-header-icon {
+      width: 24px;
+      height: 24px;
+      background: var(--primary-color);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .addon-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Card Section Styling */
+    .card-section {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .card-section-header {
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      background: #f8f9fa;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-section-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .key-value-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .kv-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .kv-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .kv-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Role Badges */
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      width: fit-content;
+    }
+    .badge-LOG_TAB { background: var(--badge-log); color: var(--badge-log-text); }
+    .badge-SYSTEM_CONFIG { background: var(--badge-config); color: var(--badge-config-text); }
+    .badge-AUDIT_LOG { background: var(--badge-audit); color: var(--badge-audit-text); }
+
+    /* Action Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      background: var(--primary-color);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+
+    .btn-outline {
+      background: white;
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+    .btn-outline:hover { background: #f1f3f4; }
+
+    /* Collapsible SheetAdminFoldOut */
+    .foldout-header {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .foldout-header:hover {
+      background: #f1f3f4;
+    }
+
+    /* Toast Notification Banner */
+    .toast-banner {
+      background: #323232;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      animation: fadeIn 0.2s ease-in;
+    }
+
+    /* Floating Prototype Variant Switcher */
+    .prototype-switcher {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #202124;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 24px;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 1000;
+      font-size: 13px;
+    }
+
+    .switcher-btn {
+      background: none;
+      border: none;
+      color: #8ab4f8;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 16px;
+      padding: 0 4px;
+    }
+
+    .switcher-label {
+      font-weight: 500;
+    }
+
+    /* JSON Drawer Modal */
+    .json-drawer {
+      margin-top: 12px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mock Google Sheets Workspace -->
+  <div class="sheets-workspace">
+    <div class="sheets-top-bar">
+      <div class="sheets-logo">田</div>
+      <div class="sheets-title-container">
+        <div class="sheets-title" id="wb-title">PROJ-2026 Architectural Submittals Log</div>
+        <div class="sheets-menu-bar">
+          <span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Data</span><span>Tools</span><span>Extensions</span><span>Help</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheets-grid-view">
+      <div style="padding: 24px; color: #5f6368; font-size: 14px;">
+        <p><b>Google Sheets Active View Mockup</b></p>
+        <p style="margin-top: 8px;">Active spreadsheet container bound to INC Workspace Add-on context (<code>AppContext.GoogleSheets</code>).</p>
+      </div>
+
+      <!-- Tab Bar -->
+      <div class="sheets-tab-bar" id="sheets-tabs">
+        <div class="sheets-tab active" onclick="selectTab('log-wb-001', 'Submittal Arch')">
+          <span class="tab-role-dot dot-log"></span> Submittal Arch
+        </div>
+        <div class="sheets-tab" onclick="selectTab('log-wb-001', 'Submittal FFE')">
+          <span class="tab-role-dot dot-log"></span> Submittal FFE
+        </div>
+        <div class="sheets-tab" onclick="selectTab('log-wb-001', '_Config')">
+          <span class="tab-role-dot dot-config"></span> _Config
+        </div>
+        <div class="sheets-tab" onclick="selectTab('log-wb-001', '_AuditLog')">
+          <span class="tab-role-dot dot-audit"></span> _AuditLog
+        </div>
+        <div class="sheets-tab" onclick="selectTab('log-wb-001', 'Documentation')">
+          <span class="tab-role-dot dot-doc"></span> Documentation
+        </div>
+        <div class="sheets-tab" onclick="selectTab('log-wb-001', 'ScratchPad')">
+          <span class="tab-role-dot dot-user"></span> ScratchPad
+        </div>
+        <div class="sheets-tab" style="margin-left: auto; background: #feefc3; color: #b06000;" onclick="selectTab('non-log-wb-999', 'Summary')">
+          ⚠️ Switch to Non-Log Spreadsheet
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Workspace Add-on Sidebar -->
+  <div class="addon-sidebar">
+    <div class="addon-header">
+      <div class="addon-header-title">
+        <div class="addon-header-icon">INC</div>
+        <span>INC Core Add-on</span>
+      </div>
+      <span style="font-size: 11px; color: var(--text-muted);" id="variant-indicator">Variant A</span>
+    </div>
+
+    <div class="addon-content" id="addon-card-body">
+      <!-- Dynamic Card Rendered Here -->
+    </div>
+  </div>
+
+  <!-- Floating Switcher -->
+  <div class="prototype-switcher">
+    <button class="switcher-btn" onclick="cycleVariant(-1)">‹</button>
+    <span class="switcher-label" id="switcher-label">Variant A — Standard Minimal Layout</span>
+    <button class="switcher-btn" onclick="cycleVariant(1)">›</button>
+  </div>
+
+  <script>
+    const VARIANTS = [
+      { key: 'A', name: 'Variant A — Standard Minimal Layout' },
+      { key: 'B', name: 'Variant B — Tab Context Inspector' },
+      { key: 'C', name: 'Variant C — Admin & Audit Focus' }
+    ];
+
+    let currentVariantIdx = 0;
+    let activeWbId = 'log-wb-001';
+    let activeSheetName = 'Submittal Arch';
+    let auditRunning = false;
+    let auditReport = null;
+    let toastMessage = null;
+
+    const WORKBOOKS = {
+      'log-wb-001': {
+        title: 'PROJ-2026 Architectural Submittals Log',
+        isLog: true,
+        schemaVersion: '1.2.0',
+        sheets: {
+          'Submittal Arch': { role: 'LOG_TAB', docTypeKey: 'SUBMITTAL_ARCH', rowCount: 142 },
+          'Submittal FFE': { role: 'LOG_TAB', docTypeKey: 'SUBMITTAL_FFE', rowCount: 89 },
+          '_Config': { role: 'SYSTEM_CONFIG', docTypeKey: 'N/A', rowCount: 'N/A' },
+          '_AuditLog': { role: 'AUDIT_LOG', docTypeKey: 'N/A', rowCount: 350 },
+          'Documentation': { role: 'DOCUMENTATION', docTypeKey: 'N/A', rowCount: 'N/A' },
+          'ScratchPad': { role: 'USER_CREATED', docTypeKey: 'N/A', rowCount: 'N/A' }
+        }
+      },
+      'non-log-wb-999': {
+        title: 'Q3 Project Financial Estimation.xlsx',
+        isLog: false,
+        schemaVersion: 'N/A',
+        sheets: {
+          'Summary': { role: 'USER_CREATED', docTypeKey: 'N/A', rowCount: 'N/A' }
+        }
+      }
+    };
+
+    function initFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const v = params.get('variant') || 'A';
+      const foundIdx = VARIANTS.findIndex(item => item.key === v);
+      if (foundIdx >= 0) currentVariantIdx = foundIdx;
+      renderAll();
+    }
+
+    function cycleVariant(direction) {
+      currentVariantIdx = (currentVariantIdx + direction + VARIANTS.length) % VARIANTS.length;
+      const variantKey = VARIANTS[currentVariantIdx].key;
+      const newUrl = `${window.location.pathname}?variant=${variantKey}`;
+      window.history.replaceState(null, '', newUrl);
+      renderAll();
+    }
+
+    function selectTab(wbId, sheetName) {
+      activeWbId = wbId;
+      activeSheetName = sheetName;
+      toastMessage = `Context auto-bound to active sheet tab '${sheetName}'.`;
+      renderAll();
+    }
+
+    function runAudit() {
+      auditReport = {
+        timestamp: new Date().toLocaleTimeString(),
+        status: 'HEALTHY',
+        summary: 'All 14 sheet-scoped & workbook-scoped Named Ranges verified.'
+      };
+      toastMessage = 'Schema drift audit completed: HEALTHY (14/14 ranges verified).';
+      renderAll();
+    }
+
+    function purgeCache() {
+      toastMessage = `ScriptCache purged for '${WORKBOOKS[activeWbId].title}'.`;
+      renderAll();
+    }
+
+    function renderAll() {
+      const variant = VARIANTS[currentVariantIdx];
+      document.getElementById('switcher-label').innerText = variant.name;
+      document.getElementById('variant-indicator').innerText = `Variant ${variant.key}`;
+
+      const wb = WORKBOOKS[activeWbId];
+      document.getElementById('wb-title').innerText = wb.title;
+
+      // Update tab active styling
+      const tabs = document.querySelectorAll('.sheets-tab');
+      tabs.forEach(tab => {
+        if (tab.innerText.includes(activeSheetName)) {
+          tab.classList.add('active');
+        } else if (!tab.innerText.includes('Switch')) {
+          tab.classList.remove('active');
+        }
+      });
+
+      const body = document.getElementById('addon-card-body');
+      const sheetInfo = wb.sheets[activeSheetName] || { role: 'USER_CREATED', docTypeKey: 'N/A', rowCount: 'N/A' };
+
+      if (!wb.isLog) {
+        body.innerHTML = `
+          ${toastMessage ? `<div class="toast-banner"><span>${toastMessage}</span></div>` : ''}
+          <div class="card-section">
+            <div class="card-section-header" style="color: #b06000;">⚠️ Unrecognized Document Log</div>
+            <div class="card-section-body">
+              <p style="font-size: 13px; color: var(--text-secondary);">
+                The active spreadsheet <b>${wb.title}</b> is not a recognized Document Log (missing <code>_Config</code> manifest or schema version range).
+              </p>
+              <button class="btn btn-primary" onclick="selectTab('log-wb-001', 'Submittal Arch')">Select Target Log Workbook</button>
+            </div>
+          </div>
+          <div class="card-section" style="opacity: 0.6;">
+            <div class="card-section-header">Sheet Administration (Disabled)</div>
+            <div class="card-section-body">
+              <p style="font-size: 12px; color: var(--text-muted);">Admin actions are inactive for non-DocumentLog spreadsheets.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      let variantSpecificHtml = '';
+      if (variant.key === 'B') {
+        variantSpecificHtml = `
+          <div style="background: #e8f0fe; padding: 10px 12px; border-radius: 6px; font-size: 12px; color: #174ea6;">
+            <b>Tab Classification Matrix:</b> 5-tier role detection active.<br/>
+            Sheet-Scoped Ranges: <code>Headers</code>, <code>Data</code>, <code>FormulaRow</code>.
+          </div>
+        `;
+      } else if (variant.key === 'C') {
+        variantSpecificHtml = `
+          <div style="background: #fce8e6; padding: 10px 12px; border-radius: 6px; font-size: 12px; color: #c5221f;">
+            <b>Cache & Telemetry Inspector:</b> ScriptCache prefix <code>CONFIG_MANIFEST_V1</code> active.
+          </div>
+        `;
+      }
+
+      body.innerHTML = `
+        ${toastMessage ? `<div class="toast-banner"><span>${toastMessage}</span></div>` : ''}
+        ${variantSpecificHtml}
+        <div class="card-section">
+          <div class="card-section-header">Workbook Context</div>
+          <div class="card-section-body">
+            <div class="key-value-item">
+              <span class="kv-label">Active Spreadsheet</span>
+              <span class="kv-value">${wb.title}</span>
+              <span class="kv-sub">ID: ${activeWbId} | Schema v${wb.schemaVersion}</span>
+            </div>
+            <div class="key-value-item">
+              <span class="kv-label">Active Tab & Role</span>
+              <span class="kv-value">${activeSheetName}</span>
+              <span class="role-badge badge-${sheetInfo.role}">${sheetInfo.role}</span>
+            </div>
+            ${sheetInfo.role === 'LOG_TAB' ? `
+              <div class="key-value-item">
+                <span class="kv-label">DocumentType Key</span>
+                <span class="kv-value">${sheetInfo.docTypeKey}</span>
+                <span class="kv-sub">Active Data Rows: ${sheetInfo.rowCount} (bounded by 'Data' range)</span>
+              </div>
+            ` : ''}
+            <button class="btn btn-outline" style="margin-top: 4px;" onclick="renderAll()">🔄 Refresh Context</button>
+          </div>
+        </div>
+
+        <div class="card-section">
+          <div class="card-section-header foldout-header">
+            <span>⚙️ Sheet Administration (SheetAdminFoldOut)</span>
+          </div>
+          <div class="card-section-body">
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-primary" style="flex: 1;" onclick="runAudit()">Run Schema Audit</button>
+              <button class="btn btn-outline" style="flex: 1;" onclick="purgeCache()">Purge ScriptCache</button>
+            </div>
+            ${auditReport ? `
+              <div style="background: #e6f4ea; padding: 10px; border-radius: 4px; font-size: 12px; color: #137333;">
+                <b>Schema Audit Status: ${auditReport.status}</b><br/>
+                ${auditReport.summary}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <div class="card-section">
+          <div class="card-section-header">CardService ActionResponse JSON</div>
+          <div class="card-section-body" style="padding: 8px;">
+            <div class="json-drawer">{
+  "actionResponse": {
+    "type": "UPDATE_CARD",
+    "card": {
+      "header": { "title": "INC Core Add-on", "subtitle": "Google Sheets Sidebar [Variant ${variant.key}]" },
+      "sections": [
+        { "header": "Workbook Context", "activeSheet": "${activeSheetName}", "role": "${sheetInfo.role}" },
+        { "header": "SheetAdminFoldOut", "schemaVersion": "${wb.schemaVersion}" }
+      ]
+    }
+  }
+}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') cycleVariant(-1);
+      if (e.key === 'ArrowRight') cycleVariant(1);
+    });
+
+    initFromUrl();
+  </script>
+</body>
+</html>
