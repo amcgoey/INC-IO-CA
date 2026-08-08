@@ -6,7 +6,7 @@
  * Operates on DocumentActionContext and wraps LogRepository.appendDocument() into a primitive DocumentAction handler.
  */
 
-class WriteLogAction<TDoc extends ValidatedDocument = ValidatedDocument>
+class WriteLogAction
   implements DocumentAction<DocumentActionContext, DocumentActionContext> {
   name: string = 'WriteLog';
 
