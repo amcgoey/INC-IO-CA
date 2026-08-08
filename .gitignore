@@ -5,6 +5,8 @@ node_modules/
 
 # Scratch & Temporary Work
 .scratch/
+scratch/
+
 
 # Environment Variables & Secrets
 .env
