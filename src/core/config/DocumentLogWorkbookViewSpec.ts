@@ -89,6 +89,7 @@ export interface DocumentLogWorkbookViewSpec {
   offsets: LayoutOffsetSpec;
   columnWidths: Record<string, number>;
   defaultColumnWidth: number;
+  defaultFontFamily?: string;
   namedRangeFills?: Record<string, ColorRgb>;
   settingHeaderRanges?: Record<string, string[]>;
   statusColors?: Record<string, { hex: string; rgb: ColorRgb }>;
@@ -104,8 +105,8 @@ export const ThemeColors = {
   HEADER_FILL_RGB: { red: 0.4, green: 0.4, blue: 0.4 },
   HEADER_TEXT_HEX: '#FFFFFF',
   HEADER_TEXT_RGB: { red: 1.0, green: 1.0, blue: 1.0 },
-  FORMULA_ROW_FONT_HEX: '#FFFFFF',
-  FORMULA_ROW_FONT_RGB: { red: 1.0, green: 1.0, blue: 1.0 },
+  FORMULA_ROW_FONT_HEX: '#B7B7B7',
+  FORMULA_ROW_FONT_RGB: hexToRgb('#B7B7B7'),
   FORMULA_ROW_FILL_HEX: '#666666',
   FORMULA_ROW_FILL_RGB: { red: 0.4, green: 0.4, blue: 0.4 },
   PALE_GRAY_HEX,
@@ -133,8 +134,8 @@ export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
     fontColorHex: ThemeColors.HEADER_TEXT_HEX,
     fontColorRgb: ThemeColors.HEADER_TEXT_RGB,
     bold: true,
-    fontSize: 16,
-    fontFamily: 'Roboto'
+    fontSize: 27,
+    fontFamily: 'Abril Fatface'
   },
   dateRowStyle: {
     fillHex: ThemeColors.HEADER_FILL_HEX,
@@ -143,7 +144,7 @@ export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
     fontColorRgb: ThemeColors.HEADER_TEXT_RGB,
     italic: true,
     fontSize: 10,
-    fontFamily: 'Roboto'
+    fontFamily: 'Raleway'
   },
   headerStyle: {
     fillHex: ThemeColors.HEADER_FILL_HEX,
@@ -152,7 +153,7 @@ export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
     fontColorRgb: ThemeColors.HEADER_TEXT_RGB,
     bold: true,
     fontSize: 11,
-    fontFamily: 'Roboto'
+    fontFamily: 'Raleway'
   },
   formulaRowStyle: {
     fontColorHex: ThemeColors.FORMULA_ROW_FONT_HEX,
@@ -160,8 +161,8 @@ export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
     fillHex: ThemeColors.FORMULA_ROW_FILL_HEX,
     fillRgb: ThemeColors.FORMULA_ROW_FILL_RGB,
     italic: true,
-    fontSize: 9,
-    fontFamily: 'Roboto'
+    fontSize: 7,
+    fontFamily: 'Raleway'
   },
   offsets: {
     TITLE_ROW_INDEX: 1,
@@ -195,6 +196,7 @@ export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
     vendor: 180
   },
   defaultColumnWidth: 150,
+  defaultFontFamily: 'Raleway',
   namedRangeFills: {
     MANIFEST_SCHEMA_VERSION: ThemeColors.PALE_GRAY_RGB,
     Config_Manifest: ThemeColors.PALE_GRAY_RGB,

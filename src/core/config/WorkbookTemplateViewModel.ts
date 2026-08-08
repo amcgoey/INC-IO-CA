@@ -231,7 +231,7 @@ export class WorkbookTemplateViewModel {
     this.model.tabs.forEach((tab) => {
       const sheetId = tabIndexMap.get(tab.name)!;
       if ((tab.isLogTab || tab.isAuditLogTab) && tab.columns) {
-        // Row 1: Title Style (16pt bold)
+        // Row 1: Title Style (27pt bold Abril Fatface)
         requests.push({
           repeatCell: {
             range: {
