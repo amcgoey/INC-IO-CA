@@ -475,7 +475,7 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits pre-pass setDa
         startColumnIndex?: number;
         endColumnIndex?: number;
       };
-      rule?: any;
+      rule?: unknown;
     };
   }
 

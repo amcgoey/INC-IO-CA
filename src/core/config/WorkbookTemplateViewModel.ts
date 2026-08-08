@@ -100,19 +100,6 @@ export class WorkbookTemplateViewModel {
       const sheetId = existingSheetId !== undefined ? existingSheetId : index;
       tabIndexMap.set(tab.name, sheetId);
 
-      // Emit pre-pass setDataValidation request (omitting rule) to purge all legacy data validations across full grid range
-      requests.push({
-        setDataValidation: {
-          range: {
-            sheetId,
-            startRowIndex: 0,
-            endRowIndex: tab.rowCount,
-            startColumnIndex: 0,
-            endColumnIndex: tab.columnCount
-          }
-        }
-      });
-
       if (existingSheetId !== undefined) {
         requests.push({
           updateSheetProperties: {
@@ -239,6 +226,22 @@ export class WorkbookTemplateViewModel {
           }
         });
       }
+    });
+
+    // Pre-Pass: Purge legacy data validation rules across full grid range for all tabs
+    this.model.tabs.forEach((tab) => {
+      const sheetId = tabIndexMap.get(tab.name)!;
+      requests.push({
+        setDataValidation: {
+          range: {
+            sheetId,
+            startRowIndex: 0,
+            endRowIndex: tab.rowCount,
+            startColumnIndex: 0,
+            endColumnIndex: tab.columnCount
+          }
+        }
+      });
     });
 
     this.model.tabs.forEach((tab) => {
