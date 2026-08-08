@@ -20,7 +20,7 @@ interface RepeatCellReq {
     cell?: {
       userEnteredFormat?: {
         backgroundColor?: { red: number; green: number; blue: number };
-        textFormat?: { foregroundColor?: { red: number; green: number; blue: number }; bold?: boolean };
+        textFormat?: { foregroundColor?: { red: number; green: number; blue: number }; bold?: boolean; italic?: boolean; fontSize?: number; fontFamily?: string };
       };
     };
   };
@@ -460,4 +460,66 @@ test("indexToColLetter converts column indices to 1-based A1 notation column let
   assert.strictEqual(indexToColLetter(25), "Z");
   assert.strictEqual(indexToColLetter(26), "AA");
   assert.strictEqual(indexToColLetter(27), "AB");
+});
+
+
+test("DOCUMENT_LOG_WORKBOOK_VIEW_SPEC specifies canonical typography tokens: Abril Fatface 27pt Title, Raleway Date/Headers/FormulaRow", () => {
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.titleRowStyle.fontFamily, "Abril Fatface");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.titleRowStyle.fontSize, 27);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.titleRowStyle.bold, true);
+
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.dateRowStyle.fontFamily, "Raleway");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.dateRowStyle.fontSize, 10);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.dateRowStyle.italic, true);
+
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.fontFamily, "Raleway");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.fontSize, 11);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.bold, true);
+
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.formulaRowStyle.fontFamily, "Raleway");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.formulaRowStyle.fontSize, 7);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.formulaRowStyle.italic, true);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.formulaRowStyle.fontColorHex, "#B7B7B7");
+  assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.formulaRowStyle.fontColorRgb, { red: 0.7176, green: 0.7176, blue: 0.7176 });
+
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.defaultFontFamily, "Raleway");
+});
+
+
+test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits exact textFormat font requests for Title, Date, Headers, and FormulaRow", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+
+  const allRequests = payload.requests as RepeatCellReq[];
+
+  const titleReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 0 && r.repeatCell?.range?.startRowIndex === 0 && r.repeatCell?.range?.endRowIndex === 1 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Abril Fatface");
+  assert.ok(titleReq, "Submittal Arch Title Row repeatCell request must exist with Abril Fatface 27pt textFormat");
+  assert.strictEqual(titleReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontSize, 27);
+  assert.strictEqual(titleReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.bold, true);
+
+  const dateReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 0 && r.repeatCell?.range?.startRowIndex === 1 && r.repeatCell?.range?.endRowIndex === 2 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(dateReq, "Submittal Arch Date Row repeatCell request must exist with Raleway 10pt textFormat");
+  assert.strictEqual(dateReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontSize, 10);
+  assert.strictEqual(dateReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.italic, true);
+
+  const headerReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 0 && r.repeatCell?.range?.startRowIndex === 2 && r.repeatCell?.range?.endRowIndex === 3 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(headerReq, "Submittal Arch Header Row repeatCell request must exist with Raleway 11pt bold textFormat");
+  assert.strictEqual(headerReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontSize, 11);
+  assert.strictEqual(headerReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.bold, true);
+
+  const formulaReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 0 && r.repeatCell?.range?.startRowIndex === 3 && r.repeatCell?.range?.endRowIndex === 4 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(formulaReq, "Submittal Arch FormulaRow repeatCell request must exist with Raleway 7pt #B7B7B7 textFormat");
+  assert.strictEqual(formulaReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontSize, 7);
+  assert.strictEqual(formulaReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.italic, true);
+  assert.deepStrictEqual(formulaReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.foregroundColor, { red: 0.7176, green: 0.7176, blue: 0.7176 });
+});
+
+test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits default font family repeatCell requests across all tabs", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+  const allRequests = payload.requests as RepeatCellReq[];
+  const configDefaultFontReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 5 && r.repeatCell?.range?.startRowIndex === 0 && r.repeatCell?.range?.startColumnIndex === 0 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(configDefaultFontReq, "_Config tab default font family repeatCell request must exist with Raleway");
+  const archDefaultFontReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 0 && r.repeatCell?.range?.startRowIndex === 0 && r.repeatCell?.range?.startColumnIndex === 0 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(archDefaultFontReq, "Submittal Arch tab default font family repeatCell request must exist with Raleway");
 });

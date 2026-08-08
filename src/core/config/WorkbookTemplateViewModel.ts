@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file WorkbookTemplateViewModel.ts
  * @description MVVM ViewModel presenter component binding DocumentLogWorkbookSpec (Model)
  * and DocumentLogWorkbookViewSpec (View Spec) to produce offline JSON test fixtures
@@ -228,10 +228,33 @@ export class WorkbookTemplateViewModel {
       }
     });
 
+   const defaultFont = this.viewSpec.defaultFontFamily || "Raleway";
+
     this.model.tabs.forEach((tab) => {
       const sheetId = tabIndexMap.get(tab.name)!;
+
+      // Apply default font family across all cells in tab
+      requests.push({
+        repeatCell: {
+          range: {
+            sheetId,
+            startRowIndex: 0,
+            endRowIndex: tab.rowCount,
+            startColumnIndex: 0,
+            endColumnIndex: tab.columnCount
+          },
+          cell: {
+            userEnteredFormat: {
+              textFormat: {
+                fontFamily: defaultFont
+              }
+            }
+          },
+          fields: "userEnteredFormat.textFormat.fontFamily"
+        }
+      });
       if ((tab.isLogTab || tab.isAuditLogTab) && tab.columns) {
-        // Row 1: Title Style (16pt bold)
+        // Row 1: Title Style (27pt bold Abril Fatface)
         requests.push({
           repeatCell: {
             range: {
