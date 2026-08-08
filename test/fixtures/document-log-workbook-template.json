@@ -54,13 +54,34 @@
       "formulaRow": [],
       "seedRows": [
         [
-          "Contacts_Arch"
+          "Contacts_Arch",
+          "Contacts_FFE",
+          "Actions_Submittal"
         ],
         [
-          "arch-reviewer@example.com"
+          "arch-reviewer@example.com",
+          "ffe-reviewer@example.com",
+          "For Approval"
         ],
         [
-          "arch-lead@example.com"
+          "arch-lead@example.com",
+          "ffe-lead@example.com",
+          "Approved as Noted"
+        ],
+        [
+          "",
+          "",
+          "Revise and Resubmit"
+        ],
+        [
+          "",
+          "",
+          "Rejected"
+        ],
+        [
+          "",
+          "",
+          "For Information Only"
         ]
       ]
     },
@@ -201,6 +222,18 @@
       "name": "Shared_Contacts_Arch",
       "tabName": "_Shared",
       "rangeNotation": "A2:A20",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Shared_Contacts_FFE",
+      "tabName": "_Shared",
+      "rangeNotation": "B2:B20",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Actions_Submittal",
+      "tabName": "_Shared",
+      "rangeNotation": "C2:C20",
       "scope": "Workbook"
     },
     {
