@@ -91,6 +91,7 @@ export interface DocumentLogWorkbookViewSpec {
   defaultColumnWidth: number;
   namedRangeFills?: Record<string, ColorRgb>;
   settingHeaderRanges?: Record<string, string[]>;
+  statusColors?: Record<string, { hex: string; rgb: ColorRgb }>;
 }
 
 const PALE_GRAY_HEX = '#F1F3F4';
@@ -115,6 +116,14 @@ export const ThemeColors = {
   PALE_GREEN_RGB: hexToRgb(PALE_GREEN_HEX),
   PALE_RED_HEX,
   PALE_RED_RGB: hexToRgb(PALE_RED_HEX)
+};
+
+export const StatusColors: Record<string, { hex: string; rgb: ColorRgb }> = {
+  Open: { hex: '#F4CCCC', rgb: hexToRgb('#F4CCCC') },
+  Closed: { hex: '#D9D9D9', rgb: hexToRgb('#D9D9D9') },
+  Waiting: { hex: '#D9D2E9', rgb: hexToRgb('#D9D2E9') },
+  Manager: { hex: '#D0E0E3', rgb: hexToRgb('#D0E0E3') },
+  Billed: { hex: '#D9D9D9', rgb: hexToRgb('#D9D9D9') }
 };
 
 export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
@@ -204,7 +213,8 @@ export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
     _Shared: ['A1:C1', 'E1:G1'],
     'Submittal Arch Support': ['A1:B1'],
     'Submittal FFE Support': ['A1:D1']
-  }
+  },
+  statusColors: StatusColors
 };
 
 export const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC: DocumentLogWorkbookViewSpec = VisualStyleSpec;
@@ -216,6 +226,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hexToRgb,
     ThemeColors,
     VisualStyleSpec,
-    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC
+    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC,
+    StatusColors
   };
 }

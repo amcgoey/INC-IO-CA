@@ -5,8 +5,8 @@ import {
   TabSpec,
   NamedRangeSpec
 } from "../src/core/config/DocumentLogWorkbookSpec";
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, ThemeColors } from "../src/core/config/DocumentLogWorkbookViewSpec";
-import { WorkbookTemplateViewModel } from "../src/core/config/WorkbookTemplateViewModel";
+import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, ThemeColors, StatusColors } from "../src/core/config/DocumentLogWorkbookViewSpec";
+import { WorkbookTemplateViewModel, indexToColLetter } from "../src/core/config/WorkbookTemplateViewModel";
 
 interface RepeatCellReq {
   repeatCell?: {
@@ -357,4 +357,107 @@ test("Log data rows remain unstyled white #FFFFFF without background fill repeat
   );
 
   assert.strictEqual(logDataFills.length, 0, "No repeatCell fill requests must be emitted for log data rows");
+});
+
+
+test("StatusColors defines hex and RGB tokens for Open, Closed, Waiting, Manager, and Billed", () => {
+  assert.ok(StatusColors, "StatusColors must be exported");
+  assert.strictEqual(StatusColors.Open.hex, "#F4CCCC");
+  assert.strictEqual(StatusColors.Closed.hex, "#D9D9D9");
+  assert.strictEqual(StatusColors.Waiting.hex, "#D9D2E9");
+  assert.strictEqual(StatusColors.Manager.hex, "#D0E0E3");
+  assert.strictEqual(StatusColors.Billed.hex, "#D9D9D9");
+
+  assert.ok(StatusColors.Open.rgb);
+  assert.ok(StatusColors.Closed.rgb);
+  assert.ok(StatusColors.Waiting.rgb);
+  assert.ok(StatusColors.Manager.rgb);
+  assert.ok(StatusColors.Billed.rgb);
+});
+
+test("WorkbookTemplateViewModel setDataValidation specifies strict: false (Warning mode) and showCustomUi: true (Chip style)", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+
+  interface DataValidationReq {
+    setDataValidation?: {
+      rule?: {
+        showCustomUi?: boolean;
+        strict?: boolean;
+      };
+    };
+  }
+
+  const validationReqs = (payload.requests as DataValidationReq[]).filter(r => r.setDataValidation);
+  assert.ok(validationReqs.length > 0, "setDataValidation requests must exist");
+
+  validationReqs.forEach(req => {
+    assert.strictEqual(req.setDataValidation?.rule?.strict, false, "Validation strictness must be false (Show Warning mode)");
+    assert.strictEqual(req.setDataValidation?.rule?.showCustomUi, true, "Validation showCustomUi must be true (Chip display style)");
+  });
+});
+
+test("WorkbookTemplateViewModel emits addConditionalFormatRule for status rules across content rows bounded by Top BufferRow and End BufferRow", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+
+  interface ConditionalFormatReq {
+    addConditionalFormatRule?: {
+      rule?: {
+        ranges?: Array<{
+          sheetId?: number;
+          startRowIndex?: number;
+          endRowIndex?: number;
+          startColumnIndex?: number;
+          endColumnIndex?: number;
+        }>;
+        booleanRule?: {
+          condition?: {
+            type?: string;
+            values?: Array<{ userEnteredValue?: string }>;
+          };
+          format?: {
+            backgroundColor?: { red: number; green: number; blue: number };
+          };
+        };
+      };
+      index?: number;
+    };
+  }
+
+  const condReqs = (payload.requests as ConditionalFormatReq[]).filter(r => r.addConditionalFormatRule);
+  assert.ok(condReqs.length >= 10, "Must emit at least 10 status conditional format rules (5 statuses x 2 log tabs)");
+
+  // Check Submittal Arch (sheetId 0) Open status rule
+  const archOpenRule = condReqs.find(
+    r => r.addConditionalFormatRule?.rule?.ranges?.[0]?.sheetId === 0 &&
+         r.addConditionalFormatRule?.rule?.booleanRule?.condition?.values?.[0]?.userEnteredValue === '=$A6="Open"'
+  );
+  assert.ok(archOpenRule, "Submittal Arch Open status conditional format rule must exist");
+  assert.strictEqual(archOpenRule.addConditionalFormatRule?.rule?.ranges?.[0]?.startRowIndex, 5, "Content row start index must be 5 (Row 6)");
+  assert.strictEqual(archOpenRule.addConditionalFormatRule?.rule?.ranges?.[0]?.endRowIndex, 999, "Content row end index must be 999 (Row 1000 End BufferRow excluded)");
+  assert.strictEqual(archOpenRule.addConditionalFormatRule?.rule?.booleanRule?.condition?.type, "CUSTOM_FORMULA");
+  assert.deepStrictEqual(
+    archOpenRule.addConditionalFormatRule?.rule?.booleanRule?.format?.backgroundColor,
+    StatusColors.Open.rgb
+  );
+
+  // Check Submittal FFE (sheetId 1) Closed status rule
+  const ffeClosedRule = condReqs.find(
+    r => r.addConditionalFormatRule?.rule?.ranges?.[0]?.sheetId === 1 &&
+         r.addConditionalFormatRule?.rule?.booleanRule?.condition?.values?.[0]?.userEnteredValue === '=$A6="Closed"'
+  );
+  assert.ok(ffeClosedRule, "Submittal FFE Closed status conditional format rule must exist");
+  assert.deepStrictEqual(
+    ffeClosedRule.addConditionalFormatRule?.rule?.booleanRule?.format?.backgroundColor,
+    StatusColors.Closed.rgb
+  );
+});
+
+test("indexToColLetter converts column indices to 1-based A1 notation column letters", () => {
+  assert.strictEqual(indexToColLetter(0), "A");
+  assert.strictEqual(indexToColLetter(1), "B");
+  assert.strictEqual(indexToColLetter(25), "Z");
+  assert.strictEqual(indexToColLetter(26), "AA");
+  assert.strictEqual(indexToColLetter(27), "AB");
 });
