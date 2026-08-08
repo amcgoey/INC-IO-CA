@@ -139,9 +139,15 @@ test("WorkbookTemplateViewModel binds spec and view spec to export complete fixt
 test('WorkbookTemplateViewModel generates setDataValidation batch update request for Section column referencing =Sections', () => {
   const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
   const payload = viewModel.toBatchUpdateRequestPayload();
-  const validationReqs = payload.requests.filter((r: any) => r.setDataValidation);
+  interface DataValidationRequest {
+    setDataValidation?: {
+      range?: { sheetId?: number };
+      rule?: { condition?: { values?: Array<{ userEnteredValue?: string }> } };
+    };
+  }
+  const validationReqs = (payload.requests as DataValidationRequest[]).filter(r => r.setDataValidation);
   assert.ok(validationReqs.length > 0, 'setDataValidation requests must be generated');
-  const sectionValidation = validationReqs.find((r: any) => r.setDataValidation.rule?.condition?.values?.[0]?.userEnteredValue === '=Sections');
+  const sectionValidation = validationReqs.find(r => r.setDataValidation?.rule?.condition?.values?.[0]?.userEnteredValue === '=Sections');
   assert.ok(sectionValidation, 'Data validation rule for =Sections must be included in batch requests');
-  assert.equal(sectionValidation.setDataValidation.range.sheetId, 3, 'Submittal Arch tab index should match sheetId');
+  assert.equal(sectionValidation?.setDataValidation?.range?.sheetId, 3, 'Submittal Arch tab index should match sheetId');
 });
