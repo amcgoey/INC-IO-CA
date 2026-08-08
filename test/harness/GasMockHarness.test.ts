@@ -255,7 +255,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Config tab (100x20), MANIFEST_SCHEMA_V
   const manifestNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: any) => nr.name === "Config_Manifest");
   assert.ok(manifestNR, "Config_Manifest named range must exist");
   assert.strictEqual(manifestNR.tabName, "_Config");
-  assert.strictEqual(manifestNR.rangeNotation, "A1:B3");
+  assert.strictEqual(manifestNR.rangeNotation, "A1:B5");
 });
 
 test("GasMockHarness resolves MANIFEST_SCHEMA_VERSION from _Config tab in mock spreadsheet", () => {
