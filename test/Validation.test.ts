@@ -556,3 +556,15 @@ test('validateDocument - end-to-end picklist value display label to canonical ke
     }
   }
 });
+
+test('normalizePicklistValue resolves option display labels case-insensitively', () => {
+  const { PicklistResolver } = require('../src/core/config/PicklistResolver');
+  const options = [
+    { label: 'To Refer', value: 'REFER' },
+    { label: 'To File', value: 'FILE' }
+  ];
+  const fieldSpec = { key: 'incomingRouting', options, keyNormalizationRule: 'picklist' as const };
+  assert.equal(PicklistResolver.normalizePicklistValue('to refer', fieldSpec), 'REFER');
+  assert.equal(PicklistResolver.normalizePicklistValue('TO FILE', fieldSpec), 'FILE');
+  assert.equal(PicklistResolver.normalizePicklistValue('Unknown', fieldSpec), 'UNKNOWN');
+});

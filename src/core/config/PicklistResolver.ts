@@ -201,7 +201,7 @@ export class PicklistResolver {
     const rule = (fieldSpec && fieldSpec.keyNormalizationRule) ? fieldSpec.keyNormalizationRule : 'picklist';
 
     if (rule === 'code') {
-      const codePart = rawVal.split(/\s+-\s+|\s+-[A-Za-z]|- [A-Za-z]/)[0];
+      const codePart = rawVal.split(/\s*-\s*[A-Za-z]|\s+-\s+/)[0];
       return codePart.replace(/[\s.-]+/g, '').toUpperCase();
     }
 
