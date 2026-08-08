@@ -13,7 +13,8 @@
     "check-models": "npx tsx scripts/check-models.ts",
     "preview:card": "npx tsx scripts/previewCard.ts",
     "prototype:intake-card": "npx tsx scripts/prototype-intake-card.ts",
-    "prototype:usercache-state": "npx tsx scripts/prototype-usercache-state.ts"
+    "prototype:usercache-state": "npx tsx scripts/prototype-usercache-state.ts",
+    "prototype:cross-log-scanner": "npx tsx scripts/prototype-cross-log-scanner.ts"
   },
   "devDependencies": {
     "@google/clasp": "^2.4.2",
