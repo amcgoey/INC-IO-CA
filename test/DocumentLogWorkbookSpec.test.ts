@@ -128,12 +128,12 @@ test('DocumentLogWorkbookSpec - defines Sections sheet-scoped and workbook-scope
   const namedRanges = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges;
   const sectionsSheet = namedRanges.find(r => r.name === 'Sections' && r.tabName === 'Submittal Arch Support');
   assert.ok(sectionsSheet, 'Sheet-Scoped Sections named range must exist on Submittal Arch Support');
-  assert.equal(sectionsSheet.rangeNotation, 'A2:B6');
+  assert.equal(sectionsSheet.rangeNotation, 'A2:B20');
   assert.equal(sectionsSheet.scope, 'Sheet');
 
   const sectionsWb = namedRanges.find(r => r.name === 'Submittal_Arch_Support_Sections');
   assert.ok(sectionsWb, 'Workbook-Scoped Submittal_Arch_Support_Sections range must exist');
-  assert.equal(sectionsWb.rangeNotation, 'A2:B6');
+  assert.equal(sectionsWb.rangeNotation, 'A2:B20');
   assert.equal(sectionsWb.scope, 'Workbook');
 });
 
@@ -167,4 +167,23 @@ test('DocumentLogWorkbookSpec - defines Contacts multi-column picklist schema in
   assert.ok(headers.includes('Contact Type'), 'Header must contain Contact Type');
   assert.ok(headers.includes('Contact Abbr.'), 'Header must contain Contact Abbr.');
   assert.ok(headers.includes('Contact Full Name'), 'Header must contain Contact Full Name');
+});
+
+
+test('DocumentLogWorkbookSpec - Submittal Arch and Submittal FFE MAP/LAMBDA formulas start input ranges at Row 4 (FormulaRow)', () => {
+  const archTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal Arch');
+  const ffeTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal FFE');
+
+  assert.ok(archTab?.columns, 'Submittal Arch columns must be defined');
+  assert.ok(ffeTab?.columns, 'Submittal FFE columns must be defined');
+
+  archTab.columns.filter(c => c.formula).forEach(col => {
+    assert.ok(!col.formula.includes('6:'), 'Submittal Arch column ' + col.id + ' formula must not contain Row 6 range reference: ' + col.formula);
+    assert.ok(col.formula.includes('4:'), 'Submittal Arch column ' + col.id + ' formula must reference Row 4 input range: ' + col.formula);
+  });
+
+  ffeTab.columns.filter(c => c.formula).forEach(col => {
+    assert.ok(!col.formula.includes('6:'), 'Submittal FFE column ' + col.id + ' formula must not contain Row 6 range reference: ' + col.formula);
+    assert.ok(col.formula.includes('4:'), 'Submittal FFE column ' + col.id + ' formula must reference Row 4 input range: ' + col.formula);
+  });
 });

@@ -98,7 +98,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
   );
   assert.ok(wbConfigFFE, "Workbook-scoped Config_Submittal_FFE named range must exist");
   assert.strictEqual(wbConfigFFE.tabName, "_Config");
-  assert.strictEqual(wbConfigFFE.rangeNotation, "A5:D7");
+  assert.strictEqual(wbConfigFFE.rangeNotation, "A7:D9");
   assert.strictEqual(wbConfigFFE.scope, "Workbook");
 
   const wbHeaders = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
@@ -172,14 +172,14 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE Support tab with Vendor a
     (nr: NamedRangeSpec) => nr.name === "Vendors" && nr.tabName === "Submittal FFE Support"
   );
   assert.ok(vendorsNR, "Vendors named range must exist on Submittal FFE Support");
-  assert.strictEqual(vendorsNR.rangeNotation, "A2:B7");
+  assert.strictEqual(vendorsNR.rangeNotation, "A2:B20");
   assert.strictEqual(vendorsNR.scope, "Sheet");
 
   const specTagsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
     (nr: NamedRangeSpec) => nr.name === "SpecTags" && nr.tabName === "Submittal FFE Support"
   );
   assert.ok(specTagsNR, "SpecTags named range must exist on Submittal FFE Support");
-  assert.strictEqual(specTagsNR.rangeNotation, "C2:D7");
+  assert.strictEqual(specTagsNR.rangeNotation, "C2:D20");
   assert.strictEqual(specTagsNR.scope, "Sheet");
 });
 
@@ -191,7 +191,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines MAP/LAMBDA formulas in Submittal FFE in
   const calcTitleCol = ffeTab.columns.find((c) => c.id === "calcTitle");
   assert.ok(calcTitleCol, "calcTitle column must exist");
   assert.ok(calcTitleCol.formula, "calcTitle formula must be defined");
-  assert.ok(calcTitleCol.formula.includes("MAP(B6:B, E6:E, LAMBDA("), "calcTitle formula must be a MAP/LAMBDA expression");
+  assert.ok(calcTitleCol.formula.includes("MAP(B4:B, E4:E, LAMBDA("), "calcTitle formula must be a MAP/LAMBDA expression");
   assert.ok(calcTitleCol.formula.includes("VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE)"), "calcTitle formula must perform VLOOKUP against SpecTags");
 
   const calcFileNameCol = ffeTab.columns.find((c) => c.id === "calcFileName");
@@ -278,7 +278,7 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell req
   const manifestFillIdx = allRequests.findIndex(
     r => r.repeatCell?.range?.sheetId === 5 &&
          r.repeatCell?.range?.startRowIndex === 0 &&
-         r.repeatCell?.range?.endRowIndex === 3 &&
+         r.repeatCell?.range?.endRowIndex === 5 &&
          r.repeatCell?.cell?.userEnteredFormat?.backgroundColor &&
          !r.repeatCell?.cell?.userEnteredFormat?.textFormat
   );
