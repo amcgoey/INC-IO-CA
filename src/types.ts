@@ -643,6 +643,22 @@ interface DocumentWorkflowResult {
 
 
 /** Configuration schema encapsulating document-type specific rules, search criteria, and adapter selection keys. */
+/** Property schema defining a single document field specification for UI, validation, and log row formatting. */
+interface DocumentFieldSpec {
+  key: string;
+  label: string;
+  type: 'string' | 'multiline' | 'date' | 'list' | 'enum';
+  required?: boolean;
+  description?: string;
+  defaultValue?: string;
+  isCalculated?: boolean;
+  optionsRange?: string;
+  options?: Array<{ label: string; value: string }>;
+  keyNormalizationRule?: 'picklist' | 'code' | 'exact';
+  header?: string;
+  formulaOrFunction?: string;
+}
+
 interface DocumentTypeConfig {
   documentType: 'Submittal' | 'RFI' | string;
   rootFolderSearchTerms: string[];
@@ -658,6 +674,7 @@ interface DocumentTypeConfig {
   filingAdapterKey: string;
   pdfAdapterKey?: string;
   aiAdapterKey?: string;
+  fields?: DocumentFieldSpec[];
 }
 
 interface ContextAdapters {

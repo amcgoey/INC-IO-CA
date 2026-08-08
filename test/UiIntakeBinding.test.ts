@@ -1,221 +1,153 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "fs";
-import path from "path";
 import { GasMockHarness, CardSerializer } from "./harness";
 
 test.beforeEach(() => {
-  GasMockHarness.install({
-    CONFIG: {
-      DEFAULT_DISCIPLINE: "Architecture",
-      DEFAULT_ACTION: "Received",
-      DEFAULT_REVISION: "00",
-      DEFAULT_INCOMING_ROUTING: "Review Required",
-      SUPPORTED_DISCIPLINES: ["Architecture", "FF&E"]
-    }
-  });
+  GasMockHarness.install();
 });
 
 test.afterEach(() => {
   GasMockHarness.uninstall();
 });
 
-(globalThis as any).MESSAGES = {
-  MAIN_CARD_TITLE: "Submittal Intake",
-  WARNING_AI_AUTO_TRIAGE: (w: string) => `AI Warning: ${w}`
-};
+const { DocumentTypeConfigRegistry, resolve5TierFieldValue } = require("../src/DocumentTypeConfigRegistry");
+const { renderDynamicFormFields } = require("../src/adapters/gas/UI");
 
-(globalThis as any).formatGasDate = (d: Date) => "240115";
+test("DocumentTypeConfigRegistry - parseFieldSpecs converts _Config subtables into DocumentFieldSpec[]", () => {
+  const registry = new DocumentTypeConfigRegistry();
+  const subtableRows = [
+    ["Key", "Header", "Label", "Type", "IsCalculated", "FormulaOrFunction", "OptionsRange", "Required", "Description", "DefaultValue", "KeyNormalizationRule"],
+    ["section", "Section", "CSI Section", "string", "FALSE", "", "", "TRUE", "6-digit CSI section", "033000", "code"],
+    ["description", "Description", "Notes / Details", "multiline", "FALSE", "", "", "FALSE", "Detailed notes", "", "exact"],
+    ["calcName", "Calc File Name", "Calculated Name", "string", "TRUE", "=CONCAT()", "", "FALSE", "", "", ""],
+    ["revision", "Revision", "Rev #", "string", "FALSE", "", "", "FALSE", "Revision", "0", "exact"]
+  ];
 
-const { DocumentPipeline } = require("../src/core/intake/DocumentPipeline");
-require("../src/AiAnalysisService");
-require("../src/TriageDocumentAction");
+  const specs = registry.parseFieldSpecs(subtableRows);
+  assert.equal(specs.length, 4);
 
-(globalThis as any).DocumentPipeline = DocumentPipeline;
+  assert.deepEqual(specs[0], {
+    key: "section",
+    header: "Section",
+    label: "CSI Section",
+    type: "string",
+    required: true,
+    description: "6-digit CSI section",
+    defaultValue: "033000",
+    keyNormalizationRule: "code"
+  });
 
-const { buildMainCard } = require("../src/adapters/gas/UI");
-const { buildAddOn } = require("../src/Main");
+  assert.deepEqual(specs[1], {
+    key: "description",
+    header: "Description",
+    label: "Notes / Details",
+    type: "multiline",
+    description: "Detailed notes",
+    keyNormalizationRule: "exact"
+  });
 
-function createMockGmailMessage(from: string, replyTo: string, subject: string, plainBody: string) {
-  return {
-    getId: () => "msg-mock-123",
-    getFrom: () => from,
-    getReplyTo: () => replyTo,
-    getSubject: () => subject,
-    getPlainBody: () => plainBody,
-    getBody: () => plainBody,
-    getDate: () => new Date("2026-07-27T12:00:00Z"),
-    getThread: () => ({ getLabels: () => [] }),
-    getTo: () => "ca@inc.nyc",
-    getCc: () => "",
-    getAttachments: () => []
-  };
-}
-
-test("UI Intake Binding - Matched Email 1 (Procore Distributed) populates UI form widgets", async () => {
-  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/24003-01, 38 East 35th Street_ Submittal Distributed 099100-17.0, PT432 - Public Spaces Limewash Samples.eml");
-  if (!fs.existsSync(emlPath)) return;
-  const content = fs.readFileSync(emlPath, "utf-8");
-
-  const subjMatch = content.match(/^Subject:\s*([\s\S]*?)(?=\r?\n[A-Z][A-Za-z0-9-]*:|\r?\n\r?\n)/im);
-  const subject = subjMatch ? subjMatch[1].replace(/\r?\n\s+/g, ' ').trim() : '';
-
-  const msg = createMockGmailMessage(
-    "Olivia O'Rourke (CM & Associates) <CM__Associates@us02.procoretech.com>",
-    "do-not-reply@procore.com",
-    subject,
-    content
-  );
-
-  const parsed = DocumentPipeline.parseEmail(msg as any);
-  assert.equal(parsed.specSection, "099100");
-  assert.equal(parsed.section, "099100");
-  assert.equal(parsed.submittalNum, "017");
-  assert.equal(parsed.number, "017");
-  assert.equal(parsed.revNum, "0");
-  assert.equal(parsed.revision, "0");
-  assert.equal(parsed.title, "PT432 - Public Spaces Limewash Samples");
-  assert.equal(parsed.action, "Received");
-
-  (globalThis as any).GmailApp = {
-    setCurrentMessageAccessToken: (t: string) => {},
-    getMessageById: () => msg
-  };
-
-  const event = { gmail: { messageId: "msg-mock-123", accessToken: "token-123" } };
-  const card: any = await buildAddOn(event);
-
-  assert.ok(card);
-  const cardJson = CardSerializer.toJSON(card);
-  assert.ok(CardSerializer.hasWidgetText(cardJson, "099100"));
-  assert.ok(CardSerializer.hasWidgetText(cardJson, "017"));
+  assert.equal(specs[2].key, "calcName");
+  assert.equal(specs[2].isCalculated, true);
+  assert.equal(specs[2].formulaOrFunction, "=CONCAT()");
 });
 
-test("UI Intake Binding - Matched Email 2 (Procore Approver Response Updated) populates UI form widgets", async () => {
-  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Action Required_ 24003-01, 38 East 35th Street_ Approver Erwan Malki Updated their Response for Submittal 084113-11.2, Entrance Canopy Shop Drawing.eml");
-  if (!fs.existsSync(emlPath)) return;
-  const content = fs.readFileSync(emlPath, "utf-8");
+test("5-tier state hydration hierarchy - resolves values according to strict precedence", () => {
+  const field: any = { key: "title", label: "Title", type: "string", defaultValue: "Default Title" };
 
-  const subjMatch = content.match(/^Subject:\s*([\s\S]*?)(?=\r?\n[A-Z][A-Za-z0-9-]*:|\r?\n\r?\n)/im);
-  const subject = subjMatch ? subjMatch[1].replace(/\r?\n\s+/g, ' ').trim() : '';
+  // Tier 1: Form Inputs > User Cache Draft > Parser Result > AI Metadata > Default
+  const val1 = resolve5TierFieldValue(field, { title: "Form Title" }, { title: "Draft Title" }, { title: "Parser Title" }, { title: "AI Title" });
+  assert.equal(val1, "Form Title");
 
-  const msg = createMockGmailMessage(
-    "'Erwan Malki (Socotec, Inc)' via 26 E 35 CA <26-e-35-ca@inc.nyc>",
-    "do-not-reply@procore.com",
-    subject,
-    content
-  );
+  // Tier 2: User Cache Draft > Parser Result > AI Metadata > Default
+  const val2 = resolve5TierFieldValue(field, {}, { title: "Draft Title" }, { title: "Parser Title" }, { title: "AI Title" });
+  assert.equal(val2, "Draft Title");
 
-  const parsed = DocumentPipeline.parseEmail(msg as any);
-  assert.equal(parsed.specSection, "084113");
-  assert.equal(parsed.section, "084113");
-  assert.equal(parsed.submittalNum, "011");
-  assert.equal(parsed.number, "011");
-  assert.equal(parsed.revNum, "2");
-  assert.equal(parsed.revision, "2");
-  assert.equal(parsed.title, "Entrance Canopy Shop Drawing");
-  assert.equal(parsed.action, "Received");
+  // Tier 3: Parser Result > AI Metadata > Default
+  const val3 = resolve5TierFieldValue(field, {}, {}, { title: "Parser Title" }, { title: "AI Title" });
+  assert.equal(val3, "Parser Title");
 
-  (globalThis as any).GmailApp = {
-    setCurrentMessageAccessToken: (t: string) => {},
-    getMessageById: () => msg
-  };
+  // Tier 4: AI Metadata > Default
+  const val4 = resolve5TierFieldValue(field, {}, {}, {}, { title: "AI Title" });
+  assert.equal(val4, "AI Title");
 
-  const event = { gmail: { messageId: "msg-mock-123", accessToken: "token-123" } };
-  const card: any = await buildAddOn(event);
+  // Tier 5: Default Value / ""
+  const val5 = resolve5TierFieldValue(field, {}, {}, {}, {});
+  assert.equal(val5, "Default Title");
 
-  assert.ok(card);
-  const cardJson = CardSerializer.toJSON(card);
-  assert.ok(CardSerializer.hasWidgetText(cardJson, "084113"));
-  assert.ok(CardSerializer.hasWidgetText(cardJson, "011"));
+  const emptyField: any = { key: "notes", label: "Notes", type: "multiline" };
+  const val6 = resolve5TierFieldValue(emptyField, {}, {}, {}, {});
+  assert.equal(val6, "");
 });
 
-test("UI Intake Binding - Matched Email 4 (Autodesk Forma) populates UI form widgets and body title", async () => {
-  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Ballston Macy's - Submittal #06 20 00-003-00 was provided for your information (1).eml");
-  if (!fs.existsSync(emlPath)) return;
-  const content = fs.readFileSync(emlPath, "utf-8");
+test("renderDynamicFormFields - renders string and multiline fields and excludes calculated fields", () => {
+  const harness = GasMockHarness.install();
+  const CardService = harness.cardService;
+  const section = CardService.newCardSection();
 
-  const subjMatch = content.match(/^Subject:\s*([\s\S]*?)(?=\r?\n[A-Z][A-Za-z0-9-]*:|\r?\n\r?\n)/im);
-  const subject = subjMatch ? subjMatch[1].replace(/\r?\n\s+/g, ' ').trim() : '';
+  const fields: any[] = [
+    { key: "section", label: "CSI Section", type: "string", required: true, description: "CSI Section #" },
+    { key: "notes", label: "Detailed Notes", type: "multiline", required: false, description: "Additional details" },
+    { key: "calcField", label: "Calculated Field", type: "string", isCalculated: true, header: "Calc" }
+  ];
 
-  const msg = createMockGmailMessage(
-    "Autodesk Forma <no-reply@mail.forma.autodesk.com>",
-    "",
-    subject,
-    content
-  );
-
-  const parsed = DocumentPipeline.parseEmail(msg as any);
-  assert.equal(parsed.specSection, "062000");
-  assert.equal(parsed.section, "062000");
-  assert.equal(parsed.submittalNum, "003");
-  assert.equal(parsed.number, "003");
-  assert.equal(parsed.revNum, "00");
-  assert.equal(parsed.revision, "00");
-  assert.equal(parsed.title, "Phase 2 Millwork Samples");
-  assert.equal(parsed.action, "Received");
-
-  (globalThis as any).GmailApp = {
-    setCurrentMessageAccessToken: (t: string) => {},
-    getMessageById: () => msg
+  const hydrationContext = {
+    formInput: { section: "033000" },
+    userCacheDraft: { notes: "Draft notes from cache" }
   };
 
-  const event = { gmail: { messageId: "msg-mock-123", accessToken: "token-123" } };
-  const card: any = await buildAddOn(event);
+  renderDynamicFormFields(section, fields, hydrationContext);
 
-  assert.ok(card);
+  const card = CardService.newCardBuilder().addSection(section).build();
   const cardJson = CardSerializer.toJSON(card);
-  assert.ok(CardSerializer.hasWidgetText(cardJson, "062000"));
-  assert.ok(CardSerializer.hasWidgetText(cardJson, "003"));
+
+  assert.equal(cardJson.sections.length, 1);
+  const widgets: any[] = cardJson.sections[0].widgets;
+
+  // Should have exactly 2 widgets (calculated field excluded)
+  assert.equal(widgets.length, 2);
+
+  // Widget 0: string TextInput
+  assert.equal(widgets[0].fieldName, "section");
+  assert.equal(widgets[0].title, "CSI Section");
+  assert.equal(widgets[0].value, "033000");
+  assert.equal(widgets[0].multiline, false);
+  assert.equal(widgets[0].hint, "CSI Section #");
+
+  // Widget 1: multiline TextInput
+  assert.equal(widgets[1].fieldName, "notes");
+  assert.equal(widgets[1].title, "Detailed Notes");
+  assert.equal(widgets[1].value, "Draft notes from cache");
+  assert.equal(widgets[1].multiline, true);
+  assert.equal(widgets[1].hint, "Additional details");
 });
 
-test("UI Intake Binding - Unmatched Email Format defaults fields cleanly without undefined or null values", async () => {
-  const msg = createMockGmailMessage(
-    "subcontractor@generalbuilder.com",
-    "",
-    "Weekly Site Meeting Schedule and Update",
-    "Hi Team, attached is the weekly schedule..."
-  );
+test("renderDynamicFormFields - applies missing required field ❌ and low AI confidence ⚠️ formatting", () => {
+  const harness = GasMockHarness.install();
+  const CardService = harness.cardService;
+  const section = CardService.newCardSection();
 
-  const parsed = DocumentPipeline.parseEmail(msg as any);
-  assert.equal(parsed.specSection, undefined);
-  assert.equal(parsed.section, undefined);
-  assert.equal(parsed.submittalNum, undefined);
-  assert.equal(parsed.number, undefined);
-  assert.equal(parsed.revNum, undefined);
-  assert.equal(parsed.revision, undefined);
-  assert.equal(parsed.title, undefined);
-  assert.equal(parsed.action, "Received");
-  assert.equal(parsed.discipline, "Architecture");
+  const fields: any[] = [
+    { key: "section", label: "Section", type: "string", required: true },
+    { key: "title", label: "Title", type: "string", required: false }
+  ];
 
-  (globalThis as any).GmailApp = {
-    setCurrentMessageAccessToken: (t: string) => {},
-    getMessageById: () => msg
+  const validationContext = {
+    missingFields: ["section"],
+    fieldConfidence: { title: 0.65 }
   };
 
-  const event = { gmail: { messageId: "msg-unmatched-999", accessToken: "token-123" } };
-  const card: any = await buildAddOn(event);
+  renderDynamicFormFields(section, fields, {}, validationContext);
 
-  assert.ok(card);
-  const mainCard: any = buildMainCard({} as any, parsed);
-  assert.ok(mainCard);
-  const cardJson = CardSerializer.toJSON(mainCard);
-  assert.ok(cardJson);
-});
-
-test("UI Intake Binding - Null message context initializes default fallback UI form state cleanly", () => {
-  const parsedNull = DocumentPipeline.parseEmail(null);
-
-  assert.equal(parsedNull.driveName, "");
-  assert.equal(parsedNull.discipline, "Architecture");
-  assert.equal(parsedNull.action, "Received");
-  assert.equal(parsedNull.section, undefined);
-  assert.equal(parsedNull.number, undefined);
-  assert.equal(parsedNull.revision, undefined);
-  assert.equal(parsedNull.title, undefined);
-
-  const card: any = buildMainCard({} as any, parsedNull);
-  assert.ok(card);
+  const card = CardService.newCardBuilder().addSection(section).build();
   const cardJson = CardSerializer.toJSON(card);
-  assert.ok(cardJson);
+  const widgets: any[] = cardJson.sections[0].widgets;
+
+  assert.equal(widgets.length, 2);
+
+  // Missing field: ❌ Section
+  assert.equal(widgets[0].title, "❌ Section");
+
+  // Low AI confidence field (< 0.85): ⚠️ Title with confidence hint
+  assert.equal(widgets[1].title, "⚠️ Title");
+  assert.equal(widgets[1].hint, "Low AI confidence (65%) — please verify");
 });

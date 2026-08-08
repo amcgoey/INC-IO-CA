@@ -32,6 +32,122 @@ function formatGasDate(d: any): string {
  * @param flashMessage - Optional notification message payload containing warnings, errors, or prompts.
  * @returns A fully constructed `GoogleAppsScript.Card_Service.Card` instance.
  */
+
+/**
+ * Hydration options for 5-tier state resolution.
+ */
+interface HydrationContext {
+  formInput?: Record<string, any>;
+  userCacheDraft?: Record<string, any>;
+  parserResult?: Record<string, any>;
+  aiMetadata?: Record<string, any>;
+}
+
+/**
+ * Validation and AI confidence UI context for dynamic field formatting.
+ */
+interface ValidationUIContext {
+  missingFields?: string[];
+  fieldConfidence?: Record<string, number>;
+  onStateActionName?: string;
+  actionParams?: Record<string, string>;
+}
+
+/**
+ * Dynamically renders form input widgets into a Google Apps Script CardSection driven by DocumentFieldSpec[].
+ *
+ * Rules:
+ * 1. Fields with isCalculated === true are EXCLUDED from form input widget generation.
+ * 2. Field values hydrate via strict 5-tier state hierarchy (Form Inputs -> User Cache Draft -> Parser Result -> AI Metadata -> Field Default / "").
+ * 3. string fields render as standard single-line CardService.newTextInput().
+ * 4. multiline fields render as CardService.newTextInput().setMultiline(true).
+ * 5. Title formatting:
+ *    - Missing required fields (field.required === true && missingFields.includes(field.key)): prefixed with "❌ ".
+ *    - Low AI confidence (< 0.85): prefixed with "⚠️ " and hint set to "Low AI confidence (X%) — please verify".
+ *    - Default: Normal label, hint set to field.description if available.
+ */
+function renderDynamicFormFields(
+  section: GoogleAppsScript.Card_Service.CardSection,
+  fields: DocumentFieldSpec[],
+  hydrationContext: HydrationContext = {},
+  validationContext: ValidationUIContext = {}
+): void {
+  if (!section || !fields || fields.length === 0) return;
+
+  const { formInput = {}, userCacheDraft = {}, parserResult = {}, aiMetadata = {} } = hydrationContext;
+  const { missingFields = [], fieldConfidence = {}, onStateActionName = "onStateChange", actionParams = {} } = validationContext;
+
+  const resolveValue = (globalThis as any).resolve5TierFieldValue || function(
+    f: DocumentFieldSpec,
+    fi: any,
+    ucd: any,
+    pr: any,
+    ai: any
+  ) {
+    const v1 = fi ? fi[f.key] : undefined;
+    if (v1 !== undefined && v1 !== null && String(v1).trim() !== '') return String(v1);
+    const v2 = ucd ? ucd[f.key] : undefined;
+    if (v2 !== undefined && v2 !== null && String(v2).trim() !== '') return String(v2);
+    const v3 = pr ? pr[f.key] : undefined;
+    if (v3 !== undefined && v3 !== null && String(v3).trim() !== '') return String(v3);
+    const v4 = ai ? ai[f.key] : undefined;
+    if (v4 !== undefined && v4 !== null && String(v4).trim() !== '') return String(v4);
+    return f.defaultValue !== undefined ? f.defaultValue : '';
+  };
+
+  fields.forEach(field => {
+    // Rule 1: Exclude calculated fields
+    if (field.isCalculated === true) {
+      return;
+    }
+
+    // Rule 2: 5-tier state hydration
+    const hydratedValue = resolveValue(field, formInput, userCacheDraft, parserResult, aiMetadata);
+
+    // Rule 5: Formatting title and hints
+    const isMissing = field.required && missingFields.includes(field.key);
+    const confidence = fieldConfidence[field.key];
+    const isLowConfidence = confidence !== undefined && confidence < 0.85;
+
+    let displayTitle = field.label || field.key;
+    if (isMissing) {
+      displayTitle = `❌ ${displayTitle}`;
+    } else if (isLowConfidence) {
+      displayTitle = `⚠️ ${displayTitle}`;
+    }
+
+    let hintText = field.description || "";
+    if (isLowConfidence) {
+      const pct = Math.round(confidence * 100);
+      hintText = `Low AI confidence (${pct}%) — please verify`;
+    }
+
+    // Rule 3 & 4: Render TextInput or Multiline TextInput
+    const inputWidget = CardService.newTextInput()
+      .setFieldName(field.key)
+      .setTitle(displayTitle)
+      .setValue(hydratedValue);
+
+    if (field.type === 'multiline') {
+      inputWidget.setMultiline(true);
+    }
+
+    if (hintText && typeof inputWidget.setHint === "function") {
+      inputWidget.setHint(hintText);
+    }
+
+    if (onStateActionName) {
+      inputWidget.setOnChangeAction(
+        CardService.newAction()
+          .setFunctionName(onStateActionName)
+          .setParameters(actionParams)
+      );
+    }
+
+    section.addWidget(inputWidget);
+  });
+}
+
 function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null = null, isTagChange = false, flashMessage: any = null): GoogleAppsScript.Card_Service.Card {
   const header = CardService.newCardHeader().setTitle(MESSAGES.MAIN_CARD_TITLE);
   if (CONFIG.LOGO_URL) header.setImageUrl(CONFIG.LOGO_URL);
@@ -804,10 +920,12 @@ function buildUnbiasedIntakeCard(
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
+  (globalThis as any).renderDynamicFormFields = (globalThis as any).renderDynamicFormFields || renderDynamicFormFields;
   (globalThis as any).buildMainCard = (globalThis as any).buildMainCard || buildMainCard;
   (globalThis as any).buildSuccessCard = (globalThis as any).buildSuccessCard || buildSuccessCard;
   (globalThis as any).buildUnbiasedIntakeCard = (globalThis as any).buildUnbiasedIntakeCard || buildUnbiasedIntakeCard;
   module.exports = {
+    renderDynamicFormFields,
     buildMainCard,
     buildSuccessCard,
     buildUnbiasedIntakeCard,
