@@ -28,13 +28,13 @@ function isRowBlank(row: any[]): boolean {
 }
 
 /**
- * Truncates raw 2D spreadsheet data after encountering 3 consecutive blank rows below headers.
+ * Truncates raw 2D spreadsheet data after encountering 5 consecutive blank rows below headers.
  * Ignores "formula row" markers.
  *
  * @param logData - Full 2D array of spreadsheet values.
  * @returns Bounded 2D array ending after data boundaries.
  */
-function getBoundedData(logData: any[][]): any[][] {
+function getBoundedData(logData: unknown[][]): unknown[][] {
   const boundedData: any[][] = [];
   let emptyGapCount = 0;
 
@@ -48,7 +48,7 @@ function getBoundedData(logData: any[][]): any[][] {
       }
       if (blank) {
         emptyGapCount++;
-        if (emptyGapCount >= 3) break;
+        if (emptyGapCount > 5) break;
       } else {
         emptyGapCount = 0;
       }

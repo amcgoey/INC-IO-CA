@@ -8,7 +8,7 @@ const { getBoundedData, getRowGroupKey, getRowSortKey, computeRowInsertionPlan }
 
 const FF_E_HEADERS = ["Spec Tag", "Spec Title", "Vendor", "Revision", "Date"];
 
-test("getBoundedData stops after 3 consecutive empty rows", () => {
+test("getBoundedData tolerates up to 5 consecutive blank rows between submittal groups", () => {
   const headers = ["Section", "Number", "Revision", "Date", "Title", "Contact", "Action", "Notes"];
   const mockData = [
     ["Project Log Banner"],
@@ -18,11 +18,33 @@ test("getBoundedData stops after 3 consecutive empty rows", () => {
     ["", "", "", "", "", "", "", ""],
     ["", "", "", "", "", "", "", ""],
     ["", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", ""],
     ["020000", "001", "001", "240101", "Submittal 2", "Jane", "Received", "Notes 2"]
   ];
 
   const bounded = getBoundedData(mockData);
-  assert.strictEqual(bounded.length, 7);
+  assert.strictEqual(bounded.length, 10);
+  assert.strictEqual(bounded[9][0], "020000");
+});
+
+test("getBoundedData stops after 5 consecutive empty rows without subsequent data", () => {
+  const headers = ["Section", "Number", "Revision", "Date", "Title", "Contact", "Action", "Notes"];
+  const mockData = [
+    ["Project Log Banner"],
+    ["Project Subtitle"],
+    headers,
+    ["010000", "001", "001", "240101", "Submittal 1", "John", "Received", "Notes 1"],
+    ["", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", ""]
+  ];
+
+  const bounded = getBoundedData(mockData);
+  assert.strictEqual(bounded.length, 10);
 });
 
 test("getRowGroupKey formats Architecture section and number", () => {

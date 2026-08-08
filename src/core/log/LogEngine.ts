@@ -9,7 +9,7 @@
 
 declare var require: any;
 
-let getBoundedDataFn: (logData: unknown[][]) => unknown[][] = (globalThis as Record<string, unknown>).getBoundedData as any;
+let getBoundedDataFn: ((logData: unknown[][]) => unknown[][]) | null = null;
 let computeRowInsertionPlanFn: (
   boundedData: unknown[][],
   headers: string[],
@@ -17,6 +17,10 @@ let computeRowInsertionPlanFn: (
   disciplineOrGroupKeyFn: string | RowKeyFn,
   sortKeyFn?: RowKeyFn
 ) => RowInsertionPlan = (globalThis as Record<string, unknown>).computeRowInsertionPlan as any;
+
+if (typeof (globalThis as Record<string, unknown>).getBoundedData === "function") {
+  getBoundedDataFn = (globalThis as Record<string, unknown>).getBoundedData as any;
+}
 
 if (typeof require !== "undefined") {
   try {
@@ -28,8 +32,16 @@ if (typeof require !== "undefined") {
   } catch (e) {}
 }
 
+export function getBoundedData(logData: unknown[][]): unknown[][] {
+  if (getBoundedDataFn) return getBoundedDataFn(logData);
+  if (typeof (globalThis as Record<string, unknown>).getBoundedData === "function") {
+    return ((globalThis as Record<string, unknown>).getBoundedData as any)(logData);
+  }
+  return logData;
+}
+
 /**
- * Extracts the resolved contact abbreviation from a validated document's ListDocumentField metadata.
+ * Extracts the resolved contact abbreviation
  */
 function getContactAbbreviation(document: ValidatedDocument): string {
   return document.listFields?.contact?.abbreviation || "";
@@ -55,6 +67,10 @@ export class LogEngine {
    *
    * @param storageAdapter - Storage adapter executing raw sheet reads/writes.
    */
+  static getBoundedData(logData: unknown[][]): unknown[][] {
+    return getBoundedData(logData);
+  }
+
   constructor(storageAdapter: SheetStorageAdapter) {
     this.storageAdapter = storageAdapter;
   }
@@ -260,7 +276,8 @@ declare var module: Record<string, unknown>;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    LogEngine
+    LogEngine,
+    getBoundedData
   };
 }
 
