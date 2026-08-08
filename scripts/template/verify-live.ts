@@ -308,7 +308,7 @@ export async function runLiveVerification(
       });
 
       console.log(`[LIVE VERIFICATION] Reading back evaluated calculated values via FORMATTED_VALUE...`);
-      const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!H7:L7?valueRenderOption=FORMATTED_VALUE`;
+      const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!K7:O7?valueRenderOption=FORMATTED_VALUE`;
       const readRes = (await executeWithRetry(async () => {
         const res = await fetcher(readUrl, {
           method: "GET",

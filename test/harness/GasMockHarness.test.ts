@@ -361,3 +361,26 @@ test("LogEngine executes audit event logging end-to-end with GasMockHarness Goog
   assert.strictEqual(eventRow[3], "admin@example.com");
   assert.strictEqual(eventRow[4], "SUCCESS");
 });
+
+test("GasMockHarness evaluates VLOOKUP formula and FF&E calculated columns correctly", () => {
+  const harness = GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById("ss-vlookup-test");
+  ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  const vlookupResult = ss.evaluateVlookup("CH-01", "SpecTags", 2, true);
+  assert.strictEqual(vlookupResult, "Dining Chair", "VLOOKUP CH-01 against SpecTags should return Dining Chair");
+
+  const vlookupResult2 = ss.evaluateVlookup("TBL-01", "SpecTags", 2, true);
+  assert.strictEqual(vlookupResult2, "Conference Table", "VLOOKUP TBL-01 against SpecTags should return Conference Table");
+
+  const vlookupUnknown = ss.evaluateVlookup("NONEXISTENT", "SpecTags", 2, true);
+  assert.strictEqual(vlookupUnknown, "#N/A", "VLOOKUP NONEXISTENT against SpecTags should return #N/A");
+
+  const state = harness.getSheetsState("ss-vlookup-test");
+
+  const ffeCalcTitle = state.evaluateFfeFormula("calcTitle", { specTag: "CH-01", specTitle: "Fallback Title" });
+  assert.strictEqual(ffeCalcTitle, "Dining Chair", "calcTitle with CH-01 should auto-populate Dining Chair");
+
+  const ffeFallbackTitle = state.evaluateFfeFormula("calcTitle", { specTag: "UNKNOWN-TAG", specTitle: "Custom Description" });
+  assert.strictEqual(ffeFallbackTitle, "Custom Description", "calcTitle with unknown tag should fall back to specTitle");
+});

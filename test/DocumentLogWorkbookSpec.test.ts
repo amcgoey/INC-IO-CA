@@ -18,14 +18,14 @@ test('DocumentLogWorkbookSpec - defines all 15 columns for Submittal Arch with f
   assert.equal(submittalArchTab.columns.length, 15, 'Submittal Arch must have 15 columns');
 
   const expectedColumns = [
-    { id: 'section', header: 'Section', validationRange: 'Sections' },
+    { id: 'status', header: 'Status', validationRange: 'Actions_Submittal' },
+    { id: 'section', header: 'Section' },
     { id: 'number', header: 'Number' },
-    { id: 'title', header: 'Title' },
     { id: 'revision', header: 'Revision' },
+    { id: 'title', header: 'Title' },
     { id: 'date', header: 'Date' },
     { id: 'contact', header: 'Contact', validationRange: 'Shared_Contacts_Arch' },
     { id: 'action', header: 'Action', validationRange: 'Actions_Submittal' },
-    { id: 'status', header: 'Status', validationRange: 'Actions_Submittal' },
     { id: 'notes', header: 'Notes' },
     { id: 'link', header: 'Link' },
     { id: 'calcFileName', header: 'Calc File Name' },
@@ -105,7 +105,7 @@ test('WorkbookTemplateViewModel - binds model and view spec into fixture JSON an
   assert.ok(submittalArchFixtureTab);
   assert.equal(submittalArchFixtureTab.headers.length, 15);
   assert.equal(submittalArchFixtureTab.formulaRow.length, 15);
-  assert.equal(submittalArchFixtureTab.headers[0], 'Section');
+  assert.equal(submittalArchFixtureTab.headers[0], 'Status');
   assert.equal(submittalArchFixtureTab.headers[10], 'Calc File Name');
 
   const batchPayload = viewModel.toBatchUpdateRequestPayload();
