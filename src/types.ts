@@ -444,6 +444,10 @@ interface LogRepository {
     strategy?: DocumentLogStrategy,
     options?: ReadLogOptions
   ): ReadLogResult;
+  updateDocumentLink?(
+    spreadsheetId: string,
+    options: { sheetName?: string; rowIndex: number; url: string }
+  ): void;
 }
 
 
@@ -635,6 +639,7 @@ interface DocumentWorkflowInput {
   validatedDoc: ValidatedDocument;
   logFileId: string;
   logSheetId?: number;
+  sheetName?: string;
   targetFolderId: string;
   driveFileId?: string;
   blob?: GoogleAppsScript.Base.Blob;

@@ -64,6 +64,7 @@ function safePadNum(val: any, len: number): string {
  * target key identification, tabular row payload formatting, destination file naming, and subfolder placement.
  */
 interface DocumentLogStrategy<T = ValidatedDocument> {
+  readonly logSheetName?: string;
   /** Generates the group key used to cluster related submittals in the log sheet (e.g. section-number or specTag). */
   getGroupKey(doc: T): string;
   /** Generates the sort key used to order submittal revisions within a group. */

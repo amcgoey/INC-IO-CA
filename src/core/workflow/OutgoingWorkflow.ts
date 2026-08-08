@@ -132,6 +132,18 @@ class OutgoingWorkflow {
       );
     }
 
+    const logRepo = input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
+    const finalPdfUrl = finalFilingResult.url || (finalFilingResult.fileId ? `https://drive.google.com/file/d/${finalFilingResult.fileId}/view` : "");
+
+    if (finalPdfUrl && input.logFileId && appendResult.rowIndex > 0 && logRepo && typeof (logRepo as any).updateDocumentLink === "function") {
+      const targetSheetName = input.sheetName || (strategy && strategy.logSheetName ? strategy.logSheetName : null) || (input.validatedDoc?.disciplineDetails?.discipline === "FF&E" ? "Submittal FFE" : "Submittal Arch");
+      (logRepo as any).updateDocumentLink(input.logFileId, {
+        sheetName: targetSheetName,
+        rowIndex: appendResult.rowIndex,
+        url: finalPdfUrl
+      });
+    }
+
     const urlFn = (globalThis as any).buildDirectRowUrl || (typeof buildDirectRowUrl !== "undefined" ? buildDirectRowUrl : null);
     const directRowUrl = urlFn ? urlFn(input.logFileId, appendResult.rowIndex, input.logSheetId, spreadsheetApp) : `https://docs.google.com/spreadsheets/d/${input.logFileId}/edit#gid=0&range=A${appendResult.rowIndex}`;
     const titleFn = (globalThis as any).getDocumentTitle || (typeof getDocumentTitle !== "undefined" ? getDocumentTitle : null);
@@ -140,7 +152,7 @@ class OutgoingWorkflow {
     return {
       fileId: finalFilingResult.fileId || input.driveFileId || "",
       targetKey: appendResult.targetKey,
-      url: finalFilingResult.url,
+      url: finalPdfUrl,
       localPath: finalFilingResult.localPath,
       title: itemTitle || "",
       action: action,
