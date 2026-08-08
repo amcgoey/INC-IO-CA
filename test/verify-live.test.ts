@@ -1,7 +1,7 @@
 /**
  * @file verify-live.test.ts
  * @description Unit tests for verify-live.ts CLI argument parsing, 6-dimension structural auditing,
- * mock row formula evaluation roundtrip, and markdown report generation.
+ * mock row formula evaluation roundtrip, tab taxonomy rules (Log -> Support -> System -> Backup), and markdown report generation.
  */
 
 import test from "node:test";
@@ -149,10 +149,89 @@ test("runLiveVerification - dry-run execution completes 6-dimension checks and w
   assert.strictEqual(result.checks.length, 6);
   assert.strictEqual(result.roundtripResult.passed, true);
 
+  const dim2 = result.checks.find(c => c.dimension.includes("2. Tab Roles"));
+  assert.ok(dim2, "Dimension 2 check should exist");
+  assert.strictEqual(dim2.status, "PASS");
+
   const reportPath = path.resolve(process.cwd(), ".scratch", "mvt-verification-report.md");
   assert.ok(fs.existsSync(reportPath), "Report file should exist");
   const reportContent = fs.readFileSync(reportPath, "utf-8");
   assert.ok(reportContent.includes("# MVT Template Formula Verification Audit Report"));
+});
+
+test("runLiveVerification - Dimension 2 validates tab order and legacy backup tabs", async () => {
+  const options: VerifyLiveOptions = {
+    spreadsheetId: "1TEST_VERIFY_ID",
+    target: "test",
+    dryRun: true
+  };
+
+  const fakeApiFetcher = async (url: string, init: RequestInit): Promise<Response | unknown> => {
+    if (url.includes("fields=sheets")) {
+      return {
+        ok: true,
+        json: async () => ({
+          sheets: [
+            { properties: { title: "Submittal Arch", sheetId: 1 } },
+            { properties: { title: "Submittal FFE", sheetId: 2 } },
+            { properties: { title: "Submittal Arch Support", sheetId: 3 } },
+            { properties: { title: "Submittal FFE Support", sheetId: 4 } },
+            { properties: { title: "_Shared", sheetId: 5 } },
+            { properties: { title: "_Config", sheetId: 6 } },
+            { properties: { title: "_AuditLog", sheetId: 7 } },
+            { properties: { title: "_Backup_Submittal Arch_20260101", sheetId: 8 } }
+          ]
+        })
+      };
+    }
+    return { ok: true, json: async () => ({}) };
+  };
+
+  const result = await runLiveVerification(options, {
+    apiFetcher: fakeApiFetcher,
+    authToken: "ya29.fake_token"
+  });
+
+  const dim2 = result.checks.find(c => c.dimension.includes("2. Tab Roles"));
+  assert.ok(dim2);
+  assert.strictEqual(dim2.status, "PASS");
+  assert.ok(dim2.details.includes("_Backup_Submittal Arch_20260101"));
+});
+
+test("runLiveVerification - Dimension 2 fails when legacy _Backup_* tab is misplaced before system tab", async () => {
+  const options: VerifyLiveOptions = {
+    spreadsheetId: "1TEST_VERIFY_ID",
+    target: "test",
+    dryRun: true
+  };
+
+  const fakeApiFetcher = async (url: string, init: RequestInit): Promise<Response | unknown> => {
+    if (url.includes("fields=sheets")) {
+      return {
+        ok: true,
+        json: async () => ({
+          sheets: [
+            { properties: { title: "Submittal Arch", sheetId: 1 } },
+            { properties: { title: "_Backup_Submittal Arch_20260101", sheetId: 8 } },
+            { properties: { title: "_Config", sheetId: 6 } },
+            { properties: { title: "_Shared", sheetId: 5 } },
+            { properties: { title: "_AuditLog", sheetId: 7 } }
+          ]
+        })
+      };
+    }
+    return { ok: true, json: async () => ({}) };
+  };
+
+  const result = await runLiveVerification(options, {
+    apiFetcher: fakeApiFetcher,
+    authToken: "ya29.fake_token"
+  });
+
+  const dim2 = result.checks.find(c => c.dimension.includes("2. Tab Roles"));
+  assert.ok(dim2);
+  assert.strictEqual(dim2.status, "FAIL");
+  assert.ok(dim2.details.includes("far right"));
 });
 
 test("runLiveVerification - live execution uses mock apiFetcher for sheetId query, mock row append, readback, and deletion", async () => {

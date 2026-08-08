@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../../src/core/config/DocumentLogWorkbookSpec";
 import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../src/core/config/DocumentLogWorkbookViewSpec";
 import { getEnvVars, executeWithRetry } from "./deploy-live";
+import { classifyTabRole, verifyTabTaxonomyOrder } from "../../src/core/log/LogMigrationEngine";
 
 export interface VerifyLiveOptions {
   spreadsheetId: string;
@@ -179,7 +180,7 @@ export function generateMarkdownReport(
     ...checkLines,
     "",
     "## Stage 2: Mock Submittal Row Formula Evaluation Roundtrip",
-    "**Input Row**: Section: \`033000\`, Number: \`1\`, Title: \`Concrete Mix Design\`, Revision: \`0\`, Contact: \`arch-reviewer@example.com\`",
+    "**Input Row**: Section: `033000`, Number: `1`, Title: `Concrete Mix Design`, Revision: `0`, Contact: `arch-reviewer@example.com`",
     "",
     "| Calculated Column | Formula Output | Target Expected | Result |",
     "| --- | --- | --- | --- |",
@@ -212,13 +213,52 @@ export async function runLiveVerification(
     details: `Schema version is ${DOCUMENT_LOG_WORKBOOK_SPEC.schemaVersion}`
   });
 
+  const token = deps.authToken || process.env.GOOGLE_AUTH_TOKEN || process.env.ACCESS_TOKEN;
+  const fetcher = deps.apiFetcher;
+
+  let existingTabs = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.map(t => t.name);
+
+  if (token && fetcher) {
+    try {
+      const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}?fields=sheets(properties(sheetId,title))`;
+      const metaRes = (await executeWithRetry(async () => {
+        const res = await fetcher(metaUrl, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        return typeof (res as Response).json === "function" ? await (res as Response).json() : res;
+      })) as { sheets?: { properties: { sheetId: number; title: string } }[] };
+
+      if (metaRes && metaRes.sheets && metaRes.sheets.length >= 3) {
+        existingTabs = metaRes.sheets.map(s => s.properties.title);
+      }
+    } catch (e) {
+      // fallback to spec tabs if metadata query fails
+    }
+  }
+
   const requiredTabs = ["_Config", "_Shared", "_AuditLog", "Submittal Arch", "Submittal FFE", "Submittal Arch Support", "Submittal FFE Support"];
-  const existingTabs = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.map(t => t.name);
-  const tabsPass = requiredTabs.every(t => existingTabs.includes(t));
+  const requiredExist = requiredTabs.every(t => existingTabs.includes(t));
+  const orderVerification = verifyTabTaxonomyOrder(existingTabs);
+  const backupTabs = existingTabs.filter(t => classifyTabRole(t) === "BACKUP");
+
+  const tabsPass = requiredExist && orderVerification.valid;
+  let tabDetails = `Tabs found: ${existingTabs.join(", ")}`;
+  if (backupTabs.length > 0) {
+    tabDetails += ` (Legacy backup tabs preserved at far right: ${backupTabs.join(", ")})`;
+  }
+  if (!requiredExist) {
+    const missing = requiredTabs.filter(t => !existingTabs.includes(t));
+    tabDetails += ` [Missing required tabs: ${missing.join(", ")}]`;
+  }
+  if (!orderVerification.valid) {
+    tabDetails += ` [${orderVerification.errors.join("; ")}]`;
+  }
+
   checks.push({
     dimension: "2. Tab Roles and Taxonomy",
     status: tabsPass ? "PASS" : "FAIL",
-    details: `Tabs found: ${existingTabs.join(", ")}`
+    details: tabDetails
   });
 
   const nrNames = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.map(nr => nr.name);
@@ -266,9 +306,6 @@ export async function runLiveVerification(
   };
 
   let roundtripResult: RoundtripResult;
-
-  const token = deps.authToken || process.env.GOOGLE_AUTH_TOKEN || process.env.ACCESS_TOKEN;
-  const fetcher = deps.apiFetcher;
 
   if (!opts.dryRun && token && fetcher) {
     try {
