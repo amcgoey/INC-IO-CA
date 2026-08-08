@@ -400,6 +400,7 @@ export class MockSheet {
 
 export class MockSpreadsheet {
   private sheets: Map<string, MockSheet> = new Map();
+  private namedRanges: Map<string, { tabName: string; rangeNotation: string }> = new Map();
   public calls: CallLog[] = [];
 
   constructor(public id: string, public name: string = "Mock Spreadsheet") {
@@ -423,6 +424,41 @@ export class MockSpreadsheet {
   public getSheetByName(name: string): MockSheet | null {
     this.recordCall("getSheetByName", [name]);
     return this.sheets.get(name) || null;
+  }
+
+
+  public setNamedRange(name: string, tabName: string, rangeNotation: string): void {
+    this.namedRanges.set(name, { tabName, rangeNotation });
+  }
+
+  public getRangeByName(name: string): MockRange | null {
+    this.recordCall("getRangeByName", [name]);
+    let targetTab: string | undefined;
+    let notation: string | undefined;
+
+    if (this.namedRanges.has(name)) {
+      const entry = this.namedRanges.get(name)!;
+      targetTab = entry.tabName;
+      notation = entry.rangeNotation;
+    } else if (name.includes("!")) {
+      const parts = name.split("!");
+      targetTab = parts[0].replace(/^'|'$/g, "");
+      notation = parts[1];
+    } else {
+      // Check if any named range ends with !name or has matching name
+      for (const [key, entry] of this.namedRanges.entries()) {
+        if (key === name || key.endsWith("!" + name)) {
+          targetTab = entry.tabName;
+          notation = entry.rangeNotation;
+          break;
+        }
+      }
+    }
+
+    if (!notation) return null;
+    const sheet = targetTab ? this.getSheetByName(targetTab) : (this.getSheets()[0] || null);
+    if (!sheet) return null;
+    return sheet.getRange(notation);
   }
 
   public getSheets(): MockSheet[] {

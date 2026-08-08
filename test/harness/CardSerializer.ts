@@ -14,6 +14,7 @@ import {
   MockImageButton,
   MockTextInput,
   MockSelectionInput,
+  MockDatePicker,
   MockAction,
   MockOpenLink,
   MockActionResponse,
@@ -78,6 +79,16 @@ export interface SelectionItemJson {
   selected: boolean;
 }
 
+
+export interface DatePickerWidgetJson {
+  type: "DatePicker";
+  fieldName?: string;
+  title?: string;
+  valueInMsSinceEpoch?: number;
+  hint?: string;
+  onChangeAction?: ActionJson;
+}
+
 export interface SelectionInputWidgetJson {
   type: "SelectionInput";
   inputType?: string;
@@ -92,6 +103,7 @@ export type WidgetJson =
   | ButtonSetWidgetJson
   | TextInputWidgetJson
   | SelectionInputWidgetJson
+  | DatePickerWidgetJson
   | { type: string; [key: string]: unknown };
 
 export interface SectionJson {
@@ -181,6 +193,17 @@ export class CardSerializer {
       return {
         type: "ButtonSet",
         buttons
+      };
+    }
+
+    if (widget instanceof MockDatePicker || (widget?.setFieldName && widget?.setValueInMsSinceEpoch)) {
+      return {
+        type: "DatePicker",
+        fieldName: widget.fieldName,
+        title: widget.title,
+        valueInMsSinceEpoch: widget.valueInMsSinceEpoch,
+        ...(widget.hint !== undefined ? { hint: widget.hint } : {}),
+        onChangeAction: CardSerializer.serializeAction(widget.onChangeAction)
       };
     }
 

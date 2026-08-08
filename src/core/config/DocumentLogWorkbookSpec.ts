@@ -95,6 +95,28 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "link", header: "Link" },
         { id: "contactHistory", header: "Contact History" }
       ]
+    },
+    {
+      name: "Submittal Arch Support",
+      rowCount: 100,
+      columnCount: 10,
+      isSupportTab: true,
+      seedRows: [
+        ["Section Key", "Section Label"],
+        ["033000", "Cast-in-Place Concrete"],
+        ["081100", "Metal Doors"]
+      ]
+    },
+    {
+      name: "Submittal FFE Support",
+      rowCount: 100,
+      columnCount: 10,
+      isSupportTab: true,
+      seedRows: [
+        ["Vendor Key", "Vendor Label", "SpecTag Key", "SpecTag Label"],
+        ["ACME", "Acme Supplies", "CH-01", "Dining Chair"],
+        ["GLOBAL", "Global Materials", "TBL-01", "Conference Table"]
+      ]
     }
   ],
   namedRanges: [
@@ -108,7 +130,10 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Sheet" },
     { name: "Submittal_Arch_Headers", tabName: "Submittal Arch", rangeNotation: "A1:K2", scope: "Workbook" },
     { name: "Submittal_Arch_FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Workbook" },
-    { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Workbook" }
+    { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Workbook" },
+    { name: "Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Sheet" },
+    { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Sheet" },
+    { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Sheet" }
   ]
 };
 
