@@ -11,6 +11,7 @@ import * as path from "node:path";
 import {
   parseVerifyArgs,
   evaluateArchFormula,
+  evaluateAllArchFormulas,
   generateMarkdownReport,
   runLiveVerification,
   VerifyLiveOptions,
@@ -87,6 +88,25 @@ test("evaluateArchFormula - correctly evaluates all 5 calculated submittal colum
   assert.strictEqual(calcSort, "0330000001");
 });
 
+test("evaluateAllArchFormulas - computes all columns and returns passed boolean", () => {
+  const sampleRow = {
+    section: "033000",
+    number: 1,
+    title: "Concrete Mix Design",
+    revision: "0",
+    contact: "arch-reviewer@example.com"
+  };
+
+  const res = evaluateAllArchFormulas(sampleRow);
+
+  assert.strictEqual(res.calcFileName, "033000-001-Concrete Mix Design-0");
+  assert.strictEqual(res.calcNumber, "033000-001-0");
+  assert.strictEqual(res.calcTitle, "Concrete Mix Design");
+  assert.strictEqual(res.calcContactChain, "arch-reviewer@example.com");
+  assert.strictEqual(res.calcSort, "0330000001");
+  assert.strictEqual(res.passed, true);
+});
+
 test("evaluateArchFormula - returns empty string when section is missing", () => {
   const emptyRow = { section: "", number: 1, title: "Test", revision: "0", contact: "a@b.com" };
   assert.strictEqual(evaluateArchFormula("calcFileName", emptyRow), "");
@@ -135,7 +155,7 @@ test("runLiveVerification - dry-run execution completes 6-dimension checks and w
   assert.ok(reportContent.includes("# MVT Template Formula Verification Audit Report"));
 });
 
-test("runLiveVerification - live execution uses mock apiFetcher for mock row append, readback, and deletion", async () => {
+test("runLiveVerification - live execution uses mock apiFetcher for sheetId query, mock row append, readback, and deletion", async () => {
   const options: VerifyLiveOptions = {
     spreadsheetId: "1LIVE_VERIFY_ID",
     target: "test",
@@ -144,8 +164,11 @@ test("runLiveVerification - live execution uses mock apiFetcher for mock row app
 
   const apiCalls: { url: string; method: string }[] = [];
 
-  const fakeApiFetcher = async (url: string, init: any) => {
+  const fakeApiFetcher = async (url: string, init: RequestInit): Promise<Response | unknown> => {
     apiCalls.push({ url, method: init.method || "GET" });
+    if (url.includes("fields=sheets")) {
+      return { ok: true, json: async () => ({ sheets: [{ properties: { title: "Submittal Arch", sheetId: 101 } }] }) };
+    }
     if (url.includes(":append")) {
       return { ok: true, json: async () => ({ updates: { updatedRange: "'Submittal Arch'!A5:Z5" } }) };
     }
@@ -173,4 +196,25 @@ test("runLiveVerification - live execution uses mock apiFetcher for mock row app
   assert.ok(apiCalls.some((c) => c.url.includes(":append")));
   assert.ok(apiCalls.some((c) => c.url.includes("/values/")));
   assert.ok(apiCalls.some((c) => c.url.includes(":batchUpdate")));
+});
+
+test("runLiveVerification - live execution reports failure on live API error without masking", async () => {
+  const options: VerifyLiveOptions = {
+    spreadsheetId: "1LIVE_FAIL_ID",
+    target: "test",
+    dryRun: false
+  };
+
+  const fakeFailingApiFetcher = async (url: string, init: RequestInit): Promise<Response | unknown> => {
+    throw new Error("HTTP 403 Forbidden: Insufficient Permissions");
+  };
+
+  const result = await runLiveVerification(options, {
+    apiFetcher: fakeFailingApiFetcher,
+    authToken: "ya29.failing_token"
+  });
+
+  assert.strictEqual(result.success, false);
+  assert.strictEqual(result.roundtripResult.passed, false);
+  assert.strictEqual(result.roundtripResult.calcFileName, "API_ERROR");
 });

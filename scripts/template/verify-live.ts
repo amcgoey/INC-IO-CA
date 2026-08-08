@@ -26,7 +26,7 @@ export interface RoundtripResult {
 }
 
 export interface VerifyDependencies {
-  apiFetcher?: (url: string, init: any) => Promise<any>;
+  apiFetcher?: (url: string, init: RequestInit) => Promise<Response | unknown>;
   authToken?: string;
 }
 
@@ -38,6 +38,14 @@ export interface VerifyLiveResult {
   checks: StructuralDimensionCheck[];
   roundtripResult: RoundtripResult;
   reportPath: string;
+}
+
+export interface SampleSubmittalRow {
+  section: string;
+  number: number;
+  title: string;
+  revision: string;
+  contact: string;
 }
 
 export function parseVerifyArgs(
@@ -91,7 +99,7 @@ export function parseVerifyArgs(
 
 export function evaluateArchFormula(
   columnIdOrFormula: string,
-  row: { section: string; number: number; title: string; revision: string; contact: string }
+  row: SampleSubmittalRow
 ): string {
   if (!row.section) {
     return "";
@@ -136,6 +144,23 @@ export function evaluateArchFormula(
     return secPadded + numSortPadded;
   }
   return "";
+}
+
+export function evaluateAllArchFormulas(row: SampleSubmittalRow): RoundtripResult {
+  const calcFileName = evaluateArchFormula("calcFileName", row);
+  const calcNumber = evaluateArchFormula("calcNumber", row);
+  const calcTitle = evaluateArchFormula("calcTitle", row);
+  const calcContactChain = evaluateArchFormula("calcContactChain", row);
+  const calcSort = evaluateArchFormula("calcSort", row);
+
+  const passed =
+    calcFileName === "033000-001-Concrete Mix Design-0" &&
+    calcNumber === "033000-001-0" &&
+    calcTitle === "Concrete Mix Design" &&
+    calcContactChain === "arch-reviewer@example.com" &&
+    calcSort === "0330000001";
+
+  return { calcFileName, calcNumber, calcTitle, calcContactChain, calcSort, passed };
 }
 
 export function generateMarkdownReport(
@@ -232,7 +257,7 @@ export async function runLiveVerification(
     details: `Submittal Arch has ${validationCols.length} validated dropdown columns`
   });
 
-  const sampleRow = {
+  const sampleRow: SampleSubmittalRow = {
     section: "033000",
     number: 1,
     title: "Concrete Mix Design",
@@ -240,18 +265,27 @@ export async function runLiveVerification(
     contact: "arch-reviewer@example.com"
   };
 
-  let calcFileName = "";
-  let calcNumber = "";
-  let calcTitle = "";
-  let calcContactChain = "";
-  let calcSort = "";
+  let roundtripResult: RoundtripResult;
 
   const token = deps.authToken || process.env.GOOGLE_AUTH_TOKEN || process.env.ACCESS_TOKEN;
   const fetcher = deps.apiFetcher;
 
   if (!opts.dryRun && token && fetcher) {
     try {
-      console.log(`[LIVE VERIFICATION] Appending mock test submittal row to live spreadsheet...`);
+      console.log(`[LIVE VERIFICATION] Querying spreadsheet sheet properties...`);
+      const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}?fields=sheets(properties(sheetId,title))`;
+      const metaRes = (await executeWithRetry(async () => {
+        const res = await fetcher(metaUrl, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        return typeof (res as Response).json === "function" ? await (res as Response).json() : res;
+      })) as { sheets?: { properties: { sheetId: number; title: string } }[] };
+
+      const submittalArchTab = metaRes?.sheets?.find(s => s.properties?.title === "Submittal Arch");
+      const targetSheetId = submittalArchTab?.properties?.sheetId ?? 3;
+
+      console.log(`[LIVE VERIFICATION] Appending mock test submittal row to live spreadsheet (Tab sheetId: ${targetSheetId})...`);
       const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!A5:Z5:append?valueInputOption=USER_ENTERED`;
       const rowValues = [
         sampleRow.section,
@@ -273,22 +307,22 @@ export async function runLiveVerification(
 
       console.log(`[LIVE VERIFICATION] Reading back evaluated calculated values via FORMATTED_VALUE...`);
       const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!H5:L5?valueRenderOption=FORMATTED_VALUE`;
-      const readRes = await executeWithRetry(async () => {
+      const readRes = (await executeWithRetry(async () => {
         const res = await fetcher(readUrl, {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` }
         });
-        return typeof res.json === "function" ? await res.json() : res;
-      });
+        return typeof (res as Response).json === "function" ? await (res as Response).json() : res;
+      })) as { values?: string[][] };
 
       const returnedValues = readRes?.values?.[0] || [];
-      calcFileName = returnedValues[0] || evaluateArchFormula("calcFileName", sampleRow);
-      calcNumber = returnedValues[1] || evaluateArchFormula("calcNumber", sampleRow);
-      calcTitle = returnedValues[2] || evaluateArchFormula("calcTitle", sampleRow);
-      calcContactChain = returnedValues[3] || evaluateArchFormula("calcContactChain", sampleRow);
-      calcSort = returnedValues[4] || evaluateArchFormula("calcSort", sampleRow);
+      const calcFileName = returnedValues[0] || evaluateArchFormula("calcFileName", sampleRow);
+      const calcNumber = returnedValues[1] || evaluateArchFormula("calcNumber", sampleRow);
+      const calcTitle = returnedValues[2] || evaluateArchFormula("calcTitle", sampleRow);
+      const calcContactChain = returnedValues[3] || evaluateArchFormula("calcContactChain", sampleRow);
+      const calcSort = returnedValues[4] || evaluateArchFormula("calcSort", sampleRow);
 
-      console.log(`[LIVE VERIFICATION] Cleaning up temporary test submittal row...`);
+      console.log(`[LIVE VERIFICATION] Cleaning up temporary test submittal row (sheetId: ${targetSheetId})...`);
       const deleteUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}:batchUpdate`;
       await executeWithRetry(async () => {
         return fetcher(deleteUrl, {
@@ -299,7 +333,7 @@ export async function runLiveVerification(
               {
                 deleteDimension: {
                   range: {
-                    sheetId: 0,
+                    sheetId: targetSheetId,
                     dimension: "ROWS",
                     startIndex: 4,
                     endIndex: 5
@@ -310,37 +344,30 @@ export async function runLiveVerification(
           })
         });
       });
-    } catch (err: any) {
-      console.warn(`[WARN] Live API roundtrip failed: ${err.message}. Falling back to formula evaluator.`);
-      calcFileName = evaluateArchFormula("calcFileName", sampleRow);
-      calcNumber = evaluateArchFormula("calcNumber", sampleRow);
-      calcTitle = evaluateArchFormula("calcTitle", sampleRow);
-      calcContactChain = evaluateArchFormula("calcContactChain", sampleRow);
-      calcSort = evaluateArchFormula("calcSort", sampleRow);
+
+      const passed =
+        calcFileName === "033000-001-Concrete Mix Design-0" &&
+        calcNumber === "033000-001-0" &&
+        calcTitle === "Concrete Mix Design" &&
+        calcContactChain === "arch-reviewer@example.com" &&
+        calcSort === "0330000001";
+
+      roundtripResult = { calcFileName, calcNumber, calcTitle, calcContactChain, calcSort, passed };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[ERROR] Live API roundtrip failed: ${msg}`);
+      roundtripResult = {
+        calcFileName: "API_ERROR",
+        calcNumber: "API_ERROR",
+        calcTitle: "API_ERROR",
+        calcContactChain: "API_ERROR",
+        calcSort: "API_ERROR",
+        passed: false
+      };
     }
   } else {
-    calcFileName = evaluateArchFormula("calcFileName", sampleRow);
-    calcNumber = evaluateArchFormula("calcNumber", sampleRow);
-    calcTitle = evaluateArchFormula("calcTitle", sampleRow);
-    calcContactChain = evaluateArchFormula("calcContactChain", sampleRow);
-    calcSort = evaluateArchFormula("calcSort", sampleRow);
+    roundtripResult = evaluateAllArchFormulas(sampleRow);
   }
-
-  const roundtripPass =
-    calcFileName === "033000-001-Concrete Mix Design-0" &&
-    calcNumber === "033000-001-0" &&
-    calcTitle === "Concrete Mix Design" &&
-    calcContactChain === "arch-reviewer@example.com" &&
-    calcSort === "0330000001";
-
-  const roundtripResult: RoundtripResult = {
-    calcFileName,
-    calcNumber,
-    calcTitle,
-    calcContactChain,
-    calcSort,
-    passed: roundtripPass
-  };
 
   const scratchDir = path.resolve(process.cwd(), ".scratch");
   if (!fs.existsSync(scratchDir)) {
@@ -352,7 +379,7 @@ export async function runLiveVerification(
   fs.writeFileSync(reportPath, reportMarkdown, "utf-8");
   console.log(`[OK] Verification report written to ${reportPath}`);
 
-  const success = checks.every(c => c.status === "PASS") && roundtripPass;
+  const success = checks.every(c => c.status === "PASS") && roundtripResult.passed;
 
   return {
     success,
@@ -373,12 +400,14 @@ if (require.main === module) {
         console.log(`[SUCCESS] Live verification complete. Result: ${res.success ? "PASSED" : "FAILED"}`);
         process.exit(res.success ? 0 : 1);
       })
-      .catch((err) => {
-        console.error(`[ERROR] Verification failed:`, err);
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[ERROR] Verification failed:`, msg);
         process.exit(1);
       });
-  } catch (err: any) {
-    console.error(`[CLI ERROR] ${err.message}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[CLI ERROR] ${msg}`);
     process.exit(1);
   }
 }
