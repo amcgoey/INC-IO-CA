@@ -6,6 +6,9 @@
 
 export const DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION = "1.0.0";
 
+export const TEST_TEMPLATE_SPREADSHEET_TITLE = "INC Document Log - Test Template";
+export const PROD_TEMPLATE_SPREADSHEET_TITLE = "INC Document Log - Template";
+
 export interface ColumnSpec {
   id: string;
   header: string;
@@ -235,6 +238,8 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION,
+    TEST_TEMPLATE_SPREADSHEET_TITLE,
+    PROD_TEMPLATE_SPREADSHEET_TITLE,
     DOCUMENT_LOG_WORKBOOK_SPEC
   };
 }

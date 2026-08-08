@@ -66,6 +66,33 @@ test("parseVerifyArgs - throws descriptive error if spreadsheet ID cannot be res
   );
 });
 
+test("parseVerifyArgs - resolves TEST_TEMPLATE_SPREADSHEET_ID for target=test", () => {
+  const args = ["--target=test"];
+  const options = parseVerifyArgs(args, { TEST_TEMPLATE_SPREADSHEET_ID: "env_verify_test_template_id" });
+
+  assert.strictEqual(options.spreadsheetId, "env_verify_test_template_id");
+  assert.strictEqual(options.target, "test");
+});
+
+test("parseVerifyArgs - resolves PROD_TEMPLATE_SPREADSHEET_ID for target=prod", () => {
+  const args = ["--target=prod"];
+  const options = parseVerifyArgs(args, { PROD_TEMPLATE_SPREADSHEET_ID: "env_verify_prod_template_id" });
+
+  assert.strictEqual(options.spreadsheetId, "env_verify_prod_template_id");
+  assert.strictEqual(options.target, "prod");
+});
+
+test("parseVerifyArgs - resolves spreadsheet ID from ScriptProperties when omitted in env", () => {
+  const harness = require("./harness/GasMockHarness").GasMockHarness.install();
+  try {
+    harness.scriptProperties.setProperty("TEST_TEMPLATE_SPREADSHEET_ID", "script_prop_verify_test_id");
+    const options = parseVerifyArgs(["--target=test"], {});
+    assert.strictEqual(options.spreadsheetId, "script_prop_verify_test_id");
+  } finally {
+    require("./harness/GasMockHarness").GasMockHarness.uninstall();
+  }
+});
+
 test("evaluateArchFormula - correctly evaluates all 5 calculated submittal columns", () => {
   const sampleRow = {
     section: "033000",

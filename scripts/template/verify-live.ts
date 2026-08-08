@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../../src/core/config/DocumentLogWorkbookSpec";
 import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../src/core/config/DocumentLogWorkbookViewSpec";
-import { getEnvVars, executeWithRetry } from "./deploy-live";
+import { getEnvVars, executeWithRetry, resolveSpreadsheetIdFromProperties } from "./deploy-live";
 import { classifyTabRole, verifyTabTaxonomyOrder } from "../../src/core/log/LogMigrationEngine";
 
 export interface VerifyLiveOptions {
@@ -83,15 +83,9 @@ export function parseVerifyArgs(
   if (!spreadsheetId) {
     const env = envOverride || getEnvVars();
     if (target === "test") {
-      spreadsheetId = env.TEST_TEMPLATE_SPREADSHEET_ID || env.TEST_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
-      if (!spreadsheetId && typeof (globalThis as any).PropertiesService !== "undefined" && (globalThis as any).PropertiesService?.getScriptProperties) {
-        spreadsheetId = (globalThis as any).PropertiesService.getScriptProperties().getProperty("TEST_TEMPLATE_SPREADSHEET_ID") || "";
-      }
+      spreadsheetId = env.TEST_TEMPLATE_SPREADSHEET_ID || resolveSpreadsheetIdFromProperties("test") || env.TEST_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
     } else if (target === "prod") {
-      spreadsheetId = env.PROD_TEMPLATE_SPREADSHEET_ID || env.PROD_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
-      if (!spreadsheetId && typeof (globalThis as any).PropertiesService !== "undefined" && (globalThis as any).PropertiesService?.getScriptProperties) {
-        spreadsheetId = (globalThis as any).PropertiesService.getScriptProperties().getProperty("PROD_TEMPLATE_SPREADSHEET_ID") || "";
-      }
+      spreadsheetId = env.PROD_TEMPLATE_SPREADSHEET_ID || resolveSpreadsheetIdFromProperties("prod") || env.PROD_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
     }
   }
 

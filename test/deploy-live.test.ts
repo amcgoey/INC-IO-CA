@@ -13,6 +13,7 @@ import {
   deployLiveTemplate,
   DeployLiveOptions
 } from "../scripts/template/deploy-live";
+import { TEST_TEMPLATE_SPREADSHEET_TITLE, PROD_TEMPLATE_SPREADSHEET_TITLE } from "../src/core/config/DocumentLogWorkbookSpec";
 import { WorkbookTemplateViewModel } from "../src/core/config/WorkbookTemplateViewModel";
 
 test("parseDeployArgs - parses --spreadsheet-id, --target, and --dry-run flags", () => {
@@ -224,8 +225,8 @@ test("deployLiveTemplate - --create flag invokes createSpreadsheet and provision
     create: true
   };
 
-  const calls: { url: string; body?: any }[] = [];
-  const fakeApiFetcher = async (url: string, init: any) => {
+  const calls: { url: string; body?: unknown }[] = [];
+  const fakeApiFetcher = async (url: string, init: RequestInit) => {
     calls.push({ url, body: init.body ? JSON.parse(init.body) : undefined });
     if (url === "https://www.googleapis.com/drive/v3/files") {
       return {
@@ -250,7 +251,7 @@ test("deployLiveTemplate - --create flag invokes createSpreadsheet and provision
   assert.strictEqual(result.spreadsheetId, "NEWLY_CREATED_SHEET_999");
   assert.strictEqual(calls.length, 2);
   assert.strictEqual(calls[0].url, "https://www.googleapis.com/drive/v3/files");
-  assert.strictEqual(calls[0].body.name, "INC Document Log - Test Template");
+  assert.strictEqual((calls[0].body as { name: string }).name, TEST_TEMPLATE_SPREADSHEET_TITLE);
   assert.ok(calls[1].url.includes("/spreadsheets/NEWLY_CREATED_SHEET_999:batchUpdate"));
 });
 
@@ -289,8 +290,8 @@ test("deployLiveTemplate - --create --target=prod provisions spreadsheet with ti
     create: true
   };
 
-  const calls: { url: string; body?: any }[] = [];
-  const fakeApiFetcher = async (url: string, init: any) => {
+  const calls: { url: string; body?: unknown }[] = [];
+  const fakeApiFetcher = async (url: string, init: RequestInit) => {
     calls.push({ url, body: init.body ? JSON.parse(init.body) : undefined });
     if (url === "https://www.googleapis.com/drive/v3/files") {
       return {
@@ -314,5 +315,5 @@ test("deployLiveTemplate - --create --target=prod provisions spreadsheet with ti
   assert.strictEqual(result.success, true);
   assert.strictEqual(result.spreadsheetId, "NEWLY_CREATED_PROD_123");
   assert.strictEqual(calls[0].url, "https://www.googleapis.com/drive/v3/files");
-  assert.strictEqual(calls[0].body.name, "INC Document Log - Template");
+  assert.strictEqual((calls[0].body as { name: string }).name, PROD_TEMPLATE_SPREADSHEET_TITLE);
 });

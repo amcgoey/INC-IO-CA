@@ -5,7 +5,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../../src/core/config/DocumentLogWorkbookSpec";
+import { DOCUMENT_LOG_WORKBOOK_SPEC, TEST_TEMPLATE_SPREADSHEET_TITLE, PROD_TEMPLATE_SPREADSHEET_TITLE } from "../../src/core/config/DocumentLogWorkbookSpec";
 import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../src/core/config/DocumentLogWorkbookViewSpec";
 import {
   WorkbookTemplateViewModel,
@@ -20,7 +20,7 @@ export interface DeployLiveOptions {
 }
 
 export interface DeployDependencies {
-  apiFetcher?: (url: string, init: any) => Promise<any>;
+  apiFetcher?: (url: string, init: RequestInit) => Promise<unknown>;
   authToken?: string;
 }
 
@@ -37,7 +37,7 @@ export interface DeployLiveResult {
   target: "test" | "prod";
   dryRun: boolean;
   totalRequests: number;
-  response?: any;
+  response?: unknown;
 }
 
 export function getEnvVars(): Record<string, string> {
@@ -157,15 +157,9 @@ export function parseDeployArgs(
   if (!spreadsheetId && !create) {
     const env = envOverride || getEnvVars();
     if (target === "test") {
-      spreadsheetId = env.TEST_TEMPLATE_SPREADSHEET_ID || env.TEST_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
-      if (!spreadsheetId && typeof (globalThis as any).PropertiesService !== "undefined" && (globalThis as any).PropertiesService?.getScriptProperties) {
-        spreadsheetId = (globalThis as any).PropertiesService.getScriptProperties().getProperty("TEST_TEMPLATE_SPREADSHEET_ID") || "";
-      }
+      spreadsheetId = env.TEST_TEMPLATE_SPREADSHEET_ID || resolveSpreadsheetIdFromProperties("test") || env.TEST_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
     } else if (target === "prod") {
-      spreadsheetId = env.PROD_TEMPLATE_SPREADSHEET_ID || env.PROD_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
-      if (!spreadsheetId && typeof (globalThis as any).PropertiesService !== "undefined" && (globalThis as any).PropertiesService?.getScriptProperties) {
-        spreadsheetId = (globalThis as any).PropertiesService.getScriptProperties().getProperty("PROD_TEMPLATE_SPREADSHEET_ID") || "";
-      }
+      spreadsheetId = env.PROD_TEMPLATE_SPREADSHEET_ID || resolveSpreadsheetIdFromProperties("prod") || env.PROD_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
     }
   }
 
@@ -204,10 +198,11 @@ export async function executeWithRetry<T>(
   while (true) {
     try {
       return await operation();
-    } catch (error: any) {
+    } catch (error: unknown) {
       attempt++;
-      const statusCode = error?.status || error?.statusCode || error?.code || error?.response?.status;
-      const message = error?.message || String(error);
+      const errObj = error as { status?: number; statusCode?: number; code?: number; response?: { status?: number }; message?: string };
+      const statusCode = errObj?.status || errObj?.statusCode || errObj?.code || errObj?.response?.status;
+      const message = errObj?.message || String(error);
 
       const isQuotaOrRateLimit =
         statusCode === 429 ||
@@ -231,6 +226,31 @@ export async function executeWithRetry<T>(
   }
 }
 
+interface ScriptPropertiesLike {
+  getProperty(key: string): string | null;
+  setProperty(key: string, value: string): unknown;
+}
+
+interface PropertiesServiceLike {
+  getScriptProperties(): ScriptPropertiesLike;
+}
+
+function getGlobalPropertiesService(): PropertiesServiceLike | undefined {
+  const g = globalThis as unknown as { PropertiesService?: PropertiesServiceLike };
+  return typeof g.PropertiesService !== "undefined" && typeof g.PropertiesService?.getScriptProperties === "function"
+    ? g.PropertiesService
+    : undefined;
+}
+
+export function resolveSpreadsheetIdFromProperties(target: "test" | "prod"): string {
+  const key = target === "prod" ? "PROD_TEMPLATE_SPREADSHEET_ID" : "TEST_TEMPLATE_SPREADSHEET_ID";
+  const service = getGlobalPropertiesService();
+  if (service) {
+    return service.getScriptProperties().getProperty(key) || "";
+  }
+  return "";
+}
+
 export function saveSpreadsheetId(target: "test" | "prod", id: string): void {
   const key = target === "prod" ? "PROD_TEMPLATE_SPREADSHEET_ID" : "TEST_TEMPLATE_SPREADSHEET_ID";
   try {
@@ -243,30 +263,33 @@ export function saveSpreadsheetId(target: "test" | "prod", id: string): void {
       content = content ? content.trim() + "\n" + key + "=" + id + "\n" : key + "=" + id + "\n";
     }
     fs.writeFileSync(envLocalPath, content, "utf-8");
-  } catch (err: any) {
-    console.warn("[WARN] Could not save " + key + " to .env.local: " + err.message);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[WARN] Could not save " + key + " to .env.local: " + msg);
   }
 
-  if (typeof (globalThis as any).PropertiesService !== "undefined" && (globalThis as any).PropertiesService?.getScriptProperties) {
+  const service = getGlobalPropertiesService();
+  if (service) {
     try {
-      (globalThis as any).PropertiesService.getScriptProperties().setProperty(key, id);
-    } catch (err: any) {
-      console.warn("[WARN] Could not save " + key + " to ScriptProperties: " + err.message);
+      service.getScriptProperties().setProperty(key, id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn("[WARN] Could not save " + key + " to ScriptProperties: " + msg);
     }
   }
 }
 
 export async function createSpreadsheet(
-  title: string = "INC Document Log - Test Template",
+  title: string = TEST_TEMPLATE_SPREADSHEET_TITLE,
   token?: string,
-  fetcher?: (url: string, init: any) => Promise<any>
+  fetcher?: (url: string, init: RequestInit) => Promise<unknown>
 ): Promise<{ spreadsheetId: string; spreadsheetUrl: string }> {
   const endpoint = "https://www.googleapis.com/drive/v3/files";
-  const customFetcher = fetcher || (async (url: string, init: any) => {
+  const customFetcher = fetcher || (async (url: string, init: RequestInit) => {
     const res = await fetch(url, init);
     if (!res.ok) {
       const errText = await res.text();
-      const err: any = new Error(`Google Drive API Create Error (${res.status}): ${errText}`);
+      const err: Error & { status?: number } = new Error(`Google Drive API Create Error (${res.status}): ${errText}`);
       err.status = res.status;
       throw err;
     }
@@ -285,10 +308,10 @@ export async function createSpreadsheet(
     })
   };
 
-  const res = await executeWithRetry(async () => {
+  const res = (await executeWithRetry(async () => {
     const response = await customFetcher(endpoint, init);
-    return typeof response.json === "function" ? await response.json() : response;
-  });
+    return typeof (response as Response).json === "function" ? await (response as Response).json() : response;
+  })) as { id: string };
 
   const spreadsheetId = res.id;
   const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
@@ -321,12 +344,15 @@ export async function deployLiveTemplate(
       spreadsheetId = "DRY_RUN_CREATED_SHEET_ID";
     } else {
       console.log(`[CREATE] Creating new Google Spreadsheet via Sheets API v4...`);
-      const title = options.target === "prod" ? "INC Document Log - Template" : "INC Document Log - Test Template";
+      const title = options.target === "prod" ? PROD_TEMPLATE_SPREADSHEET_TITLE : TEST_TEMPLATE_SPREADSHEET_TITLE;
       const created = await createSpreadsheet(title, token, fetcher);
       spreadsheetId = created.spreadsheetId;
-      saveSpreadsheetId(options.target, spreadsheetId);
       console.log(`[OK] Created new Spreadsheet: ${created.spreadsheetUrl}`);
     }
+  }
+
+  if (spreadsheetId && !options.dryRun && spreadsheetId !== "DRY_RUN_CREATED_SHEET_ID") {
+    saveSpreadsheetId(options.target, spreadsheetId);
   }
 
   console.log(`Target Spreadsheet ID: ${spreadsheetId}`);
