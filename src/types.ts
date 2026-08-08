@@ -444,9 +444,9 @@ declare var PicklistResolver: {
     spreadsheet: any,
     docTypeKey?: string,
     activeSheetName?: string,
-    fieldSpec?: DocumentFieldSpec
-  ): { options: PicklistOption[]; warningBanner?: string; auditEvent?: any };
-  normalizePicklistValue(value: string, fieldSpec?: DocumentFieldSpec): string;
+    fieldSpec?: DocumentFieldSpec | MinimalFieldSpec
+  ): { options: PicklistOption[]; success?: boolean; isFallback?: boolean; warningBanner?: string; auditEvent?: any };
+  normalizePicklistValue(value: string, fieldSpec?: DocumentFieldSpec | MinimalFieldSpec): string;
 };
 
 // Global Ambient Function Declarations
@@ -785,17 +785,3 @@ interface PicklistResolveResult {
   warningBanner?: string;
   auditEvent?: { eventType: string; details: string };
 }
-
-interface IPicklistResolver {
-  normalizePicklistValue(value: string, fieldSpec?: DocumentFieldSpec | MinimalFieldSpec): string;
-  resolveFrom2DArray(rows: unknown[][]): PicklistOption[];
-  resolvePicklistOptionsRange(
-    optionsRange: string | undefined,
-    spreadsheet: unknown,
-    docTypeKey?: string,
-    activeSheetName?: string,
-    fieldSpec?: MinimalFieldSpec
-  ): PicklistResolveResult;
-}
-
-declare var PicklistResolver: IPicklistResolver;
