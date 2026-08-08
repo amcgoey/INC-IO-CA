@@ -3,6 +3,18 @@
  * @description Pure core abstract interface seam for Drive filing, folder resolution, and path resolution.
  */
 
+/**
+ * Pure domain blob abstraction representing in-memory file payloads without GAS runtime lock-in.
+ */
+export interface FilingBlob {
+  getBytes?(): number[] | Uint8Array;
+  getName?(): string;
+  getContentType?(): string;
+  copyBlob?(): FilingBlob;
+  setName?(name: string): FilingBlob;
+  [key: string]: any;
+}
+
 export interface FilingOptions {
   targetFolderId: string;
   subfolderPath?: string[];
@@ -19,11 +31,11 @@ export interface FilingResult {
 export interface DriveFilingRepository {
   getLocalPath(fileId: string): string;
   fileDocument(
-    file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob },
+    file: { fileId?: string; blob?: FilingBlob | any },
     options: FilingOptions
   ): FilingResult;
   duplicateDocument?(
-    source: { fileId?: string; blob?: GoogleAppsScript.Base.Blob },
+    source: { fileId?: string; blob?: FilingBlob | any },
     options?: FilingOptions
   ): FilingResult;
 }

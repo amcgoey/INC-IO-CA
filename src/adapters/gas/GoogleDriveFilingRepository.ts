@@ -6,19 +6,13 @@
 
 export class GoogleDriveFilingRepository implements DriveFilingRepository {
   /**
-   * Files a document blob or existing Drive file ID into the specified destination folder hierarchy.
-   * Creates missing subfolders along the subfolderPath array if necessary.
-   *
-   * @param file - Object containing either an existing ileId or new file lob.
-   * @param options - FilingOptions specifying target folder ID, subfolder path segments, and target file name.
-   * @returns FilingResult containing destination file ID, web URL, Windows G:\ local path, and target folder ID.
+   * Traverses or creates missing subfolders along the specified subfolder path array.
    */
-  fileDocument(
-    file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob },
-    options: FilingOptions
-  ): FilingResult {
-    let curFolder = DriveApp.getFolderById(options.targetFolderId);
-    const subfolders = options.subfolderPath || [];
+  private resolveOrCreateSubfolders(
+    startFolder: GoogleAppsScript.Drive.Folder,
+    subfolders: string[]
+  ): GoogleAppsScript.Drive.Folder {
+    let curFolder = startFolder;
     for (const subName of subfolders) {
       const iter = curFolder.getFoldersByName(subName);
       if (iter.hasNext()) {
@@ -27,6 +21,23 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
         curFolder = curFolder.createFolder(subName);
       }
     }
+    return curFolder;
+  }
+
+  /**
+   * Files a document blob or existing Drive file ID into the specified destination folder hierarchy.
+   * Creates missing subfolders along the subfolderPath array if necessary.
+   *
+   * @param file - Object containing either an existing fileId or new file blob.
+   * @param options - FilingOptions specifying target folder ID, subfolder path segments, and target file name.
+   * @returns FilingResult containing destination file ID, web URL, Windows G:\ local path, and target folder ID.
+   */
+  fileDocument(
+    file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob },
+    options: FilingOptions
+  ): FilingResult {
+    const rootFolder = DriveApp.getFolderById(options.targetFolderId);
+    const curFolder = this.resolveOrCreateSubfolders(rootFolder, options.subfolderPath || []);
 
     let filedFile: GoogleAppsScript.Drive.File;
     if (file.fileId) {
@@ -67,17 +78,8 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
   ): FilingResult {
     let targetFolder: GoogleAppsScript.Drive.Folder | null = null;
     if (options && options.targetFolderId) {
-      let curFolder: GoogleAppsScript.Drive.Folder = DriveApp.getFolderById(options.targetFolderId);
-      const subfolders = options.subfolderPath || [];
-      for (const subName of subfolders) {
-        const iter: GoogleAppsScript.Drive.FolderIterator = curFolder.getFoldersByName(subName);
-        if (iter.hasNext()) {
-          curFolder = iter.next();
-        } else {
-          curFolder = curFolder.createFolder(subName);
-        }
-      }
-      targetFolder = curFolder;
+      const rootFolder = DriveApp.getFolderById(options.targetFolderId);
+      targetFolder = this.resolveOrCreateSubfolders(rootFolder, options.subfolderPath || []);
     }
 
     let copiedFile: GoogleAppsScript.Drive.File;

@@ -14,7 +14,7 @@ function resolvePdfDocumentServiceHelper(): PdfDocumentService {
     return defaultPdfDocumentService;
   }
   try {
-    return require("../../PdfDocumentService").defaultPdfDocumentService;
+    return eval("require('../../PdfDocumentService')").defaultPdfDocumentService;
   } catch (e) {
     throw new Error("PdfDocumentService is not available");
   }
