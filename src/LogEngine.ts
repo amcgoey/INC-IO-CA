@@ -1,16 +1,25 @@
 /**
  * @file LogEngine.ts
- * @description Forwarding re-export wrapper for LogEngine domain engine relocated to Tier 1 src/core/log/LogEngine.ts.
+ * @description Backward compatibility wrapper for LogEngine relocated to Tier 1 src/core/log/LogEngine.ts.
  */
 
-const { LogEngine } = require("./core/log/LogEngine");
+declare var require: any;
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    LogEngine
-  };
+if (typeof require !== "undefined") {
+  try {
+    const _logEngine = require("./core/log/LogEngine");
+    if (_logEngine && _logEngine.LogEngine) {
+      (globalThis as any).LogEngine = _logEngine.LogEngine;
+    }
+  } catch (e) {}
 }
 
-(globalThis as any).LogEngine = LogEngine;
+declare var module: any;
+if (typeof module !== "undefined" && module.exports) {
+  try {
+    const _le = require("./core/log/LogEngine");
+    module.exports = {
+      LogEngine: _le.LogEngine
+    };
+  } catch (e) {}
+}

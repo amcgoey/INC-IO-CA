@@ -35,7 +35,7 @@ export interface LogRepository {
   insertLogRow(
     spreadsheetId: string,
     headers: string[],
-    rowData: any[],
+    rowData: unknown[],
     plan: RowInsertionPlan
   ): { rowIndex: number; failedColumns: string[] };
 
@@ -60,7 +60,7 @@ export interface LogRepository {
   ): ReadLogResult;
 }
 
-declare var module: any;
+declare var module: Record<string, unknown>;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {};

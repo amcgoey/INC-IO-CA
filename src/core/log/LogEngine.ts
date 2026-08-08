@@ -4,21 +4,19 @@
  * @file LogEngine.ts
  * @description Tier 1 Pure Core application domain engine coordinating contact history chains, status transitions, row insertion plans, and log persistence.
  *
- * Consumes Tier 1 LogRepository interface and SheetStorageAdapter without GAS globals or Node built-in imports.
+ * Consumes Tier 1 SheetStorageAdapter seam without GAS globals or Node built-in imports.
  */
-
-import { LogRepository } from "../interfaces/LogRepository";
 
 declare var require: any;
 
-let getBoundedDataFn: (logData: any[][]) => any[][] = (globalThis as any).getBoundedData;
+let getBoundedDataFn: (logData: unknown[][]) => unknown[][] = (globalThis as Record<string, unknown>).getBoundedData as any;
 let computeRowInsertionPlanFn: (
-  boundedData: any[][],
+  boundedData: unknown[][],
   headers: string[],
-  rowData: any[],
+  rowData: unknown[],
   disciplineOrGroupKeyFn: string | RowKeyFn,
   sortKeyFn?: RowKeyFn
-) => RowInsertionPlan = (globalThis as any).computeRowInsertionPlan;
+) => RowInsertionPlan = (globalThis as Record<string, unknown>).computeRowInsertionPlan as any;
 
 if (typeof require !== "undefined") {
   try {
@@ -32,93 +30,51 @@ if (typeof require !== "undefined") {
 
 /**
  * Extracts the resolved contact abbreviation from a validated document's ListDocumentField metadata.
- *
- * @param document - Validated document domain model.
- * @returns Abbreviated contact string, or empty string if not resolved.
  */
 function getContactAbbreviation(document: ValidatedDocument): string {
   return document.listFields?.contact?.abbreviation || "";
 }
 
 function safePadNumLogEngine_(val: unknown, len: number): string {
-  if (typeof padNum !== "undefined") return padNum(val, len);
-  if ((globalThis as any).padNum) return (globalThis as any).padNum(val, len);
-  return String(val || "").trim().padStart(len, '0');
+  if (typeof padNum !== "undefined") return padNum(val as any, len);
+  if ((globalThis as Record<string, unknown>).padNum) return ((globalThis as Record<string, unknown>).padNum as any)(val, len);
+  return String(val ?? "").trim().padStart(len, '0');
 }
 
 /**
  * Domain engine responsible for inserting validated submittals into tabular log sheets.
  * Calculates contact history chains, handles previous row status transitions (e.g. marking previous revisions Closed),
- * computes group/sort row insertion plans, and writes rows via the storage adapter or repository.
+ * computes group/sort row insertion plans, and writes rows via the storage adapter.
  */
 export class LogEngine {
-  /** Low-level storage adapter or repository seam executing spreadsheet operations. */
-  private storageAdapter: SheetStorageAdapter | LogRepository;
+  /** Low-level storage adapter executing spreadsheet operations. */
+  private storageAdapter: SheetStorageAdapter;
 
   /**
-   * Constructs a new `LogEngine` instance consuming a `LogRepository` or `SheetStorageAdapter` seam.
+   * Constructs a new `LogEngine` instance consuming a `SheetStorageAdapter` seam.
    *
-   * @param storageAdapter - Concrete, fake, or storage adapter implementation.
+   * @param storageAdapter - Storage adapter executing raw sheet reads/writes.
    */
-  constructor(storageAdapter: SheetStorageAdapter | LogRepository) {
+  constructor(storageAdapter: SheetStorageAdapter) {
     this.storageAdapter = storageAdapter;
   }
 
   /**
-   * Reads existing log entries matching IdentityData, extracts contact history and previous row details,
-   * and optionally updates previous row status (e.g. marking previous revision Closed).
-   *
-   * @param spreadsheetId - Target spreadsheet ID string.
-   * @param identityData - Abstract identity model containing identityGroup, identityRevisionGroup, and identity.
-   * @param strategy - Optional DocumentLogStrategy for row key extraction.
-   * @param options - ReadLogOptions.
-   * @returns `ReadLogResult` containing match status, row index, contact history, and status update outcome.
+   * Helper function searching bounded log data backwards for matching group or target key.
    */
-  readLog(
-    spreadsheetId: string,
+  private findMatchingRowIndex(
+    boundedData: unknown[][],
+    headers: string[],
     identityData: IdentityData,
     strategy?: DocumentLogStrategy,
-    options: ReadLogOptions = {}
-  ): ReadLogResult {
-    if (typeof (this.storageAdapter as LogRepository).readLog === "function") {
-      const repo = this.storageAdapter as LogRepository;
-      if ((repo as any).isDelegatedEngine !== true && repo !== (this as unknown as LogRepository)) {
-        return repo.readLog(spreadsheetId, identityData, strategy, options);
-      }
-    }
-
-    const adapter = this.storageAdapter as SheetStorageAdapter;
-    const sheetName = options.sheetName || (typeof CONFIG !== "undefined" ? CONFIG.LOG_SHEET_NAME : "Submittals Log");
-    const logData = adapter.getSheetValues(sheetName);
-
-    const headerRowSetting = typeof CONFIG !== "undefined" ? CONFIG.LOG_HEADER_ROW : 3;
-    const headerRowIdx = headerRowSetting > 0 ? headerRowSetting - 1 : 2;
-
-    const headers = options.headers || (
-      logData.length > headerRowIdx
-        ? logData[headerRowIdx].map((h: unknown) => String(h || "").trim())
-        : []
-    );
-
-    const boundedData = getBoundedDataFn ? getBoundedDataFn(logData) : logData;
-    const historyColIdx = headers.indexOf("Contact History");
-    const calcChainColIdx = headers.indexOf("Calc Contact Chain");
-    const statusColIdx = headers.indexOf("Status");
-
-    const dataStartIdx = headerRowSetting > 0 ? headerRowSetting : 3;
-
-    let found = false;
-    let rowIndex: number | null = null;
-    let contactHistory = "";
-    let previousStatus = "";
-    let rowDataMap: Record<string, unknown> | null = null;
-
+    dataStartIdx: number = 3
+  ): { rowIndex: number | null; row: unknown[] | null } {
     for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
       const row = boundedData[i];
       let matches = false;
       if (strategy) {
-        const groupKey = strategy.getGroupKeyFromRow(row, headers);
-        const targetKey = strategy.getTargetKeyFromRow(row, headers);
+        const groupKey = strategy.getGroupKeyFromRow(row as any[], headers);
+        const targetKey = strategy.getTargetKeyFromRow(row as any[], headers);
         if (groupKey === identityData.identityGroup || targetKey === identityData.identity) {
           matches = true;
         }
@@ -136,27 +92,66 @@ export class LogEngine {
       }
 
       if (matches) {
-        found = true;
-        rowIndex = i + 1;
-        const histVal = (historyColIdx !== -1) ? String(row[historyColIdx] || "").trim() : "";
-        const calcVal = (calcChainColIdx !== -1) ? String(row[calcChainColIdx] || "").trim() : "";
-        contactHistory = histVal ? histVal : calcVal;
-        previousStatus = (statusColIdx !== -1) ? String(row[statusColIdx] || "").trim() : "";
+        return { rowIndex: i + 1, row };
+      }
+    }
+    return { rowIndex: null, row: null };
+  }
 
-        rowDataMap = {};
-        for (let c = 0; c < headers.length; c++) {
-          if (headers[c]) {
-            rowDataMap[headers[c]] = row[c];
-          }
+  /**
+   * Reads existing log entries matching IdentityData, extracts contact history and previous row details,
+   * and optionally updates previous row status (e.g. marking previous revision Closed).
+   */
+  readLog(
+    spreadsheetId: string,
+    identityData: IdentityData,
+    strategy?: DocumentLogStrategy,
+    options: ReadLogOptions = {}
+  ): ReadLogResult {
+    const sheetName = options.sheetName || (typeof CONFIG !== "undefined" ? CONFIG.LOG_SHEET_NAME : "Submittals Log");
+    const logData = this.storageAdapter.getSheetValues(sheetName);
+
+    const headerRowSetting = typeof CONFIG !== "undefined" ? CONFIG.LOG_HEADER_ROW : 3;
+    const headerRowIdx = headerRowSetting > 0 ? headerRowSetting - 1 : 2;
+
+    const headers = options.headers || (
+      logData.length > headerRowIdx
+        ? logData[headerRowIdx].map((h: unknown) => String(h || "").trim())
+        : []
+    );
+
+    const boundedData = getBoundedDataFn ? getBoundedDataFn(logData) : logData;
+    const historyColIdx = headers.indexOf("Contact History");
+    const calcChainColIdx = headers.indexOf("Calc Contact Chain");
+    const statusColIdx = headers.indexOf("Status");
+    const dataStartIdx = headerRowSetting > 0 ? headerRowSetting : 3;
+
+    const { rowIndex, row } = this.findMatchingRowIndex(boundedData, headers, identityData, strategy, dataStartIdx);
+
+    let found = false;
+    let contactHistory = "";
+    let previousStatus = "";
+    let rowDataMap: Record<string, unknown> | null = null;
+
+    if (rowIndex !== null && row !== null) {
+      found = true;
+      const histVal = (historyColIdx !== -1) ? String(row[historyColIdx] || "").trim() : "";
+      const calcVal = (calcChainColIdx !== -1) ? String(row[calcChainColIdx] || "").trim() : "";
+      contactHistory = histVal ? histVal : calcVal;
+      previousStatus = (statusColIdx !== -1) ? String(row[statusColIdx] || "").trim() : "";
+
+      rowDataMap = {};
+      for (let c = 0; c < headers.length; c++) {
+        if (headers[c]) {
+          rowDataMap[headers[c]] = row[c];
         }
-        break;
       }
     }
 
     let previousRowUpdated = false;
     if (options.updatePreviousStatus && rowIndex !== null && statusColIdx !== -1) {
       const newStatus = options.previousRowStatus || "Closed";
-      adapter.setRangeValue(sheetName, rowIndex, statusColIdx + 1, newStatus);
+      this.storageAdapter.setRangeValue(sheetName, rowIndex, statusColIdx + 1, newStatus);
       previousRowUpdated = true;
     }
 
@@ -180,16 +175,8 @@ export class LogEngine {
     strategy: DocumentLogStrategy,
     options: AppendDocumentOptions = {}
   ): AppendDocumentResult {
-    if (typeof (this.storageAdapter as LogRepository).appendDocument === "function") {
-      const repo = this.storageAdapter as LogRepository;
-      if ((repo as any).isDelegatedEngine !== true && repo !== (this as unknown as LogRepository)) {
-        return repo.appendDocument(spreadsheetId, document, strategy, options);
-      }
-    }
-
-    const adapter = this.storageAdapter as SheetStorageAdapter;
     const sheetName = options.sheetName || (typeof CONFIG !== "undefined" ? CONFIG.LOG_SHEET_NAME : "Submittals Log");
-    const logData = adapter.getSheetValues(sheetName);
+    const logData = this.storageAdapter.getSheetValues(sheetName);
 
     const headerRowSetting = typeof CONFIG !== "undefined" ? CONFIG.LOG_HEADER_ROW : 3;
     const headerRowIdx = headerRowSetting > 0 ? headerRowSetting - 1 : 2;
@@ -210,22 +197,15 @@ export class LogEngine {
 
     const historyColIdx = headers.indexOf("Contact History");
     const calcChainColIdx = headers.indexOf("Calc Contact Chain");
-    let previousChain = "";
-    let previousRowSheetIndex: number | null = null;
-
     const dataStartIdx = headerRowSetting > 0 ? headerRowSetting : 3;
 
-    for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
-      const row = boundedData[i];
-      const rowGroupKey = strategy.getGroupKeyFromRow(row, headers);
-      const rowKey = strategy.getTargetKeyFromRow(row, headers);
-      if (rowGroupKey === identityData.identityGroup || rowKey === targetKey) {
-        const histVal = (historyColIdx !== -1) ? String(row[historyColIdx] || "").trim() : "";
-        const calcVal = (calcChainColIdx !== -1) ? String(row[calcChainColIdx] || "").trim() : "";
-        previousChain = histVal ? histVal : calcVal;
-        previousRowSheetIndex = i + 1;
-        break;
-      }
+    const { rowIndex: previousRowSheetIndex, row: previousRow } = this.findMatchingRowIndex(boundedData, headers, identityData, strategy, dataStartIdx);
+
+    let previousChain = "";
+    if (previousRow !== null) {
+      const histVal = (historyColIdx !== -1) ? String(previousRow[historyColIdx] || "").trim() : "";
+      const calcVal = (calcChainColIdx !== -1) ? String(previousRow[calcChainColIdx] || "").trim() : "";
+      previousChain = histVal ? histVal : calcVal;
     }
 
     let previousRowUpdated = false;
@@ -233,7 +213,7 @@ export class LogEngine {
       const statusColIdx = headers.indexOf("Status");
       if (statusColIdx !== -1) {
         const newStatus = options.previousRowStatus || "Closed";
-        adapter.setRangeValue(sheetName, previousRowSheetIndex, statusColIdx + 1, newStatus);
+        this.storageAdapter.setRangeValue(sheetName, previousRowSheetIndex, statusColIdx + 1, newStatus);
         previousRowUpdated = true;
       }
     }
@@ -263,7 +243,7 @@ export class LogEngine {
       (r: unknown[], h: string[]) => strategy.getSortKeyFromRow(r as any[], h)
     );
 
-    const writeResult = adapter.insertLogRow(sheetName, headers, rowData, plan);
+    const writeResult = this.storageAdapter.insertLogRow(sheetName, headers, rowData, plan);
 
     return {
       targetKey,
@@ -276,7 +256,7 @@ export class LogEngine {
   }
 }
 
-declare var module: any;
+declare var module: Record<string, unknown>;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
@@ -284,4 +264,4 @@ if (typeof module !== "undefined" && module.exports) {
   };
 }
 
-(globalThis as any).LogEngine = LogEngine;
+(globalThis as Record<string, unknown>).LogEngine = LogEngine;
