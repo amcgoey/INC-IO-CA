@@ -3,7 +3,8 @@ import assert from "node:assert";
 
 const { GasMockHarness, DocumentFactory, createTestContext, InMemorySheetStorageAdapter } = require("./harness");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
-const { LogEngine } = require("../src/LogEngine");
+const { LogEngine } = require("../src/core/log/LogEngine");
+const { FakeLogRepository } = require("../src/adapters/fakes/FakeLogRepository");
 
 beforeEach(() => {
   GasMockHarness.install({
@@ -670,4 +671,22 @@ test("LogEngine.readLog - queries bounded log for IdentityData and returns previ
 
   const sheetValues = adapter.getSheetValues("Submittals Log");
   assert.strictEqual(sheetValues[3][7], "Closed");
+});
+
+test("FakeLogRepository promoted adapter records appendDocument and readLog operations in memory", () => {
+  const fakeRepo = new FakeLogRepository();
+  const strategy = new ArchitectureSubmittalStrategy();
+  const doc = DocumentFactory.createValidatedArchitectureSubmittal({
+    disciplineDetails: { section: "033000", number: "001", title: "Concrete Mix", revision: "001" }
+  });
+
+  const appendRes = fakeRepo.appendDocument("ss-123", doc, strategy, { actionAbbr: " Rec" });
+  assert.strictEqual(appendRes.targetKey, "033000-001-001");
+  assert.strictEqual(fakeRepo.appendedDocuments.length, 1);
+  assert.strictEqual(fakeRepo.calls.length, 1);
+  assert.strictEqual(fakeRepo.calls[0].method, "appendDocument");
+
+  const readRes = fakeRepo.readLog("ss-123", strategy.getIdentityData(doc), strategy);
+  assert.strictEqual(readRes.found, false);
+  assert.strictEqual(fakeRepo.readLogEntries.length, 1);
 });

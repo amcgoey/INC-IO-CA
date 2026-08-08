@@ -656,7 +656,7 @@ interface ContextAdapters {
 }
 
 /** Execution context passed through action pipeline steps. */
-interface DocumentActionContext {
+interface DocumentActionContext<TDoc = any> {
   appContext?: AppContext;
   fileId?: string;
   blob?: GoogleAppsScript.Base.Blob;

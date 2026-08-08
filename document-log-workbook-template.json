@@ -1,0 +1,193 @@
+{
+  "schemaVersion": "1.0.0",
+  "tabs": [
+    {
+      "name": "_Config",
+      "rowCount": 100,
+      "columnCount": 20,
+      "isConfigTab": true,
+      "isSharedTab": false,
+      "isAuditLogTab": false,
+      "isLogTab": false,
+      "headers": [],
+      "formulaRow": [],
+      "seedRows": [
+        [
+          "Key",
+          "Value"
+        ],
+        [
+          "MANIFEST_SCHEMA_VERSION",
+          "1.0.0"
+        ],
+        [
+          "LOG_TITLE",
+          "INC Project Document Log"
+        ],
+        [
+          "",
+          ""
+        ],
+        [
+          "DocTypeKey",
+          "DisplayName",
+          "Prefix",
+          "LogTabName"
+        ],
+        [
+          "Submittal_Arch",
+          "Architectural Submittals",
+          "SUB-ARCH",
+          "Submittal Arch"
+        ]
+      ]
+    },
+    {
+      "name": "_Shared",
+      "rowCount": 100,
+      "columnCount": 20,
+      "isConfigTab": false,
+      "isSharedTab": true,
+      "isAuditLogTab": false,
+      "isLogTab": false,
+      "headers": [],
+      "formulaRow": [],
+      "seedRows": [
+        [
+          "Contacts_Arch"
+        ],
+        [
+          "arch-reviewer@example.com"
+        ],
+        [
+          "arch-lead@example.com"
+        ]
+      ]
+    },
+    {
+      "name": "_AuditLog",
+      "rowCount": 500,
+      "columnCount": 10,
+      "isConfigTab": false,
+      "isSharedTab": false,
+      "isAuditLogTab": true,
+      "isLogTab": false,
+      "headers": [],
+      "formulaRow": [],
+      "seedRows": [
+        [
+          "Timestamp",
+          "EventType",
+          "Category",
+          "Actor",
+          "Status",
+          "Details"
+        ]
+      ]
+    },
+    {
+      "name": "Submittal Arch",
+      "rowCount": 1000,
+      "columnCount": 26,
+      "isConfigTab": false,
+      "isSharedTab": false,
+      "isAuditLogTab": false,
+      "isLogTab": true,
+      "headers": [
+        "Section",
+        "Number",
+        "Title",
+        "Revision",
+        "Date",
+        "Contact",
+        "Action",
+        "Status",
+        "Notes",
+        "Link",
+        "Contact History"
+      ],
+      "formulaRow": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "seedRows": []
+    }
+  ],
+  "namedRanges": [
+    {
+      "name": "MANIFEST_SCHEMA_VERSION",
+      "tabName": "_Config",
+      "rangeNotation": "B2",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Config_Manifest",
+      "tabName": "_Config",
+      "rangeNotation": "A1:B3",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Config_Submittal_Arch",
+      "tabName": "_Config",
+      "rangeNotation": "A5:D6",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Shared_Contacts_Arch",
+      "tabName": "_Shared",
+      "rangeNotation": "A2:A20",
+      "scope": "Workbook"
+    },
+    {
+      "name": "AuditLog_Events",
+      "tabName": "_AuditLog",
+      "rangeNotation": "A1:F100",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Headers",
+      "tabName": "Submittal Arch",
+      "rangeNotation": "A1:K1",
+      "scope": "Sheet"
+    },
+    {
+      "name": "FormulaRow",
+      "tabName": "Submittal Arch",
+      "rangeNotation": "A2:K2",
+      "scope": "Sheet"
+    },
+    {
+      "name": "Data",
+      "tabName": "Submittal Arch",
+      "rangeNotation": "A4:K1000",
+      "scope": "Sheet"
+    },
+    {
+      "name": "Submittal_Arch_Headers",
+      "tabName": "Submittal Arch",
+      "rangeNotation": "A1:K1",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Submittal_Arch_FormulaRow",
+      "tabName": "Submittal Arch",
+      "rangeNotation": "A2:K2",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Submittal_Arch_Data",
+      "tabName": "Submittal Arch",
+      "rangeNotation": "A4:K1000",
+      "scope": "Workbook"
+    }
+  ]
+}
