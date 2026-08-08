@@ -1,11 +1,11 @@
 /**
  * @file FakeAiAnalysisAdapter.ts
- * @description Re-export of promoted FakeAiAnalysisAdapter from src/adapters/fakes/FakeAiAnalysisAdapter.
+ * @description Test harness re-export of FakeAiAnalysisAdapter from src/adapters/fakes/FakeAiAnalysisAdapter.
  */
 
-export { FakeAiAnalysisAdapter } from '../../../src/adapters/fakes/FakeAiAnalysisAdapter';
+import { FakeAiAnalysisAdapter } from '../../../src/adapters/fakes/FakeAiAnalysisAdapter';
 
-const { FakeAiAnalysisAdapter } = require('../../../src/adapters/fakes/FakeAiAnalysisAdapter');
+export { FakeAiAnalysisAdapter };
 
 declare var module: any;
 if (typeof module !== "undefined" && module.exports) {

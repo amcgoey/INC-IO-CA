@@ -5,13 +5,13 @@
  * Classified as Tier 2/3 Fake Adapter Seam under ADR 0013 / CODING_STANDARDS.md.
  */
 
-import { AiAnalysisService, EmailData, AiPredictionResult, DeepAnalysisContext, DeepAnalysisResult } from '../../core/interfaces/AiAnalysisService';
+import { AiAnalysisService, EmailData, AiPredictionResult, DeepAnalysisContext, DeepAnalysisResult, DocumentBlob } from '../../core/interfaces/AiAnalysisService';
 
 export class FakeAiAnalysisAdapter implements AiAnalysisService {
   /** Recorded triage calls. */
   public triageCalls: Array<{ emailData: EmailData; messageId?: string; }> = [];
   /** Recorded analyze calls. */
-  public analyzeCalls: Array<{ sourceBlob: any; emailText: string; contextObj: DeepAnalysisContext }> = [];
+  public analyzeCalls: Array<{ sourceBlob: DocumentBlob | any; emailText: string; contextObj: DeepAnalysisContext }> = [];
   private triageResult: AiPredictionResult = {
     success: true,
     prediction: { predictedProjectName: "Default Project", predictedDiscipline: "Architecture" }
@@ -30,12 +30,12 @@ export class FakeAiAnalysisAdapter implements AiAnalysisService {
     this.triageResult = result;
   }
 
-  setAnalyzeSubmittalResult(result: DeepAnalysisResult): void {
+  setAnalysisResult(result: DeepAnalysisResult): void {
     this.analysisResult = result;
   }
 
-  setAnalysisResult(result: DeepAnalysisResult): void {
-    this.analysisResult = result;
+  setAnalyzeSubmittalResult(result: DeepAnalysisResult): void {
+    this.setAnalysisResult(result);
   }
 
   /** @override */
@@ -46,7 +46,7 @@ export class FakeAiAnalysisAdapter implements AiAnalysisService {
 
   /** @override */
   async analyzeSubmittal(
-    sourceBlob: any,
+    sourceBlob: DocumentBlob | any,
     emailText: string,
     contextObj: DeepAnalysisContext
   ): Promise<DeepAnalysisResult> {

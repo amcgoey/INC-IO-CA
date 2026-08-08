@@ -67,16 +67,23 @@ export type DeepAnalysisResult =
       };
     };
 
+/** Payload shape representing binary blob data dual-compatible across node/browser/GAS environments. */
+export interface DocumentBlob {
+  getBytes(): Uint8Array | number[];
+  getName?(): string;
+  getContentType?(): string;
+}
+
 /**
  * Service interface for email triage and submittal document deep AI analysis.
  */
 export interface AiAnalysisService {
   /** Analyzes email header/body context to predict project name and discipline. */
-  triageEmail?(emailData: EmailData, messageId?: string): Promise<AiPredictionResult>;
+  triageEmail(emailData: EmailData, messageId?: string): Promise<AiPredictionResult>;
 
   /** Analyzes submittal document blob/payload and email text using multimodal capabilities. */
   analyzeSubmittal(
-    sourceBlob: any,
+    sourceBlob: DocumentBlob | any,
     emailText: string,
     contextObj: DeepAnalysisContext
   ): Promise<DeepAnalysisResult>;
@@ -86,12 +93,4 @@ declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {};
-}
-
-/** Result container for internal Gemini HTTP fetch operations. */
-export interface GeminiFetchResult {
-  success: boolean;
-  response?: any;
-  statusCode?: number | string;
-  errorText?: string;
 }
