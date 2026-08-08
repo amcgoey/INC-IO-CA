@@ -644,6 +644,22 @@ interface DocumentWorkflowResult {
 
 /** Configuration schema encapsulating document-type specific rules, search criteria, and adapter selection keys. */
 /** Property schema defining a single document field specification for UI, validation, and log row formatting. */
+/** Hydration options for 5-tier state resolution. */
+interface HydrationContext {
+  formInput?: Record<string, any>;
+  userCacheDraft?: Record<string, any>;
+  parserResult?: Record<string, any>;
+  aiMetadata?: Record<string, any>;
+}
+
+/** Validation and AI confidence UI context for dynamic field formatting. */
+interface ValidationUIContext {
+  missingFields?: string[];
+  fieldConfidence?: Record<string, number>;
+  onStateActionName?: string;
+  actionParams?: Record<string, string>;
+}
+
 interface DocumentFieldSpec {
   key: string;
   label: string;
