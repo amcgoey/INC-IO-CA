@@ -289,14 +289,14 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
       assert.equal(result.success, true);
       assert.equal(result.isFallback, false);
       assert.deepEqual(result.options, [
+        { value: "071200", label: "Fluid-Applied Waterproofing" },
+        { value: "092900", label: "Gypsum Board Shaft Wall Assemblies" },
+        { value: "093000", label: "Tiling Assemblies" },
         { value: "033000", label: "Cast-in-Place Concrete" },
         { value: "081100", label: "Metal Doors" }
       ]);
     });
   });
-
-
-  describe("Multi-Column Picklist Resolution (Issue #194)", () => {
     it("should resolve multi-column 3-column Actions records cleanly", () => {
       const actions2D = [
         [1, "For Approval", "_NET"],
@@ -361,4 +361,3 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
     });
   });
 
-});

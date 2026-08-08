@@ -7,7 +7,7 @@ import { WorkbookTemplateViewModel } from '../src/core/config/WorkbookTemplateVi
 test('DocumentLogWorkbookSpec - defines Submittal Arch tab with 1000x26 layout', () => {
   const submittalArchTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal Arch');
   assert.ok(submittalArchTab, 'Submittal Arch tab must exist in spec');
-  assert.equal(submittalArchTab.rowCount, 8, 'Submittal Arch rowCount must be 1000');
+  assert.equal(submittalArchTab.rowCount, 20, 'Submittal Arch rowCount must be 20');
   assert.equal(submittalArchTab.columnCount, 26, 'Submittal Arch columnCount must be 26');
   assert.equal(submittalArchTab.isLogTab, true, 'Submittal Arch must be marked as log tab');
 });
@@ -67,7 +67,7 @@ test('DocumentLogWorkbookSpec - defines Sheet-Scoped and Workbook-Scoped Dual-Ti
 
   const dataSheet = namedRanges.find(r => r.name === 'Data' && r.tabName === 'Submittal Arch');
   assert.ok(dataSheet, 'Sheet-Scoped Data range must exist');
-  assert.equal(dataSheet.rangeNotation, 'A6:O8', 'Sheet-Scoped Data notation must be A6:O8');
+  assert.equal(dataSheet.rangeNotation, 'A6:O20', 'Sheet-Scoped Data notation must be A6:O20');
   assert.equal(dataSheet.scope, 'Sheet', 'Data scope must be Sheet');
 
   const headersWb = namedRanges.find(r => r.name === 'Submittal_Arch_Headers');
@@ -81,7 +81,7 @@ test('DocumentLogWorkbookSpec - defines Sheet-Scoped and Workbook-Scoped Dual-Ti
 
   const dataWb = namedRanges.find(r => r.name === 'Submittal_Arch_Data');
   assert.ok(dataWb, 'Workbook-Scoped Submittal_Arch_Data range must exist');
-  assert.equal(dataWb.rangeNotation, 'A6:O8', 'Submittal_Arch_Data notation must be A6:O8');
+  assert.equal(dataWb.rangeNotation, 'A6:O20', 'Submittal_Arch_Data notation must be A6:O20');
 });
 
 test('DocumentLogWorkbookViewSpec - tokenizes Dark Gray #666666 header fill and 3-row layout offset', () => {
@@ -115,25 +115,25 @@ test('WorkbookTemplateViewModel - binds model and view spec into fixture JSON an
 test('DocumentLogWorkbookSpec - defines Submittal Arch Support tab with CSI section seed rows', () => {
   const supportTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal Arch Support');
   assert.ok(supportTab, 'Submittal Arch Support tab must exist in spec');
-  assert.equal(supportTab.rowCount, 3);
+  assert.equal(supportTab.rowCount, 6);
   assert.equal(supportTab.columnCount, 10);
   assert.equal(supportTab.isSupportTab, true);
   assert.ok(supportTab.seedRows, 'seedRows must be defined for Submittal Arch Support');
   assert.deepEqual(supportTab.seedRows[0], ['Section Key', 'Section Label']);
-  assert.deepEqual(supportTab.seedRows[1], ['033000', 'Cast-in-Place Concrete']);
-  assert.deepEqual(supportTab.seedRows[2], ['081100', 'Metal Doors']);
+  assert.deepEqual(supportTab.seedRows[1], ['071200', 'Fluid-Applied Waterproofing']);
+  assert.deepEqual(supportTab.seedRows[2], ['092900', 'Gypsum Board Shaft Wall Assemblies']);
 });
 
 test('DocumentLogWorkbookSpec - defines Sections sheet-scoped and workbook-scoped named ranges', () => {
   const namedRanges = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges;
   const sectionsSheet = namedRanges.find(r => r.name === 'Sections' && r.tabName === 'Submittal Arch Support');
   assert.ok(sectionsSheet, 'Sheet-Scoped Sections named range must exist on Submittal Arch Support');
-  assert.equal(sectionsSheet.rangeNotation, 'A2:B3');
+  assert.equal(sectionsSheet.rangeNotation, 'A2:B6');
   assert.equal(sectionsSheet.scope, 'Sheet');
 
   const sectionsWb = namedRanges.find(r => r.name === 'Submittal_Arch_Support_Sections');
   assert.ok(sectionsWb, 'Workbook-Scoped Submittal_Arch_Support_Sections range must exist');
-  assert.equal(sectionsWb.rangeNotation, 'A2:B3');
+  assert.equal(sectionsWb.rangeNotation, 'A2:B6');
   assert.equal(sectionsWb.scope, 'Workbook');
 });
 

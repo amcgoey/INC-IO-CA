@@ -170,7 +170,7 @@ test("runLiveVerification - live execution uses mock apiFetcher for sheetId quer
       return { ok: true, json: async () => ({ sheets: [{ properties: { title: "Submittal Arch", sheetId: 101 } }] }) };
     }
     if (url.includes(":append")) {
-      return { ok: true, json: async () => ({ updates: { updatedRange: "'Submittal Arch'!A5:Z5" } }) };
+      return { ok: true, json: async () => ({ updates: { updatedRange: "'Submittal Arch'!A20:Z20" } }) };
     }
     if (url.includes("/values/")) {
       return {
