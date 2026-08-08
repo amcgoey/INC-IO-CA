@@ -713,7 +713,7 @@ test("LogEngine respects 2-row Headers named range taxonomy and BufferRow bounde
   assert.strictEqual(headersNamedRange.scope, "Sheet");
 
   const dataNamedRange = templateSpec.namedRanges.find((nr: any) => nr.name === "Data" && nr.tabName === "Submittal Arch");
-  assert.strictEqual(dataNamedRange.rangeNotation, "A6:O1000");
+  assert.strictEqual(dataNamedRange.rangeNotation, "A6:O8");
   assert.strictEqual(dataNamedRange.scope, "Sheet");
 });
 

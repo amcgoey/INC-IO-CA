@@ -70,7 +70,7 @@ export class WorkbookTemplateViewModel {
         const formulaRow = tab.columns
           ? tab.columns.map(c => c.formula || "")
           : [];
-        const seedRows = tab.isLogTab ? [] : (tab.seedRows || []);
+        const seedRows = tab.seedRows || [];
 
         return {
           name: tab.name,
@@ -138,7 +138,7 @@ export class WorkbookTemplateViewModel {
           updateCells: {
             range: {
               sheetId: index,
-              startRowIndex: 0,
+              startRowIndex: (tab.isLogTab || tab.isAuditLogTab) ? offsets.FIRST_DATA_ROW_INDEX - 1 : 0,
               startColumnIndex: 0
             },
             rows,
@@ -311,6 +311,44 @@ export class WorkbookTemplateViewModel {
               }
             },
             fields: "userEnteredFormat(backgroundColor,textFormat)"
+          }
+        });
+
+        // Row 5: Top BufferRow Style (Header Fill)
+        requests.push({
+          repeatCell: {
+            range: {
+              sheetId: tabIndex,
+              startRowIndex: offsets.FIRST_DATA_ROW_INDEX - 2,
+              endRowIndex: offsets.FIRST_DATA_ROW_INDEX - 1,
+              startColumnIndex: 0,
+              endColumnIndex: tab.columns.length
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: headerStyle.fillRgb
+              }
+            },
+            fields: "userEnteredFormat(backgroundColor)"
+          }
+        });
+
+        // Row N: End BufferRow Style (Header Fill)
+        requests.push({
+          repeatCell: {
+            range: {
+              sheetId: tabIndex,
+              startRowIndex: tab.rowCount - 1,
+              endRowIndex: tab.rowCount,
+              startColumnIndex: 0,
+              endColumnIndex: tab.columns.length
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: headerStyle.fillRgb
+              }
+            },
+            fields: "userEnteredFormat(backgroundColor)"
           }
         });
 
