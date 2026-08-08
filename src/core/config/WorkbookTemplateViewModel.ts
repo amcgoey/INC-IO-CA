@@ -6,7 +6,7 @@
  */
 
 import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
-import { DocumentLogWorkbookViewSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, HeaderStyleSpec, ColorRgb } from "./DocumentLogWorkbookViewSpec";
+import { DocumentLogWorkbookViewSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, HeaderStyleSpec, ColorRgb, StatusColors } from "./DocumentLogWorkbookViewSpec";
 
 export interface FixtureTabSpec {
   name: string;
@@ -351,12 +351,53 @@ export class WorkbookTemplateViewModel {
                     ]
                   },
                   showCustomUi: true,
-                  strict: true
+                  strict: false
                 }
               }
             });
           }
         });
+
+        if (tab.isLogTab && tab.columns) {
+          const columns = tab.columns;
+          const statusColors = this.viewSpec.statusColors || StatusColors;
+          const statusColIdx = columns.findIndex(c => c.id === "status");
+          if (statusColIdx !== -1) {
+            const colLetter = indexToColLetter(statusColIdx);
+            let ruleIndex = 0;
+            Object.entries(statusColors).forEach(([status, spec]) => {
+              requests.push({
+                addConditionalFormatRule: {
+                  rule: {
+                    ranges: [
+                      {
+                        sheetId: tabIndex,
+                        startRowIndex: offsets.FIRST_DATA_ROW_INDEX - 1,
+                        endRowIndex: tab.rowCount - 1,
+                        startColumnIndex: 0,
+                        endColumnIndex: columns.length
+                      }
+                    ],
+                    booleanRule: {
+                      condition: {
+                        type: "CUSTOM_FORMULA",
+                        values: [
+                          {
+                            userEnteredValue: `=$${colLetter}${offsets.FIRST_DATA_ROW_INDEX}="${status}"`
+                          }
+                        ]
+                      },
+                      format: {
+                        backgroundColor: spec.rgb
+                      }
+                    }
+                  },
+                  index: ruleIndex++
+                }
+              });
+            });
+          }
+        }
       }
     });
 
@@ -454,6 +495,16 @@ function createRepeatCellHeaderRequest(gridRange: GridRangeSpec, headerStyle: He
   };
 }
 
+export function indexToColLetter(index: number): string {
+  let letter = "";
+  let temp = index;
+  while (temp >= 0) {
+    letter = String.fromCharCode((temp % 26) + 65) + letter;
+    temp = Math.floor(temp / 26) - 1;
+  }
+  return letter;
+}
+
 export function colLetterToIndex(colStr: string): number {
   let index = 0;
   for (let i = 0; i < colStr.length; i++) {
@@ -499,6 +550,7 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     WorkbookTemplateViewModel,
+    indexToColLetter,
     colLetterToIndex,
     parseA1ToGridRange
   };
