@@ -6,8 +6,8 @@
  * Operates on DocumentActionContext and wraps LogRepository.appendDocument() into a primitive DocumentAction handler.
  */
 
-class WriteLogAction
-  implements DocumentAction<DocumentActionContext, DocumentActionContext> {
+class WriteLogAction<TDoc extends ValidatedDocument = ValidatedDocument>
+  implements DocumentAction<DocumentActionContext<TDoc>, DocumentActionContext<TDoc>> {
   name: string = 'WriteLog';
 
   /**
@@ -16,7 +16,7 @@ class WriteLogAction
    * @param context - Action context containing validatedDoc, logRepository adapter, and optional log options.
    * @returns A Promise resolving to updated DocumentActionContext.
    */
-  async execute(context: DocumentActionContext): Promise<DocumentActionContext> {
+  async execute(context: DocumentActionContext<TDoc>): Promise<DocumentActionContext<TDoc>> {
     const logRepository =
       context.adapters?.logRepository ||
       context.logRepository;

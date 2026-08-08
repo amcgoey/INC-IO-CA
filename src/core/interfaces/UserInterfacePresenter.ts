@@ -9,11 +9,11 @@
  * Interface defining user interface presentation operations.
  */
 interface UserInterfacePresenter {
-  presentValidationError(event: GoogleAppsScriptEvent, errors: string[], missingFields?: string[]): unknown;
-  presentInteractionPrompt(event: GoogleAppsScriptEvent, promptType: "ADD_TAG" | "ADD_VENDOR", warningMessage: string): unknown;
-  presentIncomingSuccess(event: GoogleAppsScriptEvent, result: DocumentWorkflowResult): unknown;
-  presentOutgoingSuccess(event: GoogleAppsScriptEvent, result: DocumentWorkflowResult, eventParams: Record<string, string>): unknown;
-  presentCardReload(event: GoogleAppsScriptEvent, isTagChange?: boolean): unknown;
+  presentValidationError(event: any, errors: string[], missingFields?: string[]): unknown;
+  presentInteractionPrompt(event: any, promptType: "ADD_TAG" | "ADD_VENDOR", warningMessage: string): unknown;
+  presentIncomingSuccess(event: any, result: any): unknown;
+  presentOutgoingSuccess(event: any, result: any, eventParams: Record<string, string>): unknown;
+  presentCardReload(event: any, isTagChange?: boolean): unknown;
   presentNotification(notificationText: string): unknown;
 }
 
