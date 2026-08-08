@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
 import { GasMockHarness } from "./GasMockHarness";
+import { DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, DOCUMENT_LOG_WORKBOOK_SPEC } from "../../src/core/config/DocumentLogWorkbookSpec";
 
 test.afterEach(() => {
   GasMockHarness.uninstall();
@@ -218,4 +219,57 @@ test("GasMockHarness.uninstall restores original globalThis bindings", () => {
   GasMockHarness.uninstall();
   assert.strictEqual((globalThis as any).PropertiesService, "original-properties-service");
   assert.strictEqual((globalThis as any).SpreadsheetApp, "original-spreadsheet-app");
+});
+
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Config tab (100x20), MANIFEST_SCHEMA_VERSION, and seed rows", () => {
+  
+
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, "1.0.0");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_SPEC.schemaVersion, "1.0.0");
+
+  const configTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_Config");
+  assert.ok(configTab, "_Config tab must be defined");
+  assert.strictEqual(configTab.rowCount, 100, "_Config tab rowCount should be 100");
+  assert.strictEqual(configTab.columnCount, 20, "_Config tab columnCount should be 20");
+  assert.strictEqual(configTab.isConfigTab, true, "_Config tab isConfigTab flag should be true");
+
+  assert.ok(configTab.seedRows, "_Config seedRows must be present");
+  assert.deepStrictEqual(configTab.seedRows[0], ["Key", "Value"]);
+  assert.deepStrictEqual(configTab.seedRows[1], ["MANIFEST_SCHEMA_VERSION", "1.0.0"]);
+  assert.deepStrictEqual(configTab.seedRows[2], ["LOG_TITLE", "INC Project Document Log"]);
+
+  const docTypeHeaderRow = configTab.seedRows.find((row: any) => row[0] === "DocTypeKey");
+  assert.ok(docTypeHeaderRow, "DocTypeKey header row must exist in seedRows");
+  assert.deepStrictEqual(docTypeHeaderRow, ["DocTypeKey", "DisplayName", "Prefix", "LogTabName"]);
+
+  const submittalArchRow = configTab.seedRows.find((row: any) => row[0] === "Submittal_Arch");
+  assert.ok(submittalArchRow, "Submittal_Arch seed row must exist");
+  assert.deepStrictEqual(submittalArchRow, ["Submittal_Arch", "Architectural Submittals", "SUB-ARCH", "Submittal Arch"]);
+
+  const schemaVersionNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: any) => nr.name === "MANIFEST_SCHEMA_VERSION");
+  assert.ok(schemaVersionNR, "MANIFEST_SCHEMA_VERSION named range must exist");
+  assert.strictEqual(schemaVersionNR.tabName, "_Config");
+  assert.strictEqual(schemaVersionNR.rangeNotation, "B2");
+  assert.strictEqual(schemaVersionNR.scope, "Workbook");
+
+  const manifestNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: any) => nr.name === "Config_Manifest");
+  assert.ok(manifestNR, "Config_Manifest named range must exist");
+  assert.strictEqual(manifestNR.tabName, "_Config");
+  assert.strictEqual(manifestNR.rangeNotation, "A1:B3");
+});
+
+test("GasMockHarness resolves MANIFEST_SCHEMA_VERSION from _Config tab in mock spreadsheet", () => {
+  
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById("ss-config-test");
+
+  ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  const range = ss.getRangeByName("MANIFEST_SCHEMA_VERSION");
+  assert.ok(range, "getRangeByName('MANIFEST_SCHEMA_VERSION') should return MockRange");
+  assert.strictEqual(range.getValue(), "1.0.0", "MANIFEST_SCHEMA_VERSION should return '1.0.0'");
+
+  const configSheet = ss.getSheetByName("_Config");
+  assert.ok(configSheet, "_Config sheet should exist");
+  assert.strictEqual(configSheet.getRange("B2").getValue(), "1.0.0");
 });

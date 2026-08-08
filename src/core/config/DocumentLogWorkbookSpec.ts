@@ -24,7 +24,7 @@ export interface TabSpec {
   isLogTab?: boolean;
   isSupportTab?: boolean;
   columns?: ColumnSpec[];
-  seedRows?: any[][];
+  seedRows?: (string | number | boolean)[][];
 }
 
 export interface NamedRangeSpec {

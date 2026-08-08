@@ -431,6 +431,32 @@ export class MockSpreadsheet {
     this.namedRanges.set(name, { tabName, rangeNotation });
   }
 
+  public loadWorkbookSpec(spec: { tabs?: any[]; namedRanges?: any[] }): void {
+    this.recordCall("loadWorkbookSpec", [spec]);
+    if (spec.tabs) {
+      for (const tabDef of spec.tabs) {
+        let sheet = this.getSheetByName(tabDef.name);
+        if (!sheet) {
+          sheet = this.insertSheet(tabDef.name);
+        }
+        if (tabDef.seedRows && tabDef.seedRows.length > 0) {
+          sheet.setGridSlice(1, 1, tabDef.seedRows);
+        }
+        if (tabDef.columns && tabDef.columns.length > 0) {
+          const headers = tabDef.columns.map((c) => c.header);
+          sheet.setGridSlice(1, 1, [headers]);
+          const formulas = tabDef.columns.map((c) => c.formula || "");
+          sheet.setGridSlice(2, 1, [formulas]);
+        }
+      }
+    }
+    if (spec.namedRanges) {
+      for (const nrDef of spec.namedRanges) {
+        this.setNamedRange(nrDef.name, nrDef.tabName, nrDef.rangeNotation);
+      }
+    }
+  }
+
   public getRangeByName(name: string): MockRange | null {
     this.recordCall("getRangeByName", [name]);
     let targetTab: string | undefined;
