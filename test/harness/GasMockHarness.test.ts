@@ -273,3 +273,61 @@ test("GasMockHarness resolves MANIFEST_SCHEMA_VERSION from _Config tab in mock s
   assert.ok(configSheet, "_Config sheet should exist");
   assert.strictEqual(configSheet.getRange("B2").getValue(), "1.0.0");
 });
+
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines _AuditLog system tab (500x10) and AuditLog_Events named range A1:F500", () => {
+  const auditLogTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_AuditLog");
+  assert.ok(auditLogTab, "_AuditLog tab must be defined");
+  assert.strictEqual(auditLogTab.rowCount, 500, "_AuditLog tab rowCount should be 500");
+  assert.strictEqual(auditLogTab.columnCount, 10, "_AuditLog tab columnCount should be 10");
+  assert.strictEqual(auditLogTab.isAuditLogTab, true, "_AuditLog tab isAuditLogTab flag should be true");
+  assert.ok(auditLogTab.seedRows);
+  assert.deepStrictEqual(auditLogTab.seedRows[0], ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"]);
+
+  const auditEventsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: any) => nr.name === "AuditLog_Events");
+  assert.ok(auditEventsNR, "AuditLog_Events named range must exist");
+  assert.strictEqual(auditEventsNR.tabName, "_AuditLog");
+  assert.strictEqual(auditEventsNR.rangeNotation, "A1:F500");
+  assert.strictEqual(auditEventsNR.scope, "Workbook");
+});
+
+test("GasMockHarness resolves AuditLog_Events named range from _AuditLog tab in mock spreadsheet", () => {
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById("ss-audit-test");
+  ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  const range = ss.getRangeByName("AuditLog_Events");
+  assert.ok(range, "getRangeByName('AuditLog_Events') should return MockRange");
+  assert.strictEqual(range.getValues()[0][0], "Timestamp");
+
+  const auditSheet = ss.getSheetByName("_AuditLog");
+  assert.ok(auditSheet, "_AuditLog sheet should exist");
+  assert.strictEqual(auditSheet.getRange("A1").getValue(), "Timestamp");
+});
+
+test("LogEngine executes audit event logging end-to-end with GasMockHarness GoogleSheetsStorageAdapter", () => {
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById("ss-gasmock-audit");
+  ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  const { LogEngine } = require("../../src/core/log/LogEngine");
+  const { GoogleSheetsStorageAdapter } = require("../../src/SheetStorageAdapter");
+  const adapter = new GoogleSheetsStorageAdapter("ss-gasmock-audit");
+  const engine = new LogEngine(adapter);
+
+  engine.logAuditEvent("ss-gasmock-audit", {
+    category: "ADMIN_ACTION",
+    eventType: "CACHE_INVALIDATED",
+    actor: "admin@example.com",
+    status: "SUCCESS",
+    details: { scope: "UserCache" }
+  });
+
+  const auditSheet = ss.getSheetByName("_AuditLog");
+  assert.ok(auditSheet, "_AuditLog sheet must exist in spreadsheet");
+  const grid = auditSheet.getGrid();
+  assert.ok(grid.length >= 2, "Grid must contain header row and logged audit event");
+  const eventRow = grid.find((r: any[]) => r[1] === "ADMIN_ACTION" && r[2] === "CACHE_INVALIDATED");
+  assert.ok(eventRow, "Audit log row must exist with Category ADMIN_ACTION and EventType CACHE_INVALIDATED");
+  assert.strictEqual(eventRow[3], "admin@example.com");
+  assert.strictEqual(eventRow[4], "SUCCESS");
+});
