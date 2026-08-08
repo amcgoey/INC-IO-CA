@@ -513,3 +513,13 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits exact textForm
   assert.strictEqual(formulaReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.italic, true);
   assert.deepStrictEqual(formulaReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.foregroundColor, { red: 0.7176, green: 0.7176, blue: 0.7176 });
 });
+
+test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits default font family repeatCell requests across all tabs", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+  const allRequests = payload.requests as RepeatCellReq[];
+  const configDefaultFontReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 5 && r.repeatCell?.range?.startRowIndex === 0 && r.repeatCell?.range?.startColumnIndex === 0 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(configDefaultFontReq, "_Config tab default font family repeatCell request must exist with Raleway");
+  const archDefaultFontReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 0 && r.repeatCell?.range?.startRowIndex === 0 && r.repeatCell?.range?.startColumnIndex === 0 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(archDefaultFontReq, "Submittal Arch tab default font family repeatCell request must exist with Raleway");
+});
