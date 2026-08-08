@@ -228,7 +228,7 @@ test("WorkbookTemplateViewModel generates setDataValidation batch update request
       rule?: { condition?: { values?: Array<{ userEnteredValue?: string }> } };
     };
   }
-  const validationReqs = (payload.requests as DataValidationRequest[]).filter(r => r.setDataValidation);
+  const validationReqs = (payload.requests as DataValidationRequest[]).filter(r => r.setDataValidation && r.setDataValidation.rule !== undefined);
   assert.ok(validationReqs.length > 0, 'setDataValidation requests must be generated');
   const specTagValidation = validationReqs.find(r => r.setDataValidation?.rule?.condition?.values?.[0]?.userEnteredValue === '=SpecTags');
   assert.ok(specTagValidation, 'Data validation rule for =SpecTags must be included in batch requests');
@@ -388,7 +388,7 @@ test("WorkbookTemplateViewModel setDataValidation specifies strict: false (Warni
     };
   }
 
-  const validationReqs = (payload.requests as DataValidationReq[]).filter(r => r.setDataValidation);
+  const validationReqs = (payload.requests as DataValidationReq[]).filter(r => r.setDataValidation && r.setDataValidation.rule !== undefined);
   assert.ok(validationReqs.length > 0, "setDataValidation requests must exist");
 
   validationReqs.forEach(req => {
@@ -460,4 +460,51 @@ test("indexToColLetter converts column indices to 1-based A1 notation column let
   assert.strictEqual(indexToColLetter(25), "Z");
   assert.strictEqual(indexToColLetter(26), "AA");
   assert.strictEqual(indexToColLetter(27), "AB");
+});
+
+test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits pre-pass setDataValidation purge requests omitting rule across full grid range for all tabs", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+
+  interface PurgeValidationReq {
+    setDataValidation?: {
+      range?: {
+        sheetId?: number;
+        startRowIndex?: number;
+        endRowIndex?: number;
+        startColumnIndex?: number;
+        endColumnIndex?: number;
+      };
+      rule?: any;
+    };
+  }
+
+  const allReqs = payload.requests as PurgeValidationReq[];
+  const purgeReqs = allReqs.filter(r => r.setDataValidation && r.setDataValidation.rule === undefined);
+
+  assert.strictEqual(
+    purgeReqs.length,
+    DOCUMENT_LOG_WORKBOOK_SPEC.tabs.length,
+    "Must emit pre-pass setDataValidation purge requests for all tabs"
+  );
+
+  DOCUMENT_LOG_WORKBOOK_SPEC.tabs.forEach((tab, index) => {
+    const purgeForTab = purgeReqs.find(r => r.setDataValidation?.range?.sheetId === index);
+    assert.ok(purgeForTab, "Pre-pass purge request for tab " + tab.name + " sheetId " + index + " must exist");
+    assert.strictEqual(purgeForTab.setDataValidation?.range?.startRowIndex, 0, "Purge startRowIndex must be 0");
+    assert.strictEqual(purgeForTab.setDataValidation?.range?.endRowIndex, tab.rowCount, "Purge endRowIndex must match tab.rowCount");
+    assert.strictEqual(purgeForTab.setDataValidation?.range?.startColumnIndex, 0, "Purge startColumnIndex must be 0");
+    assert.strictEqual(purgeForTab.setDataValidation?.range?.endColumnIndex, tab.columnCount, "Purge endColumnIndex must match tab.columnCount");
+    assert.strictEqual(purgeForTab.setDataValidation?.rule, undefined, "Purge request must omit rule property");
+  });
+
+  const firstRuleIdx = allReqs.findIndex(r => r.setDataValidation && r.setDataValidation.rule !== undefined);
+  const lastPurgeIdx = Math.max(...purgeReqs.map(r => allReqs.indexOf(r)));
+
+  if (firstRuleIdx >= 0) {
+    assert.ok(
+      lastPurgeIdx < firstRuleIdx,
+      "All pre-pass purge requests must precede column-level data validation rules"
+    );
+  }
 });
