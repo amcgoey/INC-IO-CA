@@ -221,7 +221,7 @@ test("GasMockHarness.uninstall restores original globalThis bindings", () => {
   assert.strictEqual((globalThis as any).SpreadsheetApp, "original-spreadsheet-app");
 });
 
-test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Config tab (100x20), MANIFEST_SCHEMA_VERSION, and seed rows", () => {
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Config tab (7x20), MANIFEST_SCHEMA_VERSION, and seed rows", () => {
   
 
   assert.strictEqual(DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, "1.0.0");
@@ -229,7 +229,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Config tab (100x20), MANIFEST_SCHEMA_V
 
   const configTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_Config");
   assert.ok(configTab, "_Config tab must be defined");
-  assert.strictEqual(configTab.rowCount, 7, "_Config tab rowCount should be 100");
+  assert.strictEqual(configTab.rowCount, 7, "_Config tab rowCount should be 7");
   assert.strictEqual(configTab.columnCount, 20, "_Config tab columnCount should be 20");
   assert.strictEqual(configTab.isConfigTab, true, "_Config tab isConfigTab flag should be true");
 
@@ -274,10 +274,10 @@ test("GasMockHarness resolves MANIFEST_SCHEMA_VERSION from _Config tab in mock s
   assert.strictEqual(configSheet.getRange("B2").getValue(), "1.0.0");
 });
 
-test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (100x20), contact lists, action picklists, and named ranges", () => {
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (6x20), contact lists, action picklists, and named ranges", () => {
   const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
   assert.ok(sharedTab, "_Shared tab must be defined");
-  assert.strictEqual(sharedTab.rowCount, 6, "_Shared tab rowCount should be 100");
+  assert.strictEqual(sharedTab.rowCount, 6, "_Shared tab rowCount should be 6");
   assert.strictEqual(sharedTab.columnCount, 20, "_Shared tab columnCount should be 20");
   assert.strictEqual(sharedTab.isSharedTab, true, "_Shared tab isSharedTab flag should be true");
 
@@ -303,10 +303,10 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (100x20), contact lists, ac
   assert.strictEqual(actionsSubmittalNR.scope, "Workbook");
 });
 
-test("DOCUMENT_LOG_WORKBOOK_SPEC defines _AuditLog system tab (500x10) and AuditLog_Events named range A1:F500", () => {
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines _AuditLog system tab (7x10) and AuditLog_Events named range A6:F7", () => {
   const auditLogTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_AuditLog");
   assert.ok(auditLogTab, "_AuditLog tab must be defined");
-  assert.strictEqual(auditLogTab.rowCount, 7, "_AuditLog tab rowCount should be 500");
+  assert.strictEqual(auditLogTab.rowCount, 7, "_AuditLog tab rowCount should be 7");
   assert.strictEqual(auditLogTab.columnCount, 10, "_AuditLog tab columnCount should be 10");
   assert.strictEqual(auditLogTab.isAuditLogTab, true, "_AuditLog tab isAuditLogTab flag should be true");
   assert.ok(auditLogTab.columns, "_AuditLog columns should exist");

@@ -88,11 +88,11 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "action", header: "Action", validationRange: "Actions_Submittal" },
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
-        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(B6:B, C6:C, D6:C, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), "", tag & IF(ISBLANK((rel), "", "-" & rel) & "-" & rev))' },
-        { id: "calcNumber", header: "Calc Number", formula: '=MAP�B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "-" & rev))' },
-        { id: "calcTitle", header: "Calc Title", formula: '=MAP(B6:B, E6:E, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), "", title), IFRR (VLOOKUP(tag, \'Submittal FFE Support\'!SpecTags, 2, FALSE), title)))' },
+        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(B6:B, C6:C, D6:D, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), "", tag & IF(ISBLANK(rel), "", "-" & rel) & "-" & rev))' },
+        { id: "calcNumber", header: "Calc Number", formula: '=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "-" & rev))' },
+        { id: "calcTitle", header: "Calc Title", formula: '=MAP(B6:B, E6:E, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), "", title), IFERROR(VLOOKUP(tag, \'Submittal FFE Support\'!SpecTags, 2, FALSE), title)))' },
         { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(H6:H, I6:I, LAMBDA(c, a, IF(ISBLANK(c), "", c & IF(ISBLANK(a), "", " (" & a & ")")))' },
-        { id: "calcSort", header: "Calc Sort", formula: '=MAP(B6:B, C6:C, LAMBDA(tag, rev_ IF(ISBLANK(tag), "", tag & "_" & rev))' }
+        { id: "calcSort", header: "Calc Sort", formula: '=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "_" & rev))' }
       ],
       seedRows: [
         ["Open", "CH-01", "", "0", "Dining Chair", "ACME", "2026-08-08", "ffe-reviewer@example.com", "For Approval", "Finish sample submittal", ""],

@@ -110,11 +110,11 @@
         "",
         "",
         "",
-        "=MAP(B6:B, C6:C, D6:C, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), \"\", tag & IF(ISBLANK((rel), \"\", \"-\" & rel) & \"-\" & rev))",
-        "=MAP�B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"-\" & rev))",
-        "=MAP(B6:B, E6:E, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), \"\", title), IFRR (VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE), title)))",
+        "=MAP(B6:B, C6:C, D6:D, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), \"\", tag & IF(ISBLANK(rel), \"\", \"-\" & rel) & \"-\" & rev))",
+        "=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"-\" & rev))",
+        "=MAP(B6:B, E6:E, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), \"\", title), IFERROR(VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE), title)))",
         "=MAP(H6:H, I6:I, LAMBDA(c, a, IF(ISBLANK(c), \"\", c & IF(ISBLANK(a), \"\", \" (\" & a & \")\")))",
-        "=MAP(B6:B, C6:C, LAMBDA(tag, rev_ IF(ISBLANK(tag), \"\", tag & \"_\" & rev))"
+        "=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"_\" & rev))"
       ],
       "seedRows": [
         [
