@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const { ReadLogAction } = require('../src/ReadLogAction');
-const { MoveDocumentAction } = require('../src/MoveDocumentAction');
+const { MoveDocumentAction } = require('../src/core/workflow/MoveDocumentAction');
 const { WriteLogAction } = require('../src/WriteLogAction');
 const { AnalyzeDocumentAction } = require('../src/AnalyzeDocumentAction');
 const { InsertPagesAction } = require('../src/InsertPagesAction');

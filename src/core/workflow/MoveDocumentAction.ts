@@ -1,4 +1,4 @@
-/// <reference path="./types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file MoveDocumentAction.ts
  * @description Standalone DocumentAction implementation for document relocation/filing using DriveFilingRepository.

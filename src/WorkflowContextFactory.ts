@@ -15,7 +15,7 @@ if (typeof require !== 'undefined') {
     FakeLogRepoClass = require('../test/harness/fakes/FakeLogRepository').FakeLogRepository;
   } catch (e) {}
   try {
-    FakeDriveFilingRepoClass = require('../test/harness/fakes/FakeDriveFilingRepository').FakeDriveFilingRepository;
+    FakeDriveFilingRepoClass = require('./adapters/fakes/FakeDriveFilingRepository').FakeDriveFilingRepository;
   } catch (e) {}
   try {
     FakePdfServiceClass = require('../test/harness/fakes/FakePdfDocumentService').FakePdfDocumentService;

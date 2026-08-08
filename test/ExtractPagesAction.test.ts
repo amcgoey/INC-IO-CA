@@ -10,7 +10,7 @@ import assert from "node:assert";
 };
 
 const { FakePdfDocumentService } = require("./harness/index");
-const { ExtractPagesAction, defaultExtractPagesAction } = require("../src/ExtractPagesAction");
+const { ExtractPagesAction, defaultExtractPagesAction } = require("../src/core/workflow/ExtractPagesAction");
 const { GeminiAiAnalysisAdapter } = require("../src/AiAnalysisService");
 
 function createMockBlob(size: number = 100, name: string = "test.pdf"): GoogleAppsScript.Base.Blob {
@@ -48,7 +48,7 @@ test("ExtractPagesAction slices multi-page PDF blob to default 3 pages using Fak
 
     const result = await action.execute({ sourceBlob: inputBlob });
 
-    assert.strictEqual(fakePdfService.calls.filter(c => c.method === "extractPages").length, 1);
+    assert.strictEqual(fakePdfService.calls.filter((c: any) => c.method === "extractPages").length, 1);
     assert.strictEqual(fakePdfService.extractPagesCalls[0].sourceBlob, inputBlob);
     assert.strictEqual(fakePdfService.extractPagesCalls[0].maxPages, 3);
     assert.strictEqual(result.blob, mockSlicedBlob);

@@ -7,7 +7,7 @@
 declare var require: any;
 
 let _ReadLogActionClass: any = null;
-let _MoveDocumentActionClass: any = null;
+let _MoveDocumentActionRouter: any = null;
 let _AnalyzeDocumentActionClass: any = null;
 let _InsertPagesActionClass: any = null;
 let _WriteLogActionClass: any = null;
@@ -18,8 +18,8 @@ if (typeof require !== 'undefined') {
     if (_rla && _rla.ReadLogAction) _ReadLogActionClass = _rla.ReadLogAction;
   } catch (e) {}
   try {
-    const _mda = eval("require('./MoveDocumentAction')");
-    if (_mda && _mda.MoveDocumentAction) _MoveDocumentActionClass = _mda.MoveDocumentAction;
+    const _mda = eval("require('./core/workflow/MoveDocumentAction')");
+    if (_mda && _mda.MoveDocumentAction) _MoveDocumentActionRouter = _mda.MoveDocumentAction;
   } catch (e) {}
   try {
     const _ada = eval("require('./AnalyzeDocumentAction')");
@@ -55,7 +55,7 @@ class WorkflowActionRouter {
     if (documentType === 'Submittal') {
       if (directionOrAction === 'Incoming_Filing' || directionOrAction === 'Incoming') {
         const RLA = _ReadLogActionClass || (globalThis as any).ReadLogAction;
-        const MDA = _MoveDocumentActionClass || (globalThis as any).MoveDocumentAction;
+        const MDA = _MoveDocumentActionRouter || (globalThis as any).MoveDocumentAction;
 
         const readLog = RLA ? new RLA() : null;
         const moveDoc = MDA ? new MDA() : null;
@@ -81,7 +81,7 @@ class WorkflowActionRouter {
 
       if (directionOrAction === 'Outgoing') {
         const WLA = _WriteLogActionClass || (globalThis as any).WriteLogAction;
-        const MDA = _MoveDocumentActionClass || (globalThis as any).MoveDocumentAction;
+        const MDA = _MoveDocumentActionRouter || (globalThis as any).MoveDocumentAction;
 
         const writeLog = WLA ? new WLA() : null;
         const moveDoc = MDA ? new MDA() : null;

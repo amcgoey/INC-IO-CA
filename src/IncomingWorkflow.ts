@@ -21,7 +21,7 @@ if (typeof require !== "undefined") {
     }
   } catch (e) {}
   try {
-    const _dda = eval('require("./DuplicateDocumentAction")');
+    const _dda = eval('require("./core/workflow/DuplicateDocumentAction")');
     if (_dda && _dda.DuplicateDocumentAction && typeof DuplicateDocumentAction === "undefined") {
       (globalThis as any).DuplicateDocumentAction = _dda.DuplicateDocumentAction;
     }
