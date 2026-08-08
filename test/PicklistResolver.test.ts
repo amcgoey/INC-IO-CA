@@ -6,6 +6,7 @@ import { CardSerializer } from "./harness/CardSerializer";
 // Register globals and load modules
 require("../src/DocumentTypeConfigRegistry");
 const { PicklistResolver } = require("../src/core/config/PicklistResolver");
+const { DOCUMENT_LOG_WORKBOOK_SPEC } = require("../src/core/config/DocumentLogWorkbookSpec");
 const { renderDynamicFormFields } = require("../src/adapters/gas/UI");
 
 describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
@@ -213,7 +214,6 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
   describe("_Shared Tab Contact Lists & Submittal Actions Picklists (Issue #182)", () => {
     it("should resolve Shared_Contacts_Arch from _Shared tab in mock spreadsheet", () => {
       const ss = harness.sheetsService.openById("test-ss-shared");
-      const { DOCUMENT_LOG_WORKBOOK_SPEC } = require("../src/core/config/DocumentLogWorkbookSpec");
       ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
 
       const result = PicklistResolver.resolvePicklistOptionsRange(
@@ -233,7 +233,6 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
 
     it("should resolve Shared_Contacts_FFE from _Shared tab in mock spreadsheet", () => {
       const ss = harness.sheetsService.openById("test-ss-shared-ffe");
-      const { DOCUMENT_LOG_WORKBOOK_SPEC } = require("../src/core/config/DocumentLogWorkbookSpec");
       ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
 
       const result = PicklistResolver.resolvePicklistOptionsRange(
@@ -253,7 +252,6 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
 
     it("should resolve Actions_Submittal picklist array from _Shared tab in mock spreadsheet", () => {
       const ss = harness.sheetsService.openById("test-ss-actions");
-      const { DOCUMENT_LOG_WORKBOOK_SPEC } = require("../src/core/config/DocumentLogWorkbookSpec");
       ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
 
       const result = PicklistResolver.resolvePicklistOptionsRange(

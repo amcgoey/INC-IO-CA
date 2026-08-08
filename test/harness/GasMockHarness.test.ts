@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
 import { GasMockHarness } from "./GasMockHarness";
-import { DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, DOCUMENT_LOG_WORKBOOK_SPEC } from "../../src/core/config/DocumentLogWorkbookSpec";
+import { DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, DOCUMENT_LOG_WORKBOOK_SPEC, TabSpec, NamedRangeSpec } from "../../src/core/config/DocumentLogWorkbookSpec";
 
 test.afterEach(() => {
   GasMockHarness.uninstall();
@@ -275,7 +275,7 @@ test("GasMockHarness resolves MANIFEST_SCHEMA_VERSION from _Config tab in mock s
 });
 
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (100x20), contact lists, action picklists, and named ranges", () => {
-  const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_Shared");
+  const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
   assert.ok(sharedTab, "_Shared tab must be defined");
   assert.strictEqual(sharedTab.rowCount, 100, "_Shared tab rowCount should be 100");
   assert.strictEqual(sharedTab.columnCount, 20, "_Shared tab columnCount should be 20");
@@ -284,19 +284,19 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (100x20), contact lists, ac
   assert.ok(sharedTab.seedRows, "_Shared seedRows must be present");
   assert.deepStrictEqual(sharedTab.seedRows[0], ["Contacts_Arch", "Contacts_FFE", "Actions_Submittal"]);
 
-  const archContactsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: any) => nr.name === "Shared_Contacts_Arch");
+  const archContactsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: NamedRangeSpec) => nr.name === "Shared_Contacts_Arch");
   assert.ok(archContactsNR, "Shared_Contacts_Arch named range must exist");
   assert.strictEqual(archContactsNR.tabName, "_Shared");
   assert.strictEqual(archContactsNR.rangeNotation, "A2:A20");
   assert.strictEqual(archContactsNR.scope, "Workbook");
 
-  const ffeContactsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: any) => nr.name === "Shared_Contacts_FFE");
+  const ffeContactsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: NamedRangeSpec) => nr.name === "Shared_Contacts_FFE");
   assert.ok(ffeContactsNR, "Shared_Contacts_FFE named range must exist");
   assert.strictEqual(ffeContactsNR.tabName, "_Shared");
   assert.strictEqual(ffeContactsNR.rangeNotation, "B2:B20");
   assert.strictEqual(ffeContactsNR.scope, "Workbook");
 
-  const actionsSubmittalNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: any) => nr.name === "Actions_Submittal");
+  const actionsSubmittalNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: NamedRangeSpec) => nr.name === "Actions_Submittal");
   assert.ok(actionsSubmittalNR, "Actions_Submittal named range must exist");
   assert.strictEqual(actionsSubmittalNR.tabName, "_Shared");
   assert.strictEqual(actionsSubmittalNR.rangeNotation, "C2:C20");

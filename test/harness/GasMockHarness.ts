@@ -1,3 +1,4 @@
+import { ColumnSpec, DocumentLogWorkbookSpec } from "../../src/core/config/DocumentLogWorkbookSpec";
 import { MockDriveState, MockDriveApp } from "./MockDrive";
 import { MockCardService } from "./CardServiceMocks";
 import { CardSerializer, ButtonJson } from "./CardSerializer";
@@ -443,9 +444,9 @@ export class MockSpreadsheet {
           sheet.setGridSlice(1, 1, tabDef.seedRows);
         }
         if (tabDef.columns && tabDef.columns.length > 0) {
-          const headers = tabDef.columns.map((c: any) => c.header);
+          const headers = tabDef.columns.map((c: ColumnSpec) => c.header);
           sheet.setGridSlice(1, 1, [headers]);
-          const formulas = tabDef.columns.map((c: any) => c.formula || "");
+          const formulas = tabDef.columns.map((c: ColumnSpec) => c.formula || "");
           sheet.setGridSlice(2, 1, [formulas]);
         }
       }
