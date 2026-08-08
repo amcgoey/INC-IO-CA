@@ -650,6 +650,9 @@ interface HydrationContext {
   userCacheDraft?: Record<string, any>;
   parserResult?: Record<string, any>;
   aiMetadata?: Record<string, any>;
+  spreadsheet?: any;
+  docTypeKey?: string;
+  activeSheetName?: string;
 }
 
 /** Validation and AI confidence UI context for dynamic field formatting. */

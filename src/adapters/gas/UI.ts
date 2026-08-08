@@ -36,7 +36,6 @@ function renderDynamicFormFields(
   const { missingFields = [], fieldConfidence = {}, onStateActionName = "onStateChange", actionParams = {} } = validationContext;
 
   const resolveValue = (globalThis as any).resolve5TierFieldValue;
-  const resolver = (globalThis as any).PicklistResolver;
 
   fields.forEach(field => {
     // Rule 1: Exclude calculated fields
@@ -72,19 +71,22 @@ function renderDynamicFormFields(
         .setFieldName(field.key)
         .setTitle(displayTitle);
 
-      let optionsList: Array<{ label: string; value: string }> = field.options || [];
+      let optionsList: PicklistOption[] = field.options || [];
 
-      if (field.optionsRange && resolver) {
-        const ss = (hydrationContext as any).spreadsheet || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp.getActiveSpreadsheet() : null);
-        const docTypeKey = (hydrationContext as any).docTypeKey || "Submittal_Arch";
-        const activeSheetName = (hydrationContext as any).activeSheetName || "Submittal Arch";
+      if (field.optionsRange) {
+        const ss = hydrationContext.spreadsheet || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp.getActiveSpreadsheet() : null);
+        const docTypeKey = hydrationContext.docTypeKey || "Submittal_Arch";
+        const activeSheetName = hydrationContext.activeSheetName || "Submittal Arch";
 
-        const resolvedResult = resolver.resolvePicklistOptionsRange(field.optionsRange, ss, docTypeKey, activeSheetName, field);
+        const resolvedResult = PicklistResolver.resolvePicklistOptionsRange(field.optionsRange, ss, docTypeKey, activeSheetName, field);
         optionsList = resolvedResult.options || optionsList;
         if (resolvedResult.warningBanner) {
           section.addWidget(
             CardService.newTextParagraph().setText(resolvedResult.warningBanner)
           );
+        }
+        if (resolvedResult.auditEvent && typeof Logger !== "undefined" && Logger.log) {
+          Logger.log(`[AuditLog] ${resolvedResult.auditEvent.eventType}: ${resolvedResult.auditEvent.details}`);
         }
       }
 
@@ -106,7 +108,7 @@ function renderDynamicFormFields(
     }
 
     if (field.type === 'date') {
-      let dateWidget: GoogleAppsScript.Card_Service.Widget | null = null;
+      let dateWidget: any = null;
       if (typeof CardService !== "undefined" && typeof CardService.newDatePicker === "function") {
         const picker = CardService.newDatePicker()
           .setFieldName(field.key)
@@ -127,26 +129,26 @@ function renderDynamicFormFields(
               epochMs = Date.parse(hydratedValue);
             }
           }
-          if (epochMs !== null && typeof (picker as any).setValueInMsSinceEpoch === "function") {
-            (picker as any).setValueInMsSinceEpoch(epochMs);
+          if (epochMs !== null && typeof picker.setValueInMsSinceEpoch === "function") {
+            picker.setValueInMsSinceEpoch(epochMs);
           }
         }
-        dateWidget = picker as any;
+        dateWidget = picker;
       } else {
         // Fallback to TextInput if DatePicker not available
         dateWidget = CardService.newTextInput()
           .setFieldName(field.key)
           .setTitle(displayTitle)
-          .setValue(hydratedValue) as any;
+          .setValue(hydratedValue);
         if (!hintText) hintText = "Date (YYMMDD)";
       }
 
-      if (hintText && dateWidget && typeof (dateWidget as any).setHint === "function") {
-        (dateWidget as any).setHint(hintText);
+      if (hintText && dateWidget && typeof dateWidget.setHint === "function") {
+        dateWidget.setHint(hintText);
       }
 
-      if (onStateActionName && dateWidget && typeof (dateWidget as any).setOnChangeAction === "function") {
-        (dateWidget as any).setOnChangeAction(
+      if (onStateActionName && dateWidget && typeof dateWidget.setOnChangeAction === "function") {
+        dateWidget.setOnChangeAction(
           CardService.newAction()
             .setFunctionName(onStateActionName)
             .setParameters(actionParams)

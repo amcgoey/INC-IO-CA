@@ -12,15 +12,17 @@ export interface PicklistOption {
   value: string;
 }
 
+export interface PicklistAuditEvent {
+  eventType: string;
+  details: string;
+}
+
 export interface PicklistResolveResult {
   options: PicklistOption[];
   success: boolean;
   isFallback: boolean;
   warningBanner?: string;
-  auditEvent?: {
-    eventType: string;
-    details: string;
-  };
+  auditEvent?: PicklistAuditEvent;
 }
 
 export interface MinimalFieldSpec {
@@ -35,8 +37,14 @@ export interface SpreadsheetRangeLike {
   getValues(): unknown[][];
 }
 
+export interface SpreadsheetSheetLike {
+  getName(): string;
+  getRange(rangeNotation: string): SpreadsheetRangeLike | null;
+}
+
 export interface SpreadsheetLike {
   getRangeByName(name: string): SpreadsheetRangeLike | null;
+  getSheetByName(name: string): SpreadsheetSheetLike | null;
 }
 
 export class PicklistResolver {
@@ -78,12 +86,9 @@ export class PicklistResolver {
     activeSheetName: string = 'Submittal Arch',
     fieldSpec?: MinimalFieldSpec
   ): PicklistResolveResult {
-    const fallbackOptions: PicklistOption[] = (fieldSpec && Array.isArray(fieldSpec.options) && fieldSpec.options.length > 0)
+    const fallbackOptions: PicklistOption[] = (fieldSpec && Array.isArray(fieldSpec.options))
       ? fieldSpec.options
-      : [
-          { value: "DEFAULT_1", label: "Default Option 1" },
-          { value: "DEFAULT_2", label: "Default Option 2" }
-        ];
+      : [];
 
     if (!optionsRange || typeof optionsRange !== 'string' || optionsRange.trim() === '') {
       return {
@@ -117,7 +122,6 @@ export class PicklistResolver {
     // Tier 2: Retry with sheet qualification from DocumentLogWorkbookSpec or active sheet
     const candidateTabNames: string[] = [];
 
-    // Check DocumentLogWorkbookSpec namedRanges matching bareRangeName
     const specRanges: NamedRangeSpec[] = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges || [];
     const matchedSpec = specRanges.find(r => r.name === bareRangeName || r.name === cleanRangeStr);
     if (matchedSpec && matchedSpec.tabName) {
@@ -128,9 +132,9 @@ export class PicklistResolver {
       candidateTabNames.push(activeSheetName);
     }
 
-    if (matchedSpec && matchedSpec.tabName && matchedSpec.rangeNotation && spreadsheet && typeof (spreadsheet as any).getSheetByName === 'function') {
+    if (matchedSpec && matchedSpec.tabName && matchedSpec.rangeNotation && spreadsheet && typeof spreadsheet.getSheetByName === 'function') {
       try {
-        const specSheet = (spreadsheet as any).getSheetByName(matchedSpec.tabName);
+        const specSheet = spreadsheet.getSheetByName(matchedSpec.tabName);
         if (specSheet && typeof specSheet.getRange === 'function') {
           const range = specSheet.getRange(matchedSpec.rangeNotation);
           if (range && typeof range.getValues === 'function') {
@@ -142,13 +146,15 @@ export class PicklistResolver {
           }
         }
       } catch (_err) {
-        // Proceed
+        // Proceed to loop
       }
     }
 
     for (const tabName of candidateTabNames) {
       try {
-        const qualifiedName = `'${tabName.replace(/'/g, "\\'")}'!${bareRangeName}`;
+        // Google Sheets range syntax doubles single quotes inside tab names
+        const escapedTabName = tabName.replace(/'/g, "''");
+        const qualifiedName = `'${escapedTabName}'!${bareRangeName}`;
         if (spreadsheet && typeof spreadsheet.getRangeByName === 'function') {
           const range = spreadsheet.getRangeByName(qualifiedName);
           if (range && typeof range.getValues === 'function') {
@@ -165,7 +171,7 @@ export class PicklistResolver {
     }
 
     // Tier 3: Defensive exception handling, diagnostic audit logging, JSON field options fallback
-    const auditEvent = {
+    const auditEvent: PicklistAuditEvent = {
       eventType: "AUDIT_EVENT_MISSING_OPTIONS_RANGE",
       details: `Options range '${cleanRangeStr}' missing or invalid for docType '${docTypeKey}'. Displaying fallback options.`
     };
@@ -226,5 +232,3 @@ if (typeof module !== 'undefined' && module.exports) {
     PicklistResolver
   };
 }
-
-(globalThis as any).PicklistResolver = PicklistResolver;
