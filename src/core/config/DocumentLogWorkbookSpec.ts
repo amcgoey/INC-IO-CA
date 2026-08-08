@@ -92,12 +92,17 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "title", header: "Title" },
         { id: "revision", header: "Revision" },
         { id: "date", header: "Date" },
-        { id: "contact", header: "Contact" },
-        { id: "action", header: "Action" },
-        { id: "status", header: "Status" },
+        { id: "contact", header: "Contact", validationRange: "Shared_Contacts_Arch" },
+        { id: "action", header: "Action", validationRange: "Actions_Submittal" },
+        { id: "status", header: "Status", validationRange: "Actions_Submittal" },
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
-        { id: "contactHistory", header: "Contact History" }
+        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(A4:A, B4:B, C4:C, D4:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "003") & "-" & title & "-" & rev)))' },
+        { id: "calcNumber", header: "Calc Number", formula: '=MAP(A4:A, B4:B, D4:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "003") & "-" & rev)))' },
+        { id: "calcTitle", header: "Calc Title", formula: '=MAP(A4:A, C4:C, LAMBDA(sec, title, IF(ISBLANK(sec), "", title)))' },
+        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(F4:F, LAMBDA(c, IF(ISBLANK(c), "", c)))' },
+        { id: "calcSort", header: "Calc Sort", formula: '=MAP(A4:A, B4:B, LAMBDA(sec, num, IF(ISBLANK(sec), "", TEXT(sec, "000000") & TEXT(num, "0000")))'
+ }
       ]
     },
     {
@@ -155,12 +160,12 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "B2:B20", scope: "Workbook" },
     { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "C2:C20", scope: "Workbook" },
     { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A1:F500", scope: "Workbook" },
-    { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A1:K2", scope: "Sheet" },
-    { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Sheet" },
-    { name: "Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Sheet" },
-    { name: "Submittal_Arch_Headers", tabName: "Submittal Arch", rangeNotation: "A1:K2", scope: "Workbook" },
-    { name: "Submittal_Arch_FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Workbook" },
-    { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Workbook" },
+    { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A1:O2", scope: "Sheet" },
+    { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:O2", scope: "Sheet" },
+    { name: "Data", tabName: "Submittal Arch", rangeNotation: "A4:O1000", scope: "Sheet" },
+    { name: "Submittal_Arch_Headers", tabName: "Submittal Arch", rangeNotation: "A1:O2", scope: "Workbook" },
+    { name: "Submittal_Arch_FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:O2", scope: "Workbook" },
+    { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A4:O1000", scope: "Workbook" },
     { name: "Headers", tabName: "Submittal FFE", rangeNotation: "A1:O2", scope: "Sheet" },
     { name: "FormulaRow", tabName: "Submittal FFE", rangeNotation: "A2:O2", scope: "Sheet" },
     { name: "Data", tabName: "Submittal FFE", rangeNotation: "A4:O1000", scope: "Sheet" },
@@ -169,9 +174,10 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A4:O1000", scope: "Workbook" },
     { name: "Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Sheet" },
     { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Sheet" },
-    { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Sheet" }
+    { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Sheet" },
   ]
 };
+
 
 declare var module: any;
 

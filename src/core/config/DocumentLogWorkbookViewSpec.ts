@@ -1,95 +1,121 @@
 /**
  * @file DocumentLogWorkbookViewSpec.ts
- * @description Aesthetic design system tokenizing visual presentation attributes (#666666 header fill, white text, column widths, font typography).
+ * @description MVVM View specification tokenizing aesthetic presentation rules
+ * (header fill colors #666666, font typography, layout offsets, column widths,
+ * and date/number format strings) derived from reference submittal log templates.
  */
 
-export interface ThemeColorsSpec {
-  headerFill: string;
-  headerText: string;
-  formulaRowFill: string;
-  formulaRowText: string;
-  accentColor: string;
+export interface ColorRgb {
+  red: number;
+  green: number;
+  blue: number;
 }
 
 export interface HeaderStyleSpec {
+  fillHex: string;
+  fillRgb: ColorRgb;
+  fontColorHex: string;
+  fontColorRgb: ColorRgb;
   bold: boolean;
   fontSize: number;
   fontFamily: string;
-  backgroundColor: string;
-  foregroundColor: string;
-  horizontalAlignment: "LEFT" | "CENTER" | "RIGHT";
 }
 
-export interface ColumnWidthSpec {
-  [columnId: string]: number;
+export interface FormulaRowStyleSpec {
+  fontColorHex: string;
+  fontColorRgb: ColorRgb;
+  fillHex: string;
+  fillRgb: ColorRgb;
+  italic: boolean;
+  fontSize: number;
+  fontFamily: string;
+}
+
+export interface LayoutOffsetSpec {
+  HEADER_ROW_INDEX: number;
+  FORMULA_ROW_INDEX: number;
+  BUFFER_ROW_INDEX: number;
+  FIRST_DATA_ROW_INDEX: number;
+  FIRST_DATA_ROW_OFFSET: number;
 }
 
 export interface DocumentLogWorkbookViewSpec {
-  themeColors: ThemeColorsSpec;
   headerStyle: HeaderStyleSpec;
+  formulaRowStyle: FormulaRowStyleSpec;
+  offsets: LayoutOffsetSpec;
+  columnWidths: Record<string, number>;
   defaultColumnWidth: number;
-  columnWidths: Record<string, ColumnWidthSpec>;
 }
 
-const themeColors: ThemeColorsSpec = {
-  headerFill: "#666666",
-  headerText: "#FFFFFF",
-  formulaRowFill: "#F3F3F3",
-  formulaRowText: "#666666",
-  accentColor: "#4A90E2"
+export const ThemeColors = {
+  HEADER_FILL_HEX: "#666666",
+  HEADER_FILL_RGB: { red: 0.4, green: 0.4, blue: 0.4 },
+  HEADER_TEXT_HEX: "#FFFFFF",
+  HEADER_TEXT_RGB: { red: 1.0, green: 1.0, blue: 1.0 },
+  FORMULA_ROW_FONT_HEX: "#666666",
+  FORMULA_ROW_FONT_RGB: { red: 0.4, green: 0.4, blue: 0.4 },
+  FORMULA_ROW_FILL_HEX: "#F3F3F3",
+  FORMULA_ROW_FILL_RGB: { red: 0.95, green: 0.95, blue: 0.95 }
 };
 
-const headerStyle: HeaderStyleSpec = {
-  bold: true,
-  fontSize: 10,
-  fontFamily: "Arial",
-  backgroundColor: themeColors.headerFill,
-  foregroundColor: themeColors.headerText,
-  horizontalAlignment: "LEFT"
-};
-
-export const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC: DocumentLogWorkbookViewSpec = {
-  themeColors,
-  headerStyle,
-  defaultColumnWidth: 120,
+export const VisualStyleSpec = {
+  headerStyle: {
+    fillHex: ThemeColors.HEADER_FILL_HEX,
+    fillRgb: ThemeColors.HEADER_FILL_RGB,
+    fontColorHex: ThemeColors.HEADER_TEXT_HEX,
+    fontColorRgb: ThemeColors.HEADER_TEXT_RGB,
+    bold: true,
+    fontSize: 10,
+    fontFamily: "Roboto"
+  },
+  formulaRowStyle: {
+    fontColorHex: ThemeColors.FORMULA_ROW_FONT_HEX,
+    fontColorRgb: ThemeColors.FORMULA_ROW_FONT_RGB,
+    fillHex: ThemeColors.FORMULA_ROW_FILL_HEX,
+    fillRgb: ThemeColors.FORMULA_ROW_FILL_RGB,
+    italic: true,
+    fontSize: 9,
+    fontFamily: "Roboto"
+  },
+  offsets: {
+    HEADER_ROW_INDEX: 1,
+    FORMULA_ROW_INDEX: 2,
+    BUFFER_ROW_INDEX: 3,
+    FIRST_DATA_ROW_INDEX: 4,
+    FIRST_DATA_ROW_OFFSET: 3
+  },
   columnWidths: {
-    "Submittal Arch": {
-      section: 100,
-      number: 80,
-      title: 250,
-      revision: 80,
-      date: 100,
-      contact: 180,
-      action: 140,
-      status: 120,
-      notes: 200,
-      link: 150,
-      contactHistory: 220
-    },
-    "Submittal FFE": {
-      specTag: 100,
-      relatedTag: 110,
-      revision: 80,
-      specTitle: 250,
-      vendor: 180,
-      date: 100,
-      contact: 180,
-      action: 140,
-      notes: 200,
-      link: 150,
-      calcFileName: 160,
-      calcNumber: 120,
-      calcTitle: 200,
-      calcContactChain: 220,
-      calcSort: 140
-    }
-  }
+    section: 100,
+    number: 100,
+    title: 250,
+    revision: 80,
+    date: 100,
+    contact: 180,
+    action: 140,
+    status: 120,
+    notes: 250,
+    link: 150,
+    calcFileName: 250,
+    calcNumber: 180,
+    calcTitle: 250,
+    calcContactChain: 200,
+    calcSort: 150,
+    specTag: 100,
+    relatedTag: 110,
+    specTitle: 250,
+    vendor: 180
+  },
+  defaultColumnWidth: 150
 };
+
+export const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC: DocumentLogWorkbookViewSpec = VisualStyleSpec;
 
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    ThemeColors,
+    VisualStyleSpec,
     DOCUMENT_LOG_WORKBOOK_VIEW_SPEC
   };
 }

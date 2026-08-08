@@ -1,13 +1,14 @@
 /**
  * @file WorkbookTemplateViewModel.ts
- * @description Presenter binding domain layout (DocumentLogWorkbookSpec) and visual design system (DocumentLogWorkbookViewSpec).
- * Serializes template structure for offline test fixtures (toFixtureJson()) and Sheets API payload generation.
+ * @description MVVM ViewModel presenter component binding DocumentLogWorkbookSpec (Model)
+ * and DocumentLogWorkbookViewSpec (View Spec) to produce offline JSON test fixtures
+ * and Google Sheets API batchUpdate request payloads.
  */
 
-import { DocumentLogWorkbookSpec, TabSpec, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
-import { DocumentLogWorkbookViewSpec, HeaderStyleSpec, ThemeColorsSpec } from "./DocumentLogWorkbookViewSpec";
+import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
+import { DocumentLogWorkbookViewSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./DocumentLogWorkbookViewSpec";
 
-export interface FixtureTabJson {
+export interface FixtureTabSpec {
   name: string;
   rowCount: number;
   columnCount: number;
@@ -21,66 +22,161 @@ export interface FixtureTabJson {
   seedRows: (string | number | boolean)[][];
 }
 
-export interface FixtureWorkbookJson {
+export interface FixtureSpec {
   schemaVersion: string;
-  tabs: FixtureTabJson[];
+  tabs: FixtureTabSpec[];
   namedRanges: NamedRangeSpec[];
 }
 
+export interface BatchUpdateRequestPayload {
+  requests: object[];
+}
+
 export class WorkbookTemplateViewModel {
+  private model: DocumentLogWorkbookSpec;
+  private viewSpec: DocumentLogWorkbookViewSpec;
+
   constructor(
-    private readonly spec: DocumentLogWorkbookSpec,
-    private readonly viewSpec: DocumentLogWorkbookViewSpec
-  ) {}
+    model: DocumentLogWorkbookSpec = DOCUMENT_LOG_WORKBOOK_SPEC,
+    viewSpec: DocumentLogWorkbookViewSpec = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC
+  ) {
+    this.model = model;
+    this.viewSpec = viewSpec;
+  }
 
   public getSpec(): DocumentLogWorkbookSpec {
-    return this.spec;
+    return this.model;
   }
 
   public getViewSpec(): DocumentLogWorkbookViewSpec {
     return this.viewSpec;
   }
 
-  public getHeaderStyle(): HeaderStyleSpec {
-    return this.viewSpec.headerStyle;
+  public toFixtureJson(): FixtureSpec {
+    return {
+      schemaVersion: this.model.schemaVersion,
+      tabs: this.model.tabs.map(tab => {
+        const headers = tab.columns
+          ? tab.columns.map(c => c.header)
+          : (tab.seedRows && tab.seedRows.length > 0 ? tab.seedRows[0].map(String) : []);
+        const formulaRow = tab.columns
+          ? tab.columns.map(c => c.formula || "")
+          : [];
+        const seedRows = tab.isLogTab ? [] : (tab.seedRows || []);
+
+        return {
+          name: tab.name,
+          rowCount: tab.rowCount,
+          columnCount: tab.columnCount,
+          isConfigTab: !!tab.isConfigTab,
+          isSharedTab: !!tab.isSharedTab,
+          isAuditLogTab: !!tab.isAuditLogTab,
+          isLogTab: !!tab.isLogTab,
+          isSupportTab: !!tab.isSupportTab,
+          headers,
+          formulaRow,
+          seedRows
+        };
+      }),
+      namedRanges: this.model.namedRanges
+    };
   }
 
-  public getThemeColors(): ThemeColorsSpec {
-    return this.viewSpec.themeColors;
-  }
+  public toBatchUpdateRequestPayload(): BatchUpdateRequestPayload {
+    const requests: object[] = [];
+    const { headerStyle, formulaRowStyle, offsets, columnWidths, defaultColumnWidth } = this.viewSpec;
 
-  public toFixtureJson(): FixtureWorkbookJson {
-    const tabs: FixtureTabJson[] = this.spec.tabs.map((tab: TabSpec) => {
-      const headers = tab.columns ? tab.columns.map((c) => c.header) : [];
-      const formulaRow = tab.columns ? tab.columns.map((c) => c.formula || "") : [];
-      
-      const isSupportTab = Boolean(tab.isSupportTab);
-      
-      const tabJson: FixtureTabJson = {
-        name: tab.name,
-        rowCount: tab.rowCount,
-        columnCount: tab.columnCount,
-        isConfigTab: Boolean(tab.isConfigTab),
-        isSharedTab: Boolean(tab.isSharedTab),
-        isAuditLogTab: Boolean(tab.isAuditLogTab),
-        isLogTab: Boolean(tab.isLogTab),
-        headers,
-        formulaRow,
-        seedRows: tab.seedRows || []
-      };
-
-      if (isSupportTab) {
-        tabJson.isSupportTab = true;
-      }
-
-      return tabJson;
+    const tabIndexMap = new Map<string, number>();
+    this.model.tabs.forEach((tab, index) => {
+      tabIndexMap.set(tab.name, index);
     });
 
-    return {
-      schemaVersion: this.spec.schemaVersion,
-      tabs,
-      namedRanges: this.spec.namedRanges
-    };
+    this.model.tabs.forEach((tab, tabIndex) => {
+      if (tab.isLogTab && tab.columns) {
+        requests.push({
+          repeatCell: {
+            range: {
+              sheetId: tabIndex,
+              startRowIndex: offsets.HEADER_ROW_INDEX - 1,
+              endRowIndex: offsets.HEADER_ROW_INDEX,
+              startColumnIndex: 0,
+              endColumnIndex: tab.columns.length
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: headerStyle.fillRgb,
+                textFormat: {
+                  foregroundColor: headerStyle.fontColorRgb,
+                  bold: headerStyle.bold,
+                  fontSize: headerStyle.fontSize,
+                  fontFamily: headerStyle.fontFamily
+                }
+              }
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat)"
+          }
+        });
+
+        requests.push({
+          repeatCell: {
+            range: {
+              sheetId: tabIndex,
+              startRowIndex: offsets.FORMULA_ROW_INDEX - 1,
+              endRowIndex: offsets.FORMULA_ROW_INDEX,
+              startColumnIndex: 0,
+              endColumnIndex: tab.columns.length
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: formulaRowStyle.fillRgb,
+                textFormat: {
+                  foregroundColor: formulaRowStyle.fontColorRgb,
+                  italic: formulaRowStyle.italic,
+                  fontSize: formulaRowStyle.fontSize,
+                  fontFamily: formulaRowStyle.fontFamily
+                }
+              }
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat)"
+          }
+        });
+
+        tab.columns.forEach((col, colIdx) => {
+          const width = columnWidths[col.id] || defaultColumnWidth;
+          requests.push({
+            updateDimensionProperties: {
+              range: {
+                sheetId: tabIndex,
+                dimension: "COLUMNS",
+                startIndex: colIdx,
+                endIndex: colIdx + 1
+              },
+              properties: {
+                pixelSize: width
+              },
+              fields: "pixelSize"
+            }
+          });
+        });
+      }
+    });
+
+    this.model.namedRanges.forEach(nr => {
+      const sheetId = tabIndexMap.get(nr.tabName) ?? 0;
+      requests.push({
+        addNamedRange: {
+          namedRange: {
+            name: nr.name,
+            range: {
+              sheetId,
+              namedRangeId: nr.name
+            }
+          }
+        }
+      });
+    });
+
+    return { requests };
   }
 }
 

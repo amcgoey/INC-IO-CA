@@ -5,7 +5,7 @@ import {
   TabSpec,
   NamedRangeSpec
 } from "../src/core/config/DocumentLogWorkbookSpec";
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../src/core/config/DocumentLogWorkbookViewSpec";
+import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, ThemeColors } from "../src/core/config/DocumentLogWorkbookViewSpec";
 import { WorkbookTemplateViewModel } from "../src/core/config/WorkbookTemplateViewModel";
 
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE log tab (1000x26) with 15 columns", () => {
@@ -109,11 +109,11 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
 
 test("DOCUMENT_LOG_WORKBOOK_VIEW_SPEC specifies Dark Gray #666666 header fill and white text", () => {
   assert.ok(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, "DOCUMENT_LOG_WORKBOOK_VIEW_SPEC must be exported");
-  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.themeColors.headerFill, "#666666");
-  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.themeColors.headerText, "#FFFFFF");
+  assert.strictEqual(ThemeColors.HEADER_FILL_HEX, "#666666");
+  assert.strictEqual(ThemeColors.HEADER_TEXT_HEX, "#FFFFFF");
   assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.bold, true);
-  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.backgroundColor, "#666666");
-  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.foregroundColor, "#FFFFFF");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.fillHex, "#666666");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.fontColorHex, "#FFFFFF");
 });
 
 test("WorkbookTemplateViewModel binds spec and view spec to export complete fixture JSON", () => {
