@@ -6,7 +6,7 @@
  */
 
 import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
-import { DocumentLogWorkbookViewSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./DocumentLogWorkbookViewSpec";
+import { DocumentLogWorkbookViewSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, HeaderStyleSpec, ColorRgb } from "./DocumentLogWorkbookViewSpec";
 
 export interface FixtureTabSpec {
   name: string;
@@ -26,6 +26,14 @@ export interface FixtureSpec {
   schemaVersion: string;
   tabs: FixtureTabSpec[];
   namedRanges: NamedRangeSpec[];
+}
+
+export interface GridRangeSpec {
+  sheetId: number;
+  startRowIndex?: number;
+  endRowIndex?: number;
+  startColumnIndex?: number;
+  endColumnIndex?: number;
 }
 
 export interface BatchUpdateRequestPayload {
@@ -273,12 +281,12 @@ export class WorkbookTemplateViewModel {
     });
 
     const addedNames = new Set<string>();
-    this.model.namedRanges.forEach(nr => {
-      const sheetId = tabIndexMap.get(nr.tabName) ?? 0;
-      const gridRange = parseA1ToGridRange(nr.rangeNotation, sheetId);
-      let name = nr.name;
+    this.model.namedRanges.forEach(namedRange => {
+      const sheetId = tabIndexMap.get(namedRange.tabName) ?? 0;
+      const gridRange = parseA1ToGridRange(namedRange.rangeNotation, sheetId);
+      let name = namedRange.name;
       if (addedNames.has(name)) {
-        name = `${nr.tabName.replace(/ /g, "_")}_${nr.name}`;
+        name = `${namedRange.tabName.replace(/ /g, "_")}_${namedRange.name}`;
       }
       if (addedNames.has(name)) {
         return; // skip if exact name already added
@@ -296,11 +304,77 @@ export class WorkbookTemplateViewModel {
       });
     });
 
+    // 1. Settings Named Range Fills (Emitted FIRST so header styling is applied on top)
+    if (this.viewSpec.namedRangeFills) {
+      const processedFillRanges = new Set<string>();
+      this.model.namedRanges.forEach(namedRange => {
+        const fillRgb = this.viewSpec.namedRangeFills?.[namedRange.name];
+        if (fillRgb) {
+          const sheetId = tabIndexMap.get(namedRange.tabName);
+          if (sheetId !== undefined) {
+            const rangeKey = `${sheetId}:${namedRange.rangeNotation}`;
+            if (processedFillRanges.has(rangeKey)) {
+              return; // skip duplicate requests for identical range notations
+            }
+            processedFillRanges.add(rangeKey);
+            const gridRange = parseA1ToGridRange(namedRange.rangeNotation, sheetId);
+            requests.push(createRepeatCellBackgroundRequest(gridRange, fillRgb));
+          }
+        }
+      });
+    }
+
+    // 2. Settings Header Formatting (Emitted SECOND to guarantee Dark Gray #666666 headers take precedence over pale fills)
+    if (this.viewSpec.settingHeaderRanges) {
+      Object.entries(this.viewSpec.settingHeaderRanges).forEach(([tabName, ranges]) => {
+        const sheetId = tabIndexMap.get(tabName);
+        if (sheetId === undefined) return;
+        ranges.forEach(rangeStr => {
+          const gridRange = parseA1ToGridRange(rangeStr, sheetId);
+          requests.push(createRepeatCellHeaderRequest(gridRange, headerStyle));
+        });
+      });
+    }
+
     return { requests };
   }
 }
 
-function colLetterToIndex(colStr: string): number {
+function createRepeatCellBackgroundRequest(gridRange: GridRangeSpec, backgroundColor: ColorRgb) {
+  return {
+    repeatCell: {
+      range: gridRange,
+      cell: {
+        userEnteredFormat: {
+          backgroundColor
+        }
+      },
+      fields: "userEnteredFormat(backgroundColor)"
+    }
+  };
+}
+
+function createRepeatCellHeaderRequest(gridRange: GridRangeSpec, headerStyle: HeaderStyleSpec) {
+  return {
+    repeatCell: {
+      range: gridRange,
+      cell: {
+        userEnteredFormat: {
+          backgroundColor: headerStyle.fillRgb,
+          textFormat: {
+            foregroundColor: headerStyle.fontColorRgb,
+            bold: headerStyle.bold,
+            fontSize: headerStyle.fontSize,
+            fontFamily: headerStyle.fontFamily
+          }
+        }
+      },
+      fields: "userEnteredFormat(backgroundColor,textFormat)"
+    }
+  };
+}
+
+export function colLetterToIndex(colStr: string): number {
   let index = 0;
   for (let i = 0; i < colStr.length; i++) {
     index = index * 26 + (colStr.charCodeAt(i) - 64);
@@ -308,28 +382,44 @@ function colLetterToIndex(colStr: string): number {
   return index - 1;
 }
 
-function parseA1ToGridRange(rangeStr: string, sheetId: number) {
-  const match = rangeStr.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
-  if (!match) {
-    return { sheetId };
+export function parseA1ToGridRange(rangeStr: string, sheetId: number): GridRangeSpec {
+  const rangeMatch = rangeStr.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
+  if (rangeMatch) {
+    const startCol = colLetterToIndex(rangeMatch[1].toUpperCase());
+    const startRow = parseInt(rangeMatch[2], 10) - 1;
+    const endCol = colLetterToIndex(rangeMatch[3].toUpperCase()) + 1;
+    const endRow = parseInt(rangeMatch[4], 10);
+    return {
+      sheetId,
+      startRowIndex: startRow,
+      endRowIndex: endRow,
+      startColumnIndex: startCol,
+      endColumnIndex: endCol
+    };
   }
-  const startCol = colLetterToIndex(match[1].toUpperCase());
-  const startRow = parseInt(match[2], 10) - 1;
-  const endCol = colLetterToIndex(match[3].toUpperCase()) + 1;
-  const endRow = parseInt(match[4], 10);
-  return {
-    sheetId,
-    startRowIndex: startRow,
-    endRowIndex: endRow,
-    startColumnIndex: startCol,
-    endColumnIndex: endCol
-  };
+
+  const singleMatch = rangeStr.match(/^([A-Z]+)(\d+)$/i);
+  if (singleMatch) {
+    const col = colLetterToIndex(singleMatch[1].toUpperCase());
+    const row = parseInt(singleMatch[2], 10) - 1;
+    return {
+      sheetId,
+      startRowIndex: row,
+      endRowIndex: row + 1,
+      startColumnIndex: col,
+      endColumnIndex: col + 1
+    };
+  }
+
+  return { sheetId };
 }
 
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    WorkbookTemplateViewModel
+    WorkbookTemplateViewModel,
+    colLetterToIndex,
+    parseA1ToGridRange
   };
 }
