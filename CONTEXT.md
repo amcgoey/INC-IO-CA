@@ -8,6 +8,16 @@ Validates and records incoming or outgoing project submittals into the log sheet
 The single, standardized Google Sheet workbook that acts as the project source of truth across all document types. Contains consolidated tabs (`_Config`, `_Shared`), discipline/document log tabs (`Submittal Arch`, `Submittal FFE`), and support info tabs.
 _Avoid_: Unified Workbook, Master Sheet, Log Spreadsheet
 
+**Minimum Viable Template (MVT)**:
+The ground-truth Google Sheet template layout, styling, and named-range specification established in Milestone 3, serving as the master baseline for offline fixture generation and live sheet provisioning across all document types.
+
+**DocumentLogWorkbookViewSpec**:
+The MVVM View specification containing aesthetic formatting rules (header background fill colors, font styles, text alignment, column pixel widths, number/date format strings, and conditional formatting rules) derived from live reference submittal log templates.
+
+**WorkbookTemplateViewModel**:
+The MVVM ViewModel binding component that maps pure domain model definitions (`DocumentLogWorkbookSpec`) and visual presentation specifications (`DocumentLogWorkbookViewSpec`) into Google Sheets API batch update request payloads and offline JSON test fixtures.
+
+
 **FormulaRow**:
 The dedicated row immediately following the header row in a log tab that holds formula definitions for calculated columns (`Calc File Name`, `Calc Number`, `Calc Title`, `Calc Contact Chain`, `Calc Sort`) so manual log entries inherit formatting and backup calculations. Occupies the second row of the `<TabName>_Headers` Named Range.
 
