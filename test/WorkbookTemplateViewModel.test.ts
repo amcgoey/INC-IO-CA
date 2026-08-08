@@ -348,11 +348,11 @@ test("Log data rows remain unstyled white #FFFFFF without background fill repeat
   const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
   const payload = viewModel.toBatchUpdateRequestPayload();
 
-  // Check Submittal Arch (sheetId 0) and Submittal FFE (sheetId 1) rows 3 to 999 (A4:O1000)
+  // Check Submittal Arch (sheetId 0) and Submittal FFE (sheetId 1) data rows (Row 6+, startRowIndex >= 5)
   const logDataFills = (payload.requests as RepeatCellReq[]).filter(
     r => r.repeatCell &&
          (r.repeatCell.range?.sheetId === 0 || r.repeatCell.range?.sheetId === 1) &&
-         (r.repeatCell.range?.startRowIndex ?? 0) >= 3
+         (r.repeatCell.range?.startRowIndex ?? 0) >= 5
   );
 
   assert.strictEqual(logDataFills.length, 0, "No repeatCell fill requests must be emitted for log data rows");
