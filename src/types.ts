@@ -762,13 +762,7 @@ declare const PDFLib: any;
 
 
 
-interface MinimalFieldSpec {
-  key: string;
-  label?: string;
-  optionsRange?: string;
-  options?: PicklistOption[];
-  keyNormalizationRule?: 'picklist' | 'code' | 'exact';
-}
+
 
 interface PicklistResolveResult {
   options: PicklistOption[];

@@ -6,14 +6,34 @@
  * with appropriate blank separator rows in the Google Sheet.
  */
 
+/**
+ * Safely pads a numeric or string value with leading zeros up to specified length.
+ *
+ * @param val - Raw input value.
+ * @param len - Target minimum string length.
+ * @returns Zero-padded string.
+ */
 function padNum(val: unknown, len: number): string {
   return String(val || "").trim().padStart(len, '0');
 }
 
+/**
+ * Evaluates whether a raw log sheet row array is blank (empty/whitespace across first 8 columns).
+ *
+ * @param row - Raw row array.
+ * @returns `true` if all first 8 cells are empty/whitespace, `false` otherwise.
+ */
 function isRowBlank(row: unknown[]): boolean {
   return row.slice(0, 8).every((cell: unknown) => String(cell || "").trim() === "");
 }
 
+/**
+ * Truncates raw 2D spreadsheet data after encountering 5 consecutive blank rows below headers.
+ * Ignores "formula row" markers.
+ *
+ * @param logData - Full 2D array of spreadsheet values.
+ * @returns Bounded 2D array ending after data boundaries.
+ */
 function getBoundedData(logData: unknown[][]): unknown[][] {
   const boundedData: unknown[][] = [];
   let emptyGapCount = 0;
@@ -38,17 +58,30 @@ function getBoundedData(logData: unknown[][]): unknown[][] {
   return boundedData;
 }
 
+/**
+ * Normalizes string values using PicklistResolver when available, or fallback rule logic.
+ */
 function normalizeValueForGroupKey(val: string, fieldSpec?: MinimalFieldSpec): string {
   if (typeof PicklistResolver !== "undefined" && typeof PicklistResolver.normalizePicklistValue === "function") {
     return PicklistResolver.normalizePicklistValue(val, fieldSpec);
   }
   const rule = fieldSpec?.keyNormalizationRule || 'exact';
   if (rule === 'code') {
-    return val.split('-')[0].replace(/\s+/g, '').toUpperCase();
+    const parts = val.trim().split(/\s+-\s+/);
+    return parts[0].replace(/[\s.-]+/g, '').toUpperCase();
   }
   return val.trim().toUpperCase();
 }
 
+/**
+ * Extracts normalized group key from a raw row array based on discipline (section-number for Architecture, specTag for FF&E).
+ *
+ * @param row - Raw row array.
+ * @param discipline - Architectural or FF&E discipline string.
+ * @param headers - Sheet header columns array.
+ * @param fieldSpecs - Optional document field specifications array.
+ * @returns Uppercase group key string.
+ */
 function getRowGroupKey(row: unknown[], discipline: string, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
   if (discipline === "Architecture") {
     const secIdx = headers.indexOf("Section");
@@ -71,6 +104,15 @@ function getRowGroupKey(row: unknown[], discipline: string, headers: string[], f
   }
 }
 
+/**
+ * Extracts sort key from a raw row array formatted as `${groupKey}-${revision}-${dateStr}`.
+ *
+ * @param row - Raw row array.
+ * @param discipline - Architectural or FF&E discipline string.
+ * @param headers - Sheet header columns array.
+ * @param fieldSpecs - Optional document field specifications array.
+ * @returns Sort key string used to order submittal revisions within a group.
+ */
 function getRowSortKey(row: unknown[], discipline: string, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
   const revIdx = headers.indexOf("Revision");
   const dateIdx = headers.indexOf("Date");
@@ -96,6 +138,9 @@ function getRowSortKey(row: unknown[], discipline: string, headers: string[], fi
   return `${groupKey}-${rev}-${dateStr}`;
 }
 
+/**
+ * Pure function computing the row insertion plan for placing a new submittal into the log sheet.
+ */
 function computeRowInsertionPlan(
   boundedData: unknown[][],
   headers: string[],

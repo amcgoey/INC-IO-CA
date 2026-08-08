@@ -160,21 +160,11 @@ function padSubmittalNumber(numStr?: string): string {
 
 function normalizeSpecSection(secStr?: string): string {
   if (!secStr) return "";
-  const trimmed = secStr.trim();
-  const sixDigitMatch = trimmed.match(/^(\d{2})[\s.-]?(\d{2})[\s.-]?(\d{2})/);
-  if (sixDigitMatch) {
-    return `${sixDigitMatch[1]}${sixDigitMatch[2]}${sixDigitMatch[3]}`;
+  if (typeof PicklistResolver !== "undefined" && typeof PicklistResolver.normalizePicklistValue === "function") {
+    return PicklistResolver.normalizePicklistValue(secStr, { key: "section", keyNormalizationRule: "code" });
   }
-  let PicklistResolverMod: any = null;
-  try {
-    const pr = require("../config/PicklistResolver");
-    if (pr && pr.PicklistResolver) PicklistResolverMod = pr.PicklistResolver;
-  } catch (e) {}
-  if (PicklistResolverMod && typeof PicklistResolverMod.normalizePicklistValue === "function") {
-    return PicklistResolverMod.normalizePicklistValue(secStr, { key: "section", keyNormalizationRule: "code" });
-  }
-  const beforeDash = secStr.split('-')[0].replace(/[\s.-]+/g, '');
-  return beforeDash.toUpperCase();
+  const parts = secStr.trim().split(/\s+-\s+/);
+  return parts[0].replace(/[\s.-]+/g, '').toUpperCase();
 }
 
 function splitNumberAndRevision(numRevStr: string): { submittalNum: string; revNum: string } {
