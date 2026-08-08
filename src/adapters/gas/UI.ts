@@ -66,6 +66,39 @@ interface ValidationUIContext {
  *    - Low AI confidence (< 0.85): prefixed with "⚠️ " and hint set to "Low AI confidence (X%) — please verify".
  *    - Default: Normal label, hint set to field.description if available.
  */
+/**
+ * Hydration options for 5-tier state resolution.
+ */
+interface HydrationContext {
+  formInput?: Record<string, any>;
+  userCacheDraft?: Record<string, any>;
+  parserResult?: Record<string, any>;
+  aiMetadata?: Record<string, any>;
+}
+
+/**
+ * Validation and AI confidence UI context for dynamic field formatting.
+ */
+interface ValidationUIContext {
+  missingFields?: string[];
+  fieldConfidence?: Record<string, number>;
+  onStateActionName?: string;
+  actionParams?: Record<string, string>;
+}
+
+/**
+ * Dynamically renders form input widgets into a Google Apps Script CardSection driven by DocumentFieldSpec[].
+ *
+ * Rules:
+ * 1. Fields with isCalculated === true are EXCLUDED from form input widget generation.
+ * 2. Field values hydrate via strict 5-tier state hierarchy (Form Inputs -> User Cache Draft -> Parser Result -> AI Metadata -> Field Default / "").
+ * 3. string fields render as standard single-line CardService.newTextInput().
+ * 4. multiline fields render as CardService.newTextInput().setMultiline(true).
+ * 5. Title formatting:
+ *    - Missing required fields (field.required === true && missingFields.includes(field.key)): prefixed with "❌ ".
+ *    - Low AI confidence (< 0.85): prefixed with "⚠️ " and hint set to "Low AI confidence (X%) — please verify".
+ *    - Default: Normal label, hint set to field.description if available.
+ */
 function renderDynamicFormFields(
   section: GoogleAppsScript.Card_Service.CardSection,
   fields: DocumentFieldSpec[],
@@ -74,26 +107,9 @@ function renderDynamicFormFields(
 ): void {
   if (!section || !fields || fields.length === 0) return;
 
-  const { formInput = {}, userCacheDraft = {}, parserResult = {}, aiMetadata = {} } = hydrationContext;
   const { missingFields = [], fieldConfidence = {}, onStateActionName = "onStateChange", actionParams = {} } = validationContext;
 
-  const resolveValue = (globalThis as any).resolve5TierFieldValue || function(
-    f: DocumentFieldSpec,
-    fi: any,
-    ucd: any,
-    pr: any,
-    ai: any
-  ) {
-    const v1 = fi ? fi[f.key] : undefined;
-    if (v1 !== undefined && v1 !== null && String(v1).trim() !== '') return String(v1);
-    const v2 = ucd ? ucd[f.key] : undefined;
-    if (v2 !== undefined && v2 !== null && String(v2).trim() !== '') return String(v2);
-    const v3 = pr ? pr[f.key] : undefined;
-    if (v3 !== undefined && v3 !== null && String(v3).trim() !== '') return String(v3);
-    const v4 = ai ? ai[f.key] : undefined;
-    if (v4 !== undefined && v4 !== null && String(v4).trim() !== '') return String(v4);
-    return f.defaultValue !== undefined ? f.defaultValue : '';
-  };
+  const resolveValue = (globalThis as any).resolve5TierFieldValue || (typeof (globalThis as any).resolve5TierFieldValue !== "undefined" ? (globalThis as any).resolve5TierFieldValue : null);
 
   fields.forEach(field => {
     // Rule 1: Exclude calculated fields
@@ -102,7 +118,7 @@ function renderDynamicFormFields(
     }
 
     // Rule 2: 5-tier state hydration
-    const hydratedValue = resolveValue(field, formInput, userCacheDraft, parserResult, aiMetadata);
+    const hydratedValue = resolveValue ? resolveValue(field, hydrationContext) : (field.defaultValue !== undefined ? field.defaultValue : '');
 
     // Rule 5: Formatting title and hints
     const isMissing = field.required && missingFields.includes(field.key);
@@ -147,6 +163,7 @@ function renderDynamicFormFields(
     section.addWidget(inputWidget);
   });
 }
+
 
 function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null = null, isTagChange = false, flashMessage: any = null): GoogleAppsScript.Card_Service.Card {
   const header = CardService.newCardHeader().setTitle(MESSAGES.MAIN_CARD_TITLE);

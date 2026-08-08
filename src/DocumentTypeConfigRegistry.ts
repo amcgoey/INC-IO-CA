@@ -37,35 +37,40 @@ const DEFAULT_SUBMITTAL_CONFIG: DocumentTypeConfig = {
 };
 
 /**
+ * Hydration options for 5-tier state resolution.
+ */
+interface HydrationContext {
+  formInput?: Record<string, any>;
+  userCacheDraft?: Record<string, any>;
+  parserResult?: Record<string, any>;
+  aiMetadata?: Record<string, any>;
+}
+
+/**
  * Resolves a field's input value following the strict 5-tier state hydration hierarchy:
- * 1. Form Inputs
- * 2. User Cache Draft
- * 3. Parser Result
- * 4. AI Metadata
- * 5. Field Default / ""
+ * 1. Form Inputs (Tier 1: Live user inputs)
+ * 2. User Cache Draft (Tier 2: Persisted draft state)
+ * 3. Parser Result (Tier 3: Email/Filename parser extraction)
+ * 4. AI Metadata (Tier 4: Multimodal AI triage predictions)
+ * 5. Field Default / "" (Tier 5: Fallback schema default)
  */
 function resolve5TierFieldValue(
   field: DocumentFieldSpec,
-  formInput: Record<string, any> = {},
-  userCacheDraft: Record<string, any> = {},
-  parserResult: Record<string, any> = {},
-  aiMetadata: Record<string, any> = {}
+  context: HydrationContext = {}
 ): string {
-  const formVal = formInput ? formInput[field.key] : undefined;
-  if (formVal !== undefined && formVal !== null && String(formVal).trim() !== '') {
-    return String(formVal);
+  const { formInput, userCacheDraft, parserResult, aiMetadata } = context;
+
+  if (formInput && formInput[field.key] !== undefined && formInput[field.key] !== null) {
+    return String(formInput[field.key]);
   }
-  const draftVal = userCacheDraft ? userCacheDraft[field.key] : undefined;
-  if (draftVal !== undefined && draftVal !== null && String(draftVal).trim() !== '') {
-    return String(draftVal);
+  if (userCacheDraft && userCacheDraft[field.key] !== undefined && userCacheDraft[field.key] !== null && String(userCacheDraft[field.key]).trim() !== '') {
+    return String(userCacheDraft[field.key]);
   }
-  const parserVal = parserResult ? parserResult[field.key] : undefined;
-  if (parserVal !== undefined && parserVal !== null && String(parserVal).trim() !== '') {
-    return String(parserVal);
+  if (parserResult && parserResult[field.key] !== undefined && parserResult[field.key] !== null && String(parserResult[field.key]).trim() !== '') {
+    return String(parserResult[field.key]);
   }
-  const aiVal = aiMetadata ? aiMetadata[field.key] : undefined;
-  if (aiVal !== undefined && aiVal !== null && String(aiVal).trim() !== '') {
-    return String(aiVal);
+  if (aiMetadata && aiMetadata[field.key] !== undefined && aiMetadata[field.key] !== null && String(aiMetadata[field.key]).trim() !== '') {
+    return String(aiMetadata[field.key]);
   }
   return field.defaultValue !== undefined ? field.defaultValue : '';
 }
@@ -128,7 +133,6 @@ class DocumentTypeConfigRegistry {
     }
 
     if (headerMap.size === 0) {
-      // Fallback: positional indices [Key, Header, Label, Type, IsCalculated, FormulaOrFunction, OptionsRange, Required, Description, DefaultValue, KeyNormalizationRule]
       headerMap.set('key', 0);
       headerMap.set('header', 1);
       headerMap.set('label', 2);

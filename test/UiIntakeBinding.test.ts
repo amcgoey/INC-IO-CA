@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { GasMockHarness, CardSerializer } from "./harness";
+import { GasMockHarness, CardSerializer, EventFactory } from "./harness";
 
 test.beforeEach(() => {
   GasMockHarness.install();
@@ -11,7 +11,7 @@ test.afterEach(() => {
 });
 
 const { DocumentTypeConfigRegistry, resolve5TierFieldValue } = require("../src/DocumentTypeConfigRegistry");
-const { renderDynamicFormFields } = require("../src/adapters/gas/UI");
+const { renderDynamicFormFields, buildMainCard, buildUnbiasedIntakeCard } = require("../src/adapters/gas/UI");
 
 test("DocumentTypeConfigRegistry - parseFieldSpecs converts _Config subtables into DocumentFieldSpec[]", () => {
   const registry = new DocumentTypeConfigRegistry();
@@ -51,31 +51,52 @@ test("DocumentTypeConfigRegistry - parseFieldSpecs converts _Config subtables in
   assert.equal(specs[2].formulaOrFunction, "=CONCAT()");
 });
 
-test("5-tier state hydration hierarchy - resolves values according to strict precedence", () => {
+test("5-tier state hydration hierarchy - resolves values according to strict precedence using HydrationContext", () => {
   const field: any = { key: "title", label: "Title", type: "string", defaultValue: "Default Title" };
 
   // Tier 1: Form Inputs > User Cache Draft > Parser Result > AI Metadata > Default
-  const val1 = resolve5TierFieldValue(field, { title: "Form Title" }, { title: "Draft Title" }, { title: "Parser Title" }, { title: "AI Title" });
+  const val1 = resolve5TierFieldValue(field, {
+    formInput: { title: "Form Title" },
+    userCacheDraft: { title: "Draft Title" },
+    parserResult: { title: "Parser Title" },
+    aiMetadata: { title: "AI Title" }
+  });
   assert.equal(val1, "Form Title");
 
+  // Tier 1: Explicit empty string in Form Inputs clears field
+  const val1Empty = resolve5TierFieldValue(field, {
+    formInput: { title: "" },
+    userCacheDraft: { title: "Draft Title" }
+  });
+  assert.equal(val1Empty, "");
+
   // Tier 2: User Cache Draft > Parser Result > AI Metadata > Default
-  const val2 = resolve5TierFieldValue(field, {}, { title: "Draft Title" }, { title: "Parser Title" }, { title: "AI Title" });
+  const val2 = resolve5TierFieldValue(field, {
+    userCacheDraft: { title: "Draft Title" },
+    parserResult: { title: "Parser Title" },
+    aiMetadata: { title: "AI Title" }
+  });
   assert.equal(val2, "Draft Title");
 
   // Tier 3: Parser Result > AI Metadata > Default
-  const val3 = resolve5TierFieldValue(field, {}, {}, { title: "Parser Title" }, { title: "AI Title" });
+  const val3 = resolve5TierFieldValue(field, {
+    parserResult: { title: "Parser Title" },
+    aiMetadata: { title: "AI Title" }
+  });
   assert.equal(val3, "Parser Title");
 
   // Tier 4: AI Metadata > Default
-  const val4 = resolve5TierFieldValue(field, {}, {}, {}, { title: "AI Title" });
+  const val4 = resolve5TierFieldValue(field, {
+    aiMetadata: { title: "AI Title" }
+  });
   assert.equal(val4, "AI Title");
 
   // Tier 5: Default Value / ""
-  const val5 = resolve5TierFieldValue(field, {}, {}, {}, {});
+  const val5 = resolve5TierFieldValue(field, {});
   assert.equal(val5, "Default Title");
 
   const emptyField: any = { key: "notes", label: "Notes", type: "multiline" };
-  const val6 = resolve5TierFieldValue(emptyField, {}, {}, {}, {});
+  const val6 = resolve5TierFieldValue(emptyField, {});
   assert.equal(val6, "");
 });
 
@@ -150,4 +171,20 @@ test("renderDynamicFormFields - applies missing required field ❌ and low AI co
   // Low AI confidence field (< 0.85): ⚠️ Title with confidence hint
   assert.equal(widgets[1].title, "⚠️ Title");
   assert.equal(widgets[1].hint, "Low AI confidence (65%) — please verify");
+});
+
+test("Card rendering end-to-end integration - buildMainCard renders form input binding correctly", () => {
+  const event = EventFactory.createCardSubmitEvent({
+    discipline: "Architecture",
+    section: "033000",
+    number: "001",
+    title: "Cast-in-Place Concrete"
+  });
+
+  const card = buildMainCard(event);
+  const cardJson = CardSerializer.toJSON(card);
+
+  assert.ok(card);
+  assert.ok(CardSerializer.hasWidgetText(cardJson, "Section"));
+  assert.ok(CardSerializer.hasWidgetText(cardJson, "033000"));
 });
