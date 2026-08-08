@@ -136,3 +136,35 @@ test('DocumentLogWorkbookSpec - defines Sections sheet-scoped and workbook-scope
   assert.equal(sectionsWb.rangeNotation, 'A2:B20');
   assert.equal(sectionsWb.scope, 'Workbook');
 });
+
+test('DocumentLogWorkbookSpec - places _Shared, _Config, _AuditLog system tabs at the far right of workbook tab order', () => {
+  const tabNames = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.map(t => t.name);
+  const lastThreeTabs = tabNames.slice(-3);
+  assert.deepEqual(lastThreeTabs, ['_Shared', '_Config', '_AuditLog'], 'System tabs must appear at the far right');
+});
+
+test('DocumentLogWorkbookSpec - defines Actions multi-column picklist schema in _Shared tab', () => {
+  const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === '_Shared');
+  assert.ok(sharedTab, '_Shared tab must exist');
+  assert.ok(sharedTab.seedRows, 'seedRows must be defined on _Shared tab');
+
+  const headers = sharedTab.seedRows[0];
+  assert.ok(headers.includes('Action Order'), 'Header must contain Action Order');
+  assert.ok(headers.includes('Actions'), 'Header must contain Actions');
+  assert.ok(headers.includes('Action Abbr.'), 'Header must contain Action Abbr.');
+
+  const actionAbbrIdx = headers.indexOf('Action Abbr.');
+  const abbreviations = sharedTab.seedRows.slice(1).map(r => r[actionAbbrIdx]).filter(Boolean);
+  assert.deepEqual(abbreviations, ['_NET', '_NOC', '_RR', '_REJ', '_REF']);
+});
+
+test('DocumentLogWorkbookSpec - defines Contacts multi-column picklist schema in _Shared tab', () => {
+  const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === '_Shared');
+  assert.ok(sharedTab, '_Shared tab must exist');
+  assert.ok(sharedTab.seedRows, 'seedRows must be defined on _Shared tab');
+
+  const headers = sharedTab.seedRows[0];
+  assert.ok(headers.includes('Contact Type'), 'Header must contain Contact Type');
+  assert.ok(headers.includes('Contact Abbr.'), 'Header must contain Contact Abbr.');
+  assert.ok(headers.includes('Contact Full Name'), 'Header must contain Contact Full Name');
+});

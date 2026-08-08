@@ -53,19 +53,43 @@ export class PicklistResolver {
    * row[0] = value (canonical key)
    * row[1] = label (display text, defaults to row[0] if omitted/blank)
    */
-  public static resolveFrom2DArray(rows: unknown[][]): PicklistOption[] {
+    public static resolveFrom2DArray(rows: unknown[][]): PicklistOption[] {
     if (!rows || !Array.isArray(rows)) return [];
     const options: PicklistOption[] = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       if (!row || !Array.isArray(row) || row.length === 0) continue;
-      const rawVal = row[0] !== undefined && row[0] !== null ? String(row[0]).trim() : '';
-      if (!rawVal) continue;
 
-      const rawLabel = row.length > 1 && row[1] !== undefined && row[1] !== null && String(row[1]).trim() !== ''
-        ? String(row[1]).trim()
-        : rawVal;
+      let rawVal = '';
+      let rawLabel = '';
+
+      if (row.length === 1) {
+        rawVal = row[0] !== undefined && row[0] !== null ? String(row[0]).trim() : '';
+        rawLabel = rawVal;
+      } else if (row.length === 2) {
+        rawVal = row[0] !== undefined && row[0] !== null ? String(row[0]).trim() : '';
+        rawLabel = row[1] !== undefined && row[1] !== null && String(row[1]).trim() !== ''
+          ? String(row[1]).trim()
+          : rawVal;
+      } else {
+        const col0Str = row[0] !== undefined && row[0] !== null ? String(row[0]).trim() : '';
+        const col1Str = row[1] !== undefined && row[1] !== null ? String(row[1]).trim() : '';
+        const col2Str = row[2] !== undefined && row[2] !== null ? String(row[2]).trim() : '';
+
+        if (/^\d+$/.test(col0Str) && col1Str) {
+          rawVal = col1Str;
+          rawLabel = col1Str;
+        } else if (col2Str && (col2Str.includes('@') || col0Str.toLowerCase() === 'arch' || col0Str.toLowerCase() === 'ffe')) {
+          rawVal = col2Str;
+          rawLabel = col2Str;
+        } else {
+          rawVal = col0Str || col1Str || col2Str;
+          rawLabel = col1Str || col2Str || rawVal;
+        }
+      }
+
+      if (!rawVal) continue;
 
       options.push({ value: rawVal, label: rawLabel });
     }
