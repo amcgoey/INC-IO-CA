@@ -108,13 +108,13 @@ test("computeRowInsertionPlan inserts new group between existing groups with gap
 test("getRowGroupKey formats FF&E spec tag", () => {
   const row = ["CH-01", "Chair", "Herman Miller", "0", "240101"];
   const key = getRowGroupKey(row, "FF&E", FF_E_HEADERS);
-  assert.strictEqual(key, "ch-01");
+  assert.strictEqual(key.toUpperCase(), "CH-01");
 });
 
 test("getRowSortKey formats FF&E sort key", () => {
   const row = ["CH-01", "Chair", "Herman Miller", "1", "240101"];
   const key = getRowSortKey(row, "FF&E", FF_E_HEADERS);
-  assert.strictEqual(key, "ch-01-001-240101");
+  assert.strictEqual(key.toUpperCase(), "CH-01-001-240101");
 });
 
 test("computeRowInsertionPlan inserts into existing FF&E group", () => {

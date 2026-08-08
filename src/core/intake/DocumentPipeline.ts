@@ -160,7 +160,21 @@ function padSubmittalNumber(numStr?: string): string {
 
 function normalizeSpecSection(secStr?: string): string {
   if (!secStr) return "";
-  return secStr.replace(/[\s.-]+/g, "").trim();
+  const trimmed = secStr.trim();
+  const sixDigitMatch = trimmed.match(/^(\d{2})[\s.-]?(\d{2})[\s.-]?(\d{2})/);
+  if (sixDigitMatch) {
+    return `${sixDigitMatch[1]}${sixDigitMatch[2]}${sixDigitMatch[3]}`;
+  }
+  let PicklistResolverMod: any = null;
+  try {
+    const pr = require("../config/PicklistResolver");
+    if (pr && pr.PicklistResolver) PicklistResolverMod = pr.PicklistResolver;
+  } catch (e) {}
+  if (PicklistResolverMod && typeof PicklistResolverMod.normalizePicklistValue === "function") {
+    return PicklistResolverMod.normalizePicklistValue(secStr, { key: "section", keyNormalizationRule: "code" });
+  }
+  const beforeDash = secStr.split('-')[0].replace(/[\s.-]+/g, '');
+  return beforeDash.toUpperCase();
 }
 
 function splitNumberAndRevision(numRevStr: string): { submittalNum: string; revNum: string } {
@@ -521,7 +535,7 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
   const validVendors = context?.ffeTags?.vendors || [];
 
   if (discipline === "Architecture") {
-    const sectionVal = getTrimmed(rawDoc.section);
+    const sectionVal = normalizeSpecSection(rawDoc.section);
     if (!sectionVal) warnings.push("Section");
 
     const numberVal = getTrimmed(rawDoc.number);

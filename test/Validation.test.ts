@@ -532,3 +532,27 @@ test('validateDocument - Picklist normalization handles exact rule preserving fu
   const result = PicklistResolver.normalizePicklistValue(' For Architect Review Only ', specExact);
   assert.equal(result, 'FOR ARCHITECT REVIEW ONLY');
 });
+
+test('validateDocument - end-to-end picklist value display label to canonical key normalization', () => {
+  const raw = {
+    discipline: 'Architecture',
+    date: '2026-07-25',
+    contact: 'John Doe',
+    action: 'Received',
+    incomingRouting: 'To Refer',
+    title: 'Door Schedule',
+    section: '08 11 00 - Metal Doors & Frames',
+    number: '001',
+    revision: '01'
+  };
+
+  const result = validateDocument(raw);
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    const details = result.data.disciplineDetails;
+    if (details.discipline === 'Architecture') {
+      assert.equal(details.section, '081100');
+    }
+  }
+});

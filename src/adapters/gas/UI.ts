@@ -108,7 +108,7 @@ function renderDynamicFormFields(
     }
 
     if (field.type === 'date') {
-      let dateWidget: any = null;
+      let dateWidget: GoogleAppsScript.Card_Service.Widget | null = null;
       if (typeof CardService !== "undefined" && typeof CardService.newDatePicker === "function") {
         const picker = CardService.newDatePicker()
           .setFieldName(field.key)
@@ -143,12 +143,12 @@ function renderDynamicFormFields(
         if (!hintText) hintText = "Date (YYMMDD)";
       }
 
-      if (hintText && dateWidget && typeof dateWidget.setHint === "function") {
-        dateWidget.setHint(hintText);
+      if (hintText && dateWidget && typeof (dateWidget as any).setHint === "function") {
+        (dateWidget as any).setHint(hintText);
       }
 
-      if (onStateActionName && dateWidget && typeof dateWidget.setOnChangeAction === "function") {
-        dateWidget.setOnChangeAction(
+      if (onStateActionName && dateWidget && typeof (dateWidget as any).setOnChangeAction === "function") {
+        (dateWidget as any).setOnChangeAction(
           CardService.newAction()
             .setFunctionName(onStateActionName)
             .setParameters(actionParams)

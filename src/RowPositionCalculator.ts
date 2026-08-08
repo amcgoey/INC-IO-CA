@@ -6,23 +6,14 @@
  * with appropriate blank separator rows in the Google Sheet.
  */
 
-/**
- * Safely pads a numeric or string value with leading zeros up to specified length.
- */
 function padNum(val: unknown, len: number): string {
   return String(val || "").trim().padStart(len, '0');
 }
 
-/**
- * Evaluates whether a raw log sheet row array is blank (empty/whitespace across first 8 columns).
- */
 function isRowBlank(row: unknown[]): boolean {
   return row.slice(0, 8).every((cell: unknown) => String(cell || "").trim() === "");
 }
 
-/**
- * Truncates raw 2D spreadsheet data after encountering 5 consecutive blank rows below headers.
- */
 function getBoundedData(logData: unknown[][]): unknown[][] {
   const boundedData: unknown[][] = [];
   let emptyGapCount = 0;
@@ -47,9 +38,6 @@ function getBoundedData(logData: unknown[][]): unknown[][] {
   return boundedData;
 }
 
-/**
- * Normalizes string values using PicklistResolver when available, or fallback rule logic.
- */
 function normalizeValueForGroupKey(val: string, fieldSpec?: MinimalFieldSpec): string {
   if (typeof PicklistResolver !== "undefined" && typeof PicklistResolver.normalizePicklistValue === "function") {
     return PicklistResolver.normalizePicklistValue(val, fieldSpec);
@@ -61,9 +49,6 @@ function normalizeValueForGroupKey(val: string, fieldSpec?: MinimalFieldSpec): s
   return val.trim().toUpperCase();
 }
 
-/**
- * Extracts normalized group key from a raw row array based on discipline and optional DocumentFieldSpec[].
- */
 function getRowGroupKey(row: unknown[], discipline: string, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
   if (discipline === "Architecture") {
     const secIdx = headers.indexOf("Section");
@@ -74,21 +59,18 @@ function getRowGroupKey(row: unknown[], discipline: string, headers: string[], f
       const secSpec = fieldSpecs?.find(f => f.key === "section" || f.key === "specSection") || { key: "section", keyNormalizationRule: "code" as const };
       let secCode = normalizeValueForGroupKey(secVal, secSpec);
       let sec = padNum(secCode, 6);
-      return `${sec}-${num}`.toLowerCase();
+      return `${sec}-${num}`.toUpperCase();
     }
-    return num.toLowerCase();
+    return num.toUpperCase();
   } else {
     const tagIdx = headers.indexOf("Spec Tag");
     let tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim();
     const tagSpec = fieldSpecs?.find(f => f.key === "specTag" || f.key === "tag") || { key: "specTag", keyNormalizationRule: "exact" as const };
     let normalizedTag = normalizeValueForGroupKey(tag, tagSpec);
-    return normalizedTag.toLowerCase();
+    return normalizedTag.toUpperCase();
   }
 }
 
-/**
- * Extracts sort key from a raw row array formatted as `${groupKey}-${revision}-${dateStr}`.
- */
 function getRowSortKey(row: unknown[], discipline: string, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
   const revIdx = headers.indexOf("Revision");
   const dateIdx = headers.indexOf("Date");
@@ -114,9 +96,6 @@ function getRowSortKey(row: unknown[], discipline: string, headers: string[], fi
   return `${groupKey}-${rev}-${dateStr}`;
 }
 
-/**
- * Pure function computing the row insertion plan for placing a new submittal into the log sheet.
- */
 function computeRowInsertionPlan(
   boundedData: unknown[][],
   headers: string[],
