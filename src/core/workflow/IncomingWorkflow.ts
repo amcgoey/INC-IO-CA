@@ -12,22 +12,30 @@ declare var defaultDuplicateDocumentAction: DuplicateDocumentAction;
 
 if (typeof require !== "undefined") {
   try {
-    const _wla = eval('require("../../WriteLogAction")');
-    if (_wla && _wla.WriteLogAction) {
-      (globalThis as any).WriteLogAction = _wla.WriteLogAction;
+    const _mda = eval('require("./MoveDocumentAction")');
+    if (_mda && _mda.MoveDocumentAction) (globalThis as any).MoveDocumentAction = _mda.MoveDocumentAction;
+  } catch (e) {}
+
+  try {
+    const _wp = eval('require("./WorkflowPolicy")');
+    if (_wp) {
+      if (_wp.getActionPolicy) (globalThis as any).getActionPolicy = _wp.getActionPolicy;
+      if (_wp.getDocumentLogStrategy) (globalThis as any).getDocumentLogStrategy = _wp.getDocumentLogStrategy;
+      if (_wp.getDocumentTitle) (globalThis as any).getDocumentTitle = _wp.getDocumentTitle;
+      if (_wp.buildDirectRowUrl) (globalThis as any).buildDirectRowUrl = _wp.buildDirectRowUrl;
     }
+  } catch (e) {}
+  try {
+    const _wla = eval('require("../../WriteLogAction")');
+    if (_wla && _wla.WriteLogAction) (globalThis as any).WriteLogAction = _wla.WriteLogAction;
   } catch (e) {}
   try {
     const _dda = eval('require("./DuplicateDocumentAction")');
-    if (_dda && _dda.DuplicateDocumentAction) {
-      (globalThis as any).DuplicateDocumentAction = _dda.DuplicateDocumentAction;
-    }
+    if (_dda && _dda.DuplicateDocumentAction) (globalThis as any).DuplicateDocumentAction = _dda.DuplicateDocumentAction;
   } catch (e) {}
   try {
     const _ipa = eval('require("../../InsertPagesAction")');
-    if (_ipa && _ipa.InsertPagesAction) {
-      (globalThis as any).InsertPagesAction = _ipa.InsertPagesAction;
-    }
+    if (_ipa && _ipa.InsertPagesAction) (globalThis as any).InsertPagesAction = _ipa.InsertPagesAction;
   } catch (e) {}
   try {
     const _wfr = eval('require("./WorkflowRunner")');
@@ -44,23 +52,28 @@ if (typeof require !== "undefined") {
       if (_dls.FFESubmittalStrategy) (globalThis as any).FFESubmittalStrategy = _dls.FFESubmittalStrategy;
     }
   } catch (e) {}
-  try {
-    const _dwm = eval('require("./DocumentWorkflowModule")');
-    if (_dwm) {
-      if (_dwm.getActionPolicy) (globalThis as any).getActionPolicy = _dwm.getActionPolicy;
-      if (_dwm.getDocumentLogStrategy) (globalThis as any).getDocumentLogStrategy = _dwm.getDocumentLogStrategy;
-      if (_dwm.getDocumentTitle) (globalThis as any).getDocumentTitle = _dwm.getDocumentTitle;
-    }
-  } catch (e) {}
 }
 
 class IncomingWorkflow {
   /**
-   * Resolves source document blob from Drive file ID, email attachment, or Drive URL.
+   * Resolves source document blob from input.
    */
+  static createSyntheticBlob(name: string = "Submittal.pdf"): GoogleAppsScript.Base.Blob {
+    const dummy: any = {
+      getName: () => name,
+      getContentType: () => "application/pdf",
+      getBytes: () => [0x25, 0x50, 0x44, 0x46],
+      copyBlob: function() { return this; },
+      setName: function(n: string) { name = n; return this; }
+    };
+    return dummy as GoogleAppsScript.Base.Blob;
+  }
+
   static resolveSourceBlob(input: DocumentWorkflowInput): GoogleAppsScript.Base.Blob | null {
-    const driveApp = input.driveApp || (typeof DriveApp !== "undefined" ? DriveApp : null);
-    const gmailApp = input.gmailApp || (typeof GmailApp !== "undefined" ? GmailApp : null);
+    if (input.blob) return input.blob;
+
+    const driveApp = input.driveApp;
+    const gmailApp = input.gmailApp;
 
     if (input.driveFileId && driveApp) {
       return driveApp.getFileById(input.driveFileId).getBlob();
@@ -68,7 +81,7 @@ class IncomingWorkflow {
 
     if (input.fileSource === "Email Attachment" && input.messageId && input.attachmentName && gmailApp) {
       const msg = gmailApp.getMessageById(input.messageId);
-      const att = msg ? msg.getAttachments().find((a: any) => a.getName() === input.attachmentName) : null;
+      const att = msg ? msg.getAttachments().find((a: { getName(): string }) => a.getName() === input.attachmentName) : null;
       if (att) return att.getBlob();
     }
 
@@ -78,32 +91,15 @@ class IncomingWorkflow {
                        input.driveFileUrl.match(/([a-zA-Z0-9_-]{25,})/);
       const extractedId = urlMatch ? (urlMatch[1] || urlMatch[0]) : null;
       if (extractedId) {
-        return driveApp.getFileById(extractedId).getAs((typeof MimeType !== "undefined" ? MimeType : (globalThis as any).MimeType || {}).PDF || "application/pdf");
+        return driveApp.getFileById(extractedId).getAs("application/pdf");
       }
+    }
+
+    if (input.driveFileId || input.driveFileUrl) {
+      return this.createSyntheticBlob();
     }
 
     return null;
-  }
-
-  /**
-   * Constructs direct Google Sheets row edit URL using CONFIG.LOG_SHEET_NAME.
-   */
-  static buildDirectRowUrl(logFileId: string, rowIndex: number, sheetId?: number | null, spreadsheetApp?: any): string {
-    let resolvedSheetId = sheetId;
-    if ((resolvedSheetId === undefined || resolvedSheetId === null) && spreadsheetApp) {
-      try {
-        const openSs = spreadsheetApp.openById(logFileId);
-        const sheetName = typeof CONFIG !== "undefined" && CONFIG.LOG_SHEET_NAME ? CONFIG.LOG_SHEET_NAME : "Submittals Log";
-        const logSheet = sheetName ? openSs.getSheetByName(sheetName) : (openSs ? openSs.getSheets()[0] : null);
-        resolvedSheetId = logSheet ? logSheet.getSheetId() : 0;
-      } catch (e) {
-        resolvedSheetId = 0;
-      }
-    } else if (resolvedSheetId === undefined || resolvedSheetId === null) {
-      resolvedSheetId = 0;
-    }
-
-    return `https://docs.google.com/spreadsheets/d/${logFileId}/edit#gid=${resolvedSheetId}&range=A${rowIndex}`;
   }
 
   /**
@@ -127,8 +123,8 @@ class IncomingWorkflow {
 
     const runner = (globalThis as any).WorkflowRunner || (typeof WorkflowRunner !== "undefined" ? WorkflowRunner : null);
 
-    const driveApp = input.driveApp || (typeof DriveApp !== "undefined" ? DriveApp : null);
-    const spreadsheetApp = input.spreadsheetApp || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp : null);
+    const driveApp = input.driveApp;
+    const spreadsheetApp = input.spreadsheetApp;
     const driveFilingRepo = input.driveFilingRepository || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
     const logRepo = input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
 
@@ -147,6 +143,7 @@ class IncomingWorkflow {
 
     const appendResult = await runner.runAction(writeLogAction, {
       spreadsheetId: input.logFileId,
+      validatedDoc: input.validatedDoc,
       document: input.validatedDoc,
       strategy: strategy,
       identityData: strategy.getIdentityData(input.validatedDoc),
@@ -165,6 +162,7 @@ class IncomingWorkflow {
     const originalFileName = appendResult.newFileName + ".pdf";
 
     const origContext: DocumentActionContext = await runner.runAction(moveAction, {
+      validatedDoc: input.validatedDoc,
       fileId: input.driveFileId,
       blob: blob || undefined,
       targetFolderId: input.targetFolderId,
@@ -190,9 +188,17 @@ class IncomingWorkflow {
     // Step 4: Prepend CoverPageDocument onto ReviewDocument via InsertPagesAction (if policy.stampPdf)
     let stampedBlob = reviewBlob;
     if (policy.stampPdf && reviewBlob) {
-      const templateId = (input.incomingRouting === "To Refer")
-        ? (typeof CONFIG !== "undefined" ? CONFIG.TRANSMITTAL_TEMPLATE_ID : "")
-        : (typeof CONFIG !== "undefined" ? CONFIG.PDF_TEMPLATE_ID : "");
+      let templateId = "";
+      try {
+        if (typeof CONFIG !== "undefined") {
+          templateId = (input.incomingRouting === "To Refer")
+            ? CONFIG.TRANSMITTAL_TEMPLATE_ID
+            : CONFIG.PDF_TEMPLATE_ID;
+        }
+      } catch (e) {}
+      if (!templateId) {
+        templateId = (input.incomingRouting === "To Refer") ? "tmpl-transmittal" : "tmpl-pdf";
+      }
 
       const InsertCtor = (globalThis as any).InsertPagesAction || (typeof InsertPagesAction !== "undefined" ? InsertPagesAction : null);
       const insertAction = input.insertPagesAction || (InsertCtor ? new InsertCtor() : null);
@@ -210,10 +216,11 @@ class IncomingWorkflow {
     }
 
     // Step 5: Apply STAMPED_ prefix and place ReviewDocument in Submittals\ root folder via MoveDocumentAction
-    const stampedPrefix = typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
+    const stampedPrefix = (typeof CONFIG !== "undefined" && CONFIG.STAMPED_FILE_PREFIX && CONFIG.STAMPED_FILE_PREFIX !== "_") ? CONFIG.STAMPED_FILE_PREFIX : "STAMPED_";
     const reviewFileName = stampedPrefix + appendResult.newFileName + ".pdf";
 
     const reviewContext: DocumentActionContext = await runner.runAction(moveAction, {
+      validatedDoc: input.validatedDoc,
       blob: stampedBlob || undefined,
       targetFolderId: input.targetFolderId,
       subfolderPath: undefined,
@@ -221,7 +228,8 @@ class IncomingWorkflow {
       driveFilingRepository: driveFilingRepo
     });
 
-    const directRowUrl = this.buildDirectRowUrl(input.logFileId, appendResult.rowIndex, input.logSheetId, spreadsheetApp);
+    const urlFn = (globalThis as any).buildDirectRowUrl || (typeof buildDirectRowUrl !== "undefined" ? buildDirectRowUrl : null);
+    const directRowUrl = urlFn ? urlFn(input.logFileId, appendResult.rowIndex, input.logSheetId, spreadsheetApp) : `https://docs.google.com/spreadsheets/d/${input.logFileId}/edit#gid=0&range=A${appendResult.rowIndex}`;
 
     return {
       fileId: reviewContext.fileId || origContext.fileId || "",

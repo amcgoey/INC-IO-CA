@@ -94,6 +94,7 @@ interface ParsedData {
   contact?: string;
   targetKey?: string;
   driveFileId?: string;
+  blob?: GoogleAppsScript.Base.Blob;
   attachmentIndex?: number;
   pdfUrl?: string;
   fileName?: string;
@@ -580,6 +581,11 @@ declare var defaultDuplicateDocumentAction: DuplicateDocumentAction;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 
 /** Policy detailing workflow actions (direction, stamping, subfolder rules). */
+declare var getActionPolicy: (action: string) => WorkflowActionPolicy;
+declare var getDocumentLogStrategy: (doc: ValidatedDocument) => DocumentLogStrategy;
+declare var getDocumentTitle: (doc: ValidatedDocument) => string;
+declare var buildDirectRowUrl: (logFileId: string, rowIndex: number, sheetId?: number | null, spreadsheetApp?: any) => string;
+
 interface WorkflowActionPolicy {
   direction: "incoming" | "outgoing";
   stampPdf: boolean;
@@ -595,6 +601,7 @@ interface DocumentWorkflowInput {
   logSheetId?: number;
   targetFolderId: string;
   driveFileId?: string;
+  blob?: GoogleAppsScript.Base.Blob;
   fileSource?: string;
   messageId?: string;
   attachmentName?: string;

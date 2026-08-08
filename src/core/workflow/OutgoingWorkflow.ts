@@ -10,6 +10,20 @@ declare var defaultLogRepository: LogRepository;
 
 if (typeof require !== "undefined") {
   try {
+    const _mda = eval('require("./MoveDocumentAction")');
+    if (_mda && _mda.MoveDocumentAction) (globalThis as any).MoveDocumentAction = _mda.MoveDocumentAction;
+  } catch (e) {}
+
+  try {
+    const _wp = eval('require("./WorkflowPolicy")');
+    if (_wp) {
+      if (_wp.getActionPolicy) (globalThis as any).getActionPolicy = _wp.getActionPolicy;
+      if (_wp.getDocumentLogStrategy) (globalThis as any).getDocumentLogStrategy = _wp.getDocumentLogStrategy;
+      if (_wp.getDocumentTitle) (globalThis as any).getDocumentTitle = _wp.getDocumentTitle;
+      if (_wp.buildDirectRowUrl) (globalThis as any).buildDirectRowUrl = _wp.buildDirectRowUrl;
+    }
+  } catch (e) {}
+  try {
     const _wla = eval('require("../../WriteLogAction")');
     if (_wla && _wla.WriteLogAction) (globalThis as any).WriteLogAction = _wla.WriteLogAction;
   } catch (e) {}
@@ -26,14 +40,6 @@ if (typeof require !== "undefined") {
     if (_dls) {
       if (_dls.ArchitectureSubmittalStrategy) (globalThis as any).ArchitectureSubmittalStrategy = _dls.ArchitectureSubmittalStrategy;
       if (_dls.FFESubmittalStrategy) (globalThis as any).FFESubmittalStrategy = _dls.FFESubmittalStrategy;
-    }
-  } catch (e) {}
-  try {
-    const _dwm = eval('require("./DocumentWorkflowModule")');
-    if (_dwm) {
-      if (_dwm.getActionPolicy) (globalThis as any).getActionPolicy = _dwm.getActionPolicy;
-      if (_dwm.getDocumentLogStrategy) (globalThis as any).getDocumentLogStrategy = _dwm.getDocumentLogStrategy;
-      if (_dwm.getDocumentTitle) (globalThis as any).getDocumentTitle = _dwm.getDocumentTitle;
     }
   } catch (e) {}
 }
@@ -68,6 +74,7 @@ class OutgoingWorkflow {
     // Step 1: Write Log Action
     const appendResult = await runner.runAction(writeLogAction, {
       spreadsheetId: input.logFileId,
+      validatedDoc: input.validatedDoc,
       document: input.validatedDoc,
       strategy: strategy,
       identityData: strategy.getIdentityData(input.validatedDoc),
@@ -85,8 +92,8 @@ class OutgoingWorkflow {
     const appContext: AppContext = input.appContext ||
       ((input.fileSource === "Email Attachment" || input.messageId) ? "Gmail" : "GoogleDrive");
 
-    const driveApp = input.driveApp || (typeof DriveApp !== "undefined" ? DriveApp : null);
-    const spreadsheetApp = input.spreadsheetApp || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp : null);
+    const driveApp = input.driveApp;
+    const spreadsheetApp = input.spreadsheetApp;
 
     // Step 3: Rename Document Action
     const RenameCtor = (globalThis as any).RenameDocumentAction || (typeof RenameDocumentAction !== "undefined" ? RenameDocumentAction : null);
@@ -125,21 +132,8 @@ class OutgoingWorkflow {
       );
     }
 
-    let sheetId = input.logSheetId;
-    if ((sheetId === undefined || sheetId === null) && spreadsheetApp) {
-      try {
-        const openSs = spreadsheetApp.openById(input.logFileId);
-        const sheetName = typeof CONFIG !== "undefined" && CONFIG.LOG_SHEET_NAME ? CONFIG.LOG_SHEET_NAME : "Submittals Log";
-        const logSheet = openSs ? openSs.getSheetByName(sheetName) : null;
-        sheetId = logSheet ? logSheet.getSheetId() : 0;
-      } catch (e) {
-        sheetId = 0;
-      }
-    } else if (sheetId === undefined || sheetId === null) {
-      sheetId = 0;
-    }
-
-    const directRowUrl = "https://docs.google.com/spreadsheets/d/" + input.logFileId + "/edit#gid=" + sheetId + "&range=A" + appendResult.rowIndex;
+    const urlFn = (globalThis as any).buildDirectRowUrl || (typeof buildDirectRowUrl !== "undefined" ? buildDirectRowUrl : null);
+    const directRowUrl = urlFn ? urlFn(input.logFileId, appendResult.rowIndex, input.logSheetId, spreadsheetApp) : `https://docs.google.com/spreadsheets/d/${input.logFileId}/edit#gid=0&range=A${appendResult.rowIndex}`;
     const titleFn = (globalThis as any).getDocumentTitle || (typeof getDocumentTitle !== "undefined" ? getDocumentTitle : null);
     const itemTitle = titleFn ? titleFn(input.validatedDoc) : "";
 

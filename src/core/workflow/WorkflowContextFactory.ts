@@ -12,13 +12,14 @@ declare var defaultAiAnalysisService: AiAnalysisService;
 declare var defaultCacheAdapter: CacheAdapter;
 declare var defaultSpreadsheetLockAdapter: SpreadsheetLockAdapter;
 declare var defaultUserInterfacePresenter: UserInterfacePresenter;
-let FakeLogRepoClass: any;
-let FakeDriveFilingRepoClass: any;
-let FakePdfServiceClass: any;
-let FakeAiAdapterClass: any;
-let FakeCacheAdapterClass: any;
-let FakeSpreadsheetLockAdapterClass: any;
-let FakeUserInterfacePresenterClass: any;
+
+let FakeLogRepoClass: new (...args: unknown[]) => LogRepository | undefined;
+let FakeDriveFilingRepoClass: new (...args: unknown[]) => DriveFilingRepository | undefined;
+let FakePdfServiceClass: new (...args: unknown[]) => PdfDocumentService | undefined;
+let FakeAiAdapterClass: new (...args: unknown[]) => AiAnalysisService | undefined;
+let FakeCacheAdapterClass: new (...args: unknown[]) => CacheAdapter | undefined;
+let FakeSpreadsheetLockAdapterClass: new (...args: unknown[]) => SpreadsheetLockAdapter | undefined;
+let FakeUserInterfacePresenterClass: new (...args: unknown[]) => UserInterfacePresenter | undefined;
 
 if (typeof require !== 'undefined') {
   try {
@@ -28,7 +29,7 @@ if (typeof require !== 'undefined') {
     FakeDriveFilingRepoClass = require('../../adapters/fakes/FakeDriveFilingRepository').FakeDriveFilingRepository;
   } catch (e) {}
   try {
-    FakePdfServiceClass = require('../../../test/harness/fakes/FakePdfDocumentService').FakePdfDocumentService;
+    FakePdfServiceClass = require('../../adapters/fakes/FakePdfDocumentService').FakePdfDocumentService;
   } catch (e) {}
   try {
     FakeAiAdapterClass = require('../../adapters/fakes/FakeAiAnalysisAdapter').FakeAiAnalysisAdapter;
@@ -183,48 +184,71 @@ class WorkflowContextFactory {
 
     const g = typeof globalThis !== 'undefined' ? (globalThis as any) : {};
 
+    const testFakes: Record<string, any> = {};
+
     const resolvers: Record<keyof ContextAdapters, () => any> = {
       logRepository: () => {
         if (combinedOverrides.logRepository !== undefined) return combinedOverrides.logRepository;
-        const Ctor = FakeLogRepoClass || g.FakeLogRepository;
-        if (!Ctor) throw new Error('FakeLogRepository unavailable in current test environment');
-        return new Ctor();
+        if (!testFakes.logRepository) {
+          const Ctor = FakeLogRepoClass || g.FakeLogRepository;
+          if (!Ctor) throw new Error('FakeLogRepository unavailable in current test environment');
+          testFakes.logRepository = new Ctor();
+        }
+        return testFakes.logRepository;
       },
       driveFilingRepository: () => {
         if (combinedOverrides.driveFilingRepository !== undefined) return combinedOverrides.driveFilingRepository;
-        const Ctor = FakeDriveFilingRepoClass || g.FakeDriveFilingRepository;
-        if (!Ctor) throw new Error('FakeDriveFilingRepository unavailable in current test environment');
-        return new Ctor();
+        if (!testFakes.driveFilingRepository) {
+          const Ctor = FakeDriveFilingRepoClass || g.FakeDriveFilingRepository;
+          if (!Ctor) throw new Error('FakeDriveFilingRepository unavailable in current test environment');
+          testFakes.driveFilingRepository = new Ctor();
+        }
+        return testFakes.driveFilingRepository;
       },
       pdfDocumentService: () => {
         if (combinedOverrides.pdfDocumentService !== undefined) return combinedOverrides.pdfDocumentService;
-        const Ctor = FakePdfServiceClass || g.FakePdfDocumentService;
-        if (!Ctor) throw new Error('FakePdfDocumentService unavailable in current test environment');
-        return new Ctor();
+        if (!testFakes.pdfDocumentService) {
+          const Ctor = FakePdfServiceClass || g.FakePdfDocumentService;
+          if (!Ctor) throw new Error('FakePdfDocumentService unavailable in current test environment');
+          testFakes.pdfDocumentService = new Ctor();
+        }
+        return testFakes.pdfDocumentService;
       },
       aiAnalysisService: () => {
         if (combinedOverrides.aiAnalysisService !== undefined) return combinedOverrides.aiAnalysisService;
-        const Ctor = FakeAiAdapterClass || g.FakeAiAnalysisAdapter;
-        if (!Ctor) throw new Error('FakeAiAnalysisAdapter unavailable in current test environment');
-        return new Ctor();
+        if (!testFakes.aiAnalysisService) {
+          const Ctor = FakeAiAdapterClass || g.FakeAiAnalysisAdapter;
+          if (!Ctor) throw new Error('FakeAiAnalysisAdapter unavailable in current test environment');
+          testFakes.aiAnalysisService = new Ctor();
+        }
+        return testFakes.aiAnalysisService;
       },
       cacheAdapter: () => {
         if (combinedOverrides.cacheAdapter !== undefined) return combinedOverrides.cacheAdapter;
-        const Ctor = FakeCacheAdapterClass || g.FakeCacheAdapter;
-        if (!Ctor) throw new Error('FakeCacheAdapter unavailable in current test environment');
-        return new Ctor();
+        if (!testFakes.cacheAdapter) {
+          const Ctor = FakeCacheAdapterClass || g.FakeCacheAdapter;
+          if (!Ctor) throw new Error('FakeCacheAdapter unavailable in current test environment');
+          testFakes.cacheAdapter = new Ctor();
+        }
+        return testFakes.cacheAdapter;
       },
       spreadsheetLockAdapter: () => {
         if (combinedOverrides.spreadsheetLockAdapter !== undefined) return combinedOverrides.spreadsheetLockAdapter;
-        const Ctor = FakeSpreadsheetLockAdapterClass || g.FakeSpreadsheetLockAdapter;
-        if (!Ctor) throw new Error('FakeSpreadsheetLockAdapter unavailable in current test environment');
-        return new Ctor();
+        if (!testFakes.spreadsheetLockAdapter) {
+          const Ctor = FakeSpreadsheetLockAdapterClass || g.FakeSpreadsheetLockAdapter;
+          if (!Ctor) throw new Error('FakeSpreadsheetLockAdapter unavailable in current test environment');
+          testFakes.spreadsheetLockAdapter = new Ctor();
+        }
+        return testFakes.spreadsheetLockAdapter;
       },
       userInterfacePresenter: () => {
         if (combinedOverrides.userInterfacePresenter !== undefined) return combinedOverrides.userInterfacePresenter;
-        const Ctor = FakeUserInterfacePresenterClass || g.FakeUserInterfacePresenter;
-        if (!Ctor) throw new Error('FakeUserInterfacePresenter unavailable in current test environment');
-        return new Ctor();
+        if (!testFakes.userInterfacePresenter) {
+          const Ctor = FakeUserInterfacePresenterClass || g.FakeUserInterfacePresenter;
+          if (!Ctor) throw new Error('FakeUserInterfacePresenter unavailable in current test environment');
+          testFakes.userInterfacePresenter = new Ctor();
+        }
+        return testFakes.userInterfacePresenter;
       }
     };
 

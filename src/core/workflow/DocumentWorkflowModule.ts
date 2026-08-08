@@ -8,99 +8,44 @@
 
 declare var require: any;
 
+var _wp: any = typeof require !== "undefined" ? eval('require("./WorkflowPolicy")') : (globalThis as any);
+var getActionPolicy: (action: string) => WorkflowActionPolicy = _wp.getActionPolicy;
+var getDocumentLogStrategy: (doc: ValidatedDocument) => DocumentLogStrategy = _wp.getDocumentLogStrategy;
+var getDocumentTitle: (doc: ValidatedDocument) => string = _wp.getDocumentTitle;
+var buildDirectRowUrl: (logFileId: string, rowIndex: number, sheetId?: number | null, spreadsheetApp?: any) => string = _wp.buildDirectRowUrl;
+
 if (typeof require !== "undefined") {
   try {
+    const _mda = eval('require("./MoveDocumentAction")');
+    if (_mda && _mda.MoveDocumentAction) (globalThis as any).MoveDocumentAction = _mda.MoveDocumentAction;
+  } catch (e) {}
+  try {
     const _iw = eval('require("./IncomingWorkflow")');
-    if (_iw && _iw.IncomingWorkflow) {
-      (globalThis as any).IncomingWorkflow = _iw.IncomingWorkflow;
-    }
+    if (_iw && _iw.IncomingWorkflow) (globalThis as any).IncomingWorkflow = _iw.IncomingWorkflow;
   } catch (e) {}
   try {
     const _ow = eval('require("./OutgoingWorkflow")');
-    if (_ow && _ow.OutgoingWorkflow) {
-      (globalThis as any).OutgoingWorkflow = _ow.OutgoingWorkflow;
-    }
+    if (_ow && _ow.OutgoingWorkflow) (globalThis as any).OutgoingWorkflow = _ow.OutgoingWorkflow;
   } catch (e) {}
   try {
     const _wla = eval('require("../../WriteLogAction")');
-    if (_wla && _wla.WriteLogAction) {
-      (globalThis as any).WriteLogAction = _wla.WriteLogAction;
-    }
+    if (_wla && _wla.WriteLogAction) (globalThis as any).WriteLogAction = _wla.WriteLogAction;
   } catch (e) {}
   try {
     const _wfr = eval('require("./WorkflowRunner")');
-    if (_wfr && _wfr.WorkflowRunner) {
-      (globalThis as any).WorkflowRunner = _wfr.WorkflowRunner;
-    }
+    if (_wfr && _wfr.WorkflowRunner) (globalThis as any).WorkflowRunner = _wfr.WorkflowRunner;
   } catch (e) {}
   try {
     const _ipa = eval('require("../../InsertPagesAction")');
-    if (_ipa && _ipa.InsertPagesAction) {
-      (globalThis as any).InsertPagesAction = _ipa.InsertPagesAction;
-    }
+    if (_ipa && _ipa.InsertPagesAction) (globalThis as any).InsertPagesAction = _ipa.InsertPagesAction;
   } catch (e) {}
   try {
     const _dls = eval('require("../../DocumentLogStrategy")');
     if (_dls) {
-      if (_dls.ArchitectureSubmittalStrategy) {
-        (globalThis as any).ArchitectureSubmittalStrategy = _dls.ArchitectureSubmittalStrategy;
-      }
-      if (_dls.FFESubmittalStrategy) {
-        (globalThis as any).FFESubmittalStrategy = _dls.FFESubmittalStrategy;
-      }
+      if (_dls.ArchitectureSubmittalStrategy) (globalThis as any).ArchitectureSubmittalStrategy = _dls.ArchitectureSubmittalStrategy;
+      if (_dls.FFESubmittalStrategy) (globalThis as any).FFESubmittalStrategy = _dls.FFESubmittalStrategy;
     }
   } catch (e) {}
-}
-
-/**
- * Resolves execution policy settings based on the specified workflow action string.
- *
- * @param action - The workflow action string (e.g., "Received", "Reviewed", "Referred").
- * @returns WorkflowActionPolicy containing execution instructions.
- */
-function getActionPolicy(action: string): WorkflowActionPolicy {
-  if (action === "Received") {
-    return {
-      direction: "incoming",
-      stampPdf: true,
-      updatePreviousStatus: false
-    };
-  }
-  return {
-    direction: "outgoing",
-    stampPdf: false,
-    updatePreviousStatus: true,
-    previousRowStatus: "Closed"
-  };
-}
-
-/**
- * Factory function returning the appropriate DocumentLogStrategy implementation for a given document.
- *
- * @param doc - The ValidatedDocument instance.
- * @returns FFESubmittalStrategy for FF&E discipline or ArchitectureSubmittalStrategy for Architecture.
- */
-function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy {
-  const details = doc ? doc.disciplineDetails : null;
-  const FfeCtor = (globalThis as any).FFESubmittalStrategy || (typeof FFESubmittalStrategy !== "undefined" ? FFESubmittalStrategy : null);
-  const ArchCtor = (globalThis as any).ArchitectureSubmittalStrategy || (typeof ArchitectureSubmittalStrategy !== "undefined" ? ArchitectureSubmittalStrategy : null);
-
-  if (details && details.discipline === "FF&E") {
-    return new FfeCtor();
-  }
-  return new ArchCtor();
-}
-
-/**
- * Extracts the primary document title from a validated document based on discipline details.
- *
- * @param doc - The ValidatedDocument instance.
- * @returns Document title string or empty string.
- */
-function getDocumentTitle(doc: ValidatedDocument): string {
-  const details = doc ? doc.disciplineDetails : null;
-  if (!details) return "";
-  return details.discipline === "Architecture" ? details.title : details.specTitle;
 }
 
 /**
@@ -141,6 +86,7 @@ if (typeof module !== "undefined" && module.exports) {
     getActionPolicy,
     getDocumentLogStrategy,
     getDocumentTitle,
+    buildDirectRowUrl,
     DocumentWorkflowModule
   };
 }
@@ -148,4 +94,5 @@ if (typeof module !== "undefined" && module.exports) {
 (globalThis as any).getActionPolicy = getActionPolicy;
 (globalThis as any).getDocumentLogStrategy = getDocumentLogStrategy;
 (globalThis as any).getDocumentTitle = getDocumentTitle;
+(globalThis as any).buildDirectRowUrl = buildDirectRowUrl;
 (globalThis as any).DocumentWorkflowModule = DocumentWorkflowModule;
