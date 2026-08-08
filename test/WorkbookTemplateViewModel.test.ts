@@ -26,7 +26,7 @@ interface RepeatCellReq {
   };
 }
 
-test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE log tab (1000x26) with 15 columns", () => {
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE log tab (1000x26) with 16 columns", () => {
   const ffeTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "Submittal FFE");
   assert.ok(ffeTab, "Submittal FFE log tab must be defined in tabs");
   assert.strictEqual(ffeTab.rowCount, 1000, "Submittal FFE rowCount should be 1000");
@@ -34,9 +34,10 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE log tab (1000x26) with 15
   assert.strictEqual(ffeTab.isLogTab, true, "Submittal FFE isLogTab should be true");
 
   assert.ok(ffeTab.columns, "Submittal FFE columns must be defined");
-  assert.strictEqual(ffeTab.columns.length, 15, "Submittal FFE should have 15 columns");
+  assert.strictEqual(ffeTab.columns.length, 16, "Submittal FFE should have 16 columns");
 
   const expectedHeaders = [
+    { id: "status", header: "Status" },
     { id: "specTag", header: "Spec Tag" },
     { id: "relatedTag", header: "Related Tag" },
     { id: "revision", header: "Revision" },
@@ -75,21 +76,21 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
     (nr: NamedRangeSpec) => nr.name === "Headers" && nr.tabName === "Submittal FFE"
   );
   assert.ok(sheetHeaders, "Sheet-scoped Headers named range must exist for Submittal FFE");
-  assert.strictEqual(sheetHeaders.rangeNotation, "A3:O4");
+  assert.strictEqual(sheetHeaders.rangeNotation, "A3:P4");
   assert.strictEqual(sheetHeaders.scope, "Sheet");
 
   const sheetFormula = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
     (nr: NamedRangeSpec) => nr.name === "FormulaRow" && nr.tabName === "Submittal FFE"
   );
   assert.ok(sheetFormula, "Sheet-scoped FormulaRow named range must exist for Submittal FFE");
-  assert.strictEqual(sheetFormula.rangeNotation, "A4:O4");
+  assert.strictEqual(sheetFormula.rangeNotation, "A4:P4");
   assert.strictEqual(sheetFormula.scope, "Sheet");
 
   const sheetData = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
     (nr: NamedRangeSpec) => nr.name === "Data" && nr.tabName === "Submittal FFE"
   );
   assert.ok(sheetData, "Sheet-scoped Data named range must exist for Submittal FFE");
-  assert.strictEqual(sheetData.rangeNotation, "A6:O1000");
+  assert.strictEqual(sheetData.rangeNotation, "A6:P1000");
   assert.strictEqual(sheetData.scope, "Sheet");
 
   const wbConfigFFE = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
@@ -105,7 +106,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
   );
   assert.ok(wbHeaders, "Workbook-scoped Submittal_FFE_Headers named range must exist");
   assert.strictEqual(wbHeaders.tabName, "Submittal FFE");
-  assert.strictEqual(wbHeaders.rangeNotation, "A3:O4");
+  assert.strictEqual(wbHeaders.rangeNotation, "A3:P4");
   assert.strictEqual(wbHeaders.scope, "Workbook");
 
   const wbFormula = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
@@ -113,7 +114,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
   );
   assert.ok(wbFormula, "Workbook-scoped Submittal_FFE_FormulaRow named range must exist");
   assert.strictEqual(wbFormula.tabName, "Submittal FFE");
-  assert.strictEqual(wbFormula.rangeNotation, "A4:O4");
+  assert.strictEqual(wbFormula.rangeNotation, "A4:P4");
   assert.strictEqual(wbFormula.scope, "Workbook");
 
   const wbData = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
@@ -121,7 +122,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
   );
   assert.ok(wbData, "Workbook-scoped Submittal_FFE_Data named range must exist");
   assert.strictEqual(wbData.tabName, "Submittal FFE");
-  assert.strictEqual(wbData.rangeNotation, "A6:O1000");
+  assert.strictEqual(wbData.rangeNotation, "A6:P1000");
   assert.strictEqual(wbData.scope, "Workbook");
 });
 
@@ -146,13 +147,13 @@ test("WorkbookTemplateViewModel binds spec and view spec to export complete fixt
   assert.strictEqual(ffeTab.rowCount, 1000);
   assert.strictEqual(ffeTab.columnCount, 26);
   assert.strictEqual(ffeTab.isLogTab, true);
-  assert.strictEqual(ffeTab.headers.length, 15);
-  assert.strictEqual(ffeTab.headers[0], "Spec Tag");
-  assert.strictEqual(ffeTab.headers[14], "Calc Sort");
+  assert.strictEqual(ffeTab.headers.length, 16);
+  assert.strictEqual(ffeTab.headers[0], "Status");
+  assert.strictEqual(ffeTab.headers[15], "Calc Sort");
 
   const headersNR = fixtureJson.namedRanges.find((nr: any) => nr.name === "Submittal_FFE_Headers");
   assert.ok(headersNR, "Fixture JSON must contain Submittal_FFE_Headers named range");
-  assert.strictEqual(headersNR.rangeNotation, "A3:O4");
+  assert.strictEqual(headersNR.rangeNotation, "A3:P4");
 });
 
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE Support tab with Vendor and SpecTag seed rows and sheet-scoped named ranges", () => {
@@ -190,7 +191,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines MAP/LAMBDA formulas in Submittal FFE in
   const calcTitleCol = ffeTab.columns.find((c) => c.id === "calcTitle");
   assert.ok(calcTitleCol, "calcTitle column must exist");
   assert.ok(calcTitleCol.formula, "calcTitle formula must be defined");
-  assert.ok(calcTitleCol.formula.includes("MAP(A6:A, D6:D, LAMBDA("), "calcTitle formula must be a MAP/LAMBDA expression");
+  assert.ok(calcTitleCol.formula.includes("MAP(B6:B, E6:E, LAMBDA("), "calcTitle formula must be a MAP/LAMBDA expression");
   assert.ok(calcTitleCol.formula.includes("VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE)"), "calcTitle formula must perform VLOOKUP against SpecTags");
 
   const calcFileNameCol = ffeTab.columns.find((c) => c.id === "calcFileName");
@@ -209,7 +210,7 @@ test("WorkbookTemplateViewModel toFixtureJson exports Submittal FFE formulaRow w
 
   const ffeTab = fixtureJson.tabs.find((t: any) => t.name === "Submittal FFE");
   assert.ok(ffeTab, "Submittal FFE tab must exist in fixture JSON");
-  assert.strictEqual(ffeTab.formulaRow.length, 15);
+  assert.strictEqual(ffeTab.formulaRow.length, 16);
 
   const calcTitleIdx = ffeTab.headers.indexOf("Calc Title");
   assert.ok(calcTitleIdx >= 0, "Calc Title header must exist in fixture headers");
@@ -218,7 +219,7 @@ test("WorkbookTemplateViewModel toFixtureJson exports Submittal FFE formulaRow w
   assert.ok(calcTitleFormula.includes("VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE)"));
 });
 
-test("WorkbookTemplateViewModel generates setDataValidation batch update request for Section column referencing =Sections", () => {
+test("WorkbookTemplateViewModel generates setDataValidation batch update request for Spec Tag column referencing =SpecTags", () => {
   const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
   const payload = viewModel.toBatchUpdateRequestPayload();
   interface DataValidationRequest {
@@ -229,9 +230,9 @@ test("WorkbookTemplateViewModel generates setDataValidation batch update request
   }
   const validationReqs = (payload.requests as DataValidationRequest[]).filter(r => r.setDataValidation);
   assert.ok(validationReqs.length > 0, 'setDataValidation requests must be generated');
-  const sectionValidation = validationReqs.find(r => r.setDataValidation?.rule?.condition?.values?.[0]?.userEnteredValue === '=Sections');
-  assert.ok(sectionValidation, 'Data validation rule for =Sections must be included in batch requests');
-  assert.ok(typeof sectionValidation?.setDataValidation?.range?.sheetId === 'number', 'Sheet ID should be assigned for Submittal Arch tab');
+  const specTagValidation = validationReqs.find(r => r.setDataValidation?.rule?.condition?.values?.[0]?.userEnteredValue === '=SpecTags');
+  assert.ok(specTagValidation, 'Data validation rule for =SpecTags must be included in batch requests');
+  assert.ok(typeof specTagValidation?.setDataValidation?.range?.sheetId === 'number', 'Sheet ID should be assigned for Submittal FFE tab');
 });
 
 test("ThemeColors defines pale desaturated tokens and hexToRgb converter works", () => {

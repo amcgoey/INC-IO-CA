@@ -50,22 +50,21 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       columnCount: 26,
       isLogTab: true,
       columns: [
-        { id: "section", header: "Section", validationRange: "Sections" },
+        { id: "status", header: "Status", validationRange: "Actions_Submittal" },
+        { id: "section", header: "Section" },
         { id: "number", header: "Number" },
-        { id: "title", header: "Title" },
         { id: "revision", header: "Revision" },
+        { id: "title", header: "Title" },
         { id: "date", header: "Date" },
         { id: "contact", header: "Contact", validationRange: "Shared_Contacts_Arch" },
         { id: "action", header: "Action", validationRange: "Actions_Submittal" },
-        { id: "status", header: "Status", validationRange: "Actions_Submittal" },
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
-        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(A6:A, B6:B, C6:C, D6:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & title & "-" & rev)))' },
-        { id: "calcNumber", header: "Calc Number", formula: '=MAP(A6:A, B6:B, D6:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & rev)))' },
-        { id: "calcTitle", header: "Calc Title", formula: '=MAP(A6:A, C6:C, LAMBDA(sec, title, IF(ISBLANK(sec), "", title)))' },
-        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(A6:A, F6:F, LAMBDA(sec, contact, IF(ISBLANK(sec), "", contact)))' },
-        { id: "calcSort", header: "Calc Sort", formula: '=MAP(A6:A, B6:B, LAMBDA(sec, num, IF(ISBLANK(sec), "", TEXT(sec, "000000") & TEXT(num, "0000"))))'
- }
+        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(B6:B, C6:C, E6:E, D6:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & title & "-" & rev)))' },
+        { id: "calcNumber", header: "Calc Number", formula: '=MAP(B6:B, C6:C, D6:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & rev)))' },
+        { id: "calcTitle", header: "Calc Title", formula: '=MAP(B6:B, E6:E, LAMBDA(sec, title, IF(ISBLANK(sec), "", title)))' },
+        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(B6:B, G6:G, LAMBDA(sec, contact, IF(ISBLANK(sec), "", contact)))' },
+        { id: "calcSort", header: "Calc Sort", formula: '=MAP(B6:B, C6:C, LAMBDA(sec, num, IF(ISBLANK(sec), "", TEXT(sec, "000000") & TEXT(num, "0000"))))' }
       ]
     },
     {
@@ -74,21 +73,22 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       columnCount: 26,
       isLogTab: true,
       columns: [
-        { id: "specTag", header: "Spec Tag" },
-        { id: "relatedTag", header: "Related Tag" },
+        { id: "status", header: "Status", validationRange: "Actions_Submittal" },
+        { id: "specTag", header: "Spec Tag", validationRange: "SpecTags" },
+        { id: "relatedTag", header: "Related Tag", validationRange: "SpecTags" },
         { id: "revision", header: "Revision" },
         { id: "specTitle", header: "Spec Title" },
-        { id: "vendor", header: "Vendor" },
+        { id: "vendor", header: "Vendor", validationRange: "Vendors" },
         { id: "date", header: "Date" },
-        { id: "contact", header: "Contact" },
-        { id: "action", header: "Action" },
+        { id: "contact", header: "Contact", validationRange: "Shared_Contacts_FFE" },
+        { id: "action", header: "Action", validationRange: "Actions_Submittal" },
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
-        { id: "calcFileName", header: "Calc File Name", formula: "=MAP(A6:A, B6:B, C6:C, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), \"\", tag & IF(ISBLANK(rel), \"\", \"-\" & rel) & \"-\" & rev)))" },
-        { id: "calcNumber", header: "Calc Number", formula: "=MAP(A6:A, C6:C, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"-\" & rev)))" },
-        { id: "calcTitle", header: "Calc Title", formula: "=MAP(A6:A, D6:D, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), \"\", title), IFERROR(VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE), title))))" },
-        { id: "calcContactChain", header: "Calc Contact Chain", formula: "=MAP(G6:G, H6:H, LAMBDA(c, a, IF(ISBLANK(c), \"\", c & IF(ISBLANK(a), \"\", \" (\" & a & \")\"))))" },
-        { id: "calcSort", header: "Calc Sort", formula: "=MAP(A6:A, C6:C, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"_\" & rev)))" }
+        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(B6:B, C6:C, D6:D, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), "", tag & IF(ISBLANK(rel), "", "-" & rel) & "-" & rev)))' },
+        { id: "calcNumber", header: "Calc Number", formula: '=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "-" & rev)))' },
+        { id: "calcTitle", header: "Calc Title", formula: '=MAP(B6:B, E6:E, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), "", title), IFERROR(VLOOKUP(tag, \'Submittal FFE Support\'!SpecTags, 2, FALSE), title))))' },
+        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(H6:H, I6:I, LAMBDA(c, a, IF(ISBLANK(c), "", c & IF(ISBLANK(a), "", " (" & a & ")"))))' },
+        { id: "calcSort", header: "Calc Sort", formula: '=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "_" & rev)))' }
       ]
     },
     {
@@ -173,19 +173,18 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Submittal_Arch_Headers", tabName: "Submittal Arch", rangeNotation: "A3:O4", scope: "Workbook" },
     { name: "Submittal_Arch_FormulaRow", tabName: "Submittal Arch", rangeNotation: "A4:O4", scope: "Workbook" },
     { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A6:O1000", scope: "Workbook" },
-    { name: "Headers", tabName: "Submittal FFE", rangeNotation: "A3:O4", scope: "Sheet" },
-    { name: "FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:O4", scope: "Sheet" },
-    { name: "Data", tabName: "Submittal FFE", rangeNotation: "A6:O1000", scope: "Sheet" },
-    { name: "Submittal_FFE_Headers", tabName: "Submittal FFE", rangeNotation: "A3:O4", scope: "Workbook" },
-    { name: "Submittal_FFE_FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:O4", scope: "Workbook" },
-    { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A6:O1000", scope: "Workbook" },
+    { name: "Headers", tabName: "Submittal FFE", rangeNotation: "A3:P4", scope: "Sheet" },
+    { name: "FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:P4", scope: "Sheet" },
+    { name: "Data", tabName: "Submittal FFE", rangeNotation: "A6:P1000", scope: "Sheet" },
+    { name: "Submittal_FFE_Headers", tabName: "Submittal FFE", rangeNotation: "A3:P4", scope: "Workbook" },
+    { name: "Submittal_FFE_FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:P4", scope: "Workbook" },
+    { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A6:P1000", scope: "Workbook" },
     { name: "Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Sheet" },
     { name: "Submittal_Arch_Support_Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Workbook" },
     { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Sheet" },
     { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Sheet" },
   ]
 };
-
 
 declare var module: any;
 

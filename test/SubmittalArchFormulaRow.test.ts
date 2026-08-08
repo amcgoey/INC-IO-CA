@@ -134,7 +134,8 @@ test("Submittal Arch - GasMockHarness loads WorkbookSpec and verifies calculated
     assert.ok(archSheet, "Submittal Arch sheet must exist in mock spreadsheet");
 
     const row3Headers = archSheet.getRange(3, 1, 1, 15).getValues()[0];
-    assert.strictEqual(row3Headers[0], "Section");
+    assert.strictEqual(row3Headers[0], "Status");
+    assert.strictEqual(row3Headers[1], "Section");
     assert.strictEqual(row3Headers[10], "Calc File Name");
     assert.strictEqual(row3Headers[11], "Calc Number");
     assert.strictEqual(row3Headers[12], "Calc Title");
@@ -149,7 +150,7 @@ test("Submittal Arch - GasMockHarness loads WorkbookSpec and verifies calculated
     assert.ok(row4Formulas[13].startsWith("=MAP("), "Row 4 Calc Contact Chain formula");
     assert.ok(row4Formulas[14].startsWith("=MAP("), "Row 4 Calc Sort formula");
 
-    archSheet.setGridSlice(6, 1, [["033000", 1, "Concrete Mix Design", "0", "2026-08-08", "arch-reviewer@example.com", "For Approval", "For Approval", "Notes", "https://link.com", "", "", "", "", ""]]);
+    archSheet.setGridSlice(6, 1, [["Open", "033000", 1, "0", "Concrete Mix Design", "2026-08-08", "arch-reviewer@example.com", "For Approval", "Notes", "https://link.com", "", "", "", "", ""]]);
 
     const dataRowValues = archSheet.getRange(6, 1, 1, 15).getValues()[0];
     for (let i = 10; i < 15; i++) {
@@ -157,11 +158,11 @@ test("Submittal Arch - GasMockHarness loads WorkbookSpec and verifies calculated
     }
 
     const sampleRow = {
-      section: dataRowValues[0],
-      number: dataRowValues[1],
-      title: dataRowValues[2],
+      section: dataRowValues[1],
+      number: dataRowValues[2],
+      title: dataRowValues[4],
       revision: dataRowValues[3],
-      contact: dataRowValues[5]
+      contact: dataRowValues[6]
     };
     assert.strictEqual(evaluateArchFormula(row4Formulas[11], sampleRow), "033000-001-0");
   } finally {
