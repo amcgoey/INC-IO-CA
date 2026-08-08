@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
 import { GasMockHarness } from "./GasMockHarness";
-import { DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, DOCUMENT_LOG_WORKBOOK_SPEC } from "../../src/core/config/DocumentLogWorkbookSpec";
+import { DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, DOCUMENT_LOG_WORKBOOK_SPEC, TabSpec, NamedRangeSpec } from "../../src/core/config/DocumentLogWorkbookSpec";
 
 test.afterEach(() => {
   GasMockHarness.uninstall();
@@ -221,7 +221,7 @@ test("GasMockHarness.uninstall restores original globalThis bindings", () => {
   assert.strictEqual((globalThis as any).SpreadsheetApp, "original-spreadsheet-app");
 });
 
-test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Config tab (100x20), MANIFEST_SCHEMA_VERSION, and seed rows", () => {
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Config tab (7x20), MANIFEST_SCHEMA_VERSION, and seed rows", () => {
   
 
   assert.strictEqual(DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, "1.0.0");
@@ -229,7 +229,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Config tab (100x20), MANIFEST_SCHEMA_V
 
   const configTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_Config");
   assert.ok(configTab, "_Config tab must be defined");
-  assert.strictEqual(configTab.rowCount, 100, "_Config tab rowCount should be 100");
+  assert.strictEqual(configTab.rowCount, 7, "_Config tab rowCount should be 7");
   assert.strictEqual(configTab.columnCount, 20, "_Config tab columnCount should be 20");
   assert.strictEqual(configTab.isConfigTab, true, "_Config tab isConfigTab flag should be true");
 
@@ -272,4 +272,115 @@ test("GasMockHarness resolves MANIFEST_SCHEMA_VERSION from _Config tab in mock s
   const configSheet = ss.getSheetByName("_Config");
   assert.ok(configSheet, "_Config sheet should exist");
   assert.strictEqual(configSheet.getRange("B2").getValue(), "1.0.0");
+});
+
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (6x20), contact lists, action picklists, and named ranges", () => {
+  const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
+  assert.ok(sharedTab, "_Shared tab must be defined");
+  assert.strictEqual(sharedTab.rowCount, 6, "_Shared tab rowCount should be 6");
+  assert.strictEqual(sharedTab.columnCount, 20, "_Shared tab columnCount should be 20");
+  assert.strictEqual(sharedTab.isSharedTab, true, "_Shared tab isSharedTab flag should be true");
+
+  assert.ok(sharedTab.seedRows, "_Shared seedRows must be present");
+  assert.deepStrictEqual(sharedTab.seedRows[0], ["Contact Type", "Contact Abbr.", "Contact Full Name", "", "Action Order", "Actions", "Action Abbr."]);
+
+  const archContactsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: NamedRangeSpec) => nr.name === "Shared_Contacts_Arch");
+  assert.ok(archContactsNR, "Shared_Contacts_Arch named range must exist");
+  assert.strictEqual(archContactsNR.tabName, "_Shared");
+  assert.strictEqual(archContactsNR.rangeNotation, "A2:C3");
+  assert.strictEqual(archContactsNR.scope, "Workbook");
+
+  const ffeContactsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: NamedRangeSpec) => nr.name === "Shared_Contacts_FFE");
+  assert.ok(ffeContactsNR, "Shared_Contacts_FFE named range must exist");
+  assert.strictEqual(ffeContactsNR.tabName, "_Shared");
+  assert.strictEqual(ffeContactsNR.rangeNotation, "A4:C5");
+  assert.strictEqual(ffeContactsNR.scope, "Workbook");
+
+  const actionsSubmittalNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: NamedRangeSpec) => nr.name === "Actions_Submittal");
+  assert.ok(actionsSubmittalNR, "Actions_Submittal named range must exist");
+  assert.strictEqual(actionsSubmittalNR.tabName, "_Shared");
+  assert.strictEqual(actionsSubmittalNR.rangeNotation, "E2:G6");
+  assert.strictEqual(actionsSubmittalNR.scope, "Workbook");
+});
+
+test("DOCUMENT_LOG_WORKBOOK_SPEC defines _AuditLog system tab (7x10) and AuditLog_Events named range A6:F7", () => {
+  const auditLogTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_AuditLog");
+  assert.ok(auditLogTab, "_AuditLog tab must be defined");
+  assert.strictEqual(auditLogTab.rowCount, 7, "_AuditLog tab rowCount should be 7");
+  assert.strictEqual(auditLogTab.columnCount, 10, "_AuditLog tab columnCount should be 10");
+  assert.strictEqual(auditLogTab.isAuditLogTab, true, "_AuditLog tab isAuditLogTab flag should be true");
+  assert.ok(auditLogTab.columns, "_AuditLog columns should exist");
+  assert.strictEqual(auditLogTab.columns.length, 6);
+  assert.strictEqual(auditLogTab.columns[0].header, "Timestamp");
+
+  const auditEventsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: any) => nr.name === "AuditLog_Events");
+  assert.ok(auditEventsNR, "AuditLog_Events named range must exist");
+  assert.strictEqual(auditEventsNR.tabName, "_AuditLog");
+  assert.strictEqual(auditEventsNR.rangeNotation, "A6:F7");
+  assert.strictEqual(auditEventsNR.scope, "Workbook");
+});
+
+test("GasMockHarness resolves AuditLog_Events named range from _AuditLog tab in mock spreadsheet", () => {
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById("ss-audit-test");
+  ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  const range = ss.getRangeByName("AuditLog_Events");
+  assert.ok(range, "getRangeByName('AuditLog_Events') should return MockRange");
+  assert.strictEqual(range.getValues()[0][0], "");
+
+  const auditSheet = ss.getSheetByName("_AuditLog");
+  assert.ok(auditSheet, "_AuditLog sheet should exist");
+  assert.strictEqual(auditSheet.getRange("A3").getValue(), "Timestamp");
+});
+
+test("LogEngine executes audit event logging end-to-end with GasMockHarness GoogleSheetsStorageAdapter", () => {
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById("ss-gasmock-audit");
+  ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  const { LogEngine } = require("../../src/core/log/LogEngine");
+  const { GoogleSheetsStorageAdapter } = require("../../src/SheetStorageAdapter");
+  const adapter = new GoogleSheetsStorageAdapter("ss-gasmock-audit");
+  const engine = new LogEngine(adapter);
+
+  engine.logAuditEvent("ss-gasmock-audit", {
+    category: "ADMIN_ACTION",
+    eventType: "CACHE_INVALIDATED",
+    actor: "admin@example.com",
+    status: "SUCCESS",
+    details: { scope: "UserCache" }
+  });
+
+  const auditSheet = ss.getSheetByName("_AuditLog");
+  assert.ok(auditSheet, "_AuditLog sheet must exist in spreadsheet");
+  const grid = auditSheet.getGrid();
+  assert.ok(grid.length >= 2, "Grid must contain header row and logged audit event");
+  const eventRow = grid.find((r: any[]) => r[1] === "ADMIN_ACTION" && r[2] === "CACHE_INVALIDATED");
+  assert.ok(eventRow, "Audit log row must exist with Category ADMIN_ACTION and EventType CACHE_INVALIDATED");
+  assert.strictEqual(eventRow[3], "admin@example.com");
+  assert.strictEqual(eventRow[4], "SUCCESS");
+});
+
+test("GasMockHarness evaluates VLOOKUP formula and FF&E calculated columns correctly", () => {
+  const harness = GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById("ss-vlookup-test");
+  ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  const vlookupResult = ss.evaluateVlookup("CH-01", "SpecTags", 2, true);
+  assert.strictEqual(vlookupResult, "Dining Chair", "VLOOKUP CH-01 against SpecTags should return Dining Chair");
+
+  const vlookupResult2 = ss.evaluateVlookup("TBL-01", "SpecTags", 2, true);
+  assert.strictEqual(vlookupResult2, "Conference Table", "VLOOKUP TBL-01 against SpecTags should return Conference Table");
+
+  const vlookupUnknown = ss.evaluateVlookup("NONEXISTENT", "SpecTags", 2, true);
+  assert.strictEqual(vlookupUnknown, "#N/A", "VLOOKUP NONEXISTENT against SpecTags should return #N/A");
+
+  const state = harness.getSheetsState("ss-vlookup-test");
+
+  const ffeCalcTitle = state.evaluateFfeFormula("calcTitle", { specTag: "CH-01", specTitle: "Fallback Title" });
+  assert.strictEqual(ffeCalcTitle, "Dining Chair", "calcTitle with CH-01 should auto-populate Dining Chair");
+
+  const ffeFallbackTitle = state.evaluateFfeFormula("calcTitle", { specTag: "UNKNOWN-TAG", specTitle: "Custom Description" });
+  assert.strictEqual(ffeFallbackTitle, "Custom Description", "calcTitle with unknown tag should fall back to specTitle");
 });

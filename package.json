@@ -15,7 +15,10 @@
     "prototype:intake-card": "npx tsx scripts/prototype-intake-card.ts",
     "prototype:usercache-state": "npx tsx scripts/prototype-usercache-state.ts",
     "prototype:cross-log-scanner": "npx tsx scripts/prototype-cross-log-scanner.ts",
-    "prototype:sheets-card": "npx tsx scripts/prototype-sheets-card.ts"
+    "prototype:sheets-card": "npx tsx scripts/prototype-sheets-card.ts",
+    "template:generate": "npx tsx scripts/template/generate-fixture.ts",
+    "template:verify-live": "npx tsx scripts/template/verify-live.ts",
+    "template:deploy-live": "npx tsx scripts/template/deploy-live.ts"
   },
   "devDependencies": {
     "@google/clasp": "^2.4.2",

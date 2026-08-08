@@ -1,6 +1,6 @@
 /**
  * @file DocumentLogWorkbookSpec.ts
- * @description Declarative specification for single-workbook layout (_Config, _Shared, _AuditLog, Submittal Arch)
+ * @description Declarative specification for single-workbook layout (_Config, _Shared, _AuditLog, Submittal Arch, Submittal FFE)
  * and Dual-Tier Named Range taxonomy (Workbook-Scoped and Sheet-Scoped Headers, FormulaRow, Data).
  */
 
@@ -16,6 +16,7 @@ export interface ColumnSpec {
 
 export interface TabSpec {
   name: string;
+  title?: string;
   rowCount: number;
   columnCount: number;
   isConfigTab?: boolean;
@@ -44,8 +45,128 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
   schemaVersion: DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION,
   tabs: [
     {
+      name: "Submittal Arch",
+      rowCount: 20,
+      columnCount: 26,
+      isLogTab: true,
+      columns: [
+        { id: "status", header: "Status", validationRange: "Actions_Submittal" },
+        { id: "section", header: "Section" },
+        { id: "number", header: "Number" },
+        { id: "revision", header: "Revision" },
+        { id: "title", header: "Title" },
+        { id: "date", header: "Date" },
+        { id: "contact", header: "Contact", validationRange: "Shared_Contacts_Arch" },
+        { id: "action", header: "Action", validationRange: "Actions_Submittal" },
+        { id: "notes", header: "Notes" },
+        { id: "link", header: "Link" },
+        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(B6:B, C6:C, E6:E, D6:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & title & "-" & rev)))' },
+        { id: "calcNumber", header: "Calc Number", formula: '=MAP(B6:B, C6:C, D6:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & rev))))' },
+        { id: "calcTitle", header: "Calc Title", formula: '=MAP(B6:B, E6:E, LAMBDA(sec, title, IF(ISBLANK((sec), "", title)))' },
+        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(B6:B, G6:G, LAMBDA(sec, contact, IF(ISBLANK(sec), "", contact)))' },
+        { id: "calcSort", header: "Calc Sort", formula: '=MAP(B6:B, C6:C, LAMBDA(sec, num, IF(ISBLANK(sec), "", TEXT(sec, "000000") & TEXT(num, "0000"))))' }
+      ],
+      seedRows: [
+        ["Open", "071200", 1, "0", "Fluid-Applied Waterproofing", "2026-08-01", "PMG", "Received", "Initial submittal received from PMG", ""],
+        ["Open", "071200", 1, "0", "Fluid-Applied Waterproofing", "2026-08-02", "INC", "Open", "Under active review by INC", ""],
+        ["Closed", "092900", 1, "0", "Gypsum Board Shaft Wall Assemblies", "2026-07-10", "PMG", "Received", "Rev 1 submittal received from PMG", ""],
+        ["Closed", "092900", 1, "0", "Gypsum Board Shaft Wall Assemblies", "2026-07-12", "INC", "Revise & Resubmit", "Returned to PMG for resubmittal", ""],
+        ["Closed", "092900", 1, "1", "Gypsum Board Shaft Wall Assemblies", "2026-07-20", "PMG", "Received", "Rev 2 resubmittal received from PMG", ""],
+        ["Closed", "092900", 1, "1", "Gypsum Board Shaft Wall Assemblies", "2026-07-21", "IE", "Referred", "Referred to IE for consultant review", ""],
+        ["Closed", "092900", 1, "1", "Gypsum Board Shaft Wall Assemblies", "2026-07-24", "IE", "No Exceptions Taken", "Consultant review complete - no exceptions", ""],
+        ["Closed", "092900", 1, "1", "Gypsum Board Shaft Wall Assemblies", "2026-07-25", "INC", "No Objection as Corrected", "Final approval as corrected", ""],
+        ["Closed", "093000", 1, "0", "Tiling Assemblies", "2026-07-01", "PMG", "Received", "Rev 1 submittal received from PMG", ""],
+        ["Closed", "093000", 1, "0", "Tiling Assemblies", "2026-07-03", "INC", "Rejected", "Rejected due to missing product data", ""],
+        ["Closed", "093000", 1, "1", "Tiling Assemblies", "2026-07-15", "PMG", "Received", "Rev 2 resubmittal received from PMG", ""],
+        ["Closed", "093000", 1, "1", "Tiling Assemblies", "2026-07-16", "IE", "Referred", "Referred to IE for tile membrane review", ""],
+        ["Closed", "093000", 1, "1", "Tiling Assemblies", "2026-07-18", "IE", "No Exceptions Taken", "Consultant review complete - no exceptions", ""],
+        ["Closed", "093000", 1, "1", "Tiling Assemblies", "2026-07-19", "INC", "No Objection as Corrected", "Final approval as corrected", ""]
+      ]
+    },
+    {
+      name: "Submittal FFE",
+      rowCount: 18,
+      columnCount: 26,
+      isLogTab: true,
+      columns: [
+        { id: "status", header: "Status", validationRange: "Actions_Submittal" },
+        { id: "specTag", header: "Spec Tag", validationRange: "SpecTags" },
+        { id: "relatedTag", header: "Related Tag", validationRange: "SpecTags" },
+        { id: "revision", header: "Revision" },
+        { id: "specTitle", header: "Spec Title" },
+        { id: "vendor", header: "Vendor", validationRange: "Vendors" },
+        { id: "date", header: "Date" },
+        { id: "contact", header: "Contact", validationRange: "Shared_Contacts_FFE" },
+        { id: "action", header: "Action", validationRange: "Actions_Submittal" },
+        { id: "notes", header: "Notes" },
+        { id: "link", header: "Link" },
+        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(B6:B, C6:C, D6:D, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), "", tag & IF(ISBLANK(rel), "", "-" & rel) & "-" & rev))' },
+        { id: "calcNumber", header: "Calc Number", formula: '=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "-" & rev))' },
+        { id: "calcTitle", header: "Calc Title", formula: '=MAP(B6:B, E6:E, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), "", title), IFERROR(VLOOKUP(tag, \'Submittal FFE Support\'!SpecTags, 2, FALSE), title)))' },
+        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(H6:H, I6:I, LAMBDA(c, a, IF(ISBLANK(c), "", c & IF(ISBLANK(a), "", " (" & a & ")")))' },
+        { id: "calcSort", header: "Calc Sort", formula: '=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "_" & rev))' }
+      ],
+      seedRows: [
+        ["Closed", "AC102", "", "0", "Hook", "Ashley Lighting", "2026-07-05", "BW", "Received", "Rev 1 sample submittal received", ""],
+        ["Closed", "AC102", "", "0", "Hook", "Ashley Lighting", "2026-07-07", "INC", "Revise & Resubmit", "Finish sample rejected, resubmittal required", ""],
+        ["Closed", "AC102", "", "1", "Hook", "Ashley Lighting", "2026-07-15", "BW", "Received", "Rev 2 finish sample resubmittal received", ""],
+        ["Closed", "AC102", "", "1", "Hook", "Ashley Lighting", "2026-07-17", "INC", "No Objection as Corrected", "Approved with finish notes", ""],
+        ["Closed", "CG138", "", "0", "Credenza", "Fil Doux Textiles", "2026-07-08", "BW", "Received", "Rev 1 shop drawings received", ""],
+        ["Closed", "CG138", "", "0", "Credenza", "Fil Doux Textiles", "2026-07-10", "INC", "Rejected", "Dimensions do not match specification", ""],
+        ["Closed", "CG138", "", "1", "Credenza", "Fil Doux Textiles", "2026-07-20", "BW", "Received", "Rev 2 revised shop drawings received", ""],
+        ["Closed", "CG138", "", "1", "Credenza", "Fil Doux Textiles", "2026-07-22", "INC", "No Objection as Corrected", "Approved as corrected with dimension updates", ""],
+        ["Open", "FB132B", "", "0", "Fabric Woven", "Carnegie", "2026-08-03", "BW", "Received", "Initial fabric submittal received", ""],
+        ["Open", "FB132B", "", "0", "Fabric Woven", "Carnegie", "2026-08-04", "INC", "Open", "Under active review by INC", ""],
+        ["Open", "LT150", "", "0", "Pendant", "Light Annex", "2026-08-01", "BW", "Received", "Initial fixture cutsheet submittal received", ""],
+        ["Open", "LT150", "", "0", "Pendant", "Light Annex", "2026-08-03", "INC", "Revise & Resubmit", "Driver voltage specification missing", ""]
+      ]
+    },
+    {
+      name: "Submittal Arch Support",
+      rowCount: 6,
+      columnCount: 10,
+      isSupportTab: true,
+      seedRows: [
+        ["Section Key", "Section Label"],
+        ["071200", "Fluid-Applied Waterproofing"],
+        ["092900", "Gypsum Board Shaft Wall Assemblies"],
+        ["093000", "Tiling Assemblies"],
+        ["033000", "Cast-in-Place Concrete"],
+        ["081100", "Metal Doors"]
+      ]
+    },
+    {
+      name: "Submittal FFE Support",
+      rowCount: 7,
+      columnCount: 10,
+      isSupportTab: true,
+      seedRows: [
+        ["Vendor Key", "Vendor Label", "SpecTag Key", "SpecTag Label"],
+        ["Ashley Lighting", "Ashley Lighting", "AC102", "Hook"],
+        ["Fil Doux Textiles", "Fil Doux Textiles", "CG138", "Credenza"],
+        ["Carnegie", "Carnegie", "FB132B", "Fabric Woven"],
+        ["Light Annex", "Light Annex", "LT150", "Pendant"],
+        ["ACME", "Acme Supplies", "CH-01", "Dining Chair"],
+        ["GLOBAL", "Global Materials", "TBL-01", "Conference Table"]
+      ]
+    },
+    {
+      name: "_Shared",
+      rowCount: 6,
+      columnCount: 20,
+      isSharedTab: true,
+      seedRows: [
+        ["Contact Type", "Contact Abbr.", "Contact Full Name", "", "Action Order", "Actions", "Action Abbr."],
+        ["Arch", "ARCH", "arch-reviewer@example.com", "", 1, "For Approval", "_NET"],
+        ["Arch", "ARCH-LEAD", "arch-lead@example.com", "", 2, "Approved as Noted", "_NOC"],
+        ["FFE", "FFE", "ffe-reviewer@example.com", "", 3, "Revise and Resubmit", "_RR"],
+        ["FFE", "FFE-LEAD", "ffe-lead@example.com", "", 4, "Rejected", "_REJ"],
+        ["", "", "", "", 5, "For Information Only", "_REF"]
+      ]
+    },
+    {
       name: "_Config",
-      rowCount: 100,
+      rowCount: 10,
       columnCount: 20,
       isConfigTab: true,
       seedRows: [
@@ -56,78 +177,26 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         ["CONTACT_CHAIN_MAX", "-5"],
         ["", ""],
         ["DocTypeKey", "DisplayName", "Prefix", "LogTabName"],
-        ["Submittal_Arch", "Architectural Submittals", "SUB-ARCH", "Submittal Arch"]
-      ]
-    },
-    {
-      name: "_Shared",
-      rowCount: 100,
-      columnCount: 20,
-      isSharedTab: true,
-      seedRows: [
-        ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Actions Key", "Actions Label"],
-        ["INC", "INC Architecture and Design", "INC", "INC Architecture & Design", "Received", "Received"],
-        ["PMG", "Pavarini McGovern", "BW", "Benjamin West", "Referred", "Referred"],
-        ["FXC", "FX Collaborative", "Lighting", "Lighting", "Not Reviewed", "Not Reviewed"],
-        ["IE", "Interface Engineering", "Brand", "Brand", "Rejected", "Rejected"],
-        ["VLD", "Ventresca Lighting Design", "", "", "Revise & Resubmit", "Revise & Resubmit"],
-        ["", "", "", "", "No Objection as Corrected", "No Objection as Corrected"],
-        ["", "", "", "", "No Exceptions Taken", "No Exceptions Taken"]
+        ["Submittal_Arch", "Architectural Submittals", "SUB-ARCH", "Submittal Arch"],
+        ["Submittal_FFE", "FFE Submittals", "SUB-FFE", "Submittal FFE"]
       ]
     },
     {
       name: "_AuditLog",
-      rowCount: 500,
+      title: "Audit Log",
+      rowCount: 7,
       columnCount: 10,
       isAuditLogTab: true,
-      seedRows: [
-        ["Timestamp", "EventType", "Category", "Actor", "Status", "Details"]
-      ]
-    },
-    {
-      name: "Submittal Arch",
-      rowCount: 1000,
-      columnCount: 26,
-      isLogTab: true,
       columns: [
-        { id: "section", header: "Section" },
-        { id: "number", header: "Number" },
-        { id: "title", header: "Title" },
-        { id: "revision", header: "Revision" },
-        { id: "date", header: "Date" },
-        { id: "contact", header: "Contact" },
-        { id: "action", header: "Action" },
+        { id: "timestamp", header: "Timestamp" },
+        { id: "category", header: "Category" },
+        { id: "eventType", header: "EventType" },
+        { id: "actor", header: "Actor" },
         { id: "status", header: "Status" },
-        { id: "notes", header: "Notes" },
-        { id: "link", header: "Link" },
-        { id: "contactHistory", header: "Contact History" }
-      ]
-    },
-    {
-      name: "Submittal Arch Support",
-      rowCount: 100,
-      columnCount: 10,
-      isSupportTab: true,
+        { id: "details", header: "Details" }
+      ],
       seedRows: [
-        ["Section Key", "Section Label"],
-        ["033000", "Cast-in-Place Concrete"],
-        ["081100", "Metal Doors"]
-      ]
-    },
-    {
-      name: "Submittal FFE Support",
-      rowCount: 100,
-      columnCount: 10,
-      isSupportTab: true,
-      seedRows: [
-        ["Vendor Key", "Vendor Label", "SpecTag Key", "SpecTag Label"],
-        ["BERMAN FALK", "Berman Falk", "AC102", "HOOK"],
-        ["ASHLEY", "Ashley Lighting", "CG104", "BED - KING"],
-        ["CARNEGIE", "Carnegie", "CG126", "BED - DOUBLE QUEEN"],
-        ["DELTA", "Delta", "CG138", "CREDENZA"],
-        ["FIL DOUX", "Fil Doux Textiles", "CG138M", "CREDENZA - MIRRORED"],
-        ["LIGHT ANNEX", "Light Annex", "CP112", "CARPET - CORRIDOR"],
-        ["MOHAWK", "Mohawk", "", ""]
+        ["2026-08-08T00:00:00.000Z", "SYSTEM", "SCHEMA_INIT", "system", "SUCCESS", "Initial MVT Template Provisioning"]
       ]
     }
   ],
@@ -135,17 +204,25 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "MANIFEST_SCHEMA_VERSION", tabName: "_Config", rangeNotation: "B2", scope: "Workbook" },
     { name: "Config_Manifest", tabName: "_Config", rangeNotation: "A1:B5", scope: "Workbook" },
     { name: "Config_Submittal_Arch", tabName: "_Config", rangeNotation: "A7:D8", scope: "Workbook" },
+    { name: "Config_Submittal_FFE", tabName: "_Config", rangeNotation: "A7:D9", scope: "Workbook" },
     { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:B20", scope: "Workbook" },
     { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "C2:D20", scope: "Workbook" },
     { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "E2:F20", scope: "Workbook" },
-    { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A1:F100", scope: "Workbook" },
-    { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A1:K2", scope: "Sheet" },
-    { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Sheet" },
-    { name: "Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Sheet" },
-    { name: "Submittal_Arch_Headers", tabName: "Submittal Arch", rangeNotation: "A1:K2", scope: "Workbook" },
-    { name: "Submittal_Arch_FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Workbook" },
-    { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Workbook" },
+    { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A6:F7", scope: "Workbook" },
+    { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A3:O4", scope: "Sheet" },
+    { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A4:O4", scope: "Sheet" },
+    { name: "Data", tabName: "Submittal Arch", rangeNotation: "A6:O20", scope: "Sheet" },
+    { name: "Submittal_Arch_Headers", tabName: "Submittal Arch", rangeNotation: "A3:O4", scope: "Workbook" },
+    { name: "Submittal_Arch_FormulaRow", tabName: "Submittal Arch", rangeNotation: "A4:O4", scope: "Workbook" },
+    { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A6:O20", scope: "Workbook" },
+    { name: "Headers", tabName: "Submittal FFE", rangeNotation: "A3:P4", scope: "Sheet" },
+    { name: "FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:P4", scope: "Sheet" },
+    { name: "Data", tabName: "Submittal FFE", rangeNotation: "A6:P18", scope: "Sheet" },
+    { name: "Submittal_FFE_Headers", tabName: "Submittal FFE", rangeNotation: "A3:P4", scope: "Workbook" },
+    { name: "Submittal_FFE_FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:P4", scope: "Workbook" },
+    { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A6:P18", scope: "Workbook" },
     { name: "Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Sheet" },
+    { name: "Submittal_Arch_Support_Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Workbook" },
     { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Sheet" },
     { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Sheet" }
   ]

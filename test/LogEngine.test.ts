@@ -709,11 +709,11 @@ test("LogEngine.getBoundedData tolerates up to 5 consecutive blank spacer rows i
 test("LogEngine respects 2-row Headers named range taxonomy and BufferRow bounded Data range", () => {
   const templateSpec = require("./fixtures/document-log-workbook-template.json");
   const headersNamedRange = templateSpec.namedRanges.find((nr: any) => nr.name === "Headers" && nr.tabName === "Submittal Arch");
-  assert.strictEqual(headersNamedRange.rangeNotation, "A1:K2");
+  assert.strictEqual(headersNamedRange.rangeNotation, "A3:O4");
   assert.strictEqual(headersNamedRange.scope, "Sheet");
 
   const dataNamedRange = templateSpec.namedRanges.find((nr: any) => nr.name === "Data" && nr.tabName === "Submittal Arch");
-  assert.strictEqual(dataNamedRange.rangeNotation, "A4:K1000");
+  assert.strictEqual(dataNamedRange.rangeNotation, "A6:O20");
   assert.strictEqual(dataNamedRange.scope, "Sheet");
 });
 
@@ -726,7 +726,7 @@ test("LogEngine integration with GasMockHarness and FakeLogRepository validates 
   const strategy = new ArchitectureSubmittalStrategy();
 
   const headersNR = templateSpec.namedRanges.find((nr: any) => nr.name === "Headers" && nr.tabName === "Submittal Arch");
-  assert.strictEqual(headersNR.rangeNotation, "A1:K2");
+  assert.strictEqual(headersNR.rangeNotation, "A3:O4");
 
   const doc = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
@@ -757,4 +757,75 @@ test("LogEngine integration with GasMockHarness and FakeLogRepository validates 
   assert.strictEqual(bounded[9][0], "042000");
 
   GasMockHarness.uninstall();
+});
+
+test("LogEngine.logAuditEvent appends standard 6-column audit event entry to _AuditLog tab", () => {
+  const initialAudit = [
+    ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"]
+  ];
+  const adapter = new InMemorySheetStorageAdapter({ "_AuditLog": initialAudit });
+  const engine = new LogEngine(adapter);
+
+  engine.logAuditEvent("ss-test", {
+    category: "MIGRATION",
+    eventType: "MIGRATION_COMMITTED",
+    actor: "user@example.com",
+    status: "SUCCESS",
+    details: { rowsMigrated: 42 }
+  });
+
+  const values = adapter.getSheetValues("_AuditLog");
+  assert.strictEqual(values.length, 2);
+  assert.strictEqual(values[1][1], "MIGRATION");
+  assert.strictEqual(values[1][2], "MIGRATION_COMMITTED");
+  assert.strictEqual(values[1][3], "user@example.com");
+  assert.strictEqual(values[1][4], "SUCCESS");
+  assert.strictEqual(values[1][5], JSON.stringify({ rowsMigrated: 42 }));
+});
+
+test("LogEngine.appendDocument automatically logs SUBMITTAL_APPENDED audit event to _AuditLog tab", () => {
+  const headers = [
+    "Section", "Number", "Title", "Revision", "Date",
+    "Contact", "Action", "Status", "Notes", "Link", "Contact History"
+  ];
+  const initialLog = [
+    ["Project Log Banner"],
+    ["Project Submittals Log"],
+    headers
+  ];
+  const initialAudit = [
+    ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"]
+  ];
+
+  const adapter = new InMemorySheetStorageAdapter({
+    "Submittals Log": initialLog,
+    "_AuditLog": initialAudit
+  });
+  const engine = new LogEngine(adapter);
+  const strategy = new ArchitectureSubmittalStrategy();
+
+  const doc = DocumentFactory.createValidatedArchitectureSubmittal({
+    date: "2026-07-25",
+    contact: "Subcontractor",
+    action: "Received",
+    disciplineDetails: { section: "033000", number: "001", title: "Concrete Mix", revision: "001" }
+  });
+
+  const result = engine.appendDocument("test-ss-id", doc, strategy, {
+    link: "http://drive.google.com/doc1",
+    status: "Under Review",
+    actor: "builder@example.com"
+  });
+
+  assert.strictEqual(result.targetKey, "033000-001-001");
+
+  const auditValues = adapter.getSheetValues("_AuditLog");
+  assert.strictEqual(auditValues.length, 2);
+  assert.strictEqual(auditValues[1][1], "SUBMITTAL_LOG");
+  assert.strictEqual(auditValues[1][2], "SUBMITTAL_APPENDED");
+  assert.strictEqual(auditValues[1][3], "builder@example.com");
+  assert.strictEqual(auditValues[1][4], "SUCCESS");
+  const details = JSON.parse(auditValues[1][5]);
+  assert.strictEqual(details.targetKey, "033000-001-001");
+  assert.strictEqual(details.rowIndex, 4);
 });

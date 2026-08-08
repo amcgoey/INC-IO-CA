@@ -22,6 +22,13 @@ export class FakeLogRepository implements LogRepository {
     }
   }
 
+  updateDocumentLink(
+    spreadsheetId: string,
+    options: { sheetName?: string; rowIndex: number; url: string }
+  ): void {
+    this.calls.push({ method: "updateDocumentLink", args: [spreadsheetId, options] });
+  }
+
   reset(): void {
     this.calls = [];
     this.insertedRows = [];

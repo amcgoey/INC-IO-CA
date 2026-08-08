@@ -6,6 +6,7 @@ import { CardSerializer } from "./harness/CardSerializer";
 // Register globals and load modules
 require("../src/DocumentTypeConfigRegistry");
 const { PicklistResolver } = require("../src/core/config/PicklistResolver");
+const { DOCUMENT_LOG_WORKBOOK_SPEC } = require("../src/core/config/DocumentLogWorkbookSpec");
 const { renderDynamicFormFields } = require("../src/adapters/gas/UI");
 
 describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
@@ -209,4 +210,154 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
       assert.equal(widget.fieldName, "date");
     });
   });
-});
+
+  describe("_Shared Tab Contact Lists & Submittal Actions Picklists (Issue #182)", () => {
+    it("should resolve Shared_Contacts_Arch from _Shared tab in mock spreadsheet", () => {
+      const ss = harness.sheetsService.openById("test-ss-shared");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+      const result = PicklistResolver.resolvePicklistOptionsRange(
+        "Shared_Contacts_Arch",
+        ss,
+        "Submittal_Arch",
+        "Submittal Arch"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      assert.deepEqual(result.options, [
+        { value: "arch-reviewer@example.com", label: "arch-reviewer@example.com" },
+        { value: "arch-lead@example.com", label: "arch-lead@example.com" }
+      ]);
+    });
+
+    it("should resolve Shared_Contacts_FFE from _Shared tab in mock spreadsheet", () => {
+      const ss = harness.sheetsService.openById("test-ss-shared-ffe");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+      const result = PicklistResolver.resolvePicklistOptionsRange(
+        "Shared_Contacts_FFE",
+        ss,
+        "Submittal_FFE",
+        "Submittal FFE"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      assert.deepEqual(result.options, [
+        { value: "ffe-reviewer@example.com", label: "ffe-reviewer@example.com" },
+        { value: "ffe-lead@example.com", label: "ffe-lead@example.com" }
+      ]);
+    });
+
+    it("should resolve Actions_Submittal picklist array from _Shared tab in mock spreadsheet", () => {
+      const ss = harness.sheetsService.openById("test-ss-actions");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+      const result = PicklistResolver.resolvePicklistOptionsRange(
+        "Actions_Submittal",
+        ss,
+        "Submittal_Arch",
+        "Submittal Arch"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      assert.deepEqual(result.options, [
+        { value: "For Approval", label: "For Approval" },
+        { value: "Approved as Noted", label: "Approved as Noted" },
+        { value: "Revise and Resubmit", label: "Revise and Resubmit" },
+        { value: "Rejected", label: "Rejected" },
+        { value: "For Information Only", label: "For Information Only" }
+      ]);
+    });
+  });
+
+
+  describe("Submittal Arch Support CSI Section Tab & Picklist Resolution (Issue #186)", () => {
+    it("should resolve Sections named range from Submittal Arch Support tab in mock spreadsheet", () => {
+      const ss = harness.sheetsService.openById("test-ss-sections");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+      const result = PicklistResolver.resolvePicklistOptionsRange(
+        "Sections",
+        ss,
+        "Submittal_Arch",
+        "Submittal Arch"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      assert.deepEqual(result.options, [
+        { value: "071200", label: "Fluid-Applied Waterproofing" },
+        { value: "092900", label: "Gypsum Board Shaft Wall Assemblies" },
+        { value: "093000", label: "Tiling Assemblies" },
+        { value: "033000", label: "Cast-in-Place Concrete" },
+        { value: "081100", label: "Metal Doors" }
+      ]);
+    });
+  });
+    it("should resolve multi-column 3-column Actions records cleanly", () => {
+      const actions2D = [
+        [1, "For Approval", "_NET"],
+        [2, "Approved as Noted", "_NOC"],
+        [3, "Revise and Resubmit", "_R"],
+        [4, "Rejected", "_REJ"],
+        [5, "For Information Only", "_REF"]
+      ];
+
+      const options = PicklistResolver.resolveFrom2DArray(actions2D);
+      assert.equal(options.length, 5);
+      assert.deepEqual(options[0], { value: "For Approval", label: "For Approval" });
+      assert.deepEqual(options[1], { value: "Approved as Noted", label: "Approved as Noted" });
+      assert.deepEqual(options[4], { value: "For Information Only", label: "For Information Only" });
+    });
+
+    it("should resolve multi-column 3-column Contacts records cleanly", () => {
+      const contacts2D = [
+        ["Arch", "ARCH", "arch-reviewer@example.com"],
+        ["Arch", "ARCH-LEAD", "arch-lead@example.com"],
+        ["FFE", "FFE", "ffe-reviewer@example.com"],
+        ["FFE", "FFE-LEAD", "ffe-lead@example.com"]
+      ];
+
+      const options = PicklistResolver.resolveFrom2DArray(contacts2D);
+      assert.equal(options.length, 4);
+      assert.deepEqual(options[0], { value: "arch-reviewer@example.com", label: "arch-reviewer@example.com" });
+      assert.deepEqual(options[1], { value: "arch-lead@example.com", label: "arch-lead@example.com" });
+    });
+  });
+
+
+  describe("Multi-Column Picklist Resolution (Issue #194)", () => {
+    it("should resolve multi-column 3-column Actions records cleanly", () => {
+      const actions2D = [
+        [1, "For Approval", "_NET"],
+        [2, "Approved as Noted", "_NOC"],
+        [3, "Revise and Resubmit", "_R"],
+        [4, "Rejected", "_REJ"],
+        [5, "For Information Only", "_REF"]
+      ];
+
+      const options = PicklistResolver.resolveFrom2DArray(actions2D);
+      assert.equal(options.length, 5);
+      assert.deepEqual(options[0], { value: "For Approval", label: "For Approval" });
+      assert.deepEqual(options[1], { value: "Approved as Noted", label: "Approved as Noted" });
+      assert.deepEqual(options[4], { value: "For Information Only", label: "For Information Only" });
+    });
+
+    it("should resolve multi-column 3-column Contacts records cleanly", () => {
+      const contacts2D = [
+        ["Arch", "ARCH", "arch-reviewer@example.com"],
+        ["Arch", "ARCH-LEAD", "arch-lead@example.com"],
+        ["FFE", "FFE", "ffe-reviewer@example.com"],
+        ["FFE", "FFE-LEAD", "ffe-lead@example.com"]
+      ];
+
+      const options = PicklistResolver.resolveFrom2DArray(contacts2D);
+      assert.equal(options.length, 4);
+      assert.deepEqual(options[0], { value: "arch-reviewer@example.com", label: "arch-reviewer@example.com" });
+      assert.deepEqual(options[1], { value: "arch-lead@example.com", label: "arch-lead@example.com" });
+    });
+  });
+

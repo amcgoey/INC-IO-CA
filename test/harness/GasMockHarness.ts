@@ -1,3 +1,5 @@
+import { ColumnSpec, DocumentLogWorkbookSpec } from "../../src/core/config/DocumentLogWorkbookSpec";
+import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../src/core/config/DocumentLogWorkbookViewSpec";
 import { MockDriveState, MockDriveApp } from "./MockDrive";
 import { MockCardService } from "./CardServiceMocks";
 import { CardSerializer, ButtonJson } from "./CardSerializer";
@@ -439,14 +441,17 @@ export class MockSpreadsheet {
         if (!sheet) {
           sheet = this.insertSheet(tabDef.name);
         }
-        if (tabDef.seedRows && tabDef.seedRows.length > 0) {
+        if (tabDef.seedRows && tabDef.seedRows.length > 0 && (!tabDef.columns || tabDef.columns.length === 0)) {
           sheet.setGridSlice(1, 1, tabDef.seedRows);
         }
         if (tabDef.columns && tabDef.columns.length > 0) {
-          const headers = tabDef.columns.map((c: { header: string; formula?: string }) => c.header);
-          sheet.setGridSlice(1, 1, [headers]);
-          const formulas = tabDef.columns.map((c: { header: string; formula?: string }) => c.formula || "");
-          sheet.setGridSlice(2, 1, [formulas]);
+          const offsets = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets;
+          sheet.setGridSlice(offsets.TITLE_ROW_INDEX, 1, [[tabDef.title || tabDef.name]]);
+          sheet.setGridSlice(offsets.DATE_ROW_INDEX, 1, [["=TODAY()"]]);
+          const headers = tabDef.columns.map((c: ColumnSpec) => c.header);
+          sheet.setGridSlice(offsets.HEADER_ROW_INDEX, 1, [headers]);
+          const formulas = tabDef.columns.map((c: ColumnSpec) => c.formula || "");
+          sheet.setGridSlice(offsets.FORMULA_ROW_INDEX, 1, [formulas]);
         }
       }
     }
@@ -485,6 +490,37 @@ export class MockSpreadsheet {
     const sheet = targetTab ? this.getSheetByName(targetTab) : (this.getSheets()[0] || null);
     if (!sheet) return null;
     return sheet.getRange(notation);
+  }
+
+  public evaluateVlookup(
+    searchKey: string,
+    rangeNameOrNotation: string,
+    columnIndex: number,
+    exactMatch: boolean = true
+  ): string {
+    this.recordCall("evaluateVlookup", [searchKey, rangeNameOrNotation, columnIndex, exactMatch]);
+    const range = this.getRangeByName(rangeNameOrNotation);
+    if (!range) {
+      return "#N/A";
+    }
+    const values = range.getValues();
+    const searchTarget = String(searchKey || "").trim();
+    if (!searchTarget) {
+      return "#N/A";
+    }
+
+    for (const row of values) {
+      if (row.length === 0) continue;
+      const keyVal = String(row[0] || "").trim();
+      const isMatch = exactMatch
+        ? keyVal.toLowerCase() === searchTarget.toLowerCase()
+        : keyVal.toLowerCase().includes(searchTarget.toLowerCase());
+      if (isMatch) {
+        const val = row[columnIndex - 1];
+        return val !== undefined && val !== null ? String(val) : "";
+      }
+    }
+    return "#N/A";
   }
 
   public getSheets(): MockSheet[] {
@@ -590,6 +626,23 @@ export class MockSheetsState {
   public getSheets(): string[] {
     const ss = this.getSpreadsheet();
     return ss.getSheets().map(s => s.getName());
+  }
+
+  public evaluateVlookup(
+    searchKey: string,
+    rangeNameOrNotation: string,
+    columnIndex: number,
+    exactMatch: boolean = true
+  ): string {
+    const ss = this.getSpreadsheet();
+    return ss.evaluateVlookup(searchKey, rangeNameOrNotation, columnIndex, exactMatch);
+  }
+
+  public evaluateFfeFormula(
+    formulaIdOrExpression: string,
+    row: FfeFormulaRowInput
+  ): string {
+    return evaluateFfeFormula(formulaIdOrExpression, row, this.harness);
   }
 }
 
@@ -762,4 +815,88 @@ export class GasMockHarness {
   public getSheetsState(spreadsheetId?: string): MockSheetsState {
     return new MockSheetsState(this, spreadsheetId);
   }
+}
+
+export interface FfeFormulaRowInput {
+  specTag?: string;
+  relatedTag?: string;
+  revision?: string;
+  specTitle?: string;
+  contact?: string;
+  action?: string;
+}
+
+export function evaluateFfeFormula(
+  formulaIdOrExpression: string,
+  row: FfeFormulaRowInput,
+  harness?: GasMockHarness
+): string {
+  const tag = String(row.specTag || "").trim();
+  const rel = String(row.relatedTag || "").trim();
+  const rev = String(row.revision || "").trim();
+  const title = String(row.specTitle || "").trim();
+  const contact = String(row.contact || "").trim();
+  const action = String(row.action || "").trim();
+
+  if (
+    formulaIdOrExpression === "calcFileName" ||
+    formulaIdOrExpression.includes("calcFileName") ||
+    formulaIdOrExpression.includes("tag, rel, rev")
+  ) {
+    if (!tag) return "";
+    return tag + (rel ? "-" + rel : "") + "-" + rev;
+  }
+
+  if (
+    formulaIdOrExpression === "calcNumber" ||
+    formulaIdOrExpression.includes("calcNumber") ||
+    formulaIdOrExpression.includes("tag, rev")
+  ) {
+    if (!tag) return "";
+    return tag + "-" + rev;
+  }
+
+  if (
+    formulaIdOrExpression === "calcTitle" ||
+    formulaIdOrExpression.includes("calcTitle") ||
+    formulaIdOrExpression.includes("VLOOKUP")
+  ) {
+    if (!tag) {
+      return title;
+    }
+    let lookedUp = "#N/A";
+    if (harness) {
+      const activeSs = harness.sheetsService.getActiveSpreadsheet();
+      lookedUp = activeSs.evaluateVlookup(tag, "'Submittal FFE Support'!SpecTags", 2, true);
+      if (lookedUp === "#N/A") {
+        lookedUp = activeSs.evaluateVlookup(tag, "SpecTags", 2, true);
+      }
+    } else {
+      const seedSpecTags: Record<string, string> = {
+        "CH-01": "Dining Chair",
+        "TBL-01": "Conference Table"
+      };
+      lookedUp = seedSpecTags[tag] || "#N/A";
+    }
+    return lookedUp !== "#N/A" ? lookedUp : title;
+  }
+
+  if (
+    formulaIdOrExpression === "calcContactChain" ||
+    formulaIdOrExpression.includes("calcContactChain") ||
+    formulaIdOrExpression.includes("c, a")
+  ) {
+    if (!contact) return "";
+    return contact + (action ? " (" + action + ")" : "");
+  }
+
+  if (
+    formulaIdOrExpression === "calcSort" ||
+    formulaIdOrExpression.includes("calcSort")
+  ) {
+    if (!tag) return "";
+    return tag + "_" + rev;
+  }
+
+  return "";
 }
