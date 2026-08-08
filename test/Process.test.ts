@@ -103,7 +103,7 @@ const defaultRepoMock = {
 };
 (globalThis as any).defaultLogRepository = defaultRepoMock;
 
-const { CardPresenter, defaultCardPresenter } = require("../src/CardPresenter");
+const { CardPresenter, defaultCardPresenter } = require("../src/adapters/gas/CardPresenter");
 const { processSubmission, moveSubmittalToClosed } = require("../src/Process");
 
 test("processSubmission for Architecture incoming action delegates to DocumentWorkflowModule and updates main card", async () => {

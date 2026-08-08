@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert";
-const { GoogleScriptCacheAdapter, defaultCacheAdapter } = require("../src/CacheAdapter");
-const { InMemoryCacheAdapter } = require("./harness/index");
+const { GoogleScriptCacheAdapter, defaultCacheAdapter } = require("../src/adapters/gas/GoogleScriptCacheAdapter");
+const { InMemoryCacheAdapter, FakeSpreadsheetLockAdapter, FakeUserInterfacePresenter } = require("../src/adapters/fakes/FakeCacheAdapter");
+const { FakeSpreadsheetLockAdapter: LockAdapter } = require("../src/adapters/fakes/FakeSpreadsheetLockAdapter");
+const { FakeUserInterfacePresenter: UIPresenter } = require("../src/adapters/fakes/FakeUserInterfacePresenter");
 
 test("InMemoryCacheAdapter returns null for non-existent key", () => {
   const cache = new InMemoryCacheAdapter();
@@ -84,4 +86,36 @@ test("GoogleScriptCacheAdapter delegates to CacheService when available", () => 
   assert.strictEqual(cache.get("k2"), null);
 
   delete (globalThis as any).CacheService;
+});
+
+test("FakeSpreadsheetLockAdapter acquires, checks, and releases locks cleanly", () => {
+  const lockAdapter = new LockAdapter();
+  const sheetId = "sheet_123";
+
+  assert.strictEqual(lockAdapter.isLocked(sheetId), false);
+  const execId = lockAdapter.acquireLock(sheetId, 5000);
+  assert.ok(execId);
+  assert.strictEqual(lockAdapter.isLocked(sheetId), true);
+
+  // Attempting second lock fails
+  assert.strictEqual(lockAdapter.acquireLock(sheetId), null);
+
+  // Release with incorrect execId fails
+  assert.strictEqual(lockAdapter.releaseLock(sheetId, "wrong_id"), false);
+
+  // Release with correct execId succeeds
+  assert.strictEqual(lockAdapter.releaseLock(sheetId, execId), true);
+  assert.strictEqual(lockAdapter.isLocked(sheetId), false);
+});
+
+test("FakeUserInterfacePresenter records call outcomes for unit testing", () => {
+  const presenter = new UIPresenter();
+  const dummyEvent = { parameter: { test: "1" } };
+
+  presenter.presentValidationError(dummyEvent, ["Error 1"], ["FieldA"]);
+  presenter.presentNotification("Hello Toast");
+
+  assert.strictEqual(presenter.calls.length, 2);
+  assert.strictEqual(presenter.calls[0].method, "presentValidationError");
+  assert.strictEqual(presenter.calls[1].method, "presentNotification");
 });

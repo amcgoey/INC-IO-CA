@@ -8,7 +8,7 @@
 /**
  * Application presenter class creating standardized `ActionResponse` UI navigation outcomes.
  */
-class CardPresenter {
+class CardPresenter implements UserInterfacePresenter {
   /**
    * Helper constructing an `ActionResponse` updating the current active card with a new Card instance.
    *
