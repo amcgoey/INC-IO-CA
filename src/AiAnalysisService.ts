@@ -151,12 +151,12 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (pdfService) {
       const ExtractActionClass = typeof ExtractPagesAction !== "undefined"
         ? ExtractPagesAction
-        : require("./ExtractPagesAction").ExtractPagesAction;
+        : require("./core/workflow/ExtractPagesAction").ExtractPagesAction;
       return new ExtractActionClass({ pdfDocumentService: pdfService });
     }
     if (typeof defaultExtractPagesAction !== "undefined") return defaultExtractPagesAction;
     try {
-      return require("./ExtractPagesAction").defaultExtractPagesAction;
+      return require("./core/workflow/ExtractPagesAction").defaultExtractPagesAction;
     } catch (e) {
       return null;
     }

@@ -1,11 +1,11 @@
-﻿/**
+/**
  * @file DuplicateDocumentAction.test.ts
  * @description Unit tests for DuplicateDocumentAction.
  */
 
 const assert = require('assert');
 const test = require('node:test');
-const { DuplicateDocumentAction, defaultDuplicateDocumentAction } = require('../src/DuplicateDocumentAction');
+const { DuplicateDocumentAction, defaultDuplicateDocumentAction } = require('../src/core/workflow/DuplicateDocumentAction');
 const { WorkflowRunner } = require('../src/WorkflowRunner');
 const { FakeDriveFilingRepository } = require('./harness/fakes/FakeDriveFilingRepository');
 
@@ -37,7 +37,7 @@ test('DuplicateDocumentAction - duplicates in-memory Blob when no fileId present
   let copyBlobCalled = false;
   const mockBlob = {
     getName: () => 'original.pdf',
-    setName: (n) => mockBlob,
+    setName: (n: string) => mockBlob,
     copyBlob: () => {
       copyBlobCalled = true;
       return mockBlob;

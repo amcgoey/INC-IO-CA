@@ -1,9 +1,10 @@
+/// <reference path="../../types.ts" />
 /**
  * @file ExtractPagesAction.ts
  * @description Standalone primitive action for extracting pages from a PDF blob (ExtractPagesAction).
  *
- * Implements `DocumentAction` to extract up to $N$ pages (default 3 pages) from a PDF document blob
- * using `PdfDocumentService`. Returns both the sliced PDF Blob and its base64 string representation.
+ * Implements DocumentAction to extract up to N pages (default 3 pages) from a PDF document blob
+ * using PdfDocumentService. Returns both the sliced PDF Blob and its base64 string representation.
  */
 
 declare var require: any;
@@ -13,7 +14,7 @@ function resolvePdfDocumentServiceHelper(): PdfDocumentService {
     return defaultPdfDocumentService;
   }
   try {
-    return require("./PdfDocumentService").defaultPdfDocumentService;
+    return require("../../PdfDocumentService").defaultPdfDocumentService;
   } catch (e) {
     throw new Error("PdfDocumentService is not available");
   }
@@ -27,9 +28,9 @@ class ExtractPagesAction implements DocumentAction<ExtractPagesInput | GoogleApp
   private defaultMaxPages: number;
 
   /**
-   * Constructs an `ExtractPagesAction` instance.
+   * Constructs an ExtractPagesAction instance.
    *
-   * @param options - Injection options for `pdfDocumentService` and default `maxPages` (default: 3).
+   * @param options - Injection options for pdfDocumentService and default maxPages (default: 3).
    */
   constructor(options?: { pdfDocumentService?: PdfDocumentService; defaultMaxPages?: number }) {
     if (options && options.pdfDocumentService) {
@@ -46,8 +47,8 @@ class ExtractPagesAction implements DocumentAction<ExtractPagesInput | GoogleApp
   /**
    * Executes PDF page extraction on the input payload or Blob.
    *
-   * @param input - Either `ExtractPagesInput` or a direct PDF `Blob`.
-   * @returns A Promise resolving to `ExtractPagesResult` containing `{ blob, base64 }`.
+   * @param input - Either ExtractPagesInput or a direct PDF Blob.
+   * @returns A Promise resolving to ExtractPagesResult containing { blob, base64 }.
    */
   async execute(input: ExtractPagesInput | GoogleAppsScript.Base.Blob): Promise<ExtractPagesResult> {
     let sourceBlob: GoogleAppsScript.Base.Blob;

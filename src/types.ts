@@ -656,7 +656,8 @@ interface ContextAdapters {
 }
 
 /** Execution context passed through action pipeline steps. */
-interface DocumentActionContext {
+interface DocumentActionContext<TDoc extends ValidatedDocument = ValidatedDocument> {
+  document?: TDoc;
   appContext?: AppContext;
   fileId?: string;
   blob?: GoogleAppsScript.Base.Blob;
