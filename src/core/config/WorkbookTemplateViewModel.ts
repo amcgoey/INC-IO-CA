@@ -157,6 +157,32 @@ export class WorkbookTemplateViewModel {
               fields: "pixelSize"
             }
           });
+
+          if (col.validationRange) {
+            requests.push({
+              setDataValidation: {
+                range: {
+                  sheetId: tabIndex,
+                  startRowIndex: offsets.FIRST_DATA_ROW_INDEX - 1,
+                  endRowIndex: tab.rowCount,
+                  startColumnIndex: colIdx,
+                  endColumnIndex: colIdx + 1
+                },
+                rule: {
+                  condition: {
+                    type: "ONE_OF_RANGE",
+                    values: [
+                      {
+                        userEnteredValue: `=${col.validationRange}`
+                      }
+                    ]
+                  },
+                  showCustomUi: true,
+                  strict: true
+                }
+              }
+            });
+          }
         });
       }
     });

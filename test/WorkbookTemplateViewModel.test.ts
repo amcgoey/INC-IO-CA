@@ -136,3 +136,12 @@ test("WorkbookTemplateViewModel binds spec and view spec to export complete fixt
   assert.ok(headersNR, "Fixture JSON must contain Submittal_FFE_Headers named range");
   assert.strictEqual(headersNR.rangeNotation, "A1:O2");
 });
+test('WorkbookTemplateViewModel generates setDataValidation batch update request for Section column referencing =Sections', () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+  const validationReqs = payload.requests.filter((r: any) => r.setDataValidation);
+  assert.ok(validationReqs.length > 0, 'setDataValidation requests must be generated');
+  const sectionValidation = validationReqs.find((r: any) => r.setDataValidation.rule?.condition?.values?.[0]?.userEnteredValue === '=Sections');
+  assert.ok(sectionValidation, 'Data validation rule for =Sections must be included in batch requests');
+  assert.equal(sectionValidation.setDataValidation.range.sheetId, 3, 'Submittal Arch tab index should match sheetId');
+});

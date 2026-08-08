@@ -18,7 +18,7 @@ test('DocumentLogWorkbookSpec - defines all 15 columns for Submittal Arch with f
   assert.equal(submittalArchTab.columns.length, 15, 'Submittal Arch must have 15 columns');
 
   const expectedColumns = [
-    { id: 'section', header: 'Section' },
+    { id: 'section', header: 'Section', validationRange: 'Sections' },
     { id: 'number', header: 'Number' },
     { id: 'title', header: 'Title' },
     { id: 'revision', header: 'Revision' },
@@ -111,4 +111,28 @@ test('WorkbookTemplateViewModel - binds model and view spec into fixture JSON an
   const batchPayload = viewModel.toBatchUpdateRequestPayload();
   assert.ok(Array.isArray(batchPayload.requests), 'Batch payload requests must be an array');
   assert.ok(batchPayload.requests.length > 0, 'Batch payload should contain requests');
+});
+test('DocumentLogWorkbookSpec - defines Submittal Arch Support tab with CSI section seed rows', () => {
+  const supportTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal Arch Support');
+  assert.ok(supportTab, 'Submittal Arch Support tab must exist in spec');
+  assert.equal(supportTab.rowCount, 100);
+  assert.equal(supportTab.columnCount, 10);
+  assert.equal(supportTab.isSupportTab, true);
+  assert.ok(supportTab.seedRows, 'seedRows must be defined for Submittal Arch Support');
+  assert.deepEqual(supportTab.seedRows[0], ['Section Key', 'Section Label']);
+  assert.deepEqual(supportTab.seedRows[1], ['033000', 'Cast-in-Place Concrete']);
+  assert.deepEqual(supportTab.seedRows[2], ['081100', 'Metal Doors']);
+});
+
+test('DocumentLogWorkbookSpec - defines Sections sheet-scoped and workbook-scoped named ranges', () => {
+  const namedRanges = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges;
+  const sectionsSheet = namedRanges.find(r => r.name === 'Sections' && r.tabName === 'Submittal Arch Support');
+  assert.ok(sectionsSheet, 'Sheet-Scoped Sections named range must exist on Submittal Arch Support');
+  assert.equal(sectionsSheet.rangeNotation, 'A2:B20');
+  assert.equal(sectionsSheet.scope, 'Sheet');
+
+  const sectionsWb = namedRanges.find(r => r.name === 'Submittal_Arch_Support_Sections');
+  assert.ok(sectionsWb, 'Workbook-Scoped Submittal_Arch_Support_Sections range must exist');
+  assert.equal(sectionsWb.rangeNotation, 'A2:B20');
+  assert.equal(sectionsWb.scope, 'Workbook');
 });
