@@ -47,21 +47,29 @@ function renderDynamicFormFields(
     const hydratedValue = resolveValue ? resolveValue(field, hydrationContext) : (field.defaultValue !== undefined ? field.defaultValue : '');
 
     // Rule 5: Formatting title and hints
-    const isMissing = field.required && missingFields.includes(field.key);
-    const confidence = fieldConfidence[field.key];
-    const isLowConfidence = confidence !== undefined && confidence < 0.85;
-
+    const cp = (globalThis as any).defaultCardPresenter || (typeof defaultCardPresenter !== "undefined" ? defaultCardPresenter : null);
     let displayTitle = field.label || field.key;
-    if (isMissing) {
-      displayTitle = `❌ ${displayTitle}`;
-    } else if (isLowConfidence) {
-      displayTitle = `⚠️ ${displayTitle}`;
-    }
-
     let hintText = field.description || "";
-    if (isLowConfidence) {
-      const pct = Math.round(confidence * 100);
-      hintText = `Low AI confidence (${pct}%) — please verify`;
+
+    if (cp && typeof cp.formatFieldTitleAndHint === "function") {
+      const formatted = cp.formatFieldTitleAndHint(field, missingFields, fieldConfidence);
+      displayTitle = formatted.displayTitle;
+      hintText = formatted.hintText;
+    } else {
+      const isMissing = field.required && missingFields.includes(field.key);
+      const confidence = fieldConfidence[field.key];
+      const isLowConfidence = confidence !== undefined && confidence < 0.85;
+
+      if (isMissing) {
+        displayTitle = `❌ ${displayTitle}`;
+      } else if (isLowConfidence) {
+        displayTitle = `⚠️ ${displayTitle}`;
+      }
+
+      if (isLowConfidence && !isMissing) {
+        const pct = Math.round(confidence * 100);
+        hintText = `Low AI confidence (${pct}%) — please verify`;
+      }
     }
 
     // Widget Generation based on Field Type
@@ -144,11 +152,11 @@ function renderDynamicFormFields(
       }
 
       if (hintText && dateWidget && typeof (dateWidget as any).setHint === "function") {
-        (dateWidget as GoogleAppsScript.Card_Service.TextInput).setHint(hintText);
+        (dateWidget as any).setHint(hintText);
       }
 
       if (onStateActionName && dateWidget && typeof (dateWidget as any).setOnChangeAction === "function") {
-        (dateWidget as GoogleAppsScript.Card_Service.TextInput).setOnChangeAction(
+        (dateWidget as any).setOnChangeAction(
           CardService.newAction()
             .setFunctionName(onStateActionName)
             .setParameters(actionParams)
