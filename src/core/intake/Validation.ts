@@ -21,3 +21,15 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { validateDocument };
 }
+
+
+function normalizePicklistValue(value: string, fieldSpec?: MinimalFieldSpec): string {
+  if (typeof PicklistResolver !== "undefined" && typeof PicklistResolver.normalizePicklistValue === "function") {
+    return PicklistResolver.normalizePicklistValue(value, fieldSpec);
+  }
+  return String(value || "").trim().toUpperCase();
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports.normalizePicklistValue = normalizePicklistValue;
+}

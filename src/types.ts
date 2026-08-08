@@ -680,6 +680,21 @@ interface ValidationUIContext {
   actionParams?: Record<string, string>;
 }
 
+interface PicklistOption {
+  label: string;
+  value: string;
+}
+
+interface MinimalFieldSpec {
+  key: string;
+  label?: string;
+  optionsRange?: string;
+  options?: PicklistOption[];
+  keyNormalizationRule?: 'picklist' | 'code' | 'exact';
+}
+
+
+
 interface DocumentFieldSpec {
   key: string;
   label: string;
@@ -689,7 +704,7 @@ interface DocumentFieldSpec {
   defaultValue?: string;
   isCalculated?: boolean;
   optionsRange?: string;
-  options?: Array<{ label: string; value: string }>;
+  options?: PicklistOption[];
   keyNormalizationRule?: 'picklist' | 'code' | 'exact';
   header?: string;
   formulaOrFunction?: string;
@@ -762,3 +777,25 @@ declare const PDFLib: any;
 
 
 
+
+interface PicklistResolveResult {
+  options: PicklistOption[];
+  success: boolean;
+  isFallback: boolean;
+  warningBanner?: string;
+  auditEvent?: { eventType: string; details: string };
+}
+
+interface IPicklistResolver {
+  normalizePicklistValue(value: string, fieldSpec?: DocumentFieldSpec | MinimalFieldSpec): string;
+  resolveFrom2DArray(rows: unknown[][]): PicklistOption[];
+  resolvePicklistOptionsRange(
+    optionsRange: string | undefined,
+    spreadsheet: unknown,
+    docTypeKey?: string,
+    activeSheetName?: string,
+    fieldSpec?: MinimalFieldSpec
+  ): PicklistResolveResult;
+}
+
+declare var PicklistResolver: IPicklistResolver;
