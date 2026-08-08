@@ -6,10 +6,11 @@
  * and creating atomic pre-migration snapshots (TargetTabSnapshot).
  */
 
-export type TabRole = "LOG" | "SUPPORT" | "SYSTEM" | "BACKUP" | "USER";
+export type TabRole = "LOG" | "SUPPORT" | "SYSTEM" | "USER" | "BACKUP";
 
 /**
- * Classifies a spreadsheet tab name into the 5-tier workbook taxonomy.
+ * Classifies a spreadsheet tab name into the 5-tier workbook taxonomy:
+ * LOG -> SUPPORT -> SYSTEM -> USER -> BACKUP.
  */
 export function classifyTabRole(tabName: string): TabRole {
   if (!tabName) return "USER";
@@ -19,10 +20,10 @@ export function classifyTabRole(tabName: string): TabRole {
   if (tabName === "_Shared" || tabName === "_Config" || tabName === "_AuditLog") {
     return "SYSTEM";
   }
-  if (tabName.endsWith(" Support") || tabName === "Tag List" || tabName.includes("Support")) {
+  if (tabName.endsWith(" Support") || tabName === "Submittal Arch Support" || tabName === "Submittal FFE Support") {
     return "SUPPORT";
   }
-  if (tabName.startsWith("Submittal ") || tabName.endsWith(" Log") || tabName.includes("Log")) {
+  if (tabName.startsWith("Submittal ") || tabName.endsWith(" Log") || tabName === "Submittal Arch" || tabName === "Submittal FFE") {
     return "LOG";
   }
   return "USER";
@@ -43,7 +44,7 @@ export function getTabRoleWeight(role: TabRole): number {
 }
 
 /**
- * Returns tab names sorted strictly according to canonical workbook taxonomy order:
+ * Returns tab names sorted strictly according to canonical 5-tier workbook taxonomy order:
  * Log tabs -> Support tabs -> System tabs (_Shared, _Config, _AuditLog) -> User tabs -> Backup tabs (_Backup_*) at far right.
  */
 export function getOrderedTabNames(tabNames: string[]): string[] {
@@ -71,27 +72,27 @@ export function getOrderedTabNames(tabNames: string[]): string[] {
       return prioA - prioB;
     }
 
-    if (roleA === "BACKUP" && roleB === "BACKUP") { return tabNames.indexOf(a) - tabNames.indexOf(b); } return a.localeCompare(b);
+    if (roleA === "BACKUP" && roleB === "BACKUP") {
+      return tabNames.indexOf(a) - tabNames.indexOf(b);
+    }
+
+    return a.localeCompare(b);
   });
 }
 
 /**
- * Verifies if tab names follow strict workbook taxonomy ordering:
- * Log tabs -> Support tabs -> System tabs (_Shared, _Config, _AuditLog) -> Backup tabs (_Backup_*) at far right.
+ * Verifies if tab names follow strict 5-tier workbook taxonomy ordering:
+ * Log tabs -> Support tabs -> System tabs (_Shared, _Config, _AuditLog) -> User tabs -> Backup tabs (_Backup_*) at far right.
  */
 export function verifyTabTaxonomyOrder(tabNames: string[]): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   let maxWeightSeen = 0;
-  let lastSystemTab = "";
+  let maxTabSeen = "";
 
   for (let i = 0; i < tabNames.length; i++) {
     const tab = tabNames[i];
     const role = classifyTabRole(tab);
     const weight = getTabRoleWeight(role);
-
-    if (role === "SYSTEM") {
-      lastSystemTab = tab;
-    }
 
     if (role === "BACKUP") {
       for (let j = i + 1; j < tabNames.length; j++) {
@@ -103,15 +104,13 @@ export function verifyTabTaxonomyOrder(tabNames: string[]): { valid: boolean; er
       }
     }
 
-    if (weight < maxWeightSeen && role !== "USER") {
-      if (role === "SUPPORT") {
-        errors.push("System tab '" + (lastSystemTab || "_Config") + "' appears before support tab '" + tab + "'.");
-      } else if (role === "LOG") {
-        errors.push("System tab '" + (lastSystemTab || "_Config") + "' appears before log tab '" + tab + "'.");
-      }
+    if (weight < maxWeightSeen) {
+      const prevRole = classifyTabRole(maxTabSeen);
+      errors.push("Tab '" + tab + "' (" + role + ") is misplaced after tab '" + maxTabSeen + "' (" + prevRole + "). Taxonomy requires LOG -> SUPPORT -> SYSTEM -> USER -> BACKUP.");
+    } else {
+      maxWeightSeen = weight;
+      maxTabSeen = tab;
     }
-
-    maxWeightSeen = Math.max(maxWeightSeen, weight);
   }
 
   return {
@@ -134,9 +133,13 @@ export class LogMigrationEngine {
   /**
    * Ensures all legacy backup tabs (_Backup_*) are preserved intact (unmodified, un-deleted)
    * and positioned at the far right of the workbook tab order.
+   * Calls storageAdapter.reorderTabs if implemented.
    */
   public preserveBackupTabs(existingTabNames: string[]): string[] {
     const ordered = getOrderedTabNames(existingTabNames);
+    if (typeof this.storageAdapter.reorderTabs === "function") {
+      this.storageAdapter.reorderTabs(ordered);
+    }
     return ordered;
   }
 
@@ -152,16 +155,14 @@ export class LogMigrationEngine {
     }
 
     const sourceValues = this.storageAdapter.getSheetValues(tabName);
-    if (sourceValues.length > 0) {
+    if (sourceValues && sourceValues.length > 0) {
       this.storageAdapter.setRowValues(snapshotName, 1, sourceValues[0].map(String), sourceValues[0]);
       for (let r = 1; r < sourceValues.length; r++) {
         this.storageAdapter.setRowValues(snapshotName, r + 1, sourceValues[0].map(String), sourceValues[r]);
       }
-    } else {
-      this.storageAdapter.setRowValues(snapshotName, 1, ["Header"], ["Header"]);
     }
 
-    const allTabs = typeof (this.storageAdapter as any).getTabNames === "function" ? (this.storageAdapter as any).getTabNames() : [];
+    const allTabs = this.storageAdapter.getTabNames ? this.storageAdapter.getTabNames() : [];
     this.preserveBackupTabs(allTabs);
     return snapshotName;
   }

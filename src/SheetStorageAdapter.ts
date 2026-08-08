@@ -26,6 +26,10 @@ interface SheetStorageAdapter {
   setRowValues(sheetName: string, rowIndex: number, headers: string[], rowData: any[]): { failedColumns: string[] };
   /** Executes physical row insertion based on an calculated `RowInsertionPlan`. */
   insertLogRow(sheetName: string, headers: string[], rowData: any[], plan: RowInsertionPlan): { rowIndex: number; failedColumns: string[] };
+  /** Retrieves all sheet/tab names in the workbook. */
+  getTabNames?(): string[];
+  /** Reorders physical tabs in the workbook according to ordered tab names list. */
+  reorderTabs?(orderedNames: string[]): void;
 }
 
 

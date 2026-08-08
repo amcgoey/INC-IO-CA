@@ -100,7 +100,7 @@ test("verifyTabTaxonomyOrder - detects system tab before support tab", () => {
 
   const result = verifyTabTaxonomyOrder(invalidTabs);
   assert.strictEqual(result.valid, false);
-  assert.ok(result.errors.some(e => e.includes("System tab '_Config' appears before support tab")));
+  assert.ok(result.errors.some(e => e.includes("misplaced after tab '_Config'")));
 });
 
 test("LogMigrationEngine - preserveBackupTabs retains all legacy _Backup_*tabs unmodified at the far right", () => {
