@@ -483,3 +483,52 @@ test('DocumentPipeline.processFormIntake - returns error status when relatedTag 
     assert.match(result.errors[0], /Invalid Related Tags: CH-02/);
   }
 });
+
+test('validateDocument - Picklist normalization maps display labels to canonical values using PicklistResolver', () => {
+  const { PicklistResolver } = require('../src/core/config/PicklistResolver');
+  const fieldSpec = {
+    key: 'discipline',
+    label: 'Discipline',
+    type: 'list' as const,
+    keyNormalizationRule: 'picklist' as const,
+    options: [
+      { label: 'Architectural', value: 'ARCH' },
+      { label: 'Furniture, Fixtures & Equipment', value: 'FFE' }
+    ]
+  };
+
+  const canonicalVal1 = PicklistResolver.normalizePicklistValue('Architectural', fieldSpec);
+  assert.equal(canonicalVal1, 'ARCH');
+
+  const canonicalVal2 = PicklistResolver.normalizePicklistValue('architectural', fieldSpec);
+  assert.equal(canonicalVal2, 'ARCH');
+
+  const canonicalVal3 = PicklistResolver.normalizePicklistValue('ARCH', fieldSpec);
+  assert.equal(canonicalVal3, 'ARCH');
+});
+
+test('validateDocument - Picklist normalization handles code rule for CSI sections', () => {
+  const { PicklistResolver } = require('../src/core/config/PicklistResolver');
+  const specCode = {
+    key: 'section',
+    label: 'Section',
+    type: 'string' as const,
+    keyNormalizationRule: 'code' as const
+  };
+
+  const result = PicklistResolver.normalizePicklistValue('08 11 00 - Metal Doors & Frames', specCode);
+  assert.equal(result, '081100');
+});
+
+test('validateDocument - Picklist normalization handles exact rule preserving full text', () => {
+  const { PicklistResolver } = require('../src/core/config/PicklistResolver');
+  const specExact = {
+    key: 'notes',
+    label: 'Notes',
+    type: 'string' as const,
+    keyNormalizationRule: 'exact' as const
+  };
+
+  const result = PicklistResolver.normalizePicklistValue(' For Architect Review Only ', specExact);
+  assert.equal(result, 'FOR ARCHITECT REVIEW ONLY');
+});

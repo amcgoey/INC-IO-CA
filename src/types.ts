@@ -668,7 +668,33 @@ interface PicklistOption {
   value: string;
 }
 
-declare var PicklistResolver: any;
+interface MinimalFieldSpec {
+  key: string;
+  label?: string;
+  optionsRange?: string;
+  options?: PicklistOption[];
+  keyNormalizationRule?: 'picklist' | 'code' | 'exact';
+}
+
+interface IPicklistResolver {
+  normalizePicklistValue(value: string, fieldSpec?: DocumentFieldSpec | MinimalFieldSpec): string;
+  resolveFrom2DArray(rows: unknown[][]): PicklistOption[];
+  resolvePicklistOptionsRange(
+    optionsRange: string | undefined,
+    spreadsheet: unknown,
+    docTypeKey?: string,
+    activeSheetName?: string,
+    fieldSpec?: MinimalFieldSpec
+  ): {
+    options: PicklistOption[];
+    success: boolean;
+    isFallback: boolean;
+    warningBanner?: string;
+    auditEvent?: { eventType: string; details: string };
+  };
+}
+
+declare var PicklistResolver: IPicklistResolver;
 
 interface DocumentFieldSpec {
   key: string;
