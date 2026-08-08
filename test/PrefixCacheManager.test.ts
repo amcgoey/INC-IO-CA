@@ -53,3 +53,44 @@ test("PrefixCacheManager invalidates all keys under prefix and removes index key
   assert.strictEqual(manager.getScoped("DOC_CONFIG_SHEET2", "DOC_CONFIG_SHEET2_Submittal"), "val3");
   assert.strictEqual(cache.get("AI_TRIAGE_123"), "triage_val");
 });
+
+test("PrefixCacheManager - manages _INDEX_DOC_CONFIG_<SpreadsheetId> manifests over CacheAdapter", () => {
+  const cache = new InMemoryCacheAdapter();
+  const manager = new PrefixCacheManager(cache);
+
+  const spreadsheetId = "SHEET_179_TEST";
+  const prefix = "DOC_CONFIG_" + spreadsheetId;
+  const key1 = prefix + "_Submittal_Arch";
+  const key2 = prefix + "_Submittal_FFE";
+
+  manager.putScoped(prefix, key1, '{"schema":"arch"}', 3600);
+  manager.putScoped(prefix, key2, '{"schema":"ffe"}', 3600);
+
+  const manifestKey = "_INDEX_" + prefix;
+  const manifestRaw = cache.get(manifestKey);
+  assert.notStrictEqual(manifestRaw, null);
+
+  const parsedKeys = JSON.parse(manifestRaw);
+  assert.deepStrictEqual(parsedKeys.sort(), [key1, key2].sort());
+});
+
+test("PrefixCacheManager - calling invalidatePrefix('DOC_CONFIG_SHEET_179_EVIC') purges schema caches atomically via CacheAdapter.removeAll()", () => {
+  const cache = new InMemoryCacheAdapter();
+  const manager = new PrefixCacheManager(cache);
+
+  const spreadsheetId = "SHEET_179_EVIC";
+  const prefix = "DOC_CONFIG_" + spreadsheetId;
+  const key1 = prefix + "_Submittal_Arch";
+  const key2 = prefix + "_Submittal_FFE";
+
+  manager.putScoped(prefix, key1, '{"schema":"arch"}', 3600);
+  manager.putScoped(prefix, key2, '{"schema":"ffe"}', 3600);
+  cache.put("UNRELATED_USER_DRAFT", "draft_data", 3600);
+
+  manager.invalidatePrefix(prefix);
+
+  assert.strictEqual(manager.getScoped(prefix, key1), null);
+  assert.strictEqual(manager.getScoped(prefix, key2), null);
+  assert.strictEqual(cache.get("_INDEX_" + prefix), null);
+  assert.strictEqual(cache.get("UNRELATED_USER_DRAFT"), "draft_data");
+});
