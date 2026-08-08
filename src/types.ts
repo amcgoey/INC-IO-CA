@@ -650,7 +650,7 @@ interface HydrationContext {
   userCacheDraft?: Record<string, any>;
   parserResult?: Record<string, any>;
   aiMetadata?: Record<string, any>;
-  spreadsheet?: any;
+  spreadsheet?: unknown;
   docTypeKey?: string;
   activeSheetName?: string;
 }

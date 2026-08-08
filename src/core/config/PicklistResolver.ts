@@ -226,7 +226,7 @@ export class PicklistResolver {
   }
 }
 
-declare var module: any;
+declare var module: { exports?: unknown };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     PicklistResolver

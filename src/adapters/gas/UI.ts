@@ -108,7 +108,7 @@ function renderDynamicFormFields(
     }
 
     if (field.type === 'date') {
-      let dateWidget: any = null;
+      let dateWidget: GoogleAppsScript.Card_Service.Widget | null = null;
       if (typeof CardService !== "undefined" && typeof CardService.newDatePicker === "function") {
         const picker = CardService.newDatePicker()
           .setFieldName(field.key)
