@@ -163,7 +163,7 @@ function normalizeSpecSection(secStr?: string): string {
   if (typeof PicklistResolver !== "undefined" && typeof PicklistResolver.normalizePicklistValue === "function") {
     return PicklistResolver.normalizePicklistValue(secStr, { key: "section", keyNormalizationRule: "code" });
   }
-  const codePart = secStr.trim().split(/\s*-\s*(?![0-9\s])/)[0];
+  const codePart = secStr.trim().split(/\s+-\s+|\s+-(?=[A-Za-z])/)[0];
   return codePart.replace(/[\s.-]+/g, '').toUpperCase();
 }
 
