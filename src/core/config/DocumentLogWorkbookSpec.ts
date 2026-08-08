@@ -97,11 +97,11 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "status", header: "Status", validationRange: "Actions_Submittal" },
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
-        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(A4:A, B4:B, C4:C, D4:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "003") & "-" & title & "-" & rev)))' },
-        { id: "calcNumber", header: "Calc Number", formula: '=MAP(A4:A, B4:B, D4:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "003") & "-" & rev)))' },
+        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(A4:A, B4:B, C4:C, D4:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & title & "-" & rev)))' },
+        { id: "calcNumber", header: "Calc Number", formula: '=MAP(A4:A, B4:B, D4:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & rev)))' },
         { id: "calcTitle", header: "Calc Title", formula: '=MAP(A4:A, C4:C, LAMBDA(sec, title, IF(ISBLANK(sec), "", title)))' },
-        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(F4:F, LAMBDA(c, IF(ISBLANK(c), "", c)))' },
-        { id: "calcSort", header: "Calc Sort", formula: '=MAP(A4:A, B4:B, LAMBDA(sec, num, IF(ISBLANK(sec), "", TEXT(sec, "000000") & TEXT(num, "0000")))'
+        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(A4:A, F4:F, LAMBDA(sec, contact, IF(ISBLANK(sec), "", contact)))' },
+        { id: "calcSort", header: "Calc Sort", formula: '=MAP(A4:A, B4:B, LAMBDA(sec, num, IF(ISBLANK(sec), "", TEXT(sec, "000000") & TEXT(num, "0000"))))'
  }
       ]
     },

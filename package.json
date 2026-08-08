@@ -16,7 +16,8 @@
     "prototype:usercache-state": "npx tsx scripts/prototype-usercache-state.ts",
     "prototype:cross-log-scanner": "npx tsx scripts/prototype-cross-log-scanner.ts",
     "prototype:sheets-card": "npx tsx scripts/prototype-sheets-card.ts",
-    "template:generate": "npx tsx scripts/template/generate-fixture.ts"
+    "template:generate": "npx tsx scripts/template/generate-fixture.ts",
+    "template:verify-live": "npx tsx scripts/template/verify-live.ts"
   },
   "devDependencies": {
     "@google/clasp": "^2.4.2",
