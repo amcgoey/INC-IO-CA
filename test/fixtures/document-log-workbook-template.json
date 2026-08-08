@@ -39,6 +39,12 @@
           "Architectural Submittals",
           "SUB-ARCH",
           "Submittal Arch"
+        ],
+        [
+          "Submittal_FFE",
+          "FFE Submittals",
+          "SUB-FFE",
+          "Submittal FFE"
         ]
       ]
     },
@@ -128,6 +134,50 @@
         "Contact History"
       ],
       "formulaRow": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "seedRows": []
+    },
+    {
+      "name": "Submittal FFE",
+      "rowCount": 1000,
+      "columnCount": 26,
+      "isConfigTab": false,
+      "isSharedTab": false,
+      "isAuditLogTab": false,
+      "isLogTab": true,
+      "headers": [
+        "Spec Tag",
+        "Related Tag",
+        "Revision",
+        "Spec Title",
+        "Vendor",
+        "Date",
+        "Contact",
+        "Action",
+        "Notes",
+        "Link",
+        "Calc File Name",
+        "Calc Number",
+        "Calc Title",
+        "Calc Contact Chain",
+        "Calc Sort"
+      ],
+      "formulaRow": [
+        "",
+        "",
+        "",
+        "",
         "",
         "",
         "",
@@ -295,6 +345,48 @@
       "tabName": "Submittal FFE Support",
       "rangeNotation": "C2:D20",
       "scope": "Sheet"
+    },
+    {
+      "name": "Config_Submittal_FFE",
+      "tabName": "_Config",
+      "rangeNotation": "A5:D7",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Headers",
+      "tabName": "Submittal FFE",
+      "rangeNotation": "A1:O2",
+      "scope": "Sheet"
+    },
+    {
+      "name": "FormulaRow",
+      "tabName": "Submittal FFE",
+      "rangeNotation": "A2:O2",
+      "scope": "Sheet"
+    },
+    {
+      "name": "Data",
+      "tabName": "Submittal FFE",
+      "rangeNotation": "A4:O1000",
+      "scope": "Sheet"
+    },
+    {
+      "name": "Submittal_FFE_Headers",
+      "tabName": "Submittal FFE",
+      "rangeNotation": "A1:O2",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Submittal_FFE_FormulaRow",
+      "tabName": "Submittal FFE",
+      "rangeNotation": "A2:O2",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Submittal_FFE_Data",
+      "tabName": "Submittal FFE",
+      "rangeNotation": "A4:O1000",
+      "scope": "Workbook"
     }
   ]
 }

@@ -1,6 +1,6 @@
 /**
  * @file DocumentLogWorkbookSpec.ts
- * @description Declarative specification for single-workbook layout (_Config, _Shared, _AuditLog, Submittal Arch)
+ * @description Declarative specification for single-workbook layout (_Config, _Shared, _AuditLog, Submittal Arch, Submittal FFE)
  * and Dual-Tier Named Range taxonomy (Workbook-Scoped and Sheet-Scoped Headers, FormulaRow, Data).
  */
 
@@ -54,7 +54,8 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         ["LOG_TITLE", "INC Project Document Log"],
         ["", ""],
         ["DocTypeKey", "DisplayName", "Prefix", "LogTabName"],
-        ["Submittal_Arch", "Architectural Submittals", "SUB-ARCH", "Submittal Arch"]
+        ["Submittal_Arch", "Architectural Submittals", "SUB-ARCH", "Submittal Arch"],
+        ["Submittal_FFE", "FFE Submittals", "SUB-FFE", "Submittal FFE"]
       ]
     },
     {
@@ -100,6 +101,29 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       ]
     },
     {
+      name: "Submittal FFE",
+      rowCount: 1000,
+      columnCount: 26,
+      isLogTab: true,
+      columns: [
+        { id: "specTag", header: "Spec Tag" },
+        { id: "relatedTag", header: "Related Tag" },
+        { id: "revision", header: "Revision" },
+        { id: "specTitle", header: "Spec Title" },
+        { id: "vendor", header: "Vendor" },
+        { id: "date", header: "Date" },
+        { id: "contact", header: "Contact" },
+        { id: "action", header: "Action" },
+        { id: "notes", header: "Notes" },
+        { id: "link", header: "Link" },
+        { id: "calcFileName", header: "Calc File Name" },
+        { id: "calcNumber", header: "Calc Number" },
+        { id: "calcTitle", header: "Calc Title" },
+        { id: "calcContactChain", header: "Calc Contact Chain" },
+        { id: "calcSort", header: "Calc Sort" }
+      ]
+    },
+    {
       name: "Submittal Arch Support",
       rowCount: 100,
       columnCount: 10,
@@ -126,6 +150,7 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "MANIFEST_SCHEMA_VERSION", tabName: "_Config", rangeNotation: "B2", scope: "Workbook" },
     { name: "Config_Manifest", tabName: "_Config", rangeNotation: "A1:B3", scope: "Workbook" },
     { name: "Config_Submittal_Arch", tabName: "_Config", rangeNotation: "A5:D6", scope: "Workbook" },
+    { name: "Config_Submittal_FFE", tabName: "_Config", rangeNotation: "A5:D7", scope: "Workbook" },
     { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:A20", scope: "Workbook" },
     { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "B2:B20", scope: "Workbook" },
     { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "C2:C20", scope: "Workbook" },
@@ -136,6 +161,12 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Submittal_Arch_Headers", tabName: "Submittal Arch", rangeNotation: "A1:K2", scope: "Workbook" },
     { name: "Submittal_Arch_FormulaRow", tabName: "Submittal Arch", rangeNotation: "A2:K2", scope: "Workbook" },
     { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A4:K1000", scope: "Workbook" },
+    { name: "Headers", tabName: "Submittal FFE", rangeNotation: "A1:O2", scope: "Sheet" },
+    { name: "FormulaRow", tabName: "Submittal FFE", rangeNotation: "A2:O2", scope: "Sheet" },
+    { name: "Data", tabName: "Submittal FFE", rangeNotation: "A4:O1000", scope: "Sheet" },
+    { name: "Submittal_FFE_Headers", tabName: "Submittal FFE", rangeNotation: "A1:O2", scope: "Workbook" },
+    { name: "Submittal_FFE_FormulaRow", tabName: "Submittal FFE", rangeNotation: "A2:O2", scope: "Workbook" },
+    { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A4:O1000", scope: "Workbook" },
     { name: "Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Sheet" },
     { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Sheet" },
     { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Sheet" }
