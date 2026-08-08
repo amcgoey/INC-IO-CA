@@ -21,7 +21,7 @@ declare var require: any;
 
 if (typeof require !== "undefined") {
   try {
-    const documentPipelineModule = eval('require("./DocumentPipeline")');
+    const documentPipelineModule = eval('require("./core/intake/DocumentPipeline")');
     if (documentPipelineModule) {
       if (documentPipelineModule.FormIntakeParser && typeof FormIntakeParser === "undefined") {
         (globalThis as any).FormIntakeParser = documentPipelineModule.FormIntakeParser;

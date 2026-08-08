@@ -1,3 +1,4 @@
+import { AiAnalysisService, EmailData, AiPredictionResult, DeepAnalysisContext, DeepAnalysisResult, DeepAnalysisPrediction, AIPrediction, DocumentBlob } from './core/interfaces/AiAnalysisService';
 /**
  * @file AiAnalysisService.ts
  * @description Service interface and implementations for Gemini AI email triage and submittal document deep analysis.
@@ -12,6 +13,14 @@
  * @param errorStr - The raw error message or exception object.
  * @returns Redacted error string.
  */
+/** Result container for internal Gemini HTTP fetch operations. */
+interface GeminiFetchResult {
+  success: boolean;
+  response?: GoogleAppsScript.URL_Fetch.HTTPResponse;
+  statusCode?: number | string;
+  errorText?: string;
+}
+
 const sanitizeErrorStringHelper = (errorStr: any): string => {
   if (typeof (globalThis as any).sanitizeErrorString === "function") {
     return (globalThis as any).sanitizeErrorString(errorStr);
@@ -129,7 +138,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (this.driveNameProvider) return this.driveNameProvider;
     if (typeof defaultDriveNameProvider !== "undefined") return defaultDriveNameProvider;
     try {
-      return require("./DriveNameProvider").defaultDriveNameProvider;
+      return require("./GoogleDriveNameProvider").defaultDriveNameProvider;
     } catch (e) {
       return null;
     }

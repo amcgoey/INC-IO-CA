@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert";
-import { DocumentPipeline } from "../src/DocumentPipeline";
+import { DocumentPipeline } from "../src/core/intake/DocumentPipeline";
 
 (globalThis as any).CONFIG = {
   LOG_HEADER_ROW: 3,
