@@ -120,6 +120,62 @@
         ""
       ],
       "seedRows": []
+    },
+    {
+      "name": "Submittal Arch Support",
+      "rowCount": 100,
+      "columnCount": 10,
+      "isConfigTab": false,
+      "isSharedTab": false,
+      "isAuditLogTab": false,
+      "isLogTab": false,
+      "isSupportTab": true,
+      "headers": [
+        "Section Key",
+        "Section Label"
+      ],
+      "formulaRow": [],
+      "seedRows": [
+        [
+          "033000",
+          "Cast-in-Place Concrete"
+        ],
+        [
+          "081100",
+          "Metal Doors"
+        ]
+      ]
+    },
+    {
+      "name": "Submittal FFE Support",
+      "rowCount": 100,
+      "columnCount": 10,
+      "isConfigTab": false,
+      "isSharedTab": false,
+      "isAuditLogTab": false,
+      "isLogTab": false,
+      "isSupportTab": true,
+      "headers": [
+        "Vendor Key",
+        "Vendor Label",
+        "SpecTag Key",
+        "SpecTag Label"
+      ],
+      "formulaRow": [],
+      "seedRows": [
+        [
+          "ACME",
+          "Acme Supplies",
+          "CH-01",
+          "Dining Chair"
+        ],
+        [
+          "GLOBAL",
+          "Global Materials",
+          "TBL-01",
+          "Conference Table"
+        ]
+      ]
     }
   ],
   "namedRanges": [
@@ -156,7 +212,7 @@
     {
       "name": "Headers",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A1:K1",
+      "rangeNotation": "A1:K2",
       "scope": "Sheet"
     },
     {
@@ -174,7 +230,7 @@
     {
       "name": "Submittal_Arch_Headers",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A1:K1",
+      "rangeNotation": "A1:K2",
       "scope": "Workbook"
     },
     {
@@ -188,6 +244,24 @@
       "tabName": "Submittal Arch",
       "rangeNotation": "A4:K1000",
       "scope": "Workbook"
+    },
+    {
+      "name": "Sections",
+      "tabName": "Submittal Arch Support",
+      "rangeNotation": "A2:B20",
+      "scope": "Sheet"
+    },
+    {
+      "name": "Vendors",
+      "tabName": "Submittal FFE Support",
+      "rangeNotation": "A2:B20",
+      "scope": "Sheet"
+    },
+    {
+      "name": "SpecTags",
+      "tabName": "Submittal FFE Support",
+      "rangeNotation": "C2:D20",
+      "scope": "Sheet"
     }
   ]
 }

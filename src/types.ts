@@ -432,6 +432,23 @@ interface LogRepository {
 declare function validateDocument(rawDoc: RawDocument, context?: ValidationContext): ValidationResult;
 
 
+interface PicklistOption {
+  label: string;
+  value: string;
+}
+
+declare var PicklistResolver: {
+  resolveFrom2DArray(rows: unknown[][]): PicklistOption[];
+  resolvePicklistOptionsRange(
+    optionsRange: string | undefined,
+    spreadsheet: any,
+    docTypeKey?: string,
+    activeSheetName?: string,
+    fieldSpec?: DocumentFieldSpec
+  ): { options: PicklistOption[]; warningBanner?: string; auditEvent?: any };
+  normalizePicklistValue(value: string, fieldSpec?: DocumentFieldSpec): string;
+};
+
 // Global Ambient Function Declarations
 declare function buildMainCard(e: GoogleAppsScriptEvent, initialData?: ParsedData | null, isTagChange?: boolean, flashMessage?: FlashMessage | null): GoogleAppsScript.Card_Service.Card;
 declare function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled?: boolean, projectAbbr?: string, action?: string, incomingRouting?: string, draftUrl?: string | null, directRowUrl?: string | null, failedColumns?: string[], emptyFallbacks?: string[]): GoogleAppsScript.Card_Service.Card;
@@ -643,6 +660,56 @@ interface DocumentWorkflowResult {
 
 
 /** Configuration schema encapsulating document-type specific rules, search criteria, and adapter selection keys. */
+/** Property schema defining a single document field specification for UI, validation, and log row formatting. */
+/** Hydration options for 5-tier state resolution. */
+interface HydrationContext {
+  formInput?: Record<string, any>;
+  userCacheDraft?: Record<string, any>;
+  parserResult?: Record<string, any>;
+  aiMetadata?: Record<string, any>;
+  spreadsheet?: unknown;
+  docTypeKey?: string;
+  activeSheetName?: string;
+}
+
+/** Validation and AI confidence UI context for dynamic field formatting. */
+interface ValidationUIContext {
+  missingFields?: string[];
+  fieldConfidence?: Record<string, number>;
+  onStateActionName?: string;
+  actionParams?: Record<string, string>;
+}
+
+interface PicklistOption {
+  label: string;
+  value: string;
+}
+
+interface MinimalFieldSpec {
+  key: string;
+  label?: string;
+  optionsRange?: string;
+  options?: PicklistOption[];
+  keyNormalizationRule?: 'picklist' | 'code' | 'exact';
+}
+
+
+
+interface DocumentFieldSpec {
+  key: string;
+  label: string;
+  type: 'string' | 'multiline' | 'date' | 'list' | 'enum';
+  required?: boolean;
+  description?: string;
+  defaultValue?: string;
+  isCalculated?: boolean;
+  optionsRange?: string;
+  options?: PicklistOption[];
+  keyNormalizationRule?: 'picklist' | 'code' | 'exact';
+  header?: string;
+  formulaOrFunction?: string;
+}
+
 interface DocumentTypeConfig {
   documentType: 'Submittal' | 'RFI' | string;
   rootFolderSearchTerms: string[];
@@ -658,6 +725,7 @@ interface DocumentTypeConfig {
   filingAdapterKey: string;
   pdfAdapterKey?: string;
   aiAdapterKey?: string;
+  fields?: DocumentFieldSpec[];
 }
 
 interface ContextAdapters {
@@ -709,3 +777,25 @@ declare const PDFLib: any;
 
 
 
+
+interface PicklistResolveResult {
+  options: PicklistOption[];
+  success: boolean;
+  isFallback: boolean;
+  warningBanner?: string;
+  auditEvent?: { eventType: string; details: string };
+}
+
+interface IPicklistResolver {
+  normalizePicklistValue(value: string, fieldSpec?: DocumentFieldSpec | MinimalFieldSpec): string;
+  resolveFrom2DArray(rows: unknown[][]): PicklistOption[];
+  resolvePicklistOptionsRange(
+    optionsRange: string | undefined,
+    spreadsheet: unknown,
+    docTypeKey?: string,
+    activeSheetName?: string,
+    fieldSpec?: MinimalFieldSpec
+  ): PicklistResolveResult;
+}
+
+declare var PicklistResolver: IPicklistResolver;

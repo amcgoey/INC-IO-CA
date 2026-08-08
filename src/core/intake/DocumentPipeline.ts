@@ -160,7 +160,11 @@ function padSubmittalNumber(numStr?: string): string {
 
 function normalizeSpecSection(secStr?: string): string {
   if (!secStr) return "";
-  return secStr.replace(/[\s.-]+/g, "").trim();
+  if (typeof PicklistResolver !== "undefined" && typeof PicklistResolver.normalizePicklistValue === "function") {
+    return PicklistResolver.normalizePicklistValue(secStr, { key: "section", keyNormalizationRule: "code" });
+  }
+  const codePart = secStr.trim().split(/\s+-\s+|\s+-(?=[A-Za-z])/)[0];
+  return codePart.replace(/[\s.-]+/g, '').toUpperCase();
 }
 
 function splitNumberAndRevision(numRevStr: string): { submittalNum: string; revNum: string } {
@@ -521,7 +525,7 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
   const validVendors = context?.ffeTags?.vendors || [];
 
   if (discipline === "Architecture") {
-    const sectionVal = getTrimmed(rawDoc.section);
+    const sectionVal = normalizeSpecSection(rawDoc.section);
     if (!sectionVal) warnings.push("Section");
 
     const numberVal = getTrimmed(rawDoc.number);

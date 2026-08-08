@@ -13,7 +13,7 @@
  * @param len - Target minimum string length.
  * @returns Zero-padded string.
  */
-function padNum(val: any, len: number): string {
+function padNum(val: unknown, len: number): string {
   return String(val || "").trim().padStart(len, '0');
 }
 
@@ -23,19 +23,19 @@ function padNum(val: any, len: number): string {
  * @param row - Raw row array.
  * @returns `true` if all first 8 cells are empty/whitespace, `false` otherwise.
  */
-function isRowBlank(row: any[]): boolean {
-  return row.slice(0, 8).every((cell: any) => String(cell || "").trim() === "");
+function isRowBlank(row: unknown[]): boolean {
+  return row.slice(0, 8).every((cell: unknown) => String(cell || "").trim() === "");
 }
 
 /**
- * Truncates raw 2D spreadsheet data after encountering 3 consecutive blank rows below headers.
+ * Truncates raw 2D spreadsheet data after encountering 5 consecutive blank rows below headers.
  * Ignores "formula row" markers.
  *
  * @param logData - Full 2D array of spreadsheet values.
  * @returns Bounded 2D array ending after data boundaries.
  */
-function getBoundedData(logData: any[][]): any[][] {
-  const boundedData: any[][] = [];
+function getBoundedData(logData: unknown[][]): unknown[][] {
+  const boundedData: unknown[][] = [];
   let emptyGapCount = 0;
 
   for (let i = 0; i < logData.length; i++) {
@@ -48,7 +48,7 @@ function getBoundedData(logData: any[][]): any[][] {
       }
       if (blank) {
         emptyGapCount++;
-        if (emptyGapCount >= 3) break;
+        if (emptyGapCount > 5) break;
       } else {
         emptyGapCount = 0;
       }
@@ -59,28 +59,48 @@ function getBoundedData(logData: any[][]): any[][] {
 }
 
 /**
+ * Normalizes string values using PicklistResolver when available, or fallback rule logic.
+ */
+function normalizeValueForGroupKey(val: string, fieldSpec?: MinimalFieldSpec): string {
+  if (typeof PicklistResolver !== "undefined" && typeof PicklistResolver.normalizePicklistValue === "function") {
+    return PicklistResolver.normalizePicklistValue(val, fieldSpec);
+  }
+  const rule = fieldSpec?.keyNormalizationRule || 'exact';
+  if (rule === 'code') {
+    const codePart = val.trim().split(/\s+-\s+|\s+-(?=[A-Za-z])/)[0];
+    return codePart.replace(/[\s.-]+/g, '').toUpperCase();
+  }
+  return val.trim().toUpperCase();
+}
+
+/**
  * Extracts normalized group key from a raw row array based on discipline (section-number for Architecture, specTag for FF&E).
  *
  * @param row - Raw row array.
  * @param discipline - Architectural or FF&E discipline string.
  * @param headers - Sheet header columns array.
- * @returns Lowercase group key string.
+ * @param fieldSpecs - Optional document field specifications array.
+ * @returns Uppercase group key string.
  */
-function getRowGroupKey(row: any[], discipline: string, headers: string[]): string {
+function getRowGroupKey(row: unknown[], discipline: string, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
   if (discipline === "Architecture") {
     const secIdx = headers.indexOf("Section");
     const numIdx = headers.indexOf("Number");
     let secVal = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
     let num = padNum(numIdx !== -1 ? row[numIdx] : "", 3);
     if (secVal) {
-      let sec = padNum(secVal, 6);
-      return `${sec}-${num}`.toLowerCase();
+      const secSpec = fieldSpecs?.find(f => f.key === "section" || f.key === "specSection") || { key: "section", keyNormalizationRule: "code" as const };
+      let secCode = normalizeValueForGroupKey(secVal, secSpec);
+      let sec = padNum(secCode, 6);
+      return `${sec}-${num}`.toUpperCase();
     }
-    return num.toLowerCase();
+    return num.toUpperCase();
   } else {
     const tagIdx = headers.indexOf("Spec Tag");
     let tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim();
-    return tag.toLowerCase();
+    const tagSpec = fieldSpecs?.find(f => f.key === "specTag" || f.key === "tag") || { key: "specTag", keyNormalizationRule: "exact" as const };
+    let normalizedTag = normalizeValueForGroupKey(tag, tagSpec);
+    return normalizedTag.toUpperCase();
   }
 }
 
@@ -90,9 +110,10 @@ function getRowGroupKey(row: any[], discipline: string, headers: string[]): stri
  * @param row - Raw row array.
  * @param discipline - Architectural or FF&E discipline string.
  * @param headers - Sheet header columns array.
+ * @param fieldSpecs - Optional document field specifications array.
  * @returns Sort key string used to order submittal revisions within a group.
  */
-function getRowSortKey(row: any[], discipline: string, headers: string[]): string {
+function getRowSortKey(row: unknown[], discipline: string, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
   const revIdx = headers.indexOf("Revision");
   const dateIdx = headers.indexOf("Date");
   
@@ -113,39 +134,28 @@ function getRowSortKey(row: any[], discipline: string, headers: string[]): strin
     dateStr = String(rawDate || "").replace(/\D/g, '').padStart(6, '0');
   }
 
-  const groupKey = getRowGroupKey(row, discipline, headers);
+  const groupKey = getRowGroupKey(row, discipline, headers, fieldSpecs);
   return `${groupKey}-${rev}-${dateStr}`;
 }
 
 /**
  * Pure function computing the row insertion plan for placing a new submittal into the log sheet.
- *
- * 1. Groups existing non-blank rows by group key.
- * 2. If target group exists, finds insertion index within group sorted by revision/date.
- * 3. If target group is new, finds position between existing groups alphabetically/numerically,
- *    calculating required blank separator rows (`insertBlankBefore`, `insertBlankAfter`).
- *
- * @param boundedData - 2D matrix of current log sheet data.
- * @param headers - Header column names.
- * @param rowData - New row payload array.
- * @param disciplineOrGroupKeyFn - Discipline string or custom group key function.
- * @param sortKeyFn - Optional custom sort key function.
- * @returns `RowInsertionPlan` detailing target 1-based row index and gap flags.
  */
 function computeRowInsertionPlan(
-  boundedData: any[][],
+  boundedData: unknown[][],
   headers: string[],
-  rowData: any[],
+  rowData: unknown[],
   disciplineOrGroupKeyFn: string | RowKeyFn,
-  sortKeyFn?: RowKeyFn
+  sortKeyFn?: RowKeyFn,
+  fieldSpecs?: DocumentFieldSpec[]
 ): RowInsertionPlan {
   const getGroupKeyFn: RowKeyFn = typeof disciplineOrGroupKeyFn === "function"
     ? disciplineOrGroupKeyFn
-    : (row, h) => getRowGroupKey(row, disciplineOrGroupKeyFn, h);
+    : (row, h) => getRowGroupKey(row, disciplineOrGroupKeyFn, h, fieldSpecs);
 
   const getSortKeyFn: RowKeyFn = sortKeyFn
     ? sortKeyFn
-    : (row, h) => getRowSortKey(row, typeof disciplineOrGroupKeyFn === "string" ? disciplineOrGroupKeyFn : "", h);
+    : (row, h) => getRowSortKey(row, typeof disciplineOrGroupKeyFn === "string" ? disciplineOrGroupKeyFn : "", h, fieldSpecs);
 
   const normalizedTargetGroupKey = getGroupKeyFn(rowData, headers);
   const targetSortKey = getSortKeyFn(rowData, headers);
@@ -193,7 +203,7 @@ function computeRowInsertionPlan(
       if (targetSortKey.localeCompare(r.key) >= 0) insertAfterIdx = r.index;
     }
     return {
-      targetRowIndex: insertAfterIdx + 1, // 1-based index to insert after
+      targetRowIndex: insertAfterIdx + 1,
       insertBlankBefore: false,
       insertBlankAfter: false,
       finalRowIndex: insertAfterIdx + 2
@@ -230,17 +240,6 @@ function computeRowInsertionPlan(
       finalRowIndex: newRowIndex
     };
   }
-}
-
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    getBoundedData,
-    getRowGroupKey,
-    getRowSortKey,
-    computeRowInsertionPlan
-  };
 }
 
 declare var module: any;

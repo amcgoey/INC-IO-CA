@@ -211,6 +211,12 @@ export class MockTextInput {
   public multiline: boolean = false;
   public onChangeAction?: MockAction;
   public suggestions?: MockSuggestions;
+  public hint?: string;
+
+  public setHint(hint: string): this {
+    this.hint = hint;
+    return this;
+  }
 
   public setFieldName(fieldName: string): this {
     this.fieldName = fieldName;
@@ -273,6 +279,40 @@ export class MockSelectionInput {
 
   public addItem(text: string, value: string, selected: boolean = false): this {
     this.items.push({ text, value, selected });
+    return this;
+  }
+
+  public setOnChangeAction(onChangeAction: MockAction): this {
+    this.onChangeAction = onChangeAction;
+    return this;
+  }
+}
+
+
+export class MockDatePicker {
+  public fieldName?: string;
+  public title?: string;
+  public valueInMsSinceEpoch?: number;
+  public hint?: string;
+  public onChangeAction?: MockAction;
+
+  public setFieldName(fieldName: string): this {
+    this.fieldName = fieldName;
+    return this;
+  }
+
+  public setTitle(title: string): this {
+    this.title = title;
+    return this;
+  }
+
+  public setValueInMsSinceEpoch(valueInMsSinceEpoch: number): this {
+    this.valueInMsSinceEpoch = valueInMsSinceEpoch;
+    return this;
+  }
+
+  public setHint(hint: string): this {
+    this.hint = hint;
     return this;
   }
 
@@ -461,6 +501,10 @@ export class MockCardService {
 
   public newSelectionInput(): MockSelectionInput {
     return new MockSelectionInput();
+  }
+
+  public newDatePicker(): MockDatePicker {
+    return new MockDatePicker();
   }
 
   public newSuggestions(): MockSuggestions {

@@ -682,3 +682,79 @@ test("FakeLogRepository promoted adapter records appendDocument and readLog oper
   assert.strictEqual(readRes.found, false);
   assert.strictEqual(fakeRepo.readLogEntries.length, 1);
 });
+
+test("LogEngine.getBoundedData tolerates up to 5 consecutive blank spacer rows in template fixture context", () => {
+  const { getBoundedData: getBoundedDataFn } = require("../src/core/log/LogEngine");
+  const templateSpec = require("./fixtures/document-log-workbook-template.json");
+  const archTab = templateSpec.tabs.find((t: any) => t.name === "Submittal Arch");
+
+  const mockSheetData: any[][] = [
+    archTab.headers,
+    archTab.formulaRow,
+    ["Top BufferRow"],
+    ["033000", "001", "Concrete Mix", "001", "2026-07-25", "GC", "Received", "Open", "", "", "GC"],
+    ["", "", "", "", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", "", "", "", ""],
+    ["042000", "001", "Masonry Unit", "001", "2026-07-26", "Sub", "Received", "Open", "", "", "Sub"]
+  ];
+
+  const bounded = getBoundedDataFn(mockSheetData);
+  assert.strictEqual(bounded.length, 10);
+  assert.strictEqual(bounded[9][0], "042000");
+});
+
+test("LogEngine respects 2-row Headers named range taxonomy and BufferRow bounded Data range", () => {
+  const templateSpec = require("./fixtures/document-log-workbook-template.json");
+  const headersNamedRange = templateSpec.namedRanges.find((nr: any) => nr.name === "Headers" && nr.tabName === "Submittal Arch");
+  assert.strictEqual(headersNamedRange.rangeNotation, "A1:K2");
+  assert.strictEqual(headersNamedRange.scope, "Sheet");
+
+  const dataNamedRange = templateSpec.namedRanges.find((nr: any) => nr.name === "Data" && nr.tabName === "Submittal Arch");
+  assert.strictEqual(dataNamedRange.rangeNotation, "A4:K1000");
+  assert.strictEqual(dataNamedRange.scope, "Sheet");
+});
+
+test("LogEngine integration with GasMockHarness and FakeLogRepository validates 2-row Headers and 5-blank-row bounded scanning", () => {
+  const { GasMockHarness } = require("./harness");
+  GasMockHarness.install();
+
+  const fakeRepo = new FakeLogRepository();
+  const templateSpec = require("./fixtures/document-log-workbook-template.json");
+  const strategy = new ArchitectureSubmittalStrategy();
+
+  const headersNR = templateSpec.namedRanges.find((nr: any) => nr.name === "Headers" && nr.tabName === "Submittal Arch");
+  assert.strictEqual(headersNR.rangeNotation, "A1:K2");
+
+  const doc = DocumentFactory.createValidatedArchitectureSubmittal({
+    date: "2026-07-25",
+    contact: "GC",
+    action: "Received",
+    disciplineDetails: { section: "033000", number: "001", title: "Concrete", revision: "001" }
+  });
+
+  const appendRes = fakeRepo.appendDocument("ss-fixture-123", doc, strategy, { status: "Open" });
+  assert.strictEqual(appendRes.targetKey, "033000-001-001");
+  assert.strictEqual(fakeRepo.appendedDocuments.length, 1);
+
+  const mockSheetData: any[][] = [
+    ["Header Row"],
+    ["FormulaRow"],
+    ["Top BufferRow"],
+    ["033000", "001", "Concrete Mix", "001", "2026-07-25", "GC", "Received", "Open", "", "", "GC"],
+    ["", "", "", "", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", "", "", "", ""],
+    ["042000", "001", "Masonry Unit", "001", "2026-07-26", "Sub", "Received", "Open", "", "", "Sub"]
+  ];
+
+  const bounded = LogEngine.getBoundedData(mockSheetData);
+  assert.strictEqual(bounded.length, 10);
+  assert.strictEqual(bounded[9][0], "042000");
+
+  GasMockHarness.uninstall();
+});
