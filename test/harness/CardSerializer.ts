@@ -190,6 +190,7 @@ export class CardSerializer {
         fieldName: widget.fieldName,
         title: widget.title,
         value: widget.value,
+            ...(widget.hint !== undefined ? { hint: widget.hint } : {}),
         multiline: Boolean(widget.multiline),
         suggestions: widget.suggestions?.suggestions,
         onChangeAction: CardSerializer.serializeAction(widget.onChangeAction)

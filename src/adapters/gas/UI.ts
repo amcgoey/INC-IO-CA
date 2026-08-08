@@ -13,25 +13,84 @@ function formatGasDate(d: any): string {
 }
 
 /**
- * @file UI.ts
- * @description CardService user interface components and user event handlers for the Workspace Add-on.
+ * Dynamically renders form input widgets into a Google Apps Script CardSection driven by DocumentFieldSpec[].
  *
- * Constructs interactive Google Apps Script Cards for intake data entry, project location selection,
- * source file resolution, submittal metadata inputs, AI analysis triggers, and workflow outcome cards.
+ * Rules:
+ * 1. Fields with isCalculated === true are EXCLUDED from form input widget generation.
+ * 2. Field values hydrate via strict 5-tier state hierarchy (Form Inputs -> User Cache Draft -> Parser Result -> AI Metadata -> Field Default / "").
+ * 3. string fields render as standard single-line CardService.newTextInput().
+ * 4. multiline fields render as CardService.newTextInput().setMultiline(true).
+ * 5. Title formatting:
+ *    - Missing required fields (field.required === true && missingFields.includes(field.key)): prefixed with "❌ ".
+ *    - Low AI confidence (< 0.85): prefixed with "⚠️ " and hint set to "Low AI confidence (X%) — please verify".
+ *    - Default: Normal label, hint set to field.description if available.
  */
+function renderDynamicFormFields(
+  section: GoogleAppsScript.Card_Service.CardSection,
+  fields: DocumentFieldSpec[],
+  hydrationContext: HydrationContext = {},
+  validationContext: ValidationUIContext = {}
+): void {
+  if (!section || !fields || fields.length === 0) return;
 
-/**
- * Constructs the primary UI Card for the Workspace Add-on.
- *
- * Assembles form sections for project location (Shared Drive lookup), file source selection,
- * submittal metadata (discipline-specific for Architecture vs FF&E), and workflow submission triggers.
- *
- * @param e - Google Apps Script event object containing form input and parameters.
- * @param initialData - Optional initial parsed data extracted from email or filename intake.
- * @param isTagChange - Flag indicating if card build was triggered by a spec tag selection change.
- * @param flashMessage - Optional notification message payload containing warnings, errors, or prompts.
- * @returns A fully constructed `GoogleAppsScript.Card_Service.Card` instance.
- */
+  const { missingFields = [], fieldConfidence = {}, onStateActionName = "onStateChange", actionParams = {} } = validationContext;
+
+  const resolveValue = (globalThis as any).resolve5TierFieldValue || (typeof (globalThis as any).resolve5TierFieldValue !== "undefined" ? (globalThis as any).resolve5TierFieldValue : null);
+
+  fields.forEach(field => {
+    // Rule 1: Exclude calculated fields
+    if (field.isCalculated === true) {
+      return;
+    }
+
+    // Rule 2: 5-tier state hydration
+    const hydratedValue = resolveValue ? resolveValue(field, hydrationContext) : (field.defaultValue !== undefined ? field.defaultValue : '');
+
+    // Rule 5: Formatting title and hints
+    const isMissing = field.required && missingFields.includes(field.key);
+    const confidence = fieldConfidence[field.key];
+    const isLowConfidence = confidence !== undefined && confidence < 0.85;
+
+    let displayTitle = field.label || field.key;
+    if (isMissing) {
+      displayTitle = `❌ ${displayTitle}`;
+    } else if (isLowConfidence) {
+      displayTitle = `⚠️ ${displayTitle}`;
+    }
+
+    let hintText = field.description || "";
+    if (isLowConfidence) {
+      const pct = Math.round(confidence * 100);
+      hintText = `Low AI confidence (${pct}%) — please verify`;
+    }
+
+    // Rule 3 & 4: Render TextInput or Multiline TextInput
+    const inputWidget = CardService.newTextInput()
+      .setFieldName(field.key)
+      .setTitle(displayTitle)
+      .setValue(hydratedValue);
+
+    if (field.type === 'multiline') {
+      inputWidget.setMultiline(true);
+    }
+
+    if (hintText && typeof inputWidget.setHint === "function") {
+      inputWidget.setHint(hintText);
+    }
+
+    if (onStateActionName) {
+      inputWidget.setOnChangeAction(
+        CardService.newAction()
+          .setFunctionName(onStateActionName)
+          .setParameters(actionParams)
+      );
+    }
+
+    section.addWidget(inputWidget);
+  });
+}
+
+
 function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null = null, isTagChange = false, flashMessage: any = null): GoogleAppsScript.Card_Service.Card {
   const header = CardService.newCardHeader().setTitle(MESSAGES.MAIN_CARD_TITLE);
   if (CONFIG.LOGO_URL) header.setImageUrl(CONFIG.LOGO_URL);
@@ -804,10 +863,12 @@ function buildUnbiasedIntakeCard(
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
+  (globalThis as any).renderDynamicFormFields = (globalThis as any).renderDynamicFormFields || renderDynamicFormFields;
   (globalThis as any).buildMainCard = (globalThis as any).buildMainCard || buildMainCard;
   (globalThis as any).buildSuccessCard = (globalThis as any).buildSuccessCard || buildSuccessCard;
   (globalThis as any).buildUnbiasedIntakeCard = (globalThis as any).buildUnbiasedIntakeCard || buildUnbiasedIntakeCard;
   module.exports = {
+    renderDynamicFormFields,
     buildMainCard,
     buildSuccessCard,
     buildUnbiasedIntakeCard,

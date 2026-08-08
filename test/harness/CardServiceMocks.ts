@@ -211,6 +211,12 @@ export class MockTextInput {
   public multiline: boolean = false;
   public onChangeAction?: MockAction;
   public suggestions?: MockSuggestions;
+  public hint?: string;
+
+  public setHint(hint: string): this {
+    this.hint = hint;
+    return this;
+  }
 
   public setFieldName(fieldName: string): this {
     this.fieldName = fieldName;
