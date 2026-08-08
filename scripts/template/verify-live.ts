@@ -83,15 +83,21 @@ export function parseVerifyArgs(
   if (!spreadsheetId) {
     const env = envOverride || getEnvVars();
     if (target === "test") {
-      spreadsheetId = env.TEST_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
+      spreadsheetId = env.TEST_TEMPLATE_SPREADSHEET_ID || env.TEST_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
+      if (!spreadsheetId && typeof (globalThis as any).PropertiesService !== "undefined" && (globalThis as any).PropertiesService?.getScriptProperties) {
+        spreadsheetId = (globalThis as any).PropertiesService.getScriptProperties().getProperty("TEST_TEMPLATE_SPREADSHEET_ID") || "";
+      }
     } else if (target === "prod") {
-      spreadsheetId = env.PROD_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
+      spreadsheetId = env.PROD_TEMPLATE_SPREADSHEET_ID || env.PROD_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
+      if (!spreadsheetId && typeof (globalThis as any).PropertiesService !== "undefined" && (globalThis as any).PropertiesService?.getScriptProperties) {
+        spreadsheetId = (globalThis as any).PropertiesService.getScriptProperties().getProperty("PROD_TEMPLATE_SPREADSHEET_ID") || "";
+      }
     }
   }
 
   if (!spreadsheetId) {
     throw new Error(
-      `Spreadsheet ID is required for target "${target}". Specify --spreadsheet-id=<id> or configure ${target === "test" ? "TEST_SPREADSHEET_ID" : "PROD_SPREADSHEET_ID"} in .env.local.`
+      `Spreadsheet ID is required for target "${target}". Specify --spreadsheet-id=<id> or configure ${target === "test" ? "TEST_TEMPLATE_SPREADSHEET_ID" : "PROD_TEMPLATE_SPREADSHEET_ID"} in .env.local.`
     );
   }
 

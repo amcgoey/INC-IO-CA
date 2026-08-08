@@ -16,6 +16,12 @@ export interface DeployLiveOptions {
   spreadsheetId: string;
   target: "test" | "prod";
   dryRun?: boolean;
+  create?: boolean;
+}
+
+export interface DeployDependencies {
+  apiFetcher?: (url: string, init: any) => Promise<any>;
+  authToken?: string;
 }
 
 export interface RetryOptions {
@@ -151,15 +157,21 @@ export function parseDeployArgs(
   if (!spreadsheetId && !create) {
     const env = envOverride || getEnvVars();
     if (target === "test") {
-      spreadsheetId = env.TEST_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
+      spreadsheetId = env.TEST_TEMPLATE_SPREADSHEET_ID || env.TEST_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
+      if (!spreadsheetId && typeof (globalThis as any).PropertiesService !== "undefined" && (globalThis as any).PropertiesService?.getScriptProperties) {
+        spreadsheetId = (globalThis as any).PropertiesService.getScriptProperties().getProperty("TEST_TEMPLATE_SPREADSHEET_ID") || "";
+      }
     } else if (target === "prod") {
-      spreadsheetId = env.PROD_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
+      spreadsheetId = env.PROD_TEMPLATE_SPREADSHEET_ID || env.PROD_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
+      if (!spreadsheetId && typeof (globalThis as any).PropertiesService !== "undefined" && (globalThis as any).PropertiesService?.getScriptProperties) {
+        spreadsheetId = (globalThis as any).PropertiesService.getScriptProperties().getProperty("PROD_TEMPLATE_SPREADSHEET_ID") || "";
+      }
     }
   }
 
   if (!spreadsheetId && !create) {
     throw new Error(
-      `Spreadsheet ID is required for target "${target}". Specify --spreadsheet-id=<id>, use --create to create a new sheet, or configure ${target === "test" ? "TEST_SPREADSHEET_ID" : "PROD_SPREADSHEET_ID"} in .env.local.`
+      `Spreadsheet ID is required for target "${target}". Specify --spreadsheet-id=<id>, use --create to create a new sheet, or configure ${target === "test" ? "TEST_TEMPLATE_SPREADSHEET_ID" : "PROD_TEMPLATE_SPREADSHEET_ID"} in .env.local.`
     );
   }
 
@@ -219,8 +231,33 @@ export async function executeWithRetry<T>(
   }
 }
 
+export function saveSpreadsheetId(target: "test" | "prod", id: string): void {
+  const key = target === "prod" ? "PROD_TEMPLATE_SPREADSHEET_ID" : "TEST_TEMPLATE_SPREADSHEET_ID";
+  try {
+    const envLocalPath = path.resolve(process.cwd(), ".env.local");
+    let content = fs.existsSync(envLocalPath) ? fs.readFileSync(envLocalPath, "utf-8") : "";
+    const regex = new RegExp("^" + key + "=.*$", "m");
+    if (regex.test(content)) {
+      content = content.replace(regex, key + "=" + id);
+    } else {
+      content = content ? content.trim() + "\n" + key + "=" + id + "\n" : key + "=" + id + "\n";
+    }
+    fs.writeFileSync(envLocalPath, content, "utf-8");
+  } catch (err: any) {
+    console.warn("[WARN] Could not save " + key + " to .env.local: " + err.message);
+  }
+
+  if (typeof (globalThis as any).PropertiesService !== "undefined" && (globalThis as any).PropertiesService?.getScriptProperties) {
+    try {
+      (globalThis as any).PropertiesService.getScriptProperties().setProperty(key, id);
+    } catch (err: any) {
+      console.warn("[WARN] Could not save " + key + " to ScriptProperties: " + err.message);
+    }
+  }
+}
+
 export async function createSpreadsheet(
-  title: string = "INC Project Document Log (MVT Template)",
+  title: string = "INC Document Log - Test Template",
   token?: string,
   fetcher?: (url: string, init: any) => Promise<any>
 ): Promise<{ spreadsheetId: string; spreadsheetUrl: string }> {
@@ -284,8 +321,10 @@ export async function deployLiveTemplate(
       spreadsheetId = "DRY_RUN_CREATED_SHEET_ID";
     } else {
       console.log(`[CREATE] Creating new Google Spreadsheet via Sheets API v4...`);
-      const created = await createSpreadsheet("INC Project Document Log (MVT Template)", token, fetcher);
+      const title = options.target === "prod" ? "INC Document Log - Template" : "INC Document Log - Test Template";
+      const created = await createSpreadsheet(title, token, fetcher);
       spreadsheetId = created.spreadsheetId;
+      saveSpreadsheetId(options.target, spreadsheetId);
       console.log(`[OK] Created new Spreadsheet: ${created.spreadsheetUrl}`);
     }
   }

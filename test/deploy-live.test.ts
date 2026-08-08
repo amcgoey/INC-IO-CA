@@ -224,14 +224,14 @@ test("deployLiveTemplate - --create flag invokes createSpreadsheet and provision
     create: true
   };
 
-  const calls: string[] = [];
+  const calls: { url: string; body?: any }[] = [];
   const fakeApiFetcher = async (url: string, init: any) => {
-    calls.push(url);
+    calls.push({ url, body: init.body ? JSON.parse(init.body) : undefined });
     if (url === "https://www.googleapis.com/drive/v3/files") {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ id: "NEWLY_CREATED_SHEET_999", name: "INC Project Document Log (MVT Template)", mimeType: "application/vnd.google-apps.spreadsheet" })
+        json: async () => ({ id: "NEWLY_CREATED_SHEET_999", name: init.body ? JSON.parse(init.body).name : "", mimeType: "application/vnd.google-apps.spreadsheet" })
       };
     }
     return {
@@ -249,6 +249,70 @@ test("deployLiveTemplate - --create flag invokes createSpreadsheet and provision
   assert.strictEqual(result.success, true);
   assert.strictEqual(result.spreadsheetId, "NEWLY_CREATED_SHEET_999");
   assert.strictEqual(calls.length, 2);
-  assert.strictEqual(calls[0], "https://www.googleapis.com/drive/v3/files");
-  assert.ok(calls[1].includes("/spreadsheets/NEWLY_CREATED_SHEET_999:batchUpdate"));
+  assert.strictEqual(calls[0].url, "https://www.googleapis.com/drive/v3/files");
+  assert.strictEqual(calls[0].body.name, "INC Document Log - Test Template");
+  assert.ok(calls[1].url.includes("/spreadsheets/NEWLY_CREATED_SHEET_999:batchUpdate"));
+});
+
+test("parseDeployArgs - resolves TEST_TEMPLATE_SPREADSHEET_ID for target=test", () => {
+  const args = ["--target=test"];
+  const options = parseDeployArgs(args, { TEST_TEMPLATE_SPREADSHEET_ID: "env_test_template_id" });
+
+  assert.strictEqual(options.spreadsheetId, "env_test_template_id");
+  assert.strictEqual(options.target, "test");
+});
+
+test("parseDeployArgs - resolves PROD_TEMPLATE_SPREADSHEET_ID for target=prod", () => {
+  const args = ["--target=prod"];
+  const options = parseDeployArgs(args, { PROD_TEMPLATE_SPREADSHEET_ID: "env_prod_template_id" });
+
+  assert.strictEqual(options.spreadsheetId, "env_prod_template_id");
+  assert.strictEqual(options.target, "prod");
+});
+
+test("parseDeployArgs - resolves spreadsheet ID from ScriptProperties when omitted in env", () => {
+  const harness = require("./harness/GasMockHarness").GasMockHarness.install();
+  try {
+    harness.scriptProperties.setProperty("TEST_TEMPLATE_SPREADSHEET_ID", "script_prop_test_id");
+    const options = parseDeployArgs(["--target=test"], {});
+    assert.strictEqual(options.spreadsheetId, "script_prop_test_id");
+  } finally {
+    require("./harness/GasMockHarness").GasMockHarness.uninstall();
+  }
+});
+
+test("deployLiveTemplate - --create --target=prod provisions spreadsheet with title 'INC Document Log - Template'", async () => {
+  const options: DeployLiveOptions = {
+    spreadsheetId: "",
+    target: "prod",
+    dryRun: false,
+    create: true
+  };
+
+  const calls: { url: string; body?: any }[] = [];
+  const fakeApiFetcher = async (url: string, init: any) => {
+    calls.push({ url, body: init.body ? JSON.parse(init.body) : undefined });
+    if (url === "https://www.googleapis.com/drive/v3/files") {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ id: "NEWLY_CREATED_PROD_123", name: init.body ? JSON.parse(init.body).name : "", mimeType: "application/vnd.google-apps.spreadsheet" })
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ spreadsheetId: "NEWLY_CREATED_PROD_123", replies: [] })
+    };
+  };
+
+  const result = await deployLiveTemplate(options, {
+    apiFetcher: fakeApiFetcher,
+    authToken: "ya29.fake_token"
+  });
+
+  assert.strictEqual(result.success, true);
+  assert.strictEqual(result.spreadsheetId, "NEWLY_CREATED_PROD_123");
+  assert.strictEqual(calls[0].url, "https://www.googleapis.com/drive/v3/files");
+  assert.strictEqual(calls[0].body.name, "INC Document Log - Template");
 });
