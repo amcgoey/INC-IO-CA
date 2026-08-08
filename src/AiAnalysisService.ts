@@ -138,7 +138,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (this.driveNameProvider) return this.driveNameProvider;
     if (typeof defaultDriveNameProvider !== "undefined") return defaultDriveNameProvider;
     try {
-      return require("./core/intake/DriveNameProvider").defaultDriveNameProvider;
+      return require("./GoogleDriveNameProvider").defaultDriveNameProvider;
     } catch (e) {
       return null;
     }

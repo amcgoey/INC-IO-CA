@@ -1,110 +1,15 @@
 /**
  * @file DriveNameProvider.ts
- * @description Pure core interface and GAS adapter for querying available Shared Drive details and names.
+ * @description Pure core intake re-export seam for DriveNameProvider interface.
  *
- * Provides `DriveNameProvider` interface and `GoogleDriveNameProvider` implementation.
- * Classified as Tier 1 interface / Tier 2 adapter seam under ADR 0013 / CODING_STANDARDS.md.
+ * Relocated to src/core/intake/ under GitHub Issue #171.
+ * Pure Tier 1 domain interface with zero GAS ambient API dependencies.
  */
 
-/** Shared Drive ID and name tuple. */
-export interface SharedDriveInfo {
-  id: string;
-  name: string;
-}
-
-/**
- * Service interface for querying available Shared Drive details and names.
- */
-export interface DriveNameProvider {
-  /** Retrieves string names of all accessible Shared Drives. */
-  getAvailableDriveNames(): string[];
-  /** Retrieves structured `SharedDriveInfo` objects (ID and name) for all accessible Shared Drives. */
-  getSharedDrives(): SharedDriveInfo[];
-}
-
-/** Cache adapter contract required by GoogleDriveNameProvider. */
-export interface DriveCacheAdapter {
-  get(key: string): string | null;
-  put(key: string, value: string, ttl: number): void;
-}
-
-/**
- * Production implementation of `DriveNameProvider` using the Google Drive Advanced API service.
- * Caches retrieved Shared Drive lists for up to 6 hours (21,600 seconds).
- */
-export class GoogleDriveNameProvider implements DriveNameProvider {
-  private cacheAdapter?: DriveCacheAdapter;
-  private readonly CACHE_KEY = "cached_shared_drives";
-  private readonly CACHE_TTL_SECONDS = 21600; // 6 hours
-
-  constructor(cacheAdapter?: DriveCacheAdapter) {
-    if (cacheAdapter) {
-      this.cacheAdapter = cacheAdapter;
-    } else if (typeof defaultCacheAdapter !== "undefined") {
-      this.cacheAdapter = defaultCacheAdapter;
-    }
-  }
-
-  getSharedDrives(): SharedDriveInfo[] {
-    const cache = this.cacheAdapter || (typeof defaultCacheAdapter !== "undefined" ? defaultCacheAdapter : null);
-    if (cache && typeof cache.get === "function") {
-      const cached = cache.get(this.CACHE_KEY);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed)) {
-            return parsed.map((item: { id?: string; name?: string } | string) => {
-              if (typeof item === "string") return { id: "", name: item };
-              return { id: item.id || "", name: item.name || "" };
-            });
-          }
-        } catch (e) {}
-      }
-    }
-
-    let drives: SharedDriveInfo[] = [];
-    let querySuccess = false;
-
-    try {
-      if (typeof Drive !== "undefined" && (Drive as any).Drives && (Drive as any).Drives.list) {
-        let pageToken: string | undefined;
-        do {
-          const resp = (Drive as any).Drives.list({
-            maxResults: 100,
-            pageToken: pageToken,
-            fields: "items(id,name),nextPageToken"
-          });
-          if (resp && resp.items) {
-            drives = drives.concat(resp.items.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
-          }
-          pageToken = resp ? resp.nextPageToken : undefined;
-        } while (pageToken);
-        querySuccess = true;
-      }
-    } catch (err: any) {}
-
-    if (querySuccess && cache && typeof cache.put === "function") {
-      try {
-        cache.put(this.CACHE_KEY, JSON.stringify(drives), this.CACHE_TTL_SECONDS);
-      } catch (e) {}
-    }
-
-    return drives;
-  }
-
-  getAvailableDriveNames(): string[] {
-    return this.getSharedDrives().map(d => d.name);
-  }
-}
-
-/** Global default instance seam for DriveNameProvider. */
-export var defaultDriveNameProvider: DriveNameProvider = new GoogleDriveNameProvider();
+export { DriveNameProvider, SharedDriveInfo } from '../interfaces/DriveNameProvider';
 
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    GoogleDriveNameProvider,
-    defaultDriveNameProvider
-  };
+  module.exports = {};
 }

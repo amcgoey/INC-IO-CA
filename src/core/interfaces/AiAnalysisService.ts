@@ -83,7 +83,7 @@ export interface AiAnalysisService {
 
   /** Analyzes submittal document blob/payload and email text using multimodal capabilities. */
   analyzeSubmittal(
-    sourceBlob: DocumentBlob,
+    sourceBlob: DocumentBlob | any,
     emailText: string,
     contextObj: DeepAnalysisContext
   ): Promise<DeepAnalysisResult>;
