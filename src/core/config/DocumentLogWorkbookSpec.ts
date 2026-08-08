@@ -87,7 +87,7 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       columnCount: 26,
       isLogTab: true,
       columns: [
-        { id: "section", header: "Section" },
+        { id: "section", header: "Section", validationRange: "Sections" },
         { id: "number", header: "Number" },
         { id: "title", header: "Title" },
         { id: "revision", header: "Revision" },
@@ -173,6 +173,7 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Submittal_FFE_FormulaRow", tabName: "Submittal FFE", rangeNotation: "A2:O2", scope: "Workbook" },
     { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A4:O1000", scope: "Workbook" },
     { name: "Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Sheet" },
+    { name: "Submittal_Arch_Support_Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Workbook" },
     { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Sheet" },
     { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Sheet" },
   ]

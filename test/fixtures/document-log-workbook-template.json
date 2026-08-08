@@ -111,8 +111,8 @@
       "isSupportTab": false,
       "headers": [
         "Timestamp",
-        "EventType",
         "Category",
+        "EventType",
         "Actor",
         "Status",
         "Details"
@@ -182,6 +182,7 @@
       "isSharedTab": false,
       "isAuditLogTab": false,
       "isLogTab": true,
+      "isSupportTab": false,
       "headers": [
         "Spec Tag",
         "Related Tag",
@@ -226,7 +227,11 @@
       "isSharedTab": false,
       "isAuditLogTab": false,
       "isLogTab": false,
-      "headers": [],
+      "isSupportTab": true,
+      "headers": [
+        "Section Key",
+        "Section Label"
+      ],
       "formulaRow": [],
       "seedRows": [
         [
@@ -241,8 +246,7 @@
           "081100",
           "Metal Doors"
         ]
-      ],
-      "isSupportTab": true
+      ]
     },
     {
       "name": "Submittal FFE Support",
@@ -252,7 +256,13 @@
       "isSharedTab": false,
       "isAuditLogTab": false,
       "isLogTab": false,
-      "headers": [],
+      "isSupportTab": true,
+      "headers": [
+        "Vendor Key",
+        "Vendor Label",
+        "SpecTag Key",
+        "SpecTag Label"
+      ],
       "formulaRow": [],
       "seedRows": [
         [
@@ -273,8 +283,7 @@
           "TBL-01",
           "Conference Table"
         ]
-      ],
-      "isSupportTab": true
+      ]
     }
   ],
   "namedRanges": [
@@ -403,6 +412,12 @@
       "tabName": "Submittal Arch Support",
       "rangeNotation": "A2:B20",
       "scope": "Sheet"
+    },
+    {
+      "name": "Submittal_Arch_Support_Sections",
+      "tabName": "Submittal Arch Support",
+      "rangeNotation": "A2:B20",
+      "scope": "Workbook"
     },
     {
       "name": "Vendors",

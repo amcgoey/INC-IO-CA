@@ -198,3 +198,19 @@ test("WorkbookTemplateViewModel toFixtureJson exports Submittal FFE formulaRow w
   assert.ok(calcTitleFormula, "calcTitle formula must be non-empty in formulaRow");
   assert.ok(calcTitleFormula.includes("VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE)"));
 });
+
+test('WorkbookTemplateViewModel generates setDataValidation batch update request for Section column referencing =Sections', () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+  interface DataValidationRequest {
+    setDataValidation?: {
+      range?: { sheetId?: number };
+      rule?: { condition?: { values?: Array<{ userEnteredValue?: string }> } };
+    };
+  }
+  const validationReqs = (payload.requests as DataValidationRequest[]).filter(r => r.setDataValidation);
+  assert.ok(validationReqs.length > 0, 'setDataValidation requests must be generated');
+  const sectionValidation = validationReqs.find(r => r.setDataValidation?.rule?.condition?.values?.[0]?.userEnteredValue === '=Sections');
+  assert.ok(sectionValidation, 'Data validation rule for =Sections must be included in batch requests');
+  assert.ok(typeof sectionValidation?.setDataValidation?.range?.sheetId === 'number', 'Sheet ID should be assigned for Submittal Arch tab');
+});

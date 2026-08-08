@@ -273,4 +273,26 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
     });
   });
 
+
+  describe("Submittal Arch Support CSI Section Tab & Picklist Resolution (Issue #186)", () => {
+    it("should resolve Sections named range from Submittal Arch Support tab in mock spreadsheet", () => {
+      const ss = harness.sheetsService.openById("test-ss-sections");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+      const result = PicklistResolver.resolvePicklistOptionsRange(
+        "Sections",
+        ss,
+        "Submittal_Arch",
+        "Submittal Arch"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      assert.deepEqual(result.options, [
+        { value: "033000", label: "Cast-in-Place Concrete" },
+        { value: "081100", label: "Metal Doors" }
+      ]);
+    });
+  });
+
 });
