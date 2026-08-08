@@ -103,7 +103,6 @@ export const ThemeColors = {
   HEADER_FILL_RGB: { red: 0.4, green: 0.4, blue: 0.4 },
   HEADER_TEXT_HEX: '#FFFFFF',
   HEADER_TEXT_RGB: { red: 1.0, green: 1.0, blue: 1.0 },
-<<<<<<< HEAD
   FORMULA_ROW_FONT_HEX: '#FFFFFF',
   FORMULA_ROW_FONT_RGB: { red: 1.0, green: 1.0, blue: 1.0 },
   FORMULA_ROW_FILL_HEX: '#666666',
