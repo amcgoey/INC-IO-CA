@@ -29,6 +29,14 @@ export class InMemoryCacheAdapter implements CacheAdapter {
   remove(key: string): void {
     this.store.delete(key);
   }
+
+  /** @override */
+  removeAll(keys: string[]): void {
+    if (!keys || keys.length === 0) return;
+    for (const key of keys) {
+      this.store.delete(key);
+    }
+  }
 }
 
 export var FakeCacheAdapter = InMemoryCacheAdapter;

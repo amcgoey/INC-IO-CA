@@ -178,6 +178,28 @@ export class SheetsCardPrototypeManager {
   }
 
   /**
+   * Formats the CardService ActionResponse into a human-readable, structured visual summary.
+   */
+  public static formatActionResponseVisual(state: SheetsCardState): { actionType: string; subtitle: string; sectionsSummary: Array<{ header: string; collapsible: boolean; widgetsCount: number; widgetTypes: string[] }>; toastNotification?: string } {
+    const responseJson = this.serializeToCardServiceResponse(state);
+    const card = responseJson.actionResponse.card;
+
+    const sectionsSummary = (card.sections || []).map((sec: any) => ({
+      header: sec.header || "Section",
+      collapsible: !!sec.collapsible,
+      widgetsCount: (sec.widgets || []).length,
+      widgetTypes: (sec.widgets || []).map((w: any) => Object.keys(w)[0]),
+    }));
+
+    return {
+      actionType: responseJson.actionResponse.type,
+      subtitle: card.header?.subtitle || "Google Sheets Sidebar",
+      sectionsSummary,
+      toastNotification: responseJson.notification?.text,
+    };
+  }
+
+  /**
    * Serialize prototype state to standard CardService ActionResponse JSON format.
    */
   public static serializeToCardServiceResponse(state: SheetsCardState): Record<string, any> {

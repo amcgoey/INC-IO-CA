@@ -4,7 +4,7 @@
  *
  * Provides:
  * 1. An interactive CLI TUI runner (`npm run prototype:sheets-card`) displaying real-time active tab role classification,
- *    `SheetsRootCard` state, and serialized `CardService.ActionResponse` JSON output.
+ *    `SheetsRootCard` state, and a human-friendly CardService ActionResponse visual inspector.
  * 2. An HTTP preview server on port 3000 serving `src/prototypes/sheets-card-prototype.html` with variant switching.
  * 3. An automated step-through verification mode (`--auto`).
  */
@@ -14,7 +14,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { exec } from "node:child_process";
-import { SheetsCardPrototypeManager, SheetsCardState, MOCK_SPREADSHEETS } from "../src/prototypes/SheetsCardPrototypeManager";
+import { SheetsCardPrototypeManager, SheetsCardState } from "../src/prototypes/SheetsCardPrototypeManager";
 
 // ANSI Styling Constants
 const ANSI = {
@@ -26,6 +26,7 @@ const ANSI = {
   CYAN: "\x1b[36m",
   MAGENTA: "\x1b[35m",
   RED: "\x1b[31m",
+  BG_DARK: "\x1b[48;5;236m",
 };
 
 const PORT = 3000;
@@ -34,6 +35,7 @@ const HTML_PATH = path.join(__dirname, "../src/prototypes/sheets-card-prototype.
 class SheetsCardPrototypeRunner {
   private state: SheetsCardState;
   private actionLog: string[] = [];
+  private showRawJson = false;
 
   constructor() {
     this.state = SheetsCardPrototypeManager.buildSheetsMainCard({
@@ -54,6 +56,7 @@ class SheetsCardPrototypeRunner {
 
     const { context, auditReport, notificationMessage, activeVariant } = this.state;
     const cardResponseJson = SheetsCardPrototypeManager.serializeToCardServiceResponse(this.state);
+    const visualSummary = SheetsCardPrototypeManager.formatActionResponseVisual(this.state);
 
     console.log(`${ANSI.BOLD}${ANSI.CYAN}================================================================================${ANSI.RESET}`);
     console.log(`${ANSI.BOLD}${ANSI.YELLOW}   PROTOTYPE — Issue #150: Google Sheets Contextual Add-on UI Card (SheetsRootCard)${ANSI.RESET}`);
@@ -76,19 +79,33 @@ class SheetsCardPrototypeRunner {
     if (auditReport) {
       console.log(`   Schema Audit:  ${ANSI.GREEN}${auditReport.status}${ANSI.RESET} — ${auditReport.summary}`);
     } else {
-      console.log(`   Schema Audit:  ${ANSI.DIM}NOT RUN (Click [a] to trigger dry-run Schema Drift Audit)${ANSI.RESET}`);
+      console.log(`   Schema Audit:  ${ANSI.DIM}NOT RUN (Press [a] to trigger dry-run Schema Drift Audit)${ANSI.RESET}`);
     }
     if (notificationMessage) {
-      console.log(`   Toast Notice:  ${ANSI.MAGENTA}${notificationMessage}${ANSI.RESET}\n`);
+      console.log(`   Toast Notice:  ${ANSI.MAGENTA}"${notificationMessage}"${ANSI.RESET}\n`);
     } else {
       console.log(`   Toast Notice:  ${ANSI.DIM}<None>${ANSI.RESET}\n`);
     }
 
-    // 3. Serialized Card Response
-    console.log(`${ANSI.BOLD}3. CARD SERVICE ACTION RESPONSE JSON SNAPSHOT${ANSI.RESET}`);
-    console.log(`${ANSI.DIM}${JSON.stringify(cardResponseJson, null, 2)}${ANSI.RESET}\n`);
+    // 3. User-Friendly Action Response Inspector
+    console.log(`${ANSI.BOLD}3. CARD SERVICE RESPONSE INSPECTOR${ANSI.RESET} ${ANSI.DIM}(Press [j] to toggle raw JSON)${ANSI.RESET}`);
+    if (this.showRawJson) {
+      console.log(`${ANSI.DIM}${JSON.stringify(cardResponseJson, null, 2)}${ANSI.RESET}\n`);
+    } else {
+      console.log(`   Response Action: ${ANSI.BOLD}${ANSI.GREEN}${visualSummary.actionType}${ANSI.RESET}`);
+      console.log(`   Card Subtitle:   ${ANSI.DIM}${visualSummary.subtitle}${ANSI.RESET}`);
+      console.log(`   Card Sections (${visualSummary.sectionsSummary.length}):`);
+      visualSummary.sectionsSummary.forEach((sec, idx) => {
+        const flag = sec.collapsible ? `${ANSI.DIM}[COLLAPSIBLE]${ANSI.RESET}` : `${ANSI.GREEN}[VISIBLE]${ANSI.RESET}`;
+        console.log(`     ${idx + 1}. ${ANSI.BOLD}${sec.header}${ANSI.RESET} ${flag} (${sec.widgetsCount} widgets: ${sec.widgetTypes.join(", ")})`);
+      });
+      if (visualSummary.toastNotification) {
+        console.log(`   Toast Payload:   ${ANSI.MAGENTA}"${visualSummary.toastNotification}"${ANSI.RESET}`);
+      }
+      console.log("");
+    }
 
-    // 4. Log
+    // 4. Event Log
     console.log(`${ANSI.BOLD}4. RECENT EVENT LOG${ANSI.RESET}`);
     this.actionLog.forEach((entry) => console.log(`   ${ANSI.DIM}${entry}${ANSI.RESET}`));
     console.log("");
@@ -101,8 +118,8 @@ class SheetsCardPrototypeRunner {
     console.log(`   ${ANSI.BOLD}[5]${ANSI.RESET} Documentation Tab          ${ANSI.BOLD}[6]${ANSI.RESET} ScratchPad (User Created)`);
     console.log(`   ${ANSI.BOLD}[7]${ANSI.RESET} Switch to Unrecognized Non-Log Spreadsheet`);
     console.log(`   ${ANSI.BOLD}[r]${ANSI.RESET} Refresh Context            ${ANSI.BOLD}[a]${ANSI.RESET} Run Schema Audit  ${ANSI.BOLD}[f]${ANSI.RESET} Purge ScriptCache`);
-    console.log(`   ${ANSI.BOLD}[v]${ANSI.RESET} Cycle Layout Variant (A/B/C) ${ANSI.BOLD}[s]${ANSI.RESET} Launch Web UI Preview Server`);
-    console.log(`   ${ANSI.BOLD}[q]${ANSI.RESET} Quit Prototype`);
+    console.log(`   ${ANSI.BOLD}[v]${ANSI.RESET} Cycle Layout Variant (A/B/C) ${ANSI.BOLD}[j]${ANSI.RESET} Toggle Raw JSON View`);
+    console.log(`   ${ANSI.BOLD}[s]${ANSI.RESET} Launch Web UI Preview Server ${ANSI.BOLD}[q]${ANSI.RESET} Quit Prototype`);
     console.log(`${ANSI.BOLD}${ANSI.CYAN}--------------------------------------------------------------------------------${ANSI.RESET}`);
   }
 
@@ -136,6 +153,11 @@ class SheetsCardPrototypeRunner {
     const nextVariant = this.state.activeVariant === "A" ? "B" : this.state.activeVariant === "B" ? "C" : "A";
     this.state.activeVariant = nextVariant;
     this.log(`Switched layout variant to Variant ${nextVariant}.`);
+  }
+
+  public toggleJson(): void {
+    this.showRawJson = !this.showRawJson;
+    this.log(`Toggled JSON display mode (Raw JSON = ${this.showRawJson}).`);
   }
 
   public startWebServer(): void {
@@ -242,6 +264,10 @@ process.stdin.on("keypress", (str, key) => {
       break;
     case "v":
       runner.cycleVariant();
+      runner.renderFrame();
+      break;
+    case "j":
+      runner.toggleJson();
       runner.renderFrame();
       break;
     case "s":

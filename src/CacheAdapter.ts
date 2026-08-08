@@ -13,6 +13,10 @@ interface CacheAdapter {
   get(key: string): string | null;
   /** Stores a string value under key for `ttlSeconds`. */
   put(key: string, value: string, ttlSeconds: number): void;
+  /** Removes a cached string value by key. */
+  remove(key: string): void;
+  /** Removes a batch of cached string values by key list. */
+  removeAll(keys: string[]): void;
 }
 
 /**
@@ -50,6 +54,28 @@ class GoogleScriptCacheAdapter implements CacheAdapter {
       cache.put(key, value, ttlSeconds);
     } catch (e) {
       // Fail silently if put fails
+    }
+  }
+
+  /** @override */
+  remove(key: string): void {
+    const cache = this.getCache();
+    if (!cache) return;
+    try {
+      cache.remove(key);
+    } catch (e) {
+      // Fail silently if remove fails
+    }
+  }
+
+  /** @override */
+  removeAll(keys: string[]): void {
+    const cache = this.getCache();
+    if (!cache || !keys || keys.length === 0) return;
+    try {
+      cache.removeAll(keys);
+    } catch (e) {
+      // Fail silently if removeAll fails
     }
   }
 }

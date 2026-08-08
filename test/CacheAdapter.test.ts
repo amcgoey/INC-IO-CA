@@ -27,22 +27,45 @@ test("InMemoryCacheAdapter expires items after ttlSeconds", () => {
   assert.strictEqual(cache.get("expiring_key"), null);
 });
 
+test("InMemoryCacheAdapter removes single key and batch keys", () => {
+  const cache = new InMemoryCacheAdapter();
+  cache.put("k1", "v1", 60);
+  cache.put("k2", "v2", 60);
+  cache.put("k3", "v3", 60);
+
+  cache.remove("k1");
+  assert.strictEqual(cache.get("k1"), null);
+  assert.strictEqual(cache.get("k2"), "v2");
+
+  cache.removeAll(["k2", "k3"]);
+  assert.strictEqual(cache.get("k2"), null);
+  assert.strictEqual(cache.get("k3"), null);
+});
+
 test("GoogleScriptCacheAdapter operates safely when CacheService is undefined", () => {
   delete (globalThis as any).CacheService;
   const cache = new GoogleScriptCacheAdapter();
   assert.strictEqual(cache.get("some_key"), null);
   assert.doesNotThrow(() => {
     cache.put("some_key", "some_val", 60);
+    cache.remove("some_key");
+    cache.removeAll(["some_key"]);
   });
 });
 
 test("GoogleScriptCacheAdapter delegates to CacheService when available", () => {
   const store = new Map<string, string>();
   (globalThis as any).CacheService = {
-    getUserCache: () => (	{
+    getUserCache: () => ({
       get: (key: string) => store.get(key) ?? null,
       put: (key: string, value: string, ttl: number) => {
         store.set(key, value);
+      },
+      remove: (key: string) => {
+        store.delete(key);
+      },
+      removeAll: (keys: string[]) => {
+        for (const k of keys) store.delete(k);
       }
     })
   };
@@ -50,6 +73,15 @@ test("GoogleScriptCacheAdapter delegates to CacheService when available", () => 
   const cache = new GoogleScriptCacheAdapter();
   cache.put("user_key", "user_val", 300);
   assert.strictEqual(cache.get("user_key"), "user_val");
+
+  cache.remove("user_key");
+  assert.strictEqual(cache.get("user_key"), null);
+
+  cache.put("k1", "v1", 300);
+  cache.put("k2", "v2", 300);
+  cache.removeAll(["k1", "k2"]);
+  assert.strictEqual(cache.get("k1"), null);
+  assert.strictEqual(cache.get("k2"), null);
 
   delete (globalThis as any).CacheService;
 });

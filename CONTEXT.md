@@ -9,16 +9,27 @@ The single, standardized Google Sheet workbook that acts as the project source o
 _Avoid_: Unified Workbook, Master Sheet, Log Spreadsheet
 
 **FormulaRow**:
-The dedicated row immediately following the header row in a log tab that holds formula definitions for calculated columns (`Calc File Name`, `Calc Number`, `Calc Title`, `Calc Contact Chain`, `Calc Sort`) so manual log entries inherit formatting and backup calculations.
+The dedicated row immediately following the header row in a log tab that holds formula definitions for calculated columns (`Calc File Name`, `Calc Number`, `Calc Title`, `Calc Contact Chain`, `Calc Sort`) so manual log entries inherit formatting and backup calculations. Occupies the second row of the `<TabName>_Headers` Named Range.
 
 **BufferRow**:
-The empty row positioned immediately below the FormulaRow and above active data rows to prevent users from accidentally overwriting formulas during manual entry.
+An empty, data-protected row used as a boundary marker. In log tabs, a top BufferRow sits immediately below the FormulaRow, and a bottom BufferRow sits at the bottom of the log. These two buffer rows bound the sheet-scoped `Data` Named Range, ensuring new rows inserted between them automatically expand the `Data` range without breaking named boundaries.
+
+**Headers Named Range (`Headers`)**:
+The generic Sheet-Scoped 2-row Named Range on a log tab spanning the header row (Row 1) and the FormulaRow (Row 2), serving as the primary anchor for dynamic header column resolution. Sheet-scoped naming (`Headers`) allows log tabs to be cloned or duplicated for new document types without breaking or renaming range references.
+
+**Data Named Range (`Data`)**:
+The generic Sheet-Scoped dynamic Named Range on a log tab enclosing active data rows, anchored at the top and bottom by protected BufferRows (`Data`). Sheet-scoped naming permits tab duplication without range renaming overhead.
+
+**Dual-Tier Named Range Scoping Taxonomy**:
+The architectural convention categorizing workbook Named Ranges into:
+1. *Sheet-Scoped Generic Ranges* (`Headers`, `FormulaRow`, `Data`, `Vendors`, `SpecTags`): Used on log tabs and dedicated support tabs to enable instant tab cloning/duplication.
+2. *Workbook-Scoped Specific Ranges* (`MANIFEST_SCHEMA_VERSION`, `Config_Manifest`, `Config_<DocTypeKey>`, `Shared_Contacts_<Discipline>`, `Actions_<DocType>`): Used on consolidated tabs (`_Config`, `_Shared`) housing multiple tables to prevent namespace collisions.
 
 **Document**:
 The core domain concept representing a formal project correspondence or record (such as a Submittal, RFI, ASI, Bulletin, etc.) processed through the system.
 
 **AppContext**:
-The environment in which the application is executing (e.g. `GoogleDrive`, `Gmail`, or future contexts). Determines workflow behavior such as immediate vs. deferred 2-step filing.
+The environment in which the application is executing (`GoogleDrive`, `Gmail`, or `GoogleSheets`). Governs contextual root card rendering, workflow step sequences (immediate vs. deferred filing), and active workbook auto-binding in Google Sheets context.
 
 **Submittal**:
 A specific document type representing shop drawings, product data, samples, or mockups submitted for architect/engineer review.
@@ -76,14 +87,47 @@ The abstract, reusable workflow step interface (`execute(context: DocumentAction
 _Avoid_: ActionStep, PipelineTask
 
 **DocumentTypeConfig**:
-Pure, serializable configuration schema encapsulating document-type specific search criteria (root folder and log search terms), closed subfolder maps, cover page template references, filename prefixes, and string adapter selection keys for lazy adapter resolution.
+Pure, serializable configuration schema encapsulating document-type specific search criteria (root folder and log search terms), closed subfolder maps, cover page template references, filename prefixes, string adapter selection keys, and the unified `fields` specification list (`DocumentFieldSpec[]`).
+
+**DisjunctiveLogSearchQuery**:
+The Google Drive API search query string built dynamically from `DocumentTypeConfig.logSearchTerms` by joining terms with `OR` operators (e.g., `(title contains 'submittal log' or title contains 'submittal') and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`) to discover candidate log spreadsheets in a single API request.
+
+**DocumentTypeSearchCacheKey**:
+The `UserCache` key pattern (`log_search_<DriveId>_<DocTypeKey>`) used to isolate and persist discovered candidate log spreadsheets per Shared Drive and document type with targeted invalidation during admin cache purges.
+
+**LogDisambiguationScoringEngine**:
+The multi-tier scoring and ranking engine that evaluates candidate log spreadsheets returned from Drive queries using structural tab inspection (`_Config` manifest and target `logSheetName`), parent folder path verification (`logParentFolderTerms`), affirmative filename match weighting, and negative term demotion penalties (`Copy`, `Archive`, `Draft`).
+
+
+
+
+**DocumentFieldSpec**:
+Declarative property schema defining a field's key, target spreadsheet header, UI label, input type, calculation flag (`isCalculated`), optional formula/function reference (`FormulaOrFunction`), and optional `optionsRange` reference. Drives UI card generation, pre-flight header validation, and log row payload formatting.
+_Avoid_: ColumnDefinition, FieldSchema
+
+**Declarative UI Field Rendering Engine**:
+The dynamic card rendering mechanism within `UnbiasedIntakeCard` (`renderDynamicFormFields`) that reads `DocumentFieldSpec[]` from `DocumentTypeConfig`, skips calculated fields (`isCalculated === true`), resolves 2D picklist ranges (`optionsRange`), and generates `CardService` input widgets dynamically without hardcoded `if/else` document type branches.
+
+**PicklistOption**:
+The normalized key-label tuple (`value`, `label`) resolved from a Named Range reference (`optionsRange`) in Google Sheets or static JSON fallback files for populating UI dropdown widgets.
+
+**Config_<DocTypeKey>_Fields**:
+The structured subtable Named Range on `_Config` tab for a specific `DocumentType` defining its `DocumentFieldSpec` rows (Key, Header, Label, Type, IsCalculated, FormulaOrFunction, OptionsRange).
+_Avoid_: ColumnTable, FieldConfigTab
 
 **Config_Manifest**:
 The master Named Range on the `_Config` spreadsheet tab listing all enabled DocumentType entries, their display names, primary log tab names, and strategy key associations.
 _Avoid_: DocTypeIndex, ManifestSheet
 
 **DocumentTypeConfigRegistry**:
-The application registry that manages, registers, and resolves `DocumentTypeConfig` instances by document type name at runtime, utilizing Google Apps Script `CacheService.getScriptCache()` (6-hour TTL) for zero-latency lookup with automatic fallback to `_Config` spreadsheet tab parsing.
+The application registry that manages, registers, and resolves `DocumentTypeConfig` instances by document type name and spreadsheet ID at runtime, utilizing Google Apps Script `CacheService.getScriptCache()` (6-hour TTL) with `SpreadsheetId`-scoped cache keys (`DOC_CONFIG_<SpreadsheetId>_<DocTypeKey>`) for zero-latency lookup and cross-workbook isolation, with automatic fallback to `_Config` spreadsheet tab parsing.
+
+**PrefixCacheManager**:
+The Tier 1 application cache service that wraps `CacheAdapter` to maintain tracked key manifest index entries (`_INDEX_<prefix>`), enabling targeted batch cache eviction (`invalidatePrefix`) across Google Script and test fake storage adapters without requiring native key queries or regex pattern matching.
+_Avoid_: CacheIndexCleaner, KeyPatternEvictor
+
+**ScopedCacheEviction**:
+The architectural targeted cache flushing pattern that invalidates only keys belonging to a specific scope/prefix (e.g. `DOC_CONFIG_<SpreadsheetId>_*` or `log_search_<DriveId>_*`) during administrative resets without wiping unrelated user card drafts, AI triage predictions, or separate workbook caches.
 
 **WorkflowContextFactory**:
 The application factory that ingests `DocumentTypeConfig`, `AppContext`, document payloads, and optional overrides to construct a `DocumentActionContext` equipped with lazy adapter getter properties.
@@ -121,6 +165,19 @@ _Avoid_: SheetHelper
 Encapsulates document-type specific rules for identity, group/sort keys, target keys, and field mapping into tabular row payloads.
 _Avoid_: KeyExtractor, DocumentFormatter
 
+**IdentityData**:
+The abstract identity model containing `identityGroup`, `identityRevisionGroup`, and `identity` used for sheet grouping, revision history tracking, and unique document identification.
+
+**IdentityGroup**:
+The normalized string key used to group related document entries in the log tab for sheet formatting and blank row gap separation (e.g. `[CSI Section]-[Number]` for Arch Submittals, `[Spec Tag]` for FF&E, or `[RFI Number]` for RFIs).
+
+**IdentityRevisionGroup**:
+The normalized string key used to group document revisions for contact history concatenation and revision tracking (`[IdentityGroup]-[Revision]`).
+
+**Identity**:
+The target string key that uniquely identifies a specific document submission/revision instance (`[IdentityRevisionGroup]-[Date]`). Serves as the primary sort key.
+
+
 **LogEngine**:
 The application module that coordinates contact history, status transitions, and generic row positioning for any document type using a DocumentLogStrategy and storage adapter.
 _Avoid_: LogProcessor, LogManager
@@ -131,11 +188,31 @@ _Avoid_: SheetConverter, LegacyImporter
 
 **LogMigrationStrategy**:
 Encapsulates discipline-specific rules (`ArchLogMigrationStrategy`, `FfeLogMigrationStrategy`) for mapping legacy headers to target `<TabName>_Headers`, skipping calculated formula columns so they inherit `FormulaRow` formulas, and normalizing date/status cell values.
+
+**Calculated Column Null Coercion**:
+The migration rule within `LogMigrationEngine` that systematically forces data row cells mapping to calculated columns (`isCalculated: true`) to empty values (`null` or `""`), ensuring `FormulaRow` top-level `MAP`/`LAMBDA` formulas spill down across migrated rows without triggering `#SPILL!` collision errors.
+
+**Legacy Inline Formula Coercion**:
+The migration process within `LogMigrationEngine` that detects custom legacy formulas in non-calculated columns during Pass 1 dry-run audit (`MigrationAuditReport.inlineFormulasDetected`), and coerces them to evaluated static snapshot values (`getValues()`) during Pass 2 live migration to prevent broken coordinate offsets ($\Delta row$) and volatile recalculations.
+
+
 _Avoid_: ColumnMapper, MigrationConfig
 
 **MigrationAuditReport**:
-The structured dry-run audit result detailing column mappings, row validation metrics, data quality discrepancies, and the boolean `canProceed` execution gate prior to log migration.
+The structured dry-run audit result detailing column mappings, row validation metrics, formula coercion stats (`calculatedColumnsCoercedCount`, `inlineFormulasDetectedCount`), target spill collision risk (`targetSpillCollisionBlocked`), and the boolean `canProceed` execution gate (blocked if `targetSpillCollisionBlocked === true`) prior to log migration.
+
 _Avoid_: DryRunResult, MigrationSummary
+
+**TargetTabSnapshot**:
+The temporary duplicate tab (`_Backup_<TabName>_<Timestamp>`) created at the tail end of the tab list within `DocumentLogWorkbook` prior to data transformation to enable lossless atomic rollback in case of migration execution failures.
+_Avoid_: SheetBackup, TemporaryTab
+
+**AuditLogTab (`_AuditLog`)**:
+The dedicated, system-managed administrative tab within `DocumentLogWorkbook` used to persist structured execution logs, telemetry, and event history across system features (e.g. `MIGRATION`, `SCHEMA_DRIFT`, `CACHE_PURGE`, `ADMIN_ACTION`). Includes a dedicated `Category` column alongside `Timestamp`, `EventType`, `Actor`, `Status`, and `Details` JSON for structured filtering and parsing, keeping telemetry completely separate from `_Config`.
+_Avoid_: AuditTab, ConfigTelemetry, SystemLog, MigrationAuditTab
+
+
+
 
 **SheetStorageAdapter**:
 The low-level infrastructure adapter that executes physical spreadsheet operations without any business logic or document-type assumptions.
@@ -167,6 +244,21 @@ The structured outcome of filing a document in Drive, containing the file ID, we
 The abstract service interface encapsulating 1-pass lightweight AI triage (project, docType, polymorphic metadata with 3 separate confidence scores) and deep document analysis across varying document types.
 _Avoid_: AiTriageModule, AiUtils, AIHelper
 
+**AiClassificationResult**:
+The standardized payload returned from 1-pass AI document triage containing an `overallConfidence` score alongside a dictionary of predicted document fields, where each field encapsulates its extracted string `value` and numerical `confidence` float (`0.00` to `1.00`).
+_Avoid_: AiPredictionDict, TriageResultMap
+
+**FieldConfidenceThreshold**:
+The fixed numerical cut-off (`0.85`) below which AI-predicted fields and overall triage scores trigger visual warning indicators in field labels and non-blocking yellow status banners on `UnbiasedIntakeCard` UI cards.
+_Avoid_: ConfidenceCutoff, UncertaintyLimit
+
+**TransientOverrideLogger**:
+The lightweight logging approach for manual AI field overrides, emitting non-persistent diagnostic entries strictly to `Logger.log()` / Apps Script Cloud execution logs during submission for debugging purposes, avoiding sheet tab bloat.
+_Avoid_: OverrideAuditTab, MetricRepository
+
+
+
+
 **TargetedDocumentEmailParser**:
 DocumentType-specific email parser strategies (`SubmittalEmailParser`, `RfiEmailParser`, `AsiEmailParser`) dispatched after initial AI triage to extract high-precision regex fields that overwrite initial AI metadata guesses.
 _Avoid_: MonolithicEmailParser, GenericSubjectParser
@@ -185,4 +277,45 @@ _Avoid_: UIHelper, CardNavigator, CardResponseBuilder
 **UnbiasedIntakeCard**:
 The contextual Google Workspace add-on card rendered upon email or file selection, featuring dynamic Project, DocumentType, and LogFile dropdown controls with loss-less state preservation during re-bind re-renders.
 _Avoid_: SubmittalFormCard, IntakeFormView
+
+**TemplateDriftAuditor**:
+The inspection tool and service that audits live Google Sheet workbooks across 6 structural dimensions against `DocumentLogWorkbookSpec` to detect version, tab, named range, header, formula, or validation discrepancies prior to template deployment or runtime config loading.
+_Avoid_: SheetInspector, SchemaChecker
+
+**TemplateDriftReport**:
+The structured audit result generated by `TemplateDriftAuditor`, containing the overall alignment status (`MATCH`, `MINOR_DRIFT`, `MAJOR_DRIFT`, `INCOMPATIBLE`), live vs. code version comparison, categorized drift issues, and the boolean `canAutoPatch` execution gate.
+_Avoid_: DriftSummary, AuditResult
+
+**SheetsRootCard**:
+The dedicated Google Workspace Add-on root card rendered when running in GoogleSheets context (`AppContext.GoogleSheets`). Minimal layout consisting of a top Workbook Status Header and a bottom `SheetAdminFoldOut` for dry-run schema drift audits (`TemplateDriftAuditor`) and ScriptCache clearing. Handles non-log spreadsheets with a friendly fallback state (Header: "Unrecognized Document Log", Description: "The active spreadsheet is not a Document Log (missing configuration information)."). Includes a manual "Refresh Card" context button to re-inspect active sheet and tab context on demand.
+
+**SheetsRootCard Tab Role Classification**:
+The 5-tier taxonomy categorizing active spreadsheet tab context within `SheetsRootCard`:
+1. *Log Tab*: Tab linked to an active `DocumentType` schema (e.g., `Submittal Arch`, `Submittal FFE`). Displays `DocumentType` key and active data row count.
+2. *System Config Tab*: The `_Config` tab housing system manifests and schemas (`Role: System Config`).
+3. *Audit Log Tab*: The `_AuditLog` system telemetry tab (`Role: System Audit Log`).
+4. *Documentation Tab*: User instructions or documentation tab (`Role: Documentation`).
+5. *User Created Tab*: Custom user-created scratch or report tab (`Role: User Created`).
+
+**SheetAdminFoldOut**:
+The AppContext-sensitive section of the Workspace Add-on main card rendered when running in Google Sheets context, providing spreadsheet configuration inspection, live schema drift validation, and target workbook ScriptCache invalidation controls.
+
+**Schema Health Report**:
+The inline card section rendered within `SheetAdminFoldOut` following a `TemplateDriftAuditor` execution, displaying overall workbook alignment status (`MATCH`, `MINOR_DRIFT`, `MAJOR_DRIFT`, `INCOMPATIBLE`), a bulleted breakdown of structural issues, and `canAutoPatch` status to non-technical administrators.
+
+**TriageAdminFoldOut**:
+The AppContext-sensitive section of the Workspace Add-on main card rendered when running in Gmail or Drive context, providing AI triage prediction cache clearing, shared drive log search cache resetting, and contact/action cache flushing.
+
+**AdminFoldOutPresenter**:
+The declarative presenter module (`AdminFoldOutPresenter.renderAdminSection`) that inspects execution `AppContext` and builds the context-appropriate admin foldout (`SheetAdminFoldOut` for `GoogleSheets`, `TriageAdminFoldOut` for `Gmail`/`GoogleDrive`), decoupling root cards from administrative UI construction.
+
+**AppContext-Scoped Cache Partitioning**:
+The architectural rule strictly isolating administrative cache eviction controls by execution context: `SheetAdminFoldOut` flushes target workbook config (`DOC_CONFIG_<SpreadsheetId>_*`), while `TriageAdminFoldOut` flushes drive search (`log_search_<DriveId>_*`), AI triage predictions (`ai_triage_*`), and shared picklists (`contacts_*`, `actions_*`), preventing cross-context cache pollution.
+
+**Centralized Workspace Add-on Execution Policy**:
+The architectural decision and policy mandating that all `DocumentLogWorkbook` administration, cache management, diagnostic auditing (`TemplateDriftAuditor`), and document intake operations are driven exclusively through the Google Workspace Add-on (`AppContext.GoogleSheets`, `SheetsRootCard`, `SheetAdminFoldOut`). Prohibits container-bound Apps Script code and custom menus (`onOpen`/`onEdit`) in individual log workbooks to eliminate script fragmentation and version drift across cloned spreadsheets.
+
+
+
+
 

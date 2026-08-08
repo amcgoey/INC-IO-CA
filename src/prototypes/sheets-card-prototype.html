@@ -266,6 +266,7 @@
     .badge-LOG_TAB { background: var(--badge-log); color: var(--badge-log-text); }
     .badge-SYSTEM_CONFIG { background: var(--badge-config); color: var(--badge-config-text); }
     .badge-AUDIT_LOG { background: var(--badge-audit); color: var(--badge-audit-text); }
+    .badge-action { background: #e8f0fe; color: #1a73e8; }
 
     /* Action Buttons */
     .btn {
@@ -295,14 +296,9 @@
     }
     .btn-outline:hover { background: #f1f3f4; }
 
-    /* Collapsible SheetAdminFoldOut */
-    .foldout-header {
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .foldout-header:hover {
-      background: #f1f3f4;
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 11px;
     }
 
     /* Toast Notification Banner */
@@ -316,6 +312,56 @@
       align-items: center;
       justify-content: space-between;
       animation: fadeIn 0.2s ease-in;
+    }
+
+    /* Visual Response Inspector Styling */
+    .inspector-card {
+      background: #f8f9fa;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .inspector-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .inspector-label {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .inspector-value {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .inspector-sec-item {
+      background: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin-top: 4px;
+      font-size: 11px;
+    }
+
+    .inspector-sec-header {
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .inspector-sec-meta {
+      color: var(--text-muted);
+      margin-top: 2px;
     }
 
     /* Floating Prototype Variant Switcher */
@@ -350,9 +396,9 @@
       font-weight: 500;
     }
 
-    /* JSON Drawer Modal */
+    /* Raw JSON Drawer Modal */
     .json-drawer {
-      margin-top: 12px;
+      margin-top: 8px;
       background: #1e1e1e;
       color: #d4d4d4;
       padding: 12px;
@@ -449,9 +495,9 @@
     let currentVariantIdx = 0;
     let activeWbId = 'log-wb-001';
     let activeSheetName = 'Submittal Arch';
-    let auditRunning = false;
     let auditReport = null;
     let toastMessage = null;
+    let showRawJson = false;
 
     const WORKBOOKS = {
       'log-wb-001': {
@@ -496,7 +542,7 @@
     function selectTab(wbId, sheetName) {
       activeWbId = wbId;
       activeSheetName = sheetName;
-      toastMessage = `Context auto-bound to active sheet tab '${sheetName}'.`;
+      toastMessage = `Card context auto-bound to active tab '${sheetName}'.`;
       renderAll();
     }
 
@@ -512,6 +558,11 @@
 
     function purgeCache() {
       toastMessage = `ScriptCache purged for '${WORKBOOKS[activeWbId].title}'.`;
+      renderAll();
+    }
+
+    function toggleJsonView() {
+      showRawJson = !showRawJson;
       renderAll();
     }
 
@@ -554,6 +605,8 @@
               <p style="font-size: 12px; color: var(--text-muted);">Admin actions are inactive for non-DocumentLog spreadsheets.</p>
             </div>
           </div>
+
+          ${renderInspectorCard(wb, sheetInfo, variant)}
         `;
         return;
       }
@@ -619,21 +672,79 @@
           </div>
         </div>
 
-        <div class="card-section">
-          <div class="card-section-header">CardService ActionResponse JSON</div>
-          <div class="card-section-body" style="padding: 8px;">
-            <div class="json-drawer">{
-  "actionResponse": {
-    "type": "UPDATE_CARD",
-    "card": {
-      "header": { "title": "INC Core Add-on", "subtitle": "Google Sheets Sidebar [Variant ${variant.key}]" },
-      "sections": [
-        { "header": "Workbook Context", "activeSheet": "${activeSheetName}", "role": "${sheetInfo.role}" },
-        { "header": "SheetAdminFoldOut", "schemaVersion": "${wb.schemaVersion}" }
-      ]
+        ${renderInspectorCard(wb, sheetInfo, variant)}
+      `;
     }
-  }
-}</div>
+
+    function renderInspectorCard(wb, sheetInfo, variant) {
+      const rawJson = {
+        actionResponse: {
+          type: "UPDATE_CARD",
+          card: {
+            header: { title: "INC Core Add-on", subtitle: `Google Sheets Sidebar [Variant ${variant.key}]` },
+            sections: [
+              { header: wb.isLog ? "Workbook Context" : "Unrecognized Document Log", activeSheet: activeSheetName, role: sheetInfo.role },
+              { header: "SheetAdminFoldOut", schemaVersion: wb.schemaVersion }
+            ]
+          }
+        },
+        notification: toastMessage ? { text: toastMessage } : undefined
+      };
+
+      return `
+        <div class="card-section">
+          <div class="card-section-header">
+            <span>🔍 Action Response Inspector</span>
+            <button class="btn btn-outline btn-sm" onclick="toggleJsonView()">
+              ${showRawJson ? '📋 Show Visual Summary' : 'code Show Raw JSON'}
+            </button>
+          </div>
+          <div class="card-section-body" style="padding: 12px;">
+            ${showRawJson ? `
+              <div class="json-drawer">${JSON.stringify(rawJson, null, 2)}</div>
+            ` : `
+              <div class="inspector-card">
+                <div class="inspector-row">
+                  <span class="inspector-label">Response Action Type</span>
+                  <span class="role-badge badge-action">UPDATE_CARD</span>
+                </div>
+                <div class="inspector-row">
+                  <span class="inspector-label">Card Subtitle</span>
+                  <span class="inspector-value">Google Sheets Sidebar [Variant ${variant.key}]</span>
+                </div>
+
+                <div style="margin-top: 6px;">
+                  <span class="kv-label">Rendered Card Sections (2)</span>
+                  
+                  <div class="inspector-sec-item">
+                    <div class="inspector-sec-header">
+                      <span>1. ${wb.isLog ? 'Workbook Context' : 'Unrecognized Document Log'}</span>
+                      <span style="color: var(--sheets-green); font-size: 10px;">● VISIBLE</span>
+                    </div>
+                    <div class="inspector-sec-meta">
+                      Widgets: 3 KeyValue items (Sheet title, Tab Role, Data Rows) + 1 Button
+                    </div>
+                  </div>
+
+                  <div class="inspector-sec-item">
+                    <div class="inspector-sec-header">
+                      <span>2. Sheet Administration (SheetAdminFoldOut)</span>
+                      <span style="color: var(--text-muted); font-size: 10px;">COLLAPSIBLE</span>
+                    </div>
+                    <div class="inspector-sec-meta">
+                      Widgets: 2 Action Buttons (Audit, Purge Cache) + 1 Audit Status Notice
+                    </div>
+                  </div>
+                </div>
+
+                ${toastMessage ? `
+                  <div class="inspector-row" style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #dadce0;">
+                    <span class="inspector-label">Toast Notification</span>
+                    <span style="color: #c5221f; font-size: 11px; font-weight: 600;">"${toastMessage}"</span>
+                  </div>
+                ` : ''}
+              </div>
+            `}
           </div>
         </div>
       `;
