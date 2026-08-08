@@ -90,14 +90,30 @@ export class WorkbookTemplateViewModel {
     };
   }
 
-  public toBatchUpdateRequestPayload(): BatchUpdateRequestPayload {
+  public toBatchUpdateRequestPayload(existingSheetsMap?: Map<string, number>): BatchUpdateRequestPayload {
     const requests: object[] = [];
     const { titleRowStyle, dateRowStyle, headerStyle, formulaRowStyle, offsets, columnWidths, defaultColumnWidth } = this.viewSpec;
 
     const tabIndexMap = new Map<string, number>();
     this.model.tabs.forEach((tab, index) => {
-      tabIndexMap.set(tab.name, index);
-      if (index === 0) {
+      const existingSheetId = existingSheetsMap?.get(tab.name);
+      const sheetId = existingSheetId !== undefined ? existingSheetId : index;
+      tabIndexMap.set(tab.name, sheetId);
+
+      if (existingSheetId !== undefined) {
+        requests.push({
+          updateSheetProperties: {
+            properties: {
+              sheetId: existingSheetId,
+              gridProperties: {
+                rowCount: tab.rowCount,
+                columnCount: tab.columnCount
+              }
+            },
+            fields: "gridProperties(rowCount,columnCount)"
+          }
+        });
+      } else if (index === 0) {
         requests.push({
           updateSheetProperties: {
             properties: {
@@ -137,7 +153,7 @@ export class WorkbookTemplateViewModel {
         requests.push({
           updateCells: {
             range: {
-              sheetId: index,
+              sheetId,
               startRowIndex: (tab.isLogTab || tab.isAuditLogTab) ? offsets.FIRST_DATA_ROW_INDEX - 1 : 0,
               startColumnIndex: 0
             },
@@ -162,7 +178,7 @@ export class WorkbookTemplateViewModel {
         requests.push({
           updateCells: {
             range: {
-              sheetId: index,
+              sheetId,
               startRowIndex: offsets.TITLE_ROW_INDEX - 1,
               startColumnIndex: 0
             },
@@ -175,7 +191,7 @@ export class WorkbookTemplateViewModel {
         requests.push({
           updateCells: {
             range: {
-              sheetId: index,
+              sheetId,
               startRowIndex: offsets.DATE_ROW_INDEX - 1,
               startColumnIndex: 0
             },
@@ -188,7 +204,7 @@ export class WorkbookTemplateViewModel {
         requests.push({
           updateCells: {
             range: {
-              sheetId: index,
+              sheetId,
               startRowIndex: offsets.HEADER_ROW_INDEX - 1,
               startColumnIndex: 0
             },
@@ -201,7 +217,7 @@ export class WorkbookTemplateViewModel {
         requests.push({
           updateCells: {
             range: {
-              sheetId: index,
+              sheetId,
               startRowIndex: offsets.FORMULA_ROW_INDEX - 1,
               startColumnIndex: 0
             },
@@ -212,13 +228,14 @@ export class WorkbookTemplateViewModel {
       }
     });
 
-    this.model.tabs.forEach((tab, tabIndex) => {
+    this.model.tabs.forEach((tab) => {
+      const sheetId = tabIndexMap.get(tab.name)!;
       if ((tab.isLogTab || tab.isAuditLogTab) && tab.columns) {
         // Row 1: Title Style (16pt bold)
         requests.push({
           repeatCell: {
             range: {
-              sheetId: tabIndex,
+              sheetId,
               startRowIndex: offsets.TITLE_ROW_INDEX - 1,
               endRowIndex: offsets.TITLE_ROW_INDEX,
               startColumnIndex: 0,
@@ -243,7 +260,7 @@ export class WorkbookTemplateViewModel {
         requests.push({
           repeatCell: {
             range: {
-              sheetId: tabIndex,
+              sheetId,
               startRowIndex: offsets.DATE_ROW_INDEX - 1,
               endRowIndex: offsets.DATE_ROW_INDEX,
               startColumnIndex: 0,
@@ -268,7 +285,7 @@ export class WorkbookTemplateViewModel {
         requests.push({
           repeatCell: {
             range: {
-              sheetId: tabIndex,
+              sheetId,
               startRowIndex: offsets.HEADER_ROW_INDEX - 1,
               endRowIndex: offsets.HEADER_ROW_INDEX,
               startColumnIndex: 0,
@@ -293,7 +310,7 @@ export class WorkbookTemplateViewModel {
         requests.push({
           repeatCell: {
             range: {
-              sheetId: tabIndex,
+              sheetId,
               startRowIndex: offsets.FORMULA_ROW_INDEX - 1,
               endRowIndex: offsets.FORMULA_ROW_INDEX,
               startColumnIndex: 0,
@@ -318,7 +335,7 @@ export class WorkbookTemplateViewModel {
         requests.push({
           repeatCell: {
             range: {
-              sheetId: tabIndex,
+              sheetId,
               startRowIndex: offsets.FIRST_DATA_ROW_INDEX - 2,
               endRowIndex: offsets.FIRST_DATA_ROW_INDEX - 1,
               startColumnIndex: 0,
@@ -337,7 +354,7 @@ export class WorkbookTemplateViewModel {
         requests.push({
           repeatCell: {
             range: {
-              sheetId: tabIndex,
+              sheetId,
               startRowIndex: tab.rowCount - 1,
               endRowIndex: tab.rowCount,
               startColumnIndex: 0,
@@ -357,7 +374,7 @@ export class WorkbookTemplateViewModel {
           requests.push({
             updateDimensionProperties: {
               range: {
-                sheetId: tabIndex,
+                sheetId,
                 dimension: "COLUMNS",
                 startIndex: colIdx,
                 endIndex: colIdx + 1
@@ -373,7 +390,7 @@ export class WorkbookTemplateViewModel {
             requests.push({
               setDataValidation: {
                 range: {
-                  sheetId: tabIndex,
+                  sheetId,
                   startRowIndex: offsets.FIRST_DATA_ROW_INDEX - 1,
                   endRowIndex: tab.rowCount,
                   startColumnIndex: colIdx,
@@ -409,7 +426,7 @@ export class WorkbookTemplateViewModel {
                   rule: {
                     ranges: [
                       {
-                        sheetId: tabIndex,
+                        sheetId,
                         startRowIndex: offsets.FIRST_DATA_ROW_INDEX - 1,
                         endRowIndex: tab.rowCount - 1,
                         startColumnIndex: 0,

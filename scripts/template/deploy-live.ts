@@ -170,9 +170,10 @@ export function buildDeploymentPayload(
   viewModel: WorkbookTemplateViewModel = new WorkbookTemplateViewModel(
     DOCUMENT_LOG_WORKBOOK_SPEC,
     DOCUMENT_LOG_WORKBOOK_VIEW_SPEC
-  )
+  ),
+  existingSheetsMap?: Map<string, number>
 ): BatchUpdateRequestPayload {
-  return viewModel.toBatchUpdateRequestPayload();
+  return viewModel.toBatchUpdateRequestPayload(existingSheetsMap);
 }
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -291,7 +292,44 @@ export async function deployLiveTemplate(
 
   console.log(`Target Spreadsheet ID: ${spreadsheetId}`);
 
-  const payload = buildDeploymentPayload();
+  const existingSheetsMap = new Map<string, number>();
+  let existingNamedRangeDeletes: object[] = [];
+
+  if (!options.create && (token || deps.apiFetcher) && !options.dryRun) {
+    try {
+      console.log(`[QUERY] Inspecting existing sheet properties and named ranges for target spreadsheet...`);
+      const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties,namedRanges`;
+      const metaRes = await executeWithRetry(async () => {
+        const res = await fetcher(metaUrl, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        return typeof res.json === "function" ? await res.json() : res;
+      });
+      if (metaRes && metaRes.sheets && Array.isArray(metaRes.sheets)) {
+        for (const s of metaRes.sheets) {
+          if (s.properties?.title && s.properties?.sheetId !== undefined) {
+            existingSheetsMap.set(s.properties.title, s.properties.sheetId);
+          }
+        }
+        console.log(`[OK] Mapped ${existingSheetsMap.size} existing tab(s) in target spreadsheet.`);
+      }
+      if (metaRes && metaRes.namedRanges && Array.isArray(metaRes.namedRanges)) {
+        existingNamedRangeDeletes = metaRes.namedRanges.map((nr: any) => ({
+          deleteNamedRange: {
+            namedRangeId: nr.namedRangeId
+          }
+        }));
+        console.log(`[OK] Found ${existingNamedRangeDeletes.length} existing named range(s) to purge before updating.`);
+      }
+    } catch (err: any) {
+      console.warn(`[WARN] Could not query existing sheet properties: ${err.message}`);
+    }
+  }
+
+  const payload = buildDeploymentPayload(undefined, existingSheetsMap);
+  if (existingNamedRangeDeletes.length > 0) {
+    payload.requests.unshift(...existingNamedRangeDeletes);
+  }
   const requestCount = payload.requests.length;
   console.log(`Single-Pass Batch Payload constructed with ${requestCount} batch update requests.`);
 
