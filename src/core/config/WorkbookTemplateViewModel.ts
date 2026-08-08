@@ -230,7 +230,7 @@ export class WorkbookTemplateViewModel {
 
     // Pre-Pass: Purge legacy data validation rules across full grid range for all tabs
     this.model.tabs.forEach((tab) => {
-      const sheetId = tabIndexMap.get(tab.name)!;
+      const sheetId = tabIndexMap.get(tab.name) ?? 0;
       requests.push({
         setDataValidation: {
           range: {
@@ -245,7 +245,7 @@ export class WorkbookTemplateViewModel {
     });
 
     this.model.tabs.forEach((tab) => {
-      const sheetId = tabIndexMap.get(tab.name)!;
+      const sheetId = tabIndexMap.get(tab.name) ?? 0;
       if ((tab.isLogTab || tab.isAuditLogTab) && tab.columns) {
         // Row 1: Title Style (16pt bold)
         requests.push({

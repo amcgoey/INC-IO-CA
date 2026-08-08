@@ -84,7 +84,7 @@ export async function resolveGoogleAuthToken(): Promise<string> {
         const clientSecret = data.oauth2ClientSettings?.clientSecret || data.tokens?.default?.client_secret;
 
         if (refreshToken && clientId && clientSecret) {
-          console.log("new");
+          console.log(`[AUTH] Resolving live Google OAuth token from ${path.basename(clasprcPath)} (${clientId.split("-")[0]})...`);
           const res = await fetch("https://oauth2.googleapis.com/token", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -99,7 +99,7 @@ export async function resolveGoogleAuthToken(): Promise<string> {
           if (res.ok) {
             const json = await res.json();
             if (json.access_token) {
-              console.log("new");
+              console.log(`[AUTH] Successfully refreshed OAuth access token for project ${clientId.split("-")[0]}.`);
               return json.access_token;
             }
           }
@@ -107,7 +107,7 @@ export async function resolveGoogleAuthToken(): Promise<string> {
           return data.token.access_token;
         }
       } catch (err: any) {
-        console.log("new");
+        console.warn(`[AUTH WARN] Could not parse ${clasprcPath}: ${err.message}`);
       }
     }
   }
@@ -262,7 +262,7 @@ export async function deployLiveTemplate(
   options: DeployLiveOptions,
   deps: DeployDependencies = {}
 ): Promise<DeployLiveResult> {
-  console.log("new");
+  console.log(`=== Deploying DocumentLogWorkbook Template [Target: ${options.target.toUpperCase()}] ===`);
 
   const token = deps.authToken || (await resolveGoogleAuthToken());
   const fetcher = deps.apiFetcher || (async (url: string, init: any) => {
@@ -280,24 +280,24 @@ export async function deployLiveTemplate(
 
   if (options.create) {
     if (!token && !deps.apiFetcher) {
-      console.log("new");
+      console.log(`[DRY-RUN CREATE] Skipping Google API creation call because no GOOGLE_AUTH_TOKEN is present.`);
       spreadsheetId = "DRY_RUN_CREATED_SHEET_ID";
     } else {
-      console.log("new");
+      console.log(`[CREATE] Creating new Google Spreadsheet via Sheets API v4...`);
       const created = await createSpreadsheet("INC Project Document Log (MVT Template)", token, fetcher);
       spreadsheetId = created.spreadsheetId;
-      console.log("new");
+      console.log(`[OK] Created new Spreadsheet: ${created.spreadsheetUrl}`);
     }
   }
 
-  console.log("new");
+  console.log(`Target Spreadsheet ID: ${spreadsheetId}`);
 
   const existingSheetsMap = new Map<string, number>();
   let existingNamedRangeDeletes: object[] = [];
 
   if (!options.create && (token || deps.apiFetcher) && !options.dryRun) {
     try {
-      console.log("new");
+      console.log(`[QUERY] Inspecting existing sheet properties and named ranges for target spreadsheet...`);
       const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties,namedRanges`;
       const metaRes = await executeWithRetry(async () => {
         const res = await fetcher(metaUrl, {
@@ -311,7 +311,7 @@ export async function deployLiveTemplate(
             existingSheetsMap.set(s.properties.title, s.properties.sheetId);
           }
         }
-        console.log("new");
+        console.log(`[OK] Mapped ${existingSheetsMap.size} existing tab(s) in target spreadsheet.`);
       }
       if (metaRes && metaRes.namedRanges && Array.isArray(metaRes.namedRanges)) {
         existingNamedRangeDeletes = metaRes.namedRanges.map((nr: any) => ({
@@ -319,10 +319,10 @@ export async function deployLiveTemplate(
             namedRangeId: nr.namedRangeId
           }
         }));
-        console.log("new");
+        console.log(`[OK] Found ${existingNamedRangeDeletes.length} existing named range(s) to purge before updating.`);
       }
     } catch (err: any) {
-      console.log("new");
+      console.warn(`[WARN] Could not query existing sheet properties: ${err.message}`);
     }
   }
 
@@ -330,14 +330,14 @@ export async function deployLiveTemplate(
   if (existingNamedRangeDeletes.length > 0) {
     payload.requests.unshift(...existingNamedRangeDeletes);
   }
-  console.log("new");
+  console.log(`[OK] Pre-pass data validation purge requests included for all ${DOCUMENT_LOG_WORKBOOK_SPEC.tabs.length} tab(s).`);
   const requestCount = payload.requests.length;
-  console.log("new");
+  console.log(`Single-Pass Batch Payload constructed with ${requestCount} batch update requests.`);
 
   if (options.dryRun || (!token && !deps.apiFetcher)) {
-    console.log("new");
+    console.log(`[DRY-RUN MODE] Payload construction verified clean. Skipping network call.`);
     if (!token && !deps.apiFetcher) {
-      console.log("new");
+      console.warn(`[WARN] No GOOGLE_AUTH_TOKEN found in environment.`);
     }
     return {
       success: true,
@@ -363,7 +363,7 @@ export async function deployLiveTemplate(
     return typeof res.json === "function" ? await res.json() : res;
   });
 
-  console.log("new");
+  console.log(`[OK] Successfully deployed single-pass batch update to Google Sheet ${spreadsheetId}`);
   return {
     success: true,
     spreadsheetId: spreadsheetId,
@@ -379,15 +379,15 @@ if (require.main === module) {
     const options = parseDeployArgs();
     deployLiveTemplate(options)
       .then((res) => {
-        console.log("new");
+        console.log(`[SUCCESS] Live template deployment complete. Summary:`, res);
         process.exit(0);
       })
       .catch((err) => {
-        console.log("new");
+        console.error(`[ERROR] Live template deployment failed:`, err);
         process.exit(1);
       });
   } catch (err: any) {
-    console.log("new");
+    console.error(`[CLI ERROR] ${err.message}`);
     process.exit(1);
   }
 }
