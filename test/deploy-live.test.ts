@@ -227,11 +227,11 @@ test("deployLiveTemplate - --create flag invokes createSpreadsheet and provision
   const calls: string[] = [];
   const fakeApiFetcher = async (url: string, init: any) => {
     calls.push(url);
-    if (url === "https://sheets.googleapis.com/v4/spreadsheets") {
+    if (url === "https://www.googleapis.com/drive/v3/files") {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ spreadsheetId: "NEWLY_CREATED_SHEET_999", spreadsheetUrl: "https://docs.google.com/spreadsheets/d/NEWLY_CREATED_SHEET_999/edit" })
+        json: async () => ({ id: "NEWLY_CREATED_SHEET_999", name: "INC Project Document Log (MVT Template)", mimeType: "application/vnd.google-apps.spreadsheet" })
       };
     }
     return {
@@ -249,6 +249,6 @@ test("deployLiveTemplate - --create flag invokes createSpreadsheet and provision
   assert.strictEqual(result.success, true);
   assert.strictEqual(result.spreadsheetId, "NEWLY_CREATED_SHEET_999");
   assert.strictEqual(calls.length, 2);
-  assert.strictEqual(calls[0], "https://sheets.googleapis.com/v4/spreadsheets");
+  assert.strictEqual(calls[0], "https://www.googleapis.com/drive/v3/files");
   assert.ok(calls[1].includes("/spreadsheets/NEWLY_CREATED_SHEET_999:batchUpdate"));
 });

@@ -34,11 +34,6 @@ export interface DeployLiveResult {
   response?: any;
 }
 
-export interface DeployDependencies {
-  apiFetcher?: (url: string, init: any) => Promise<any>;
-  authToken?: string;
-}
-
 export function getEnvVars(): Record<string, string> {
   const env: Record<string, string> = { ...(process.env as Record<string, string>) };
   const envPaths = [
@@ -66,6 +61,52 @@ export function getEnvVars(): Record<string, string> {
     }
   }
   return env;
+}
+
+export async function resolveGoogleAuthToken(): Promise<string> {
+  const env = getEnvVars();
+  if (env.GOOGLE_AUTH_TOKEN || env.ACCESS_TOKEN) {
+    return env.GOOGLE_AUTH_TOKEN || env.ACCESS_TOKEN;
+  }
+
+  const homeDir = process.env.USERPROFILE || process.env.HOME || "";
+  const clasprcPath = path.join(homeDir, ".clasprc.json");
+
+  if (fs.existsSync(clasprcPath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(clasprcPath, "utf-8"));
+      const refreshToken = data.token?.refresh_token || data.tokens?.default?.refresh_token;
+      const clientId = data.oauth2ClientSettings?.clientId || data.tokens?.default?.client_id;
+      const clientSecret = data.oauth2ClientSettings?.clientSecret || data.tokens?.default?.client_secret;
+
+      if (refreshToken && clientId && clientSecret) {
+        console.log(`[AUTH] Resolving live Google OAuth token from ~/.clasprc.json...`);
+        const res = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: refreshToken,
+            grant_type: "refresh_token"
+          })
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json.access_token) {
+            console.log(`[AUTH] Successfully refreshed OAuth access token via clasp credentials.`);
+            return json.access_token;
+          }
+        }
+      } else if (data.token?.access_token) {
+        return data.token.access_token;
+      }
+    } catch (err: any) {
+      console.warn(`[AUTH WARN] Could not parse .clasprc.json: ${err.message}`);
+    }
+  }
+  return "";
 }
 
 export function parseDeployArgs(
@@ -177,12 +218,12 @@ export async function createSpreadsheet(
   token?: string,
   fetcher?: (url: string, init: any) => Promise<any>
 ): Promise<{ spreadsheetId: string; spreadsheetUrl: string }> {
-  const endpoint = "https://sheets.googleapis.com/v4/spreadsheets";
+  const endpoint = "https://www.googleapis.com/drive/v3/files";
   const customFetcher = fetcher || (async (url: string, init: any) => {
     const res = await fetch(url, init);
     if (!res.ok) {
       const errText = await res.text();
-      const err: any = new Error(`Google Sheets API Create Error (${res.status}): ${errText}`);
+      const err: any = new Error(`Google Drive API Create Error (${res.status}): ${errText}`);
       err.status = res.status;
       throw err;
     }
@@ -195,7 +236,10 @@ export async function createSpreadsheet(
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`
     },
-    body: JSON.stringify({ properties: { title } })
+    body: JSON.stringify({
+      name: title,
+      mimeType: "application/vnd.google-apps.spreadsheet"
+    })
   };
 
   const res = await executeWithRetry(async () => {
@@ -203,10 +247,9 @@ export async function createSpreadsheet(
     return typeof response.json === "function" ? await response.json() : response;
   });
 
-  return {
-    spreadsheetId: res.spreadsheetId,
-    spreadsheetUrl: res.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${res.spreadsheetId}/edit`
-  };
+  const spreadsheetId = res.id;
+  const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+  return { spreadsheetId, spreadsheetUrl };
 }
 
 export async function deployLiveTemplate(
@@ -215,7 +258,7 @@ export async function deployLiveTemplate(
 ): Promise<DeployLiveResult> {
   console.log(`=== Deploying DocumentLogWorkbook Template [Target: ${options.target.toUpperCase()}] ===`);
 
-  const token = deps.authToken || process.env.GOOGLE_AUTH_TOKEN || process.env.ACCESS_TOKEN;
+  const token = deps.authToken || (await resolveGoogleAuthToken());
   const fetcher = deps.apiFetcher || (async (url: string, init: any) => {
     const res = await fetch(url, init);
     if (!res.ok) {
