@@ -22,16 +22,22 @@ export interface DriveNameProvider {
   getSharedDrives(): SharedDriveInfo[];
 }
 
+/** Cache adapter contract required by GoogleDriveNameProvider. */
+export interface DriveCacheAdapter {
+  get(key: string): string | null;
+  put(key: string, value: string, ttl: number): void;
+}
+
 /**
  * Production implementation of `DriveNameProvider` using the Google Drive Advanced API service.
  * Caches retrieved Shared Drive lists for up to 6 hours (21,600 seconds).
  */
 export class GoogleDriveNameProvider implements DriveNameProvider {
-  private cacheAdapter?: any;
+  private cacheAdapter?: DriveCacheAdapter;
   private readonly CACHE_KEY = "cached_shared_drives";
   private readonly CACHE_TTL_SECONDS = 21600; // 6 hours
 
-  constructor(cacheAdapter?: any) {
+  constructor(cacheAdapter?: DriveCacheAdapter) {
     if (cacheAdapter) {
       this.cacheAdapter = cacheAdapter;
     } else if (typeof defaultCacheAdapter !== "undefined") {
@@ -47,7 +53,7 @@ export class GoogleDriveNameProvider implements DriveNameProvider {
         try {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) {
-            return parsed.map((item: any) => {
+            return parsed.map((item: { id?: string; name?: string } | string) => {
               if (typeof item === "string") return { id: "", name: item };
               return { id: item.id || "", name: item.name || "" };
             });
@@ -69,7 +75,7 @@ export class GoogleDriveNameProvider implements DriveNameProvider {
             fields: "items(id,name),nextPageToken"
           });
           if (resp && resp.items) {
-            drives = drives.concat(resp.items.map((d: any) => ({ id: d.id, name: d.name })));
+            drives = drives.concat(resp.items.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
           }
           pageToken = resp ? resp.nextPageToken : undefined;
         } while (pageToken);
