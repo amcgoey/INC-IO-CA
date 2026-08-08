@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WriteLogAction } from '../src/WriteLogAction';
-import { WorkflowRunner } from '../src/WorkflowRunner';
+import { WorkflowRunner } from '../src/core/workflow/WorkflowRunner';
 import { FakeLogRepository } from './harness/fakes/FakeLogRepository';
 import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from '../src/DocumentLogStrategy';
 import { createValidatedArchitectureSubmittal, createValidatedFFESubmittal } from './harness/factories/DocumentFactory';
 import { IdentityData, WriteLogInput } from '../src/types';
-import { createTestContext } from '../src/WorkflowContextFactory';
+import { createTestContext } from '../src/core/workflow/WorkflowContextFactory';
 
 test('WriteLogAction - early guard validation throws descriptive error when logRepository is missing', async () => {
   const action = new WriteLogAction();

@@ -1,4 +1,4 @@
-/// <reference path="./types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file WorkflowActionRouter.ts
  * @description Central application router resolving ordered sequences of DocumentAction instances for document types and workflow directions.
@@ -14,23 +14,23 @@ let _WriteLogActionClass: any = null;
 
 if (typeof require !== 'undefined') {
   try {
-    const _rla = eval("require('./ReadLogAction')");
+    const _rla = eval("require('../../ReadLogAction')");
     if (_rla && _rla.ReadLogAction) _ReadLogActionClass = _rla.ReadLogAction;
   } catch (e) {}
   try {
-    const _mda = eval("require('./core/workflow/MoveDocumentAction')");
+    const _mda = eval("require('./MoveDocumentAction')");
     if (_mda && _mda.MoveDocumentAction) _MoveDocumentActionRouter = _mda.MoveDocumentAction;
   } catch (e) {}
   try {
-    const _ada = eval("require('./AnalyzeDocumentAction')");
+    const _ada = eval("require('../../AnalyzeDocumentAction')");
     if (_ada && _ada.AnalyzeDocumentAction) _AnalyzeDocumentActionClass = _ada.AnalyzeDocumentAction;
   } catch (e) {}
   try {
-    const _ipa = eval("require('./InsertPagesAction')");
+    const _ipa = eval("require('../../InsertPagesAction')");
     if (_ipa && _ipa.InsertPagesAction) _InsertPagesActionClass = _ipa.InsertPagesAction;
   } catch (e) {}
   try {
-    const _wla = eval("require('./WriteLogAction')");
+    const _wla = eval("require('../../WriteLogAction')");
     if (_wla && _wla.WriteLogAction) _WriteLogActionClass = _wla.WriteLogAction;
   } catch (e) {}
 }

@@ -1,4 +1,4 @@
-/// <reference path="./types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file DocumentWorkflowModule.ts
  * @description Orchestration application service for submittal document workflows.
@@ -11,41 +11,41 @@ declare var require: any;
 if (typeof require !== "undefined") {
   try {
     const _iw = eval('require("./IncomingWorkflow")');
-    if (_iw && _iw.IncomingWorkflow && typeof IncomingWorkflow === "undefined") {
+    if (_iw && _iw.IncomingWorkflow) {
       (globalThis as any).IncomingWorkflow = _iw.IncomingWorkflow;
     }
   } catch (e) {}
   try {
     const _ow = eval('require("./OutgoingWorkflow")');
-    if (_ow && _ow.OutgoingWorkflow && typeof OutgoingWorkflow === "undefined") {
+    if (_ow && _ow.OutgoingWorkflow) {
       (globalThis as any).OutgoingWorkflow = _ow.OutgoingWorkflow;
     }
   } catch (e) {}
   try {
-    const _wla = eval('require("./WriteLogAction")');
-    if (_wla && _wla.WriteLogAction && typeof WriteLogAction === "undefined") {
+    const _wla = eval('require("../../WriteLogAction")');
+    if (_wla && _wla.WriteLogAction) {
       (globalThis as any).WriteLogAction = _wla.WriteLogAction;
     }
   } catch (e) {}
   try {
     const _wfr = eval('require("./WorkflowRunner")');
-    if (_wfr && _wfr.WorkflowRunner && typeof WorkflowRunner === "undefined") {
+    if (_wfr && _wfr.WorkflowRunner) {
       (globalThis as any).WorkflowRunner = _wfr.WorkflowRunner;
     }
   } catch (e) {}
   try {
-    const _ipa = eval('require("./InsertPagesAction")');
-    if (_ipa && _ipa.InsertPagesAction && typeof InsertPagesAction === "undefined") {
+    const _ipa = eval('require("../../InsertPagesAction")');
+    if (_ipa && _ipa.InsertPagesAction) {
       (globalThis as any).InsertPagesAction = _ipa.InsertPagesAction;
     }
   } catch (e) {}
   try {
-    const _dls = eval('require("./DocumentLogStrategy")');
+    const _dls = eval('require("../../DocumentLogStrategy")');
     if (_dls) {
-      if (_dls.ArchitectureSubmittalStrategy && typeof ArchitectureSubmittalStrategy === "undefined") {
+      if (_dls.ArchitectureSubmittalStrategy) {
         (globalThis as any).ArchitectureSubmittalStrategy = _dls.ArchitectureSubmittalStrategy;
       }
-      if (_dls.FFESubmittalStrategy && typeof FFESubmittalStrategy === "undefined") {
+      if (_dls.FFESubmittalStrategy) {
         (globalThis as any).FFESubmittalStrategy = _dls.FFESubmittalStrategy;
       }
     }
@@ -82,10 +82,13 @@ function getActionPolicy(action: string): WorkflowActionPolicy {
  */
 function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy {
   const details = doc ? doc.disciplineDetails : null;
+  const FfeCtor = (globalThis as any).FFESubmittalStrategy || (typeof FFESubmittalStrategy !== "undefined" ? FFESubmittalStrategy : null);
+  const ArchCtor = (globalThis as any).ArchitectureSubmittalStrategy || (typeof ArchitectureSubmittalStrategy !== "undefined" ? ArchitectureSubmittalStrategy : null);
+
   if (details && details.discipline === "FF&E") {
-    return new FFESubmittalStrategy();
+    return new FfeCtor();
   }
-  return new ArchitectureSubmittalStrategy();
+  return new ArchCtor();
 }
 
 /**

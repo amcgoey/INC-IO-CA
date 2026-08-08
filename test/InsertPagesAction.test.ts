@@ -3,7 +3,7 @@ import assert from "node:assert";
 
 const { InsertPagesAction, defaultInsertPagesAction } = require("../src/InsertPagesAction");
 const { FakePdfDocumentService } = require("./harness/index");
-const { createTestContext } = require("../src/WorkflowContextFactory");
+const { createTestContext } = require("../src/core/workflow/WorkflowContextFactory");
 
 test("InsertPagesAction fail-fast guard throws when blob is missing in context", async () => {
   const fakePdfService = new FakePdfDocumentService();

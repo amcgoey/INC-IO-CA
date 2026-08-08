@@ -1,82 +1,58 @@
-/// <reference path="./types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file IncomingWorkflow.ts
  * @description Incoming submittal dual-path workflow execution service ("Received" action).
- *
- * Implements the dual-path workflow using WorkflowRunner action primitives:
- * 1. Writes initial receiving log record via WriteLogAction to derive calculated file name.
- * 2. Saves pristine untouched OriginalDocument to Submittals\Closed\<Subfolder>\<Calculated File Name>.pdf via MoveDocumentAction.
- * 3. Duplicates OriginalDocument to create ReviewDocument via DuplicateDocumentAction.
- * 4. Prepends CoverPageDocument onto ReviewDocument via InsertPagesAction.
- * 5. Applies [Filename Prefix] (STAMPED_) and places ReviewDocument in Submittals\ root via MoveDocumentAction.
  */
 
 declare var require: any;
+declare var defaultDriveFilingRepository: DriveFilingRepository;
+declare var defaultLogRepository: LogRepository;
+declare var defaultPdfDocumentService: PdfDocumentService;
+declare var defaultDuplicateDocumentAction: DuplicateDocumentAction;
 
 if (typeof require !== "undefined") {
   try {
-    const _wla = eval('require("./WriteLogAction")');
-    if (_wla && _wla.WriteLogAction && typeof WriteLogAction === "undefined") {
+    const _wla = eval('require("../../WriteLogAction")');
+    if (_wla && _wla.WriteLogAction) {
       (globalThis as any).WriteLogAction = _wla.WriteLogAction;
     }
   } catch (e) {}
   try {
-    const _dda = eval('require("./core/workflow/DuplicateDocumentAction")');
-    if (_dda && _dda.DuplicateDocumentAction && typeof DuplicateDocumentAction === "undefined") {
+    const _dda = eval('require("./DuplicateDocumentAction")');
+    if (_dda && _dda.DuplicateDocumentAction) {
       (globalThis as any).DuplicateDocumentAction = _dda.DuplicateDocumentAction;
     }
   } catch (e) {}
   try {
-    const _ipa = eval('require("./InsertPagesAction")');
-    if (_ipa && _ipa.InsertPagesAction && typeof InsertPagesAction === "undefined") {
+    const _ipa = eval('require("../../InsertPagesAction")');
+    if (_ipa && _ipa.InsertPagesAction) {
       (globalThis as any).InsertPagesAction = _ipa.InsertPagesAction;
     }
   } catch (e) {}
   try {
     const _wfr = eval('require("./WorkflowRunner")');
     if (_wfr) {
-      if (_wfr.WorkflowRunner && typeof WorkflowRunner === "undefined") {
-        (globalThis as any).WorkflowRunner = _wfr.WorkflowRunner;
-      }
-      if (_wfr.MoveDocumentAction && typeof MoveDocumentAction === "undefined") {
-        (globalThis as any).MoveDocumentAction = _wfr.MoveDocumentAction;
-      }
-      if (_wfr.RenameDocumentAction && typeof RenameDocumentAction === "undefined") {
-        (globalThis as any).RenameDocumentAction = _wfr.RenameDocumentAction;
-      }
+      if (_wfr.WorkflowRunner) (globalThis as any).WorkflowRunner = _wfr.WorkflowRunner;
+      if (_wfr.MoveDocumentAction) (globalThis as any).MoveDocumentAction = _wfr.MoveDocumentAction;
+      if (_wfr.RenameDocumentAction) (globalThis as any).RenameDocumentAction = _wfr.RenameDocumentAction;
     }
   } catch (e) {}
   try {
-    const _dls = eval('require("./DocumentLogStrategy")');
+    const _dls = eval('require("../../DocumentLogStrategy")');
     if (_dls) {
-      if (_dls.ArchitectureSubmittalStrategy && typeof ArchitectureSubmittalStrategy === "undefined") {
-        (globalThis as any).ArchitectureSubmittalStrategy = _dls.ArchitectureSubmittalStrategy;
-      }
-      if (_dls.FFESubmittalStrategy && typeof FFESubmittalStrategy === "undefined") {
-        (globalThis as any).FFESubmittalStrategy = _dls.FFESubmittalStrategy;
-      }
+      if (_dls.ArchitectureSubmittalStrategy) (globalThis as any).ArchitectureSubmittalStrategy = _dls.ArchitectureSubmittalStrategy;
+      if (_dls.FFESubmittalStrategy) (globalThis as any).FFESubmittalStrategy = _dls.FFESubmittalStrategy;
     }
   } catch (e) {}
   try {
     const _dwm = eval('require("./DocumentWorkflowModule")');
     if (_dwm) {
-      if (_dwm.getActionPolicy && typeof getActionPolicy === "undefined") {
-        (globalThis as any).getActionPolicy = _dwm.getActionPolicy;
-      }
-      if (_dwm.getDocumentLogStrategy && typeof getDocumentLogStrategy === "undefined") {
-        (globalThis as any).getDocumentLogStrategy = _dwm.getDocumentLogStrategy;
-      }
-      if (_dwm.getDocumentTitle && typeof getDocumentTitle === "undefined") {
-        (globalThis as any).getDocumentTitle = _dwm.getDocumentTitle;
-      }
+      if (_dwm.getActionPolicy) (globalThis as any).getActionPolicy = _dwm.getActionPolicy;
+      if (_dwm.getDocumentLogStrategy) (globalThis as any).getDocumentLogStrategy = _dwm.getDocumentLogStrategy;
+      if (_dwm.getDocumentTitle) (globalThis as any).getDocumentTitle = _dwm.getDocumentTitle;
     }
   } catch (e) {}
 }
-
-declare var defaultDriveFilingRepository: DriveFilingRepository;
-declare var defaultLogRepository: LogRepository;
-declare var defaultPdfDocumentService: PdfDocumentService;
-declare var defaultDuplicateDocumentAction: DuplicateDocumentAction;
 
 class IncomingWorkflow {
   /**
@@ -138,27 +114,35 @@ class IncomingWorkflow {
    */
   static async execute(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult> {
     const action = input.validatedDoc.action || (input.selectedAction ? input.selectedAction.action : "");
-    const policy: WorkflowActionPolicy = (typeof getActionPolicy !== "undefined" ? getActionPolicy(action) : {
+    const policyFn = (globalThis as any).getActionPolicy || (typeof getActionPolicy !== "undefined" ? getActionPolicy : null);
+    const policy: WorkflowActionPolicy = policyFn ? policyFn(action) : {
       direction: "incoming",
       stampPdf: true,
       updatePreviousStatus: false
-    });
+    };
 
-    const strategy = input.strategy || (typeof getDocumentLogStrategy !== "undefined" ? getDocumentLogStrategy(input.validatedDoc) : new ArchitectureSubmittalStrategy());
-    const runner = typeof WorkflowRunner !== "undefined" ? WorkflowRunner : (globalThis as any).WorkflowRunner;
+    const stratFn = (globalThis as any).getDocumentLogStrategy || (typeof getDocumentLogStrategy !== "undefined" ? getDocumentLogStrategy : null);
+    const ArchCtor = (globalThis as any).ArchitectureSubmittalStrategy || (typeof ArchitectureSubmittalStrategy !== "undefined" ? ArchitectureSubmittalStrategy : null);
+    const strategy = input.strategy || (stratFn ? stratFn(input.validatedDoc) : (ArchCtor ? new ArchCtor() : null));
+
+    const runner = (globalThis as any).WorkflowRunner || (typeof WorkflowRunner !== "undefined" ? WorkflowRunner : null);
 
     const driveApp = input.driveApp || (typeof DriveApp !== "undefined" ? DriveApp : null);
     const spreadsheetApp = input.spreadsheetApp || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp : null);
     const driveFilingRepo = input.driveFilingRepository || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
     const logRepo = input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
-    const moveAction = input.moveDocumentAction || new (typeof MoveDocumentAction !== "undefined" ? MoveDocumentAction : (globalThis as any).MoveDocumentAction)();
+
+    const MoveCtor = (globalThis as any).MoveDocumentAction || (typeof MoveDocumentAction !== "undefined" ? MoveDocumentAction : null);
+    const moveAction = input.moveDocumentAction || (MoveCtor ? new MoveCtor() : null);
 
     // 1. Resolve source document blob and title
     const blob = this.resolveSourceBlob(input);
-    const itemTitle = typeof getDocumentTitle !== "undefined" ? getDocumentTitle(input.validatedDoc) : "";
+    const titleFn = (globalThis as any).getDocumentTitle || (typeof getDocumentTitle !== "undefined" ? getDocumentTitle : null);
+    const itemTitle = titleFn ? titleFn(input.validatedDoc) : "";
 
     // Step 1: Write initial receiving log entry via WriteLogAction to derive calculated file name
-    const writeLogAction = input.writeLogAction || new (typeof WriteLogAction !== "undefined" ? WriteLogAction : (globalThis as any).WriteLogAction)();
+    const WriteCtor = (globalThis as any).WriteLogAction || (typeof WriteLogAction !== "undefined" ? WriteLogAction : null);
+    const writeLogAction = input.writeLogAction || (WriteCtor ? new WriteCtor() : null);
     const initialLink = input.driveFileId ? ("https://drive.google.com/" + input.driveFileId) : "";
 
     const appendResult = await runner.runAction(writeLogAction, {
@@ -190,7 +174,8 @@ class IncomingWorkflow {
     });
 
     // Path 2: Duplicate OriginalDocument to create ReviewDocument via DuplicateDocumentAction
-    const dupAction = input.duplicateDocumentAction || new (typeof DuplicateDocumentAction !== "undefined" ? DuplicateDocumentAction : (globalThis as any).DuplicateDocumentAction)();
+    const DupCtor = (globalThis as any).DuplicateDocumentAction || (typeof DuplicateDocumentAction !== "undefined" ? DuplicateDocumentAction : null);
+    const dupAction = input.duplicateDocumentAction || (DupCtor ? new DupCtor() : null);
     const dupContext: DocumentActionContext = await runner.runAction(dupAction, {
       blob: blob || undefined,
       fileId: origContext.fileId,
@@ -209,7 +194,8 @@ class IncomingWorkflow {
         ? (typeof CONFIG !== "undefined" ? CONFIG.TRANSMITTAL_TEMPLATE_ID : "")
         : (typeof CONFIG !== "undefined" ? CONFIG.PDF_TEMPLATE_ID : "");
 
-      const insertAction = input.insertPagesAction || new (typeof InsertPagesAction !== "undefined" ? InsertPagesAction : (globalThis as any).InsertPagesAction)();
+      const InsertCtor = (globalThis as any).InsertPagesAction || (typeof InsertPagesAction !== "undefined" ? InsertPagesAction : null);
+      const insertAction = input.insertPagesAction || (InsertCtor ? new InsertCtor() : null);
 
       stampedBlob = await runner.runAction(insertAction, {
         sourceBlob: reviewBlob,

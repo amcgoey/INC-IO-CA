@@ -3,7 +3,7 @@ import assert from "node:assert";
 
 const { GasMockHarness, DocumentFactory, createTestContext } = require("./harness");
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
-const { getActionPolicy, getDocumentLogStrategy, getDocumentTitle, DocumentWorkflowModule } = require("../src/DocumentWorkflowModule");
+const { getActionPolicy, getDocumentLogStrategy, getDocumentTitle, DocumentWorkflowModule } = require("../src/core/workflow/DocumentWorkflowModule");
 
 beforeEach(() => {
   GasMockHarness.install({

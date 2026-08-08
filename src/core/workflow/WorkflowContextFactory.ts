@@ -1,27 +1,46 @@
-/// <reference path="./types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file WorkflowContextFactory.ts
  * @description Factory for creating DocumentActionContext instances with lazy adapter ES5 property getters.
  */
 
 declare var require: any;
+declare var defaultLogRepository: LogRepository;
+declare var defaultDriveFilingRepository: DriveFilingRepository;
+declare var defaultPdfDocumentService: PdfDocumentService;
+declare var defaultAiAnalysisService: AiAnalysisService;
+declare var defaultCacheAdapter: CacheAdapter;
+declare var defaultSpreadsheetLockAdapter: SpreadsheetLockAdapter;
+declare var defaultUserInterfacePresenter: UserInterfacePresenter;
 let FakeLogRepoClass: any;
 let FakeDriveFilingRepoClass: any;
 let FakePdfServiceClass: any;
 let FakeAiAdapterClass: any;
+let FakeCacheAdapterClass: any;
+let FakeSpreadsheetLockAdapterClass: any;
+let FakeUserInterfacePresenterClass: any;
 
 if (typeof require !== 'undefined') {
   try {
-    FakeLogRepoClass = require('../test/harness/fakes/FakeLogRepository').FakeLogRepository;
+    FakeLogRepoClass = require('../../adapters/fakes/FakeLogRepository').FakeLogRepository;
   } catch (e) {}
   try {
-    FakeDriveFilingRepoClass = require('./adapters/fakes/FakeDriveFilingRepository').FakeDriveFilingRepository;
+    FakeDriveFilingRepoClass = require('../../adapters/fakes/FakeDriveFilingRepository').FakeDriveFilingRepository;
   } catch (e) {}
   try {
-    FakePdfServiceClass = require('../test/harness/fakes/FakePdfDocumentService').FakePdfDocumentService;
+    FakePdfServiceClass = require('../../../test/harness/fakes/FakePdfDocumentService').FakePdfDocumentService;
   } catch (e) {}
   try {
-    FakeAiAdapterClass = require('../test/harness/fakes/FakeAiAnalysisAdapter').FakeAiAnalysisAdapter;
+    FakeAiAdapterClass = require('../../adapters/fakes/FakeAiAnalysisAdapter').FakeAiAnalysisAdapter;
+  } catch (e) {}
+  try {
+    FakeCacheAdapterClass = require('../../adapters/fakes/FakeCacheAdapter').FakeCacheAdapter;
+  } catch (e) {}
+  try {
+    FakeSpreadsheetLockAdapterClass = require('../../adapters/fakes/FakeSpreadsheetLockAdapter').FakeSpreadsheetLockAdapter;
+  } catch (e) {}
+  try {
+    FakeUserInterfacePresenterClass = require('../../adapters/fakes/FakeUserInterfacePresenter').FakeUserInterfacePresenter;
   } catch (e) {}
 }
 
@@ -117,7 +136,28 @@ class WorkflowContextFactory {
         if (g[adapterKey]) return new g[adapterKey]();
         return null;
       },
-      };
+      cacheAdapter: () => {
+        if (combinedOverrides.cacheAdapter !== undefined) return combinedOverrides.cacheAdapter;
+        if (typeof defaultCacheAdapter !== 'undefined') return defaultCacheAdapter;
+        const adapterKey = resolvedConfig?.cacheAdapterKey || 'CacheAdapter';
+        if (g[adapterKey]) return new g[adapterKey]();
+        return null;
+      },
+      spreadsheetLockAdapter: () => {
+        if (combinedOverrides.spreadsheetLockAdapter !== undefined) return combinedOverrides.spreadsheetLockAdapter;
+        if (typeof defaultSpreadsheetLockAdapter !== 'undefined') return defaultSpreadsheetLockAdapter;
+        const adapterKey = resolvedConfig?.lockAdapterKey || 'SpreadsheetLockAdapter';
+        if (g[adapterKey]) return new g[adapterKey]();
+        return null;
+      },
+      userInterfacePresenter: () => {
+        if (combinedOverrides.userInterfacePresenter !== undefined) return combinedOverrides.userInterfacePresenter;
+        if (typeof defaultUserInterfacePresenter !== 'undefined') return defaultUserInterfacePresenter;
+        const adapterKey = resolvedConfig?.presenterAdapterKey || 'UserInterfacePresenter';
+        if (g[adapterKey]) return new g[adapterKey]();
+        return null;
+      }
+    };
 
     context.adapters = this.setupLazyAdapters(context, resolvers);
     return context;
@@ -168,7 +208,25 @@ class WorkflowContextFactory {
         if (!Ctor) throw new Error('FakeAiAnalysisAdapter unavailable in current test environment');
         return new Ctor();
       },
-      };
+      cacheAdapter: () => {
+        if (combinedOverrides.cacheAdapter !== undefined) return combinedOverrides.cacheAdapter;
+        const Ctor = FakeCacheAdapterClass || g.FakeCacheAdapter;
+        if (!Ctor) throw new Error('FakeCacheAdapter unavailable in current test environment');
+        return new Ctor();
+      },
+      spreadsheetLockAdapter: () => {
+        if (combinedOverrides.spreadsheetLockAdapter !== undefined) return combinedOverrides.spreadsheetLockAdapter;
+        const Ctor = FakeSpreadsheetLockAdapterClass || g.FakeSpreadsheetLockAdapter;
+        if (!Ctor) throw new Error('FakeSpreadsheetLockAdapter unavailable in current test environment');
+        return new Ctor();
+      },
+      userInterfacePresenter: () => {
+        if (combinedOverrides.userInterfacePresenter !== undefined) return combinedOverrides.userInterfacePresenter;
+        const Ctor = FakeUserInterfacePresenterClass || g.FakeUserInterfacePresenter;
+        if (!Ctor) throw new Error('FakeUserInterfacePresenter unavailable in current test environment');
+        return new Ctor();
+      }
+    };
 
     context.adapters = this.setupLazyAdapters(context, resolvers);
     return context;

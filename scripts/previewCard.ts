@@ -14,8 +14,8 @@ GasMockHarness.install();
 
 require("../src/Config");
 require("../src/AIUtils");
-require("../src/UI");
-const { CardPresenter } = require("../src/CardPresenter");
+require("../src/adapters/gas/UI");
+const { CardPresenter } = require("../src/adapters/gas/CardPresenter");
 
 export function generateCardSnapshots() {
   const presenter = new CardPresenter();

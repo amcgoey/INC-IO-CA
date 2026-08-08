@@ -78,7 +78,7 @@ const mockFolder: any = {
   getFileById: () => mockFile
 };
 
-const { DocumentWorkflowModule, getActionPolicy } = require("../src/DocumentWorkflowModule");
+const { DocumentWorkflowModule, getActionPolicy } = require("../src/core/workflow/DocumentWorkflowModule");
 (globalThis as any).DocumentWorkflowModule = DocumentWorkflowModule;
 (globalThis as any).getActionPolicy = getActionPolicy;
 const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");

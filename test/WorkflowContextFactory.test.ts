@@ -1,6 +1,6 @@
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
-import { WorkflowContextFactory } from '../src/WorkflowContextFactory';
+import { WorkflowContextFactory } from '../src/core/workflow/WorkflowContextFactory';
 import { DocumentTypeConfigRegistry } from '../src/DocumentTypeConfigRegistry';
 import { FakeLogRepository } from './harness/fakes/FakeLogRepository';
 import { FakeDriveFilingRepository } from './harness/fakes/FakeDriveFilingRepository';

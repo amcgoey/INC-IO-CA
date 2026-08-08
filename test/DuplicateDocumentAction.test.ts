@@ -6,7 +6,7 @@
 const assert = require('assert');
 const test = require('node:test');
 const { DuplicateDocumentAction, defaultDuplicateDocumentAction } = require('../src/core/workflow/DuplicateDocumentAction');
-const { WorkflowRunner } = require('../src/WorkflowRunner');
+const { WorkflowRunner } = require('../src/core/workflow/WorkflowRunner');
 const { FakeDriveFilingRepository } = require('./harness/fakes/FakeDriveFilingRepository');
 
 test('DuplicateDocumentAction - duplicates Drive document via DriveFilingRepository resolving distinct fileId', async () => {

@@ -555,6 +555,9 @@ interface AnalyzeDocumentInput {
   emailText?: string;
   contextObj: DeepAnalysisContext;
   aiAnalysisService?: AiAnalysisService;
+  cacheAdapter?: CacheAdapter;
+  spreadsheetLockAdapter?: SpreadsheetLockAdapter;
+  userInterfacePresenter?: UserInterfacePresenter;
   extractPagesAction?: ExtractPagesAction;
 }
 
@@ -565,6 +568,9 @@ interface TriageDocumentInput {
   emailData: EmailData;
   messageId?: string;
   aiAnalysisService?: AiAnalysisService;
+  cacheAdapter?: CacheAdapter;
+  spreadsheetLockAdapter?: SpreadsheetLockAdapter;
+  userInterfacePresenter?: UserInterfacePresenter;
 }
 
 declare var defaultTriageDocumentAction: TriageDocumentAction;
@@ -652,6 +658,9 @@ interface ContextAdapters {
   driveFilingRepository?: DriveFilingRepository;
   pdfDocumentService?: PdfDocumentService;
   aiAnalysisService?: AiAnalysisService;
+  cacheAdapter?: CacheAdapter;
+  spreadsheetLockAdapter?: SpreadsheetLockAdapter;
+  userInterfacePresenter?: UserInterfacePresenter;
   [key: string]: any;
 }
 
@@ -671,6 +680,9 @@ interface DocumentActionContext<TDoc extends ValidatedDocument = ValidatedDocume
   folderId?: string;
   adapters?: ContextAdapters;
   aiAnalysisService?: AiAnalysisService;
+  cacheAdapter?: CacheAdapter;
+  spreadsheetLockAdapter?: SpreadsheetLockAdapter;
+  userInterfacePresenter?: UserInterfacePresenter;
   driveFilingRepository?: DriveFilingRepository;
   logRepository?: LogRepository;
   pdfDocumentService?: PdfDocumentService;
