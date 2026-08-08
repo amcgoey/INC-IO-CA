@@ -3,7 +3,7 @@
   "tabs": [
     {
       "name": "Submittal Arch",
-      "rowCount": 1000,
+      "rowCount": 8,
       "columnCount": 26,
       "isConfigTab": false,
       "isSharedTab": false,
@@ -39,16 +39,41 @@
         "",
         "",
         "=MAP(B6:B, C6:C, E6:E, D6:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), \"\", TEXT(sec, \"000000\") & \"-\" & TEXT(num, \"000\") & \"-\" & title & \"-\" & rev)))",
-        "=MAP(B6:B, C6:C, D6:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), \"\", TEXT(sec, \"000000\") & \"-\" & TEXT(num, \"000\") & \"-\" & rev)))",
-        "=MAP(B6:B, E6:E, LAMBDA(sec, title, IF(ISBLANK(sec), \"\", title)))",
+        "=MAP(B6:B, C6:C, D6:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), \"\", TEXT(sec, \"000000\") & \"-\" & TEXT(num, \"000\") & \"-\" & rev))))",
+        "=MAP(B6:B, E6:E, LAMBDA(sec, title, IF(ISBLANK((sec), \"\", title)))",
         "=MAP(B6:B, G6:G, LAMBDA(sec, contact, IF(ISBLANK(sec), \"\", contact)))",
         "=MAP(B6:B, C6:C, LAMBDA(sec, num, IF(ISBLANK(sec), \"\", TEXT(sec, \"000000\") & TEXT(num, \"0000\"))))"
       ],
-      "seedRows": []
+      "seedRows": [
+        [
+          "Open",
+          "033000",
+          1,
+          "0",
+          "Concrete Mix Design",
+          "2026-08-08",
+          "arch-reviewer@example.com",
+          "For Approval",
+          "Initial submittal for review",
+          ""
+        ],
+        [
+          "Approved as Noted",
+          "081100",
+          1,
+          "0",
+          "Metal Doors & Frames",
+          "2026-08-08",
+          "arch-lead@example.com",
+          "Approved as Noted",
+          "Approved with door schedule notes",
+          ""
+        ]
+      ]
     },
     {
       "name": "Submittal FFE",
-      "rowCount": 1000,
+      "rowCount": 8,
       "columnCount": 26,
       "isConfigTab": false,
       "isSharedTab": false,
@@ -85,17 +110,44 @@
         "",
         "",
         "",
-        "=MAP(B6:B, C6:C, D6:D, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), \"\", tag & IF(ISBLANK(rel), \"\", \"-\" & rel) & \"-\" & rev)))",
-        "=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"-\" & rev)))",
-        "=MAP(B6:B, E6:E, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), \"\", title), IFERROR(VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE), title))))",
-        "=MAP(H6:H, I6:I, LAMBDA(c, a, IF(ISBLANK(c), \"\", c & IF(ISBLANK(a), \"\", \" (\" & a & \")\"))))",
-        "=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"_\" & rev)))"
+        "=MAP(B6:B, C6:C, D6:C, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), \"\", tag & IF(ISBLANK((rel), \"\", \"-\" & rel) & \"-\" & rev))",
+        "=MAP�B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), \"\", tag & \"-\" & rev))",
+        "=MAP(B6:B, E6:E, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), \"\", title), IFRR (VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE), title)))",
+        "=MAP(H6:H, I6:I, LAMBDA(c, a, IF(ISBLANK(c), \"\", c & IF(ISBLANK(a), \"\", \" (\" & a & \")\")))",
+        "=MAP(B6:B, C6:C, LAMBDA(tag, rev_ IF(ISBLANK(tag), \"\", tag & \"_\" & rev))"
       ],
-      "seedRows": []
+      "seedRows": [
+        [
+          "Open",
+          "CH-01",
+          "",
+          "0",
+          "Dining Chair",
+          "ACME",
+          "2026-08-08",
+          "ffe-reviewer@example.com",
+          "For Approval",
+          "Finish sample submittal",
+          ""
+        ],
+        [
+          "Waiting",
+          "TBL-01",
+          "",
+          "0",
+          "Conference Table",
+          "GLOBAL",
+          "2026-08-08",
+          "ffe-lead@example.com",
+          "Revise and Resubmit",
+          "Veneer sample update required",
+          ""
+        ]
+      ]
     },
     {
       "name": "Submittal Arch Support",
-      "rowCount": 100,
+      "rowCount": 3,
       "columnCount": 10,
       "isConfigTab": false,
       "isSharedTab": false,
@@ -124,7 +176,7 @@
     },
     {
       "name": "Submittal FFE Support",
-      "rowCount": 100,
+      "rowCount": 3,
       "columnCount": 10,
       "isConfigTab": false,
       "isSharedTab": false,
@@ -161,7 +213,7 @@
     },
     {
       "name": "_Shared",
-      "rowCount": 100,
+      "rowCount": 6,
       "columnCount": 20,
       "isConfigTab": false,
       "isSharedTab": true,
@@ -237,7 +289,7 @@
     },
     {
       "name": "_Config",
-      "rowCount": 100,
+      "rowCount": 7,
       "columnCount": 20,
       "isConfigTab": true,
       "isSharedTab": false,
@@ -288,7 +340,7 @@
     },
     {
       "name": "_AuditLog",
-      "rowCount": 500,
+      "rowCount": 7,
       "columnCount": 10,
       "isConfigTab": false,
       "isSharedTab": false,
@@ -311,7 +363,16 @@
         "",
         ""
       ],
-      "seedRows": []
+      "seedRows": [
+        [
+          "2026-08-08T00:00:00.000Z",
+          "SYSTEM",
+          "SCHEMA_INIT",
+          "system",
+          "SUCCESS",
+          "Initial MVT Template Provisioning"
+        ]
+      ]
     }
   ],
   "namedRanges": [
@@ -360,7 +421,7 @@
     {
       "name": "AuditLog_Events",
       "tabName": "_AuditLog",
-      "rangeNotation": "A6:F500",
+      "rangeNotation": "A6:F7",
       "scope": "Workbook"
     },
     {
@@ -378,7 +439,7 @@
     {
       "name": "Data",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A6:O1000",
+      "rangeNotation": "A6:O8",
       "scope": "Sheet"
     },
     {
@@ -396,7 +457,7 @@
     {
       "name": "Submittal_Arch_Data",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A6:O1000",
+      "rangeNotation": "A6:O8",
       "scope": "Workbook"
     },
     {
@@ -414,7 +475,7 @@
     {
       "name": "Data",
       "tabName": "Submittal FFE",
-      "rangeNotation": "A6:P1000",
+      "rangeNotation": "A6:P8",
       "scope": "Sheet"
     },
     {
@@ -432,31 +493,31 @@
     {
       "name": "Submittal_FFE_Data",
       "tabName": "Submittal FFE",
-      "rangeNotation": "A6:P1000",
+      "rangeNotation": "A6:P8",
       "scope": "Workbook"
     },
     {
       "name": "Sections",
       "tabName": "Submittal Arch Support",
-      "rangeNotation": "A2:B20",
+      "rangeNotation": "A2:B3",
       "scope": "Sheet"
     },
     {
       "name": "Submittal_Arch_Support_Sections",
       "tabName": "Submittal Arch Support",
-      "rangeNotation": "A2:B20",
+      "rangeNotation": "A2:B3",
       "scope": "Workbook"
     },
     {
       "name": "Vendors",
       "tabName": "Submittal FFE Support",
-      "rangeNotation": "A2:B20",
+      "rangeNotation": "A2:B3",
       "scope": "Sheet"
     },
     {
       "name": "SpecTags",
       "tabName": "Submittal FFE Support",
-      "rangeNotation": "C2:D20",
+      "rangeNotation": "C2:D3",
       "scope": "Sheet"
     }
   ]

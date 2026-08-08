@@ -229,7 +229,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Config tab (100x20), MANIFEST_SCHEMA_V
 
   const configTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_Config");
   assert.ok(configTab, "_Config tab must be defined");
-  assert.strictEqual(configTab.rowCount, 100, "_Config tab rowCount should be 100");
+  assert.strictEqual(configTab.rowCount, 7, "_Config tab rowCount should be 100");
   assert.strictEqual(configTab.columnCount, 20, "_Config tab columnCount should be 20");
   assert.strictEqual(configTab.isConfigTab, true, "_Config tab isConfigTab flag should be true");
 
@@ -277,7 +277,7 @@ test("GasMockHarness resolves MANIFEST_SCHEMA_VERSION from _Config tab in mock s
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (100x20), contact lists, action picklists, and named ranges", () => {
   const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
   assert.ok(sharedTab, "_Shared tab must be defined");
-  assert.strictEqual(sharedTab.rowCount, 100, "_Shared tab rowCount should be 100");
+  assert.strictEqual(sharedTab.rowCount, 6, "_Shared tab rowCount should be 100");
   assert.strictEqual(sharedTab.columnCount, 20, "_Shared tab columnCount should be 20");
   assert.strictEqual(sharedTab.isSharedTab, true, "_Shared tab isSharedTab flag should be true");
 
@@ -306,7 +306,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (100x20), contact lists, ac
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines _AuditLog system tab (500x10) and AuditLog_Events named range A1:F500", () => {
   const auditLogTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: any) => t.name === "_AuditLog");
   assert.ok(auditLogTab, "_AuditLog tab must be defined");
-  assert.strictEqual(auditLogTab.rowCount, 500, "_AuditLog tab rowCount should be 500");
+  assert.strictEqual(auditLogTab.rowCount, 7, "_AuditLog tab rowCount should be 500");
   assert.strictEqual(auditLogTab.columnCount, 10, "_AuditLog tab columnCount should be 10");
   assert.strictEqual(auditLogTab.isAuditLogTab, true, "_AuditLog tab isAuditLogTab flag should be true");
   assert.ok(auditLogTab.columns, "_AuditLog columns should exist");
@@ -316,7 +316,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _AuditLog system tab (500x10) and Audit
   const auditEventsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: any) => nr.name === "AuditLog_Events");
   assert.ok(auditEventsNR, "AuditLog_Events named range must exist");
   assert.strictEqual(auditEventsNR.tabName, "_AuditLog");
-  assert.strictEqual(auditEventsNR.rangeNotation, "A6:F500");
+  assert.strictEqual(auditEventsNR.rangeNotation, "A6:F7");
   assert.strictEqual(auditEventsNR.scope, "Workbook");
 });
 

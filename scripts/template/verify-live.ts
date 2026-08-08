@@ -288,7 +288,7 @@ export async function runLiveVerification(
       const targetSheetId = submittalArchTab?.properties?.sheetId ?? 3;
 
       console.log(`[LIVE VERIFICATION] Appending mock test submittal row to live spreadsheet (Tab sheetId: ${targetSheetId})...`);
-      const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!A7:Z7:append?valueInputOption=USER_ENTERED`;
+      const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!A8:Z8:append?valueInputOption=USER_ENTERED`;
       const rowValues = [
         sampleRow.section,
         sampleRow.number,
@@ -308,7 +308,7 @@ export async function runLiveVerification(
       });
 
       console.log(`[LIVE VERIFICATION] Reading back evaluated calculated values via FORMATTED_VALUE...`);
-      const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!K7:O7?valueRenderOption=FORMATTED_VALUE`;
+      const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${opts.spreadsheetId}/values/'Submittal Arch'!K8:O8?valueRenderOption=FORMATTED_VALUE`;
       const readRes = (await executeWithRetry(async () => {
         const res = await fetcher(readUrl, {
           method: "GET",

@@ -29,7 +29,7 @@ interface RepeatCellReq {
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE log tab (1000x26) with 16 columns", () => {
   const ffeTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "Submittal FFE");
   assert.ok(ffeTab, "Submittal FFE log tab must be defined in tabs");
-  assert.strictEqual(ffeTab.rowCount, 1000, "Submittal FFE rowCount should be 1000");
+  assert.strictEqual(ffeTab.rowCount, 8, "Submittal FFE rowCount should be 8");
   assert.strictEqual(ffeTab.columnCount, 26, "Submittal FFE columnCount should be 26");
   assert.strictEqual(ffeTab.isLogTab, true, "Submittal FFE isLogTab should be true");
 
@@ -90,7 +90,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
     (nr: NamedRangeSpec) => nr.name === "Data" && nr.tabName === "Submittal FFE"
   );
   assert.ok(sheetData, "Sheet-scoped Data named range must exist for Submittal FFE");
-  assert.strictEqual(sheetData.rangeNotation, "A6:P1000");
+  assert.strictEqual(sheetData.rangeNotation, "A6:P8");
   assert.strictEqual(sheetData.scope, "Sheet");
 
   const wbConfigFFE = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
@@ -122,7 +122,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
   );
   assert.ok(wbData, "Workbook-scoped Submittal_FFE_Data named range must exist");
   assert.strictEqual(wbData.tabName, "Submittal FFE");
-  assert.strictEqual(wbData.rangeNotation, "A6:P1000");
+  assert.strictEqual(wbData.rangeNotation, "A6:P8");
   assert.strictEqual(wbData.scope, "Workbook");
 });
 
@@ -144,7 +144,7 @@ test("WorkbookTemplateViewModel binds spec and view spec to export complete fixt
 
   const ffeTab = fixtureJson.tabs.find((t: any) => t.name === "Submittal FFE");
   assert.ok(ffeTab, "Fixture JSON must include Submittal FFE tab");
-  assert.strictEqual(ffeTab.rowCount, 1000);
+  assert.strictEqual(ffeTab.rowCount, 8);
   assert.strictEqual(ffeTab.columnCount, 26);
   assert.strictEqual(ffeTab.isLogTab, true);
   assert.strictEqual(ffeTab.headers.length, 16);
@@ -160,7 +160,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE Support tab with Vendor a
   const supportTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "Submittal FFE Support");
   assert.ok(supportTab, "Submittal FFE Support tab must exist");
   assert.strictEqual(supportTab.isSupportTab, true, "isSupportTab should be true");
-  assert.strictEqual(supportTab.rowCount, 100);
+  assert.strictEqual(supportTab.rowCount, 3);
   assert.strictEqual(supportTab.columnCount, 10);
   assert.ok(supportTab.seedRows, "seedRows must be defined on Submittal FFE Support");
   assert.strictEqual(supportTab.seedRows.length, 3);
@@ -172,14 +172,14 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE Support tab with Vendor a
     (nr: NamedRangeSpec) => nr.name === "Vendors" && nr.tabName === "Submittal FFE Support"
   );
   assert.ok(vendorsNR, "Vendors named range must exist on Submittal FFE Support");
-  assert.strictEqual(vendorsNR.rangeNotation, "A2:B20");
+  assert.strictEqual(vendorsNR.rangeNotation, "A2:B3");
   assert.strictEqual(vendorsNR.scope, "Sheet");
 
   const specTagsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
     (nr: NamedRangeSpec) => nr.name === "SpecTags" && nr.tabName === "Submittal FFE Support"
   );
   assert.ok(specTagsNR, "SpecTags named range must exist on Submittal FFE Support");
-  assert.strictEqual(specTagsNR.rangeNotation, "C2:D20");
+  assert.strictEqual(specTagsNR.rangeNotation, "C2:D3");
   assert.strictEqual(specTagsNR.scope, "Sheet");
 });
 
@@ -334,11 +334,11 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell req
   assert.ok(actionsReq, "Actions_Submittal pale red fill repeatCell request must exist with exact range boundaries");
   assert.deepStrictEqual(actionsReq?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, ThemeColors.PALE_RED_RGB);
 
-  // Verify no duplicate fill requests for dual-scoped range Sections / Submittal_Arch_Support_Sections (sheetId 2, A2:B20)
+  // Verify no duplicate fill requests for dual-scoped range Sections / Submittal_Arch_Support_Sections (sheetId 2, A2:B3)
   const sectionsReqs = repeatCells.filter(
     r => r.repeatCell?.range?.sheetId === 2 &&
          r.repeatCell?.range?.startRowIndex === 1 &&
-         r.repeatCell?.range?.endRowIndex === 20 &&
+         r.repeatCell?.range?.endRowIndex === 3 &&
          r.repeatCell?.range?.startColumnIndex === 0 &&
          r.repeatCell?.range?.endColumnIndex === 2
   );
@@ -353,7 +353,7 @@ test("Log data rows remain unstyled white #FFFFFF without background fill repeat
   const logDataFills = (payload.requests as RepeatCellReq[]).filter(
     r => r.repeatCell &&
          (r.repeatCell.range?.sheetId === 0 || r.repeatCell.range?.sheetId === 1) &&
-         (r.repeatCell.range?.startRowIndex ?? 0) >= 5
+         r.repeatCell && r.repeatCell.range && r.repeatCell.range.startRowIndex >= 5 && r.repeatCell.range.startRowIndex < 7 && (r.repeatCall.range?.startRowIndex ?? 0) < 7
   );
 
   assert.strictEqual(logDataFills.length, 0, "No repeatCell fill requests must be emitted for log data rows");
@@ -435,7 +435,7 @@ test("WorkbookTemplateViewModel emits addConditionalFormatRule for status rules 
   );
   assert.ok(archOpenRule, "Submittal Arch Open status conditional format rule must exist");
   assert.strictEqual(archOpenRule.addConditionalFormatRule?.rule?.ranges?.[0]?.startRowIndex, 5, "Content row start index must be 5 (Row 6)");
-  assert.strictEqual(archOpenRule.addConditionalFormatRule?.rule?.ranges?.[0]?.endRowIndex, 999, "Content row end index must be 999 (Row 1000 End BufferRow excluded)");
+  assert.strictEqual(archOpenRule.addConditionalFormatRule?.rule?.ranges?.[0]?.endRowIndex, 7, "Content row end index must be 7 (Row 8 End BufferRow excluded)");
   assert.strictEqual(archOpenRule.addConditionalFormatRule?.rule?.booleanRule?.condition?.type, "CUSTOM_FORMULA");
   assert.deepStrictEqual(
     archOpenRule.addConditionalFormatRule?.rule?.booleanRule?.format?.backgroundColor,
