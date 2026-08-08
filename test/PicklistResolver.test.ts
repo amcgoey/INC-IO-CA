@@ -107,6 +107,17 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
   });
 
   describe("PicklistResolver.normalizePicklistValue", () => {
+    it("should handle hyphenated section numbers with descriptions under code rule", () => {
+      const specCode = {
+        key: "section",
+        label: "Section",
+        type: "string" as const,
+        keyNormalizationRule: "code" as const
+      };
+      const result = PicklistResolver.normalizePicklistValue("08-11-00 - Metal Doors", specCode);
+      assert.equal(result, "081100");
+    });
+
     const fieldSpec = {
       key: "vendor",
       label: "Vendor",

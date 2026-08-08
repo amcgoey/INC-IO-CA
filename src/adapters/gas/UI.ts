@@ -144,11 +144,11 @@ function renderDynamicFormFields(
       }
 
       if (hintText && dateWidget && typeof (dateWidget as any).setHint === "function") {
-        (dateWidget as any).setHint(hintText);
+        (dateWidget as GoogleAppsScript.Card_Service.TextInput).setHint(hintText);
       }
 
       if (onStateActionName && dateWidget && typeof (dateWidget as any).setOnChangeAction === "function") {
-        (dateWidget as any).setOnChangeAction(
+        (dateWidget as GoogleAppsScript.Card_Service.TextInput).setOnChangeAction(
           CardService.newAction()
             .setFunctionName(onStateActionName)
             .setParameters(actionParams)
