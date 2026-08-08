@@ -57,31 +57,31 @@ test('DocumentLogWorkbookSpec - defines Sheet-Scoped and Workbook-Scoped Dual-Ti
 
   const headersSheet = namedRanges.find(r => r.name === 'Headers' && r.tabName === 'Submittal Arch');
   assert.ok(headersSheet, 'Sheet-Scoped Headers range must exist');
-  assert.equal(headersSheet.rangeNotation, 'A1:O2', 'Sheet-Scoped Headers notation must be A1:O2');
+  assert.equal(headersSheet.rangeNotation, 'A3:O4', 'Sheet-Scoped Headers notation must be A3:O4');
   assert.equal(headersSheet.scope, 'Sheet', 'Headers scope must be Sheet');
 
   const formulaRowSheet = namedRanges.find(r => r.name === 'FormulaRow' && r.tabName === 'Submittal Arch');
   assert.ok(formulaRowSheet, 'Sheet-Scoped FormulaRow range must exist');
-  assert.equal(formulaRowSheet.rangeNotation, 'A2:O2', 'Sheet-Scoped FormulaRow notation must be A2:O2');
+  assert.equal(formulaRowSheet.rangeNotation, 'A4:O4', 'Sheet-Scoped FormulaRow notation must be A4:O4');
   assert.equal(formulaRowSheet.scope, 'Sheet', 'FormulaRow scope must be Sheet');
 
   const dataSheet = namedRanges.find(r => r.name === 'Data' && r.tabName === 'Submittal Arch');
   assert.ok(dataSheet, 'Sheet-Scoped Data range must exist');
-  assert.equal(dataSheet.rangeNotation, 'A4:O1000', 'Sheet-Scoped Data notation must be A4:O1000');
+  assert.equal(dataSheet.rangeNotation, 'A6:O1000', 'Sheet-Scoped Data notation must be A6:O1000');
   assert.equal(dataSheet.scope, 'Sheet', 'Data scope must be Sheet');
 
   const headersWb = namedRanges.find(r => r.name === 'Submittal_Arch_Headers');
   assert.ok(headersWb, 'Workbook-Scoped Submittal_Arch_Headers range must exist');
-  assert.equal(headersWb.rangeNotation, 'A1:O2', 'Submittal_Arch_Headers notation must be A1:O2');
+  assert.equal(headersWb.rangeNotation, 'A3:O4', 'Submittal_Arch_Headers notation must be A3:O4');
   assert.equal(headersWb.scope, 'Workbook', 'Submittal_Arch_Headers scope must be Workbook');
 
   const formulaRowWb = namedRanges.find(r => r.name === 'Submittal_Arch_FormulaRow');
   assert.ok(formulaRowWb, 'Workbook-Scoped Submittal_Arch_FormulaRow range must exist');
-  assert.equal(formulaRowWb.rangeNotation, 'A2:O2', 'Submittal_Arch_FormulaRow notation must be A2:O2');
+  assert.equal(formulaRowWb.rangeNotation, 'A4:O4', 'Submittal_Arch_FormulaRow notation must be A4:O4');
 
   const dataWb = namedRanges.find(r => r.name === 'Submittal_Arch_Data');
   assert.ok(dataWb, 'Workbook-Scoped Submittal_Arch_Data range must exist');
-  assert.equal(dataWb.rangeNotation, 'A4:O1000', 'Submittal_Arch_Data notation must be A4:O1000');
+  assert.equal(dataWb.rangeNotation, 'A6:O1000', 'Submittal_Arch_Data notation must be A6:O1000');
 });
 
 test('DocumentLogWorkbookViewSpec - tokenizes Dark Gray #666666 header fill and 3-row layout offset', () => {
@@ -89,11 +89,11 @@ test('DocumentLogWorkbookViewSpec - tokenizes Dark Gray #666666 header fill and 
   assert.deepEqual(ThemeColors.HEADER_FILL_RGB, { red: 0.4, green: 0.4, blue: 0.4 }, 'Header fill RGB must be 0.4');
   assert.equal(ThemeColors.HEADER_TEXT_HEX, '#FFFFFF', 'Header text font color must be #FFFFFF');
   
-  assert.equal(VisualStyleSpec.offsets.HEADER_ROW_INDEX, 1, 'Header row index must be 1');
-  assert.equal(VisualStyleSpec.offsets.FORMULA_ROW_INDEX, 2, 'Formula row index must be 2');
-  assert.equal(VisualStyleSpec.offsets.BUFFER_ROW_INDEX, 3, 'Buffer row index must be 3');
-  assert.equal(VisualStyleSpec.offsets.FIRST_DATA_ROW_INDEX, 4, 'First data row index must be 4');
-  assert.equal(VisualStyleSpec.offsets.FIRST_DATA_ROW_OFFSET, 3, 'First data row offset must be 3');
+  assert.equal(VisualStyleSpec.offsets.HEADER_ROW_INDEX, 3, 'Header row index must be 3');
+  assert.equal(VisualStyleSpec.offsets.FORMULA_ROW_INDEX, 4, 'Formula row index must be 4');
+  assert.equal(VisualStyleSpec.offsets.BUFFER_ROW_INDEX, 5, 'Buffer row index must be 5');
+  assert.equal(VisualStyleSpec.offsets.FIRST_DATA_ROW_INDEX, 6, 'First data row index must be 6');
+  assert.equal(VisualStyleSpec.offsets.FIRST_DATA_ROW_OFFSET, 5, 'First data row offset must be 5');
 });
 
 test('WorkbookTemplateViewModel - binds model and view spec into fixture JSON and batch update payload', () => {

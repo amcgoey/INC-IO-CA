@@ -40,6 +40,26 @@ export interface HeaderStyleSpec {
   fontFamily: string;
 }
 
+export interface TitleRowStyleSpec {
+  fillHex: string;
+  fillRgb: ColorRgb;
+  fontColorHex: string;
+  fontColorRgb: ColorRgb;
+  bold: boolean;
+  fontSize: number;
+  fontFamily: string;
+}
+
+export interface DateRowStyleSpec {
+  fillHex: string;
+  fillRgb: ColorRgb;
+  fontColorHex: string;
+  fontColorRgb: ColorRgb;
+  italic: boolean;
+  fontSize: number;
+  fontFamily: string;
+}
+
 export interface FormulaRowStyleSpec {
   fontColorHex: string;
   fontColorRgb: ColorRgb;
@@ -51,14 +71,19 @@ export interface FormulaRowStyleSpec {
 }
 
 export interface LayoutOffsetSpec {
+  TITLE_ROW_INDEX: number;
+  DATE_ROW_INDEX: number;
   HEADER_ROW_INDEX: number;
   FORMULA_ROW_INDEX: number;
+  TOP_BUFFER_ROW_INDEX: number;
   BUFFER_ROW_INDEX: number;
   FIRST_DATA_ROW_INDEX: number;
   FIRST_DATA_ROW_OFFSET: number;
 }
 
 export interface DocumentLogWorkbookViewSpec {
+  titleRowStyle: TitleRowStyleSpec;
+  dateRowStyle: DateRowStyleSpec;
   headerStyle: HeaderStyleSpec;
   formulaRowStyle: FormulaRowStyleSpec;
   offsets: LayoutOffsetSpec;
@@ -78,10 +103,11 @@ export const ThemeColors = {
   HEADER_FILL_RGB: { red: 0.4, green: 0.4, blue: 0.4 },
   HEADER_TEXT_HEX: '#FFFFFF',
   HEADER_TEXT_RGB: { red: 1.0, green: 1.0, blue: 1.0 },
-  FORMULA_ROW_FONT_HEX: '#666666',
-  FORMULA_ROW_FONT_RGB: { red: 0.4, green: 0.4, blue: 0.4 },
-  FORMULA_ROW_FILL_HEX: '#F3F3F3',
-  FORMULA_ROW_FILL_RGB: { red: 0.95, green: 0.95, blue: 0.95 },
+<<<<<<< HEAD
+  FORMULA_ROW_FONT_HEX: '#FFFFFF',
+  FORMULA_ROW_FONT_RGB: { red: 1.0, green: 1.0, blue: 1.0 },
+  FORMULA_ROW_FILL_HEX: '#666666',
+  FORMULA_ROW_FILL_RGB: { red: 0.4, green: 0.4, blue: 0.4 },
   PALE_GRAY_HEX,
   PALE_GRAY_RGB: hexToRgb(PALE_GRAY_HEX),
   PALE_BLUE_HEX,
@@ -93,13 +119,31 @@ export const ThemeColors = {
 };
 
 export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
+  titleRowStyle: {
+    fillHex: ThemeColors.HEADER_FILL_HEX,
+    fillRgb: ThemeColors.HEADER_FILL_RGB,
+    fontColorHex: ThemeColors.HEADER_TEXT_HEX,
+    fontColorRgb: ThemeColors.HEADER_TEXT_RGB,
+    bold: true,
+    fontSize: 16,
+    fontFamily: 'Roboto'
+  },
+  dateRowStyle: {
+    fillHex: ThemeColors.HEADER_FILL_HEX,
+    fillRgb: ThemeColors.HEADER_FILL_RGB,
+    fontColorHex: ThemeColors.HEADER_TEXT_HEX,
+    fontColorRgb: ThemeColors.HEADER_TEXT_RGB,
+    italic: true,
+    fontSize: 10,
+    fontFamily: 'Roboto'
+  },
   headerStyle: {
     fillHex: ThemeColors.HEADER_FILL_HEX,
     fillRgb: ThemeColors.HEADER_FILL_RGB,
     fontColorHex: ThemeColors.HEADER_TEXT_HEX,
     fontColorRgb: ThemeColors.HEADER_TEXT_RGB,
     bold: true,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'Roboto'
   },
   formulaRowStyle: {
@@ -112,11 +156,14 @@ export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
     fontFamily: 'Roboto'
   },
   offsets: {
-    HEADER_ROW_INDEX: 1,
-    FORMULA_ROW_INDEX: 2,
-    BUFFER_ROW_INDEX: 3,
-    FIRST_DATA_ROW_INDEX: 4,
-    FIRST_DATA_ROW_OFFSET: 3
+    TITLE_ROW_INDEX: 1,
+    DATE_ROW_INDEX: 2,
+    HEADER_ROW_INDEX: 3,
+    FORMULA_ROW_INDEX: 4,
+    TOP_BUFFER_ROW_INDEX: 5,
+    BUFFER_ROW_INDEX: 5,
+    FIRST_DATA_ROW_INDEX: 6,
+    FIRST_DATA_ROW_OFFSET: 5
   },
   columnWidths: {
     section: 100,

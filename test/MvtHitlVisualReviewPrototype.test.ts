@@ -136,7 +136,7 @@ test("Issue 192 - Single-Submittal Execution and PDF Hyperlink Opening Verificat
     const archSheet = ss.getSheetByName("Submittal Arch");
     assert.ok(archSheet);
     const grid = archSheet.getDataRange().getValues();
-    const headers = grid[0].map((h: unknown) => String(h || "").trim());
+    const headers = grid[2].map((h: unknown) => String(h || "").trim());
     const linkIdx = headers.indexOf("Link");
     assert.ok(linkIdx >= 0, "Link column must exist in log tab");
 

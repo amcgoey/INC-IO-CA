@@ -309,13 +309,14 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _AuditLog system tab (500x10) and Audit
   assert.strictEqual(auditLogTab.rowCount, 500, "_AuditLog tab rowCount should be 500");
   assert.strictEqual(auditLogTab.columnCount, 10, "_AuditLog tab columnCount should be 10");
   assert.strictEqual(auditLogTab.isAuditLogTab, true, "_AuditLog tab isAuditLogTab flag should be true");
-  assert.ok(auditLogTab.seedRows);
-  assert.deepStrictEqual(auditLogTab.seedRows[0], ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"]);
+  assert.ok(auditLogTab.columns, "_AuditLog columns should exist");
+  assert.strictEqual(auditLogTab.columns.length, 6);
+  assert.strictEqual(auditLogTab.columns[0].header, "Timestamp");
 
   const auditEventsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: any) => nr.name === "AuditLog_Events");
   assert.ok(auditEventsNR, "AuditLog_Events named range must exist");
   assert.strictEqual(auditEventsNR.tabName, "_AuditLog");
-  assert.strictEqual(auditEventsNR.rangeNotation, "A1:F500");
+  assert.strictEqual(auditEventsNR.rangeNotation, "A6:F500");
   assert.strictEqual(auditEventsNR.scope, "Workbook");
 });
 
@@ -326,11 +327,11 @@ test("GasMockHarness resolves AuditLog_Events named range from _AuditLog tab in 
 
   const range = ss.getRangeByName("AuditLog_Events");
   assert.ok(range, "getRangeByName('AuditLog_Events') should return MockRange");
-  assert.strictEqual(range.getValues()[0][0], "Timestamp");
+  assert.strictEqual(range.getValues()[0][0], "");
 
   const auditSheet = ss.getSheetByName("_AuditLog");
   assert.ok(auditSheet, "_AuditLog sheet should exist");
-  assert.strictEqual(auditSheet.getRange("A1").getValue(), "Timestamp");
+  assert.strictEqual(auditSheet.getRange("A3").getValue(), "Timestamp");
 });
 
 test("LogEngine executes audit event logging end-to-end with GasMockHarness GoogleSheetsStorageAdapter", () => {

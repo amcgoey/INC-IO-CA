@@ -1,4 +1,5 @@
 import { ColumnSpec, DocumentLogWorkbookSpec } from "../../src/core/config/DocumentLogWorkbookSpec";
+import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../src/core/config/DocumentLogWorkbookViewSpec";
 import { MockDriveState, MockDriveApp } from "./MockDrive";
 import { MockCardService } from "./CardServiceMocks";
 import { CardSerializer, ButtonJson } from "./CardSerializer";
@@ -440,14 +441,17 @@ export class MockSpreadsheet {
         if (!sheet) {
           sheet = this.insertSheet(tabDef.name);
         }
-        if (tabDef.seedRows && tabDef.seedRows.length > 0) {
+        if (tabDef.seedRows && tabDef.seedRows.length > 0 && (!tabDef.columns || tabDef.columns.length === 0)) {
           sheet.setGridSlice(1, 1, tabDef.seedRows);
         }
         if (tabDef.columns && tabDef.columns.length > 0) {
+          const offsets = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets;
+          sheet.setGridSlice(offsets.TITLE_ROW_INDEX, 1, [[tabDef.title || tabDef.name]]);
+          sheet.setGridSlice(offsets.DATE_ROW_INDEX, 1, [["=TODAY()"]]);
           const headers = tabDef.columns.map((c: ColumnSpec) => c.header);
-          sheet.setGridSlice(1, 1, [headers]);
+          sheet.setGridSlice(offsets.HEADER_ROW_INDEX, 1, [headers]);
           const formulas = tabDef.columns.map((c: ColumnSpec) => c.formula || "");
-          sheet.setGridSlice(2, 1, [formulas]);
+          sheet.setGridSlice(offsets.FORMULA_ROW_INDEX, 1, [formulas]);
         }
       }
     }

@@ -75,21 +75,21 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
     (nr: NamedRangeSpec) => nr.name === "Headers" && nr.tabName === "Submittal FFE"
   );
   assert.ok(sheetHeaders, "Sheet-scoped Headers named range must exist for Submittal FFE");
-  assert.strictEqual(sheetHeaders.rangeNotation, "A1:O2");
+  assert.strictEqual(sheetHeaders.rangeNotation, "A3:O4");
   assert.strictEqual(sheetHeaders.scope, "Sheet");
 
   const sheetFormula = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
     (nr: NamedRangeSpec) => nr.name === "FormulaRow" && nr.tabName === "Submittal FFE"
   );
   assert.ok(sheetFormula, "Sheet-scoped FormulaRow named range must exist for Submittal FFE");
-  assert.strictEqual(sheetFormula.rangeNotation, "A2:O2");
+  assert.strictEqual(sheetFormula.rangeNotation, "A4:O4");
   assert.strictEqual(sheetFormula.scope, "Sheet");
 
   const sheetData = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
     (nr: NamedRangeSpec) => nr.name === "Data" && nr.tabName === "Submittal FFE"
   );
   assert.ok(sheetData, "Sheet-scoped Data named range must exist for Submittal FFE");
-  assert.strictEqual(sheetData.rangeNotation, "A4:O1000");
+  assert.strictEqual(sheetData.rangeNotation, "A6:O1000");
   assert.strictEqual(sheetData.scope, "Sheet");
 
   const wbConfigFFE = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
@@ -105,7 +105,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
   );
   assert.ok(wbHeaders, "Workbook-scoped Submittal_FFE_Headers named range must exist");
   assert.strictEqual(wbHeaders.tabName, "Submittal FFE");
-  assert.strictEqual(wbHeaders.rangeNotation, "A1:O2");
+  assert.strictEqual(wbHeaders.rangeNotation, "A3:O4");
   assert.strictEqual(wbHeaders.scope, "Workbook");
 
   const wbFormula = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
@@ -113,7 +113,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
   );
   assert.ok(wbFormula, "Workbook-scoped Submittal_FFE_FormulaRow named range must exist");
   assert.strictEqual(wbFormula.tabName, "Submittal FFE");
-  assert.strictEqual(wbFormula.rangeNotation, "A2:O2");
+  assert.strictEqual(wbFormula.rangeNotation, "A4:O4");
   assert.strictEqual(wbFormula.scope, "Workbook");
 
   const wbData = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
@@ -121,7 +121,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
   );
   assert.ok(wbData, "Workbook-scoped Submittal_FFE_Data named range must exist");
   assert.strictEqual(wbData.tabName, "Submittal FFE");
-  assert.strictEqual(wbData.rangeNotation, "A4:O1000");
+  assert.strictEqual(wbData.rangeNotation, "A6:O1000");
   assert.strictEqual(wbData.scope, "Workbook");
 });
 
@@ -152,7 +152,7 @@ test("WorkbookTemplateViewModel binds spec and view spec to export complete fixt
 
   const headersNR = fixtureJson.namedRanges.find((nr: any) => nr.name === "Submittal_FFE_Headers");
   assert.ok(headersNR, "Fixture JSON must contain Submittal_FFE_Headers named range");
-  assert.strictEqual(headersNR.rangeNotation, "A1:O2");
+  assert.strictEqual(headersNR.rangeNotation, "A3:O4");
 });
 
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE Support tab with Vendor and SpecTag seed rows and sheet-scoped named ranges", () => {
@@ -190,7 +190,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines MAP/LAMBDA formulas in Submittal FFE in
   const calcTitleCol = ffeTab.columns.find((c) => c.id === "calcTitle");
   assert.ok(calcTitleCol, "calcTitle column must exist");
   assert.ok(calcTitleCol.formula, "calcTitle formula must be defined");
-  assert.ok(calcTitleCol.formula.includes("MAP(A4:A, D4:D, LAMBDA("), "calcTitle formula must be a MAP/LAMBDA expression");
+  assert.ok(calcTitleCol.formula.includes("MAP(A6:A, D6:D, LAMBDA("), "calcTitle formula must be a MAP/LAMBDA expression");
   assert.ok(calcTitleCol.formula.includes("VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE)"), "calcTitle formula must perform VLOOKUP against SpecTags");
 
   const calcFileNameCol = ffeTab.columns.find((c) => c.id === "calcFileName");
