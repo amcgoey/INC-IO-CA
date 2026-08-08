@@ -330,6 +330,7 @@ export async function deployLiveTemplate(
   if (existingNamedRangeDeletes.length > 0) {
     payload.requests.unshift(...existingNamedRangeDeletes);
   }
+  console.log(`[OK] Pre-pass data validation purge requests included for all ${DOCUMENT_LOG_WORKBOOK_SPEC.tabs.length} tab(s).`);
   const requestCount = payload.requests.length;
   console.log(`Single-Pass Batch Payload constructed with ${requestCount} batch update requests.`);
 

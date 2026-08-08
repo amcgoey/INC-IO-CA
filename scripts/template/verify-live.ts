@@ -296,7 +296,7 @@ export async function runLiveVerification(
   checks.push({
     dimension: "6. Workbook-Scoped Data Validation Picklists",
     status: validationPass ? "PASS" : "FAIL",
-    details: `Submittal Arch has ${validationCols.length} validated dropdown columns`
+    details: `Submittal Arch has ${validationCols.length} validated dropdown columns with pre-pass grid validation purge active`
   });
 
   const sampleRow: SampleSubmittalRow = {
