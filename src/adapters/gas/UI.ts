@@ -35,7 +35,7 @@ function renderDynamicFormFields(
 
   const { missingFields = [], fieldConfidence = {}, onStateActionName = "onStateChange", actionParams = {} } = validationContext;
 
-  const resolveValue = (globalThis as any).resolve5TierFieldValue || (typeof (globalThis as any).resolve5TierFieldValue !== "undefined" ? (globalThis as any).resolve5TierFieldValue : null);
+  const resolveValue = (globalThis as any).resolve5TierFieldValue;
 
   fields.forEach(field => {
     // Rule 1: Exclude calculated fields
@@ -64,7 +64,104 @@ function renderDynamicFormFields(
       hintText = `Low AI confidence (${pct}%) — please verify`;
     }
 
-    // Rule 3 & 4: Render TextInput or Multiline TextInput
+    // Widget Generation based on Field Type
+    if (field.type === 'list' || field.type === 'enum') {
+      const dropdownWidget = CardService.newSelectionInput()
+        .setType(CardService.SelectionInputType.DROPDOWN)
+        .setFieldName(field.key)
+        .setTitle(displayTitle);
+
+      let optionsList: PicklistOption[] = field.options || [];
+
+      if (field.optionsRange) {
+        const ss = hydrationContext.spreadsheet || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp.getActiveSpreadsheet() : null);
+        const docTypeKey = hydrationContext.docTypeKey || "Submittal_Arch";
+        const activeSheetName = hydrationContext.activeSheetName || "Submittal Arch";
+
+        const resolvedResult = PicklistResolver.resolvePicklistOptionsRange(field.optionsRange, ss, docTypeKey, activeSheetName, field);
+        optionsList = resolvedResult.options || optionsList;
+        if (resolvedResult.warningBanner) {
+          section.addWidget(
+            CardService.newTextParagraph().setText(resolvedResult.warningBanner)
+          );
+        }
+        if (resolvedResult.auditEvent && typeof Logger !== "undefined" && Logger.log) {
+          Logger.log(`[AuditLog] ${resolvedResult.auditEvent.eventType}: ${resolvedResult.auditEvent.details}`);
+        }
+      }
+
+      optionsList.forEach(opt => {
+        const isSelected = String(opt.value) === String(hydratedValue) || String(opt.label) === String(hydratedValue);
+        dropdownWidget.addItem(opt.label || opt.value, opt.value, isSelected);
+      });
+
+      if (onStateActionName) {
+        dropdownWidget.setOnChangeAction(
+          CardService.newAction()
+            .setFunctionName(onStateActionName)
+            .setParameters(actionParams)
+        );
+      }
+
+      section.addWidget(dropdownWidget);
+      return;
+    }
+
+    if (field.type === 'date') {
+      let dateWidget: GoogleAppsScript.Card_Service.Widget | null = null;
+      if (typeof CardService !== "undefined" && typeof CardService.newDatePicker === "function") {
+        const picker = CardService.newDatePicker()
+          .setFieldName(field.key)
+          .setTitle(displayTitle);
+
+        if (hydratedValue) {
+          let epochMs: number | null = null;
+          if (typeof hydratedValue === "number") {
+            epochMs = hydratedValue;
+          } else if (typeof hydratedValue === "string") {
+            if (/^\d{6}$/.test(hydratedValue)) {
+              const yy = parseInt(hydratedValue.slice(0, 2), 10);
+              const mm = parseInt(hydratedValue.slice(2, 4), 10) - 1;
+              const dd = parseInt(hydratedValue.slice(4, 6), 10);
+              const year = 2000 + yy;
+              epochMs = new Date(year, mm, dd).getTime();
+            } else if (!isNaN(Date.parse(hydratedValue))) {
+              epochMs = Date.parse(hydratedValue);
+            }
+          }
+          if (epochMs !== null && typeof picker.setValueInMsSinceEpoch === "function") {
+            picker.setValueInMsSinceEpoch(epochMs);
+          }
+        }
+        dateWidget = picker;
+      } else {
+        // Fallback to TextInput if DatePicker not available
+        dateWidget = CardService.newTextInput()
+          .setFieldName(field.key)
+          .setTitle(displayTitle)
+          .setValue(hydratedValue);
+        if (!hintText) hintText = "Date (YYMMDD)";
+      }
+
+      if (hintText && dateWidget && typeof dateWidget.setHint === "function") {
+        dateWidget.setHint(hintText);
+      }
+
+      if (onStateActionName && dateWidget && typeof dateWidget.setOnChangeAction === "function") {
+        dateWidget.setOnChangeAction(
+          CardService.newAction()
+            .setFunctionName(onStateActionName)
+            .setParameters(actionParams)
+        );
+      }
+
+      if (dateWidget) {
+        section.addWidget(dateWidget);
+      }
+      return;
+    }
+
+    // Default string / multiline TextInput
     const inputWidget = CardService.newTextInput()
       .setFieldName(field.key)
       .setTitle(displayTitle)

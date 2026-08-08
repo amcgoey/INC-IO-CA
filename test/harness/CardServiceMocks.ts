@@ -288,6 +288,40 @@ export class MockSelectionInput {
   }
 }
 
+
+export class MockDatePicker {
+  public fieldName?: string;
+  public title?: string;
+  public valueInMsSinceEpoch?: number;
+  public hint?: string;
+  public onChangeAction?: MockAction;
+
+  public setFieldName(fieldName: string): this {
+    this.fieldName = fieldName;
+    return this;
+  }
+
+  public setTitle(title: string): this {
+    this.title = title;
+    return this;
+  }
+
+  public setValueInMsSinceEpoch(valueInMsSinceEpoch: number): this {
+    this.valueInMsSinceEpoch = valueInMsSinceEpoch;
+    return this;
+  }
+
+  public setHint(hint: string): this {
+    this.hint = hint;
+    return this;
+  }
+
+  public setOnChangeAction(onChangeAction: MockAction): this {
+    this.onChangeAction = onChangeAction;
+    return this;
+  }
+}
+
 export class MockCardSection {
   public header?: string;
   public collapsible: boolean = false;
@@ -467,6 +501,10 @@ export class MockCardService {
 
   public newSelectionInput(): MockSelectionInput {
     return new MockSelectionInput();
+  }
+
+  public newDatePicker(): MockDatePicker {
+    return new MockDatePicker();
   }
 
   public newSuggestions(): MockSuggestions {
