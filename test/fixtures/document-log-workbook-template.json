@@ -9,7 +9,11 @@
       "isSharedTab": false,
       "isAuditLogTab": false,
       "isLogTab": false,
-      "headers": [],
+      "isSupportTab": false,
+      "headers": [
+        "Key",
+        "Value"
+      ],
       "formulaRow": [],
       "seedRows": [
         [
@@ -50,7 +54,12 @@
       "isSharedTab": true,
       "isAuditLogTab": false,
       "isLogTab": false,
-      "headers": [],
+      "isSupportTab": false,
+      "headers": [
+        "Contacts_Arch",
+        "Contacts_FFE",
+        "Actions_Submittal"
+      ],
       "formulaRow": [],
       "seedRows": [
         [
@@ -93,7 +102,15 @@
       "isSharedTab": false,
       "isAuditLogTab": true,
       "isLogTab": false,
-      "headers": [],
+      "isSupportTab": false,
+      "headers": [
+        "Timestamp",
+        "EventType",
+        "Category",
+        "Actor",
+        "Status",
+        "Details"
+      ],
       "formulaRow": [],
       "seedRows": [
         [
@@ -114,6 +131,7 @@
       "isSharedTab": false,
       "isAuditLogTab": false,
       "isLogTab": true,
+      "isSupportTab": false,
       "headers": [
         "Section",
         "Number",
@@ -125,7 +143,11 @@
         "Status",
         "Notes",
         "Link",
-        "Contact History"
+        "Calc File Name",
+        "Calc Number",
+        "Calc Title",
+        "Calc Contact Chain",
+        "Calc Sort"
       ],
       "formulaRow": [
         "",
@@ -138,7 +160,11 @@
         "",
         "",
         "",
-        ""
+        "=MAP(A4:A, B4:B, C4:C, D4:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), \"\", TEXT(sec, \"000000\") & \"-\" & TEXT(num, \"003\") & \"-\" & title & \"-\" & rev)))",
+        "=MAP(A4:A, B4:B, D4:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), \"\", TEXT(sec, \"000000\") & \"-\" & TEXT(num, \"003\") & \"-\" & rev)))",
+        "=MAP(A4:A, C4:C, LAMBDA(sec, title, IF(ISBLANK(sec), \"\", title)))",
+        "=MAP(F4:F, LAMBDA(c, IF(ISBLANK(c), \"\", c)))",
+        "=MAP(A4:A, B4:B, LAMBDA(sec, num, IF(ISBLANK(sec), \"\", TEXT(sec, \"000000\") & TEXT(num, \"0000\")))"
       ],
       "seedRows": []
     },
@@ -157,6 +183,10 @@
       ],
       "formulaRow": [],
       "seedRows": [
+        [
+          "Section Key",
+          "Section Label"
+        ],
         [
           "033000",
           "Cast-in-Place Concrete"
@@ -184,6 +214,12 @@
       ],
       "formulaRow": [],
       "seedRows": [
+        [
+          "Vendor Key",
+          "Vendor Label",
+          "SpecTag Key",
+          "SpecTag Label"
+        ],
         [
           "ACME",
           "Acme Supplies",
@@ -245,37 +281,37 @@
     {
       "name": "Headers",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A1:K2",
+      "rangeNotation": "A1:O2",
       "scope": "Sheet"
     },
     {
       "name": "FormulaRow",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A2:K2",
+      "rangeNotation": "A2:O2",
       "scope": "Sheet"
     },
     {
       "name": "Data",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A4:K1000",
+      "rangeNotation": "A4:O1000",
       "scope": "Sheet"
     },
     {
       "name": "Submittal_Arch_Headers",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A1:K2",
+      "rangeNotation": "A1:O2",
       "scope": "Workbook"
     },
     {
       "name": "Submittal_Arch_FormulaRow",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A2:K2",
+      "rangeNotation": "A2:O2",
       "scope": "Workbook"
     },
     {
       "name": "Submittal_Arch_Data",
       "tabName": "Submittal Arch",
-      "rangeNotation": "A4:K1000",
+      "rangeNotation": "A4:O1000",
       "scope": "Workbook"
     },
     {
