@@ -136,6 +136,7 @@ test("WorkbookTemplateViewModel binds spec and view spec to export complete fixt
   assert.ok(headersNR, "Fixture JSON must contain Submittal_FFE_Headers named range");
   assert.strictEqual(headersNR.rangeNotation, "A1:O2");
 });
+
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE Support tab with Vendor and SpecTag seed rows and sheet-scoped named ranges", () => {
   const supportTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "Submittal FFE Support");
   assert.ok(supportTab, "Submittal FFE Support tab must exist");
@@ -191,7 +192,7 @@ test("WorkbookTemplateViewModel toFixtureJson exports Submittal FFE formulaRow w
   const ffeTab = fixtureJson.tabs.find((t: any) => t.name === "Submittal FFE");
   assert.ok(ffeTab, "Submittal FFE tab must exist in fixture JSON");
   assert.strictEqual(ffeTab.formulaRow.length, 15);
-  
+
   const calcTitleIdx = ffeTab.headers.indexOf("Calc Title");
   assert.ok(calcTitleIdx >= 0, "Calc Title header must exist in fixture headers");
   const calcTitleFormula = ffeTab.formulaRow[calcTitleIdx];
@@ -199,7 +200,7 @@ test("WorkbookTemplateViewModel toFixtureJson exports Submittal FFE formulaRow w
   assert.ok(calcTitleFormula.includes("VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE)"));
 });
 
-test('WorkbookTemplateViewModel generates setDataValidation batch update request for Section column referencing =Sections', () => {
+test("WorkbookTemplateViewModel generates setDataValidation batch update request for Section column referencing =Sections", () => {
   const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
   const payload = viewModel.toBatchUpdateRequestPayload();
   interface DataValidationRequest {
@@ -213,4 +214,148 @@ test('WorkbookTemplateViewModel generates setDataValidation batch update request
   const sectionValidation = validationReqs.find(r => r.setDataValidation?.rule?.condition?.values?.[0]?.userEnteredValue === '=Sections');
   assert.ok(sectionValidation, 'Data validation rule for =Sections must be included in batch requests');
   assert.ok(typeof sectionValidation?.setDataValidation?.range?.sheetId === 'number', 'Sheet ID should be assigned for Submittal Arch tab');
+});
+
+test("ThemeColors defines pale desaturated tokens and hexToRgb converter works", () => {
+  assert.strictEqual(ThemeColors.PALE_GRAY_HEX, "#F1F3F4");
+  assert.strictEqual(ThemeColors.PALE_BLUE_HEX, "#E8F0FE");
+  assert.strictEqual(ThemeColors.PALE_GREEN_HEX, "#E6F4EA");
+  assert.strictEqual(ThemeColors.PALE_RED_HEX, "#FCE8E6");
+
+  assert.ok(ThemeColors.PALE_GRAY_RGB, "PALE_GRAY_RGB must be defined");
+  assert.ok(ThemeColors.PALE_BLUE_RGB, "PALE_BLUE_RGB must be defined");
+  assert.ok(ThemeColors.PALE_GREEN_RGB, "PALE_GREEN_RGB must be defined");
+  assert.ok(ThemeColors.PALE_RED_RGB, "PALE_RED_RGB must be defined");
+});
+
+test("DOCUMENT_LOG_WORKBOOK_VIEW_SPEC specifies namedRangeFills and settingHeaderRanges", () => {
+  assert.ok(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills, "namedRangeFills must be defined");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.MANIFEST_SCHEMA_VERSION, ThemeColors.PALE_GRAY_RGB);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Config_Manifest, ThemeColors.PALE_GRAY_RGB);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Sections, ThemeColors.PALE_GRAY_RGB);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Submittal_Arch_Support_Sections, ThemeColors.PALE_GRAY_RGB);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Config_Submittal_Arch, ThemeColors.PALE_BLUE_RGB);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Config_Submittal_FFE, ThemeColors.PALE_BLUE_RGB);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Vendors, ThemeColors.PALE_BLUE_RGB);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Shared_Contacts_Arch, ThemeColors.PALE_GREEN_RGB);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Shared_Contacts_FFE, ThemeColors.PALE_GREEN_RGB);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.SpecTags, ThemeColors.PALE_GREEN_RGB);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Actions_Submittal, ThemeColors.PALE_RED_RGB);
+
+  assert.ok(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges, "settingHeaderRanges must be defined");
+  assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges._Config, ["A1:B1", "A5:D5"]);
+  assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges._Shared, ["A1:C1", "E1:G1"]);
+  assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges["Submittal Arch Support"], ["A1:B1"]);
+  assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges["Submittal FFE Support"], ["A1:D1"]);
+});
+
+test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell requests for setting headers with #666666 fill & white text", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+
+  interface RepeatCellReq {
+    repeatCell?: {
+      range?: {
+        sheetId?: number;
+        startRowIndex?: number;
+        endRowIndex?: number;
+        startColumnIndex?: number;
+        endColumnIndex?: number;
+      };
+      cell?: {
+        userEnteredFormat?: {
+          backgroundColor?: { red: number; green: number; blue: number };
+          textFormat?: { foregroundColor?: { red: number; green: number; blue: number }; bold?: boolean };
+        };
+      };
+    };
+  }
+
+  const repeatCells = (payload.requests as RepeatCellReq[]).filter(r => r.repeatCell && r.repeatCell.cell?.userEnteredFormat?.textFormat?.bold);
+
+  // Verify headers on _Config (sheetId 5): A1:B1 (row 0, cols 0-2) and A5:D5 (row 4, cols 0-4)
+  const configHeader1 = repeatCells.find(r => r.repeatCell?.range?.sheetId === 5 && r.repeatCell?.range?.startRowIndex === 0 && r.repeatCell?.range?.endRowIndex === 1 && r.repeatCell?.range?.startColumnIndex === 0 && r.repeatCell?.range?.endColumnIndex === 2);
+  assert.ok(configHeader1, "_Config A1:B1 repeatCell header request must exist with exact range boundaries");
+  assert.deepStrictEqual(configHeader1?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.fillRgb);
+  assert.strictEqual(configHeader1?.repeatCell?.cell?.userEnteredFormat?.textFormat?.bold, true);
+
+  const configHeader2 = repeatCells.find(r => r.repeatCell?.range?.sheetId === 5 && r.repeatCell?.range?.startRowIndex === 4 && r.repeatCell?.range?.endRowIndex === 5 && r.repeatCell?.range?.startColumnIndex === 0 && r.repeatCell?.range?.endColumnIndex === 4);
+  assert.ok(configHeader2, "_Config A5:D5 repeatCell header request must exist with exact range boundaries");
+});
+
+test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell requests for settings named ranges with pale fills", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+
+  interface RepeatCellReq {
+    repeatCell?: {
+      range?: {
+        sheetId?: number;
+        startRowIndex?: number;
+        endRowIndex?: number;
+        startColumnIndex?: number;
+        endColumnIndex?: number;
+      };
+      cell?: {
+        userEnteredFormat?: {
+          backgroundColor?: { red: number; green: number; blue: number };
+        };
+      };
+    };
+  }
+
+  const repeatCells = (payload.requests as RepeatCellReq[]).filter(
+    r => r.repeatCell && r.repeatCell.cell?.userEnteredFormat?.backgroundColor && !r.repeatCell.cell?.userEnteredFormat?.textFormat
+  );
+
+  // MANIFEST_SCHEMA_VERSION: _Config (sheetId 5), B2 -> row 1 (indices 1..2), col 1 (indices 1..2), pale gray
+  const schemaVersionReq = repeatCells.find(
+    r => r.repeatCell?.range?.sheetId === 5 &&
+         r.repeatCell?.range?.startRowIndex === 1 &&
+         r.repeatCell?.range?.endRowIndex === 2 &&
+         r.repeatCell?.range?.startColumnIndex === 1 &&
+         r.repeatCell?.range?.endColumnIndex === 2
+  );
+  assert.ok(schemaVersionReq, "MANIFEST_SCHEMA_VERSION pale gray fill repeatCell request must exist with exact single-cell boundaries");
+  assert.deepStrictEqual(schemaVersionReq?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, ThemeColors.PALE_GRAY_RGB);
+
+  // Actions_Submittal: _Shared (sheetId 4), E2:G6 -> row 1..6, col 4..7, pale red
+  const actionsReq = repeatCells.find(
+    r => r.repeatCell?.range?.sheetId === 4 &&
+         r.repeatCell?.range?.startRowIndex === 1 &&
+         r.repeatCell?.range?.endRowIndex === 6 &&
+         r.repeatCell?.range?.startColumnIndex === 4 &&
+         r.repeatCell?.range?.endColumnIndex === 7
+  );
+  assert.ok(actionsReq, "Actions_Submittal pale red fill repeatCell request must exist with exact range boundaries");
+  assert.deepStrictEqual(actionsReq?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, ThemeColors.PALE_RED_RGB);
+});
+
+test("Log data rows remain unstyled white #FFFFFF without background fill repeatCell requests", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+
+  interface RepeatCellReq {
+    repeatCell?: {
+      range?: {
+        sheetId?: number;
+        startRowIndex?: number;
+        endRowIndex?: number;
+      };
+      cell?: {
+        userEnteredFormat?: {
+          backgroundColor?: { red: number; green: number; blue: number };
+        };
+      };
+    };
+  }
+
+  // Check Submittal Arch (sheetId 0) and Submittal FFE (sheetId 1) rows 3 to 999 (A4:O1000)
+  const logDataFills = (payload.requests as RepeatCellReq[]).filter(
+    r => r.repeatCell &&
+         (r.repeatCell.range?.sheetId === 0 || r.repeatCell.range?.sheetId === 1) &&
+         (r.repeatCell.range?.startRowIndex ?? 0) >= 3
+  );
+
+  assert.strictEqual(logDataFills.length, 0, "No repeatCell fill requests must be emitted for log data rows");
 });

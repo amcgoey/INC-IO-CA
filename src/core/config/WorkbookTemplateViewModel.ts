@@ -296,11 +296,61 @@ export class WorkbookTemplateViewModel {
       });
     });
 
+    if (this.viewSpec.settingHeaderRanges) {
+      Object.entries(this.viewSpec.settingHeaderRanges).forEach(([tabName, ranges]) => {
+        const sheetId = tabIndexMap.get(tabName);
+        if (sheetId === undefined) return;
+        ranges.forEach(rangeStr => {
+          const gridRange = parseA1ToGridRange(rangeStr, sheetId);
+          requests.push({
+            repeatCell: {
+              range: gridRange,
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: headerStyle.fillRgb,
+                  textFormat: {
+                    foregroundColor: headerStyle.fontColorRgb,
+                    bold: headerStyle.bold,
+                    fontSize: headerStyle.fontSize,
+                    fontFamily: headerStyle.fontFamily
+                  }
+                }
+              },
+              fields: "userEnteredFormat(backgroundColor,textFormat)"
+            }
+          });
+        });
+      });
+    }
+
+    if (this.viewSpec.namedRangeFills) {
+      this.model.namedRanges.forEach(nr => {
+        const fillRgb = this.viewSpec.namedRangeFills?.[nr.name];
+        if (fillRgb) {
+          const sheetId = tabIndexMap.get(nr.tabName);
+          if (sheetId !== undefined) {
+            const gridRange = parseA1ToGridRange(nr.rangeNotation, sheetId);
+            requests.push({
+              repeatCell: {
+                range: gridRange,
+                cell: {
+                  userEnteredFormat: {
+                    backgroundColor: fillRgb
+                  }
+                },
+                fields: "userEnteredFormat(backgroundColor)"
+              }
+            });
+          }
+        }
+      });
+    }
+
     return { requests };
   }
 }
 
-function colLetterToIndex(colStr: string): number {
+export function colLetterToIndex(colStr: string): number {
   let index = 0;
   for (let i = 0; i < colStr.length; i++) {
     index = index * 26 + (colStr.charCodeAt(i) - 64);
@@ -308,28 +358,44 @@ function colLetterToIndex(colStr: string): number {
   return index - 1;
 }
 
-function parseA1ToGridRange(rangeStr: string, sheetId: number) {
-  const match = rangeStr.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
-  if (!match) {
-    return { sheetId };
+export function parseA1ToGridRange(rangeStr: string, sheetId: number) {
+  const rangeMatch = rangeStr.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
+  if (rangeMatch) {
+    const startCol = colLetterToIndex(rangeMatch[1].toUpperCase());
+    const startRow = parseInt(rangeMatch[2], 10) - 1;
+    const endCol = colLetterToIndex(rangeMatch[3].toUpperCase()) + 1;
+    const endRow = parseInt(rangeMatch[4], 10);
+    return {
+      sheetId,
+      startRowIndex: startRow,
+      endRowIndex: endRow,
+      startColumnIndex: startCol,
+      endColumnIndex: endCol
+    };
   }
-  const startCol = colLetterToIndex(match[1].toUpperCase());
-  const startRow = parseInt(match[2], 10) - 1;
-  const endCol = colLetterToIndex(match[3].toUpperCase()) + 1;
-  const endRow = parseInt(match[4], 10);
-  return {
-    sheetId,
-    startRowIndex: startRow,
-    endRowIndex: endRow,
-    startColumnIndex: startCol,
-    endColumnIndex: endCol
-  };
+
+  const singleMatch = rangeStr.match(/^([A-Z]+)(\d+)$/i);
+  if (singleMatch) {
+    const col = colLetterToIndex(singleMatch[1].toUpperCase());
+    const row = parseInt(singleMatch[2], 10) - 1;
+    return {
+      sheetId,
+      startRowIndex: row,
+      endRowIndex: row + 1,
+      startColumnIndex: col,
+      endColumnIndex: col + 1
+    };
+  }
+
+  return { sheetId };
 }
 
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    WorkbookTemplateViewModel
+    WorkbookTemplateViewModel,
+    colLetterToIndex,
+    parseA1ToGridRange
   };
 }
