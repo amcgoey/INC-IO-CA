@@ -73,7 +73,9 @@ export class GoogleDriveNameProvider implements DriveNameProvider {
 }
 
 /** Global default instance seam for DriveNameProvider. */
-export var defaultDriveNameProvider: DriveNameProvider = new GoogleDriveNameProvider();
+var defaultDriveNameProvider: DriveNameProvider = new GoogleDriveNameProvider();
+
+export { defaultDriveNameProvider };
 
 declare var module: any;
 
@@ -83,3 +85,6 @@ if (typeof module !== "undefined" && module.exports) {
     defaultDriveNameProvider
   };
 }
+
+(globalThis as any).GoogleDriveNameProvider = GoogleDriveNameProvider;
+(globalThis as any).defaultDriveNameProvider = defaultDriveNameProvider;

@@ -146,7 +146,9 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
 }
 
 /** Global default repository instance for Google Drive filing operations. */
-export var defaultDriveFilingRepository: DriveFilingRepository = new GoogleDriveFilingRepository();
+var defaultDriveFilingRepository: DriveFilingRepository = new GoogleDriveFilingRepository();
+
+export { defaultDriveFilingRepository };
 
 declare var module: any;
 
@@ -156,3 +158,6 @@ if (typeof module !== "undefined" && module.exports) {
     defaultDriveFilingRepository
   };
 }
+
+(globalThis as any).GoogleDriveFilingRepository = GoogleDriveFilingRepository;
+(globalThis as any).defaultDriveFilingRepository = defaultDriveFilingRepository;

@@ -45,7 +45,7 @@ export interface SheetsContextEvent {
   parameters?: Record<string, string>;
 }
 
-export const MOCK_SPREADSHEETS: Record<string, { title: string; isLogWorkbook: boolean; schemaVersion: string; sheets: Record<string, { role: TabRole; docTypeKey: string; rowCount: number | string }> }> = {
+const MOCK_SPREADSHEETS: Record<string, { title: string; isLogWorkbook: boolean; schemaVersion: string; sheets: Record<string, { role: TabRole; docTypeKey: string; rowCount: number | string }> }> = {
   "log-wb-001": {
     title: "PROJ-2026 Architectural Submittals Log",
     isLogWorkbook: true,
@@ -362,3 +362,17 @@ export class SheetsCardPrototypeManager {
     };
   }
 }
+
+export { MOCK_SPREADSHEETS };
+
+declare var module: any;
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    MOCK_SPREADSHEETS,
+    SheetsCardPrototypeManager
+  };
+}
+
+(globalThis as any).MOCK_SPREADSHEETS = MOCK_SPREADSHEETS;
+(globalThis as any).SheetsCardPrototypeManager = SheetsCardPrototypeManager;
