@@ -151,7 +151,7 @@ class IncomingWorkflow {
     // 1. Resolve source document blob and title
     const blobs = this.resolveSourceBlobs(input);
     let blob: GoogleAppsScript.Base.Blob | null = blobs.length > 0 ? blobs[0] : null;
-    const pdfService = (input as any).adapters?.pdfDocumentService || input.pdfDocumentService || (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : null);
+    const pdfService = (input as any).adapters?.pdfDocumentService || input.pdfDocumentService || (globalThis as any).defaultPdfDocumentService || (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : null);
     let isCompositeMerged = false;
     if (blobs.length > 1 && pdfService) {
       isCompositeMerged = true;
