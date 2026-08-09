@@ -33,9 +33,9 @@ All code in this project must belong to one of three compatibility tiers (see [A
 ## 2. TypeScript & GAS Constraints
 
 1. **Strict Interface Seams**: Always depend on abstract interfaces (e.g. `LogRepository`), not concrete classes or global GAS singletons.
-2. **Clasp & Module Scope**:
-   - Files under `src/` compile via `clasp` into Apps Script. Avoid file-level side effects on module load.
-   - Do not rely on Node `require()` or dynamic `import()`.
+2. **Clasp & Dual-Environment Compatibility (GAS + Node)**:
+   - **Guard `require()` Calls**: Never call `require(...)` directly in `src/`. Always check `typeof require !== 'undefined'` first to avoid `ReferenceError: require is not defined` in Google Apps Script V8 runtime.
+   - **Local Declarations Before Exporting**: Do not use inline `export const FOO = ...` or `export var BAR = ...` when symbols are referenced within the file or bound to `globalThis`. CommonJS transpilation emits `exports.FOO = ...` without declaring a local `FOO` in scope. Declare symbols locally (`const FOO = ...`), export at the bottom (`export { FOO };`), and assign to `globalThis` (`(globalThis as any).FOO = FOO;`).
 3. **Type Safety**: Maintain strict TypeScript typing (`"strict": true`). Avoid `any` types; prefer discriminated unions and strongly-typed payload interfaces.
 4. **Pure Testing**: Write pure unit tests in `test/` for Tier 1 core logic using `Fake` in-memory repository adapters (e.g. `FakeDriveFilingRepository`) instead of mocking GAS globals.
 
