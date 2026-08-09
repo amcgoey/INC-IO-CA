@@ -52,14 +52,6 @@ export function runMigrateLogCli(argv: string[] = process.argv.slice(2), customS
   const lockAdapter = new FakeSpreadsheetLockAdapter();
   const engine = new LogMigrationEngine(storageAdapter, lockAdapter);
 
-  if (!customStorageAdapter && storageAdapter.getSheetValues(args.tabName).length === 0) {
-    storageAdapter.setSheetValues(args.tabName, [
-      ["Spec Section", "Title", "Days Open"],
-      ["", "", "=MAP(Data, LAMBDA(r, ...))"],
-      ["033000", "Concrete", "10"]
-    ]);
-  }
-
   const fieldSpecs = [
     { key: "specSection", header: "Spec Section", label: "Spec Section", type: "string" as const, isCalculated: false },
     { key: "title", header: "Title", label: "Title", type: "string" as const, isCalculated: false },
@@ -68,15 +60,9 @@ export function runMigrateLogCli(argv: string[] = process.argv.slice(2), customS
 
   const spreadsheetId = args.target || args.source || "test-spreadsheet-id";
 
-  if (args.dryRun) {
-    const report = engine.executeDryRun(spreadsheetId, args.tabName, fieldSpecs);
-    console.log("[DRY-RUN RESULT] canProceed: " + report.canProceed + ", sourceRows: " + report.sourceDataRowCount + ", discrepancies: " + report.legacyCalculatedFormulaDiscrepancies.length);
-    return report;
-  } else {
-    const report = engine.auditLogMigration(args.tabName, fieldSpecs);
-    console.log("[AUDIT RESULT] canProceed: " + report.canProceed);
-    return report;
-  }
+  const report = engine.executeAudit(spreadsheetId, args.tabName, fieldSpecs);
+  console.log("[MIGRATION AUDIT RESULT] canProceed: " + report.canProceed + ", sourceRows: " + report.sourceDataRowCount);
+  return report;
 }
 
 if (require.main === module) {

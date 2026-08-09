@@ -4,7 +4,7 @@
  *
  * Scopes transaction locks by Spreadsheet ID under `LOCK_MIGRATION_<SpreadsheetId>` inside `PropertiesService.getScriptProperties()`.
  * Uses short-lived native `LockService.getScriptLock().tryLock(10000)` to guard atomic check-and-set operations, releasing the script lock immediately after.
- * Supports 15-minute default TTL with automated stale lock recovery.
+ * Supports 15-minute default TTL with automated stale lock recovery and diagnostic telemetry logging.
  */
 
 /// <reference path="../../core/interfaces/SpreadsheetLockAdapter.ts" />
@@ -14,7 +14,25 @@ export class GasSpreadsheetLockAdapter implements SpreadsheetLockAdapter {
     return "LOCK_MIGRATION_" + spreadsheetId;
   }
 
-  private readLockRecord(props: any, key: string): LockRecord | null {
+  private logStaleLockRecovery(spreadsheetId: string, record: LockRecord): void {
+    try {
+      const sheetName = "_AuditLog";
+      const auditHeaders = ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"];
+      if (typeof PropertiesService !== "undefined") {
+        const props = PropertiesService.getScriptProperties();
+        const existingLog = props.getProperty("STALE_LOCK_WARNING_" + spreadsheetId);
+        props.setProperty("STALE_LOCK_WARNING_" + spreadsheetId, JSON.stringify({
+          spreadsheetId,
+          staleExecutionId: record.executionId,
+          recoveredAt: Date.now()
+        }));
+      }
+    } catch (_e) {
+      // Diagnostic telemetry fallback
+    }
+  }
+
+  private readLockRecord(props: any, key: string, spreadsheetId: string): LockRecord | null {
     const val = props.getProperty(key);
     if (!val) return null;
     try {
@@ -22,6 +40,7 @@ export class GasSpreadsheetLockAdapter implements SpreadsheetLockAdapter {
       if (record && typeof record.expiresAt === "number") {
         if (Date.now() >= record.expiresAt) {
           props.deleteProperty(key);
+          this.logStaleLockRecovery(spreadsheetId, record);
           return null;
         }
         return record;
@@ -42,7 +61,7 @@ export class GasSpreadsheetLockAdapter implements SpreadsheetLockAdapter {
     try {
       const props = PropertiesService.getScriptProperties();
       const key = this.getPropertyKey(spreadsheetId);
-      const activeRecord = this.readLockRecord(props, key);
+      const activeRecord = this.readLockRecord(props, key, spreadsheetId);
 
       if (activeRecord) {
         return null;
@@ -99,7 +118,7 @@ export class GasSpreadsheetLockAdapter implements SpreadsheetLockAdapter {
   public isLocked(spreadsheetId: string): boolean {
     const props = PropertiesService.getScriptProperties();
     const key = this.getPropertyKey(spreadsheetId);
-    const activeRecord = this.readLockRecord(props, key);
+    const activeRecord = this.readLockRecord(props, key, spreadsheetId);
     return activeRecord !== null;
   }
 }
