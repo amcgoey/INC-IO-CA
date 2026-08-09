@@ -131,11 +131,6 @@ class TemplateDriftInspector {
       }
     } else if (typeof input === "string") {
       this.spreadsheetId = input;
-      if ((globalThis as any).SpreadsheetApp && typeof (globalThis as any).SpreadsheetApp.openById === "function") {
-        try {
-          this.seam = (globalThis as any).SpreadsheetApp.openById(input);
-        } catch (e) {}
-      }
     }
   }
 
