@@ -437,13 +437,12 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
     (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : require("../../SheetStorageAdapter").GoogleSheetsStorageAdapter);
   const AuditorClass = (globalThis as any).TemplateDriftAuditor ||
     (typeof TemplateDriftAuditor !== "undefined" ? TemplateDriftAuditor : require("../../core/admin/TemplateDriftAuditor").TemplateDriftAuditor);
-  const LockAdapterClass = (globalThis as any).FakeSpreadsheetLockAdapter ||
-    (typeof FakeSpreadsheetLockAdapter !== "undefined" ? FakeSpreadsheetLockAdapter : null);
+
   const CacheAdapterClass = (globalThis as any).GoogleScriptCacheAdapter ||
     (typeof GoogleScriptCacheAdapter !== "undefined" ? GoogleScriptCacheAdapter : require("./GoogleScriptCacheAdapter").GoogleScriptCacheAdapter);
 
   const storageAdapter = new StorageAdapterClass(spreadsheetId);
-  const lockAdapter = (globalThis as any).defaultSpreadsheetLockAdapter || (LockAdapterClass ? new LockAdapterClass() : undefined);
+  const lockAdapter = (globalThis as any).defaultSpreadsheetLockAdapter;
   const cacheAdapter = (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
 
   let result: AutoPatchResult | null = null;
