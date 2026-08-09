@@ -1,5 +1,7 @@
-declare var GasSpreadsheetLockAdapter: any;
+﻿declare var GasSpreadsheetLockAdapter: any;
 declare var LogMigrationEngine: any;
+declare var BatchMigrationEngine: any;
+declare var GasTimeoutBudget: any;
 
 /**
  * @file Main.ts
@@ -180,14 +182,127 @@ function migrateLogSpreadsheet(
     sourceSpreadsheetId
   });
 }
+
+/**
+ * Admin entry point function for multi-workbook batch migration.
+ * Discovers target workbooks or receives a list of spreadsheet IDs, enforces 270s quota timekeeper,
+ * handles transactional rollback on mid-write timeout, and schedules continuation triggers.
+ */
+function migrateBatchLogSpreadsheets(
+  spreadsheetIds?: string[],
+  options?: {
+    batchId?: string;
+    dryRun?: boolean;
+    getStorageAdapter?: (id: string) => any;
+    lockAdapter?: any;
+    manifestRepo?: any;
+    timekeeper?: any;
+    triggerAdapter?: any;
+  }
+): any {
+  const batchId = options?.batchId || "batch_" + Date.now();
+  const lockAdapter = options?.lockAdapter || (
+    (typeof GasSpreadsheetLockAdapter !== "undefined")
+      ? new (GasSpreadsheetLockAdapter as any)()
+      : undefined
+  );
+
+  const getStorage = options?.getStorageAdapter || ((id: string) => {
+    if (typeof GoogleSheetsStorageAdapter !== "undefined") {
+      return new (GoogleSheetsStorageAdapter as any)(id);
+    }
+    throw new Error("StorageAdapterException: GoogleSheetsStorageAdapter unavailable.");
+  });
+
+  const manifestRepo = options?.manifestRepo || {
+    manifestData: null,
+    getManifest() { return this.manifestData; },
+    saveManifest(m: any) { this.manifestData = m; }
+  };
+
+  const timekeeper = options?.timekeeper || (
+    (typeof GasTimeoutBudget !== "undefined")
+      ? new (GasTimeoutBudget as any)(270000)
+      : undefined
+  );
+
+  const triggerAdapter = options?.triggerAdapter || {
+    scheduleContinuationTrigger(delaySec: number) {
+      if (typeof ScriptApp !== "undefined" && ScriptApp.newTrigger) {
+        const trigger = ScriptApp.newTrigger("onBatchMigrationContinuationTrigger")
+          .timeBased()
+          .after(delaySec * 1000)
+          .create();
+        return trigger.getUniqueId();
+      }
+      return null;
+    },
+    deleteContinuationTrigger(triggerId: string) {
+      if (typeof ScriptApp !== "undefined" && ScriptApp.getProjectTriggers) {
+        const triggers = ScriptApp.getProjectTriggers();
+        for (const t of triggers) {
+          if (t.getUniqueId() === triggerId) {
+            ScriptApp.deleteTrigger(t);
+          }
+        }
+      }
+    }
+  };
+
+  const BatchEngineClass = typeof BatchMigrationEngine !== "undefined" ? BatchMigrationEngine : require("./core/log/BatchMigrationEngine").BatchMigrationEngine;
+  const engine = new BatchEngineClass(
+    getStorage,
+    manifestRepo,
+    lockAdapter,
+    timekeeper,
+    triggerAdapter
+  );
+
+  const targets = (spreadsheetIds && spreadsheetIds.length > 0)
+    ? spreadsheetIds.map(id => ({ spreadsheetId: id, spreadsheetName: "Workbook " + id, targetTabName: "Submittal Arch Log" }))
+    : [
+        { spreadsheetId: "1WB_DISCOVERED_1", spreadsheetName: "Discovered Log 1", targetTabName: "Submittal Arch Log" }
+      ];
+
+  const manifest = engine.initializeBatch(batchId, targets);
+
+  const fieldSpecs: DocumentFieldSpec[] = [
+    { key: "specSection", header: "Spec Section", label: "Spec Section", type: "string" as const, isCalculated: false },
+    { key: "title", header: "Title", label: "Title", type: "string" as const, isCalculated: false },
+    { key: "daysOpen", header: "Days Open", label: "Days Open", type: "string" as const, isCalculated: true }
+  ];
+
+  return engine.runBatch(manifest, fieldSpecs);
+}
+
+/**
+ * Continuation trigger handler invoked automatically by ScriptApp when a batch migration is paused due to timeout.
+ */
+function onBatchMigrationContinuationTrigger(e: any): void {
+  const triggerId = e && e.triggerUid ? e.triggerUid : undefined;
+  if (triggerId && typeof ScriptApp !== "undefined" && ScriptApp.getProjectTriggers) {
+    const triggers = ScriptApp.getProjectTriggers();
+    for (const t of triggers) {
+      if (t.getUniqueId() === triggerId) {
+        ScriptApp.deleteTrigger(t);
+      }
+    }
+  }
+  migrateBatchLogSpreadsheets();
+}
+
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     onDriveItemsSelected,
     buildAddOn,
-    migrateLogSpreadsheet
+    migrateLogSpreadsheet,
+    migrateBatchLogSpreadsheets,
+    onBatchMigrationContinuationTrigger
   };
 }
 
 (globalThis as any).migrateLogSpreadsheet = migrateLogSpreadsheet;
+(globalThis as any).migrateBatchLogSpreadsheets = migrateBatchLogSpreadsheets;
+(globalThis as any).onBatchMigrationContinuationTrigger = onBatchMigrationContinuationTrigger;
