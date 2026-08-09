@@ -8,18 +8,8 @@
 
 import { GasTimeoutBudget } from "./GasTimeoutBudget";
 import { LogMigrationEngine } from "./LogMigrationEngine";
-import {
-  BatchWorkbookEntry,
-  MigrationBatchManifestData,
-  createDefaultManifest,
-  isPhase1Complete,
-  isBatchFinished
-} from "./MigrationBatchManifest";
-import {
-  buildTargetLogManifestFromBatch,
-  detectCrossLogReferences,
-  SourceCellData
-} from "./CrossLogReferenceScanner";
+import { BatchWorkbookEntry, MigrationBatchManifestData, createDefaultManifest, isPhase1Complete, isBatchFinished } from "./MigrationBatchManifest";
+import { buildTargetLogManifestFromBatch, detectCrossLogReferences, SourceCellData } from "./CrossLogReferenceScanner";
 
 export interface BatchManifestRepository {
   getManifest(): MigrationBatchManifestData | null;

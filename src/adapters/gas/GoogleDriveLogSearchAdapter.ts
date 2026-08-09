@@ -5,13 +5,13 @@
  * and ADR 0044 (Dedicated Adapter Namespace & Directory Architecture).
  */
 
-import {
-  LogDisambiguationScorer,
-  LogCandidateMetadata,
-  ScoredLogCandidate
-} from '../../core/log/LogDisambiguationScorer';
+import type { LogCandidateMetadata, ScoredLogCandidate } from '../../core/log/LogDisambiguationScorer';
 
 // CommonJS require shim for PrefixCacheManager ambient class resolution in Node environment
+const LogDisambiguationScorerClass = typeof LogDisambiguationScorer !== 'undefined'
+  ? LogDisambiguationScorer
+  : require('../../core/log/LogDisambiguationScorer').LogDisambiguationScorer;
+
 const PrefixCacheManagerClass = typeof PrefixCacheManager !== 'undefined'
   ? PrefixCacheManager
   : require('../../core/admin/PrefixCacheManager').PrefixCacheManager;
@@ -40,7 +40,7 @@ export function formatDisjunctiveLogSearchQuery(logSearchTerms: string[]): strin
 }
 
 /**
- * Formats the DocumentType-Scoped Cache Key per ADR 0030 §2.
+ * Formats the DocumentType-Scoped Cache Key per ADR 0030 ï¿½2.
  * Key pattern: log_search_<DriveId>_<DocTypeKey> or log_search_<DocTypeKey>
  */
 export function getDocumentTypeSearchCacheKey(driveId: string | undefined, docTypeKey: string): string {
@@ -51,7 +51,7 @@ export function getDocumentTypeSearchCacheKey(driveId: string | undefined, docTy
 }
 
 /**
- * Invalidates DocumentType search cache entries per ADR 0030 §2 using PrefixCacheManager.
+ * Invalidates DocumentType search cache entries per ADR 0030 ï¿½2 using PrefixCacheManager.
  */
 export function invalidateLogSearchCache(
   cacheAdapter: CacheAdapter,
@@ -127,7 +127,7 @@ export class GoogleDriveLogSearchAdapter {
 
   /**
    * Searches Drive for candidate log spreadsheets matching config.logSearchTerms,
-   * caching results per Shared Drive & DocumentType (ADR 0030 §2),
+   * caching results per Shared Drive & DocumentType (ADR 0030 ï¿½2),
    * scoring all discovered candidates, and returning top 10 ranked candidates.
    */
   public searchAndScoreCandidates(
@@ -181,10 +181,10 @@ export class GoogleDriveLogSearchAdapter {
     }
 
     // 2. Score candidates and rank
-    const rankedCandidates = LogDisambiguationScorer.rankCandidates(candidates, config);
+    const rankedCandidates = LogDisambiguationScorerClass.rankCandidates(candidates, config);
     const topRanked = rankedCandidates.slice(0, cappedLimit);
 
-    // 3. Cache top ranked results with 3600s TTL and PrefixCacheManager tracking (ADR 0030 §2)
+    // 3. Cache top ranked results with 3600s TTL and PrefixCacheManager tracking (ADR 0030 ï¿½2)
     if (this.cacheAdapter) {
       try {
         const prefixManager = new PrefixCacheManagerClass(this.cacheAdapter);
