@@ -159,14 +159,14 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       columnCount: 20,
       isSharedTab: true,
       seedRows: [
-        ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Actions Key", "Actions Label", "Statuses Key", "Statuses Label"],
-        ["INC", "INC Architecture and Design", "INC", "INC Architecture & Design", "Received", "Received", "Open", "Open"],
-        ["PMG", "Pavarini McGovern", "BW", "Benjamin West", "Referred", "Referred", "Closed", "Closed"],
-        ["FXC", "FX Collaborative", "Lighting", "Lighting", "Not Reviewed", "Not Reviewed", "Waiting", "Waiting"],
-        ["IE", "Interface Engineering", "Brand", "Brand", "Rejected", "Rejected", "Manager", "Manager"],
-        ["VLD", "Ventresca Lighting Design", "", "", "Revise & Resubmit", "Revise & Resubmit", "Billed", "Billed"],
-        ["", "", "", "", "No Objection as Corrected", "No Objection as Corrected", "", ""],
-        ["", "", "", "", "No Exceptions Taken", "No Exceptions Taken", "", ""]
+        ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Action Order", "Actions", "Action Abbr.", "Statuses Key", "Statuses Label"],
+        ["INC", "INC Architecture and Design", "INC", "INC Architecture & Design", 1, "Received", "", "Open", "Open"],
+        ["PMG", "Pavarini McGovern", "BW", "Benjamin West", 2, "Referred", "_REF", "Closed", "Closed"],
+        ["FXC", "FX Collaborative", "Lighting", "Lighting", 3, "Not Reviewed", "_NR", "Waiting", "Waiting"],
+        ["IE", "Interface Engineering", "Brand", "Brand", 4, "Rejected", "_REJ", "Manager", "Manager"],
+        ["VLD", "Ventresca Lighting Design", "", "", 5, "Revise & Resubmit", "_RR", "Billed", "Billed"],
+        ["", "", "", "", 6, "No Objection as Corrected", "_NOC", "", ""],
+        ["", "", "", "", 7, "No Exceptions Taken", "_NET", "", ""]
       ]
     },
     {
@@ -212,8 +212,8 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Config_Submittal_FFE", tabName: "_Config", rangeNotation: "A7:D9", scope: "Workbook" },
     { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:B20", scope: "Workbook" },
     { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "C2:D20", scope: "Workbook" },
-    { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "E2:F20", scope: "Workbook" },
-    { name: "Statuses_Submittal", tabName: "_Shared", rangeNotation: "G2:H20", scope: "Workbook" },
+    { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "E2:G20", scope: "Workbook" },
+    { name: "Statuses_Submittal", tabName: "_Shared", rangeNotation: "H2:I20", scope: "Workbook" },
     { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A6:F7", scope: "Workbook" },
     { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A3:O4", scope: "Sheet" },
     { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A4:O4", scope: "Sheet" },

@@ -54,19 +54,19 @@ describe("Canonical Reference Seed Data for Contacts, Actions & Project Settings
       const actionsRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "Actions_Submittal");
       assert.ok(actionsRange, "Actions_Submittal named range must exist");
       assert.equal(actionsRange.tabName, "_Shared");
-      assert.equal(actionsRange.rangeNotation, "E2:F20");
+      assert.equal(actionsRange.rangeNotation, "E2:G20");
 
       const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
       const seedRows = sharedTab?.seedRows || [];
-      const actions = seedRows.slice(1, 8).map((r: (string | number | boolean)[]) => [r[4], r[5]]);
+      const actions = seedRows.slice(1, 8).map((r: (string | number | boolean)[]) => [r[4], r[5], r[6]]);
       assert.deepEqual(actions, [
-        ["Received", "Received"],
-        ["Referred", "Referred"],
-        ["Not Reviewed", "Not Reviewed"],
-        ["Rejected", "Rejected"],
-        ["Revise & Resubmit", "Revise & Resubmit"],
-        ["No Objection as Corrected", "No Objection as Corrected"],
-        ["No Exceptions Taken", "No Exceptions Taken"]
+        [1, "Received", ""],
+        [2, "Referred", "_REF"],
+        [3, "Not Reviewed", "_NR"],
+        [4, "Rejected", "_REJ"],
+        [5, "Revise & Resubmit", "_RR"],
+        [6, "No Objection as Corrected", "_NOC"],
+        [7, "No Exceptions Taken", "_NET"]
       ]);
     });
 
@@ -74,11 +74,11 @@ describe("Canonical Reference Seed Data for Contacts, Actions & Project Settings
       const statusesRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "Statuses_Submittal");
       assert.ok(statusesRange, "Statuses_Submittal named range must exist");
       assert.equal(statusesRange.tabName, "_Shared");
-      assert.equal(statusesRange.rangeNotation, "G2:H20");
+      assert.equal(statusesRange.rangeNotation, "H2:I20");
 
       const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
       const seedRows = sharedTab?.seedRows || [];
-      const statuses = seedRows.slice(1, 6).map((r: (string | number | boolean)[]) => [r[6], r[7]]);
+      const statuses = seedRows.slice(1, 6).map((r: (string | number | boolean)[]) => [r[7], r[8]]);
       assert.deepEqual(statuses, [
         ["Open", "Open"],
         ["Closed", "Closed"],
@@ -144,7 +144,7 @@ describe("Canonical Reference Seed Data for Contacts, Actions & Project Settings
 
       const actionsNr = templateJson.namedRanges.find((r: { name: string }) => r.name === "Actions_Submittal");
       assert.ok(actionsNr);
-      assert.equal(actionsNr.rangeNotation, "E2:F20");
+      assert.equal(actionsNr.rangeNotation, "E2:G20");
     });
   });
 

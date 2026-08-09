@@ -146,11 +146,10 @@ test('DocumentLogWorkbookSpec - places _Shared, _Config, _AuditLog system tabs a
 test('DocumentLogWorkbookSpec - defines Actions picklist schema in _Shared tab', () => {
   const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === '_Shared');
   assert.ok(sharedTab, '_Shared tab must exist');
-  assert.ok(sharedTab.seedRows, 'seedRows must be defined on _Shared tab');
-
   const headers = sharedTab.seedRows[0];
-  assert.ok(headers.includes('Actions Key'), 'Header must contain Actions Key');
-  assert.ok(headers.includes('Actions Label'), 'Header must contain Actions Label');
+  assert.ok(headers.includes('Action Order'), 'Header must contain Action Order');
+  assert.ok(headers.includes('Actions'), 'Header must contain Actions');
+  assert.ok(headers.includes('Action Abbr.'), 'Header must contain Action Abbr.');
 });
 
 test('DocumentLogWorkbookSpec - defines Contacts picklist schema in _Shared tab', () => {

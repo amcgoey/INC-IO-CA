@@ -324,13 +324,13 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell req
   assert.ok(schemaVersionReq, "MANIFEST_SCHEMA_VERSION pale gray fill repeatCell request must exist with exact single-cell boundaries");
   assert.deepStrictEqual(schemaVersionReq?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, ThemeColors.PALE_GRAY_RGB);
 
-  // Actions_Submittal: _Shared (sheetId 4), E2:F20 -> row 1..20, col 4..6, pale red
+  // Actions_Submittal: _Shared (sheetId 4), E2:G20 -> row 1..20, col 4..7, pale red
   const actionsReq = repeatCells.find(
     r => r.repeatCell?.range?.sheetId === 4 &&
          r.repeatCell?.range?.startRowIndex === 1 &&
          r.repeatCell?.range?.endRowIndex === 20 &&
          r.repeatCell?.range?.startColumnIndex === 4 &&
-         r.repeatCell?.range?.endColumnIndex === 6
+         r.repeatCell?.range?.endColumnIndex === 7
   );
   assert.ok(actionsReq, "Actions_Submittal pale red fill repeatCell request must exist with exact range boundaries");
   assert.deepStrictEqual(actionsReq?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, ThemeColors.PALE_RED_RGB);

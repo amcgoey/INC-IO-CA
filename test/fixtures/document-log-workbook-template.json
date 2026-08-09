@@ -535,8 +535,9 @@
         "Contacts_Arch Label",
         "Contacts_FFE Key",
         "Contacts_FFE Label",
-        "Actions Key",
-        "Actions Label",
+        "Action Order",
+        "Actions",
+        "Action Abbr.",
         "Statuses Key",
         "Statuses Label"
       ],
@@ -547,8 +548,9 @@
           "Contacts_Arch Label",
           "Contacts_FFE Key",
           "Contacts_FFE Label",
-          "Actions Key",
-          "Actions Label",
+          "Action Order",
+          "Actions",
+          "Action Abbr.",
           "Statuses Key",
           "Statuses Label"
         ],
@@ -557,8 +559,9 @@
           "INC Architecture and Design",
           "INC",
           "INC Architecture & Design",
+          1,
           "Received",
-          "Received",
+          "",
           "Open",
           "Open"
         ],
@@ -567,8 +570,9 @@
           "Pavarini McGovern",
           "BW",
           "Benjamin West",
+          2,
           "Referred",
-          "Referred",
+          "_REF",
           "Closed",
           "Closed"
         ],
@@ -577,8 +581,9 @@
           "FX Collaborative",
           "Lighting",
           "Lighting",
+          3,
           "Not Reviewed",
-          "Not Reviewed",
+          "_NR",
           "Waiting",
           "Waiting"
         ],
@@ -587,8 +592,9 @@
           "Interface Engineering",
           "Brand",
           "Brand",
+          4,
           "Rejected",
-          "Rejected",
+          "_REJ",
           "Manager",
           "Manager"
         ],
@@ -597,8 +603,9 @@
           "Ventresca Lighting Design",
           "",
           "",
+          5,
           "Revise & Resubmit",
-          "Revise & Resubmit",
+          "_RR",
           "Billed",
           "Billed"
         ],
@@ -607,8 +614,9 @@
           "",
           "",
           "",
+          6,
           "No Objection as Corrected",
-          "No Objection as Corrected",
+          "_NOC",
           "",
           ""
         ],
@@ -617,8 +625,9 @@
           "",
           "",
           "",
+          7,
           "No Exceptions Taken",
-          "No Exceptions Taken",
+          "_NET",
           "",
           ""
         ]
@@ -760,13 +769,13 @@
     {
       "name": "Actions_Submittal",
       "tabName": "_Shared",
-      "rangeNotation": "E2:F20",
+      "rangeNotation": "E2:G20",
       "scope": "Workbook"
     },
     {
       "name": "Statuses_Submittal",
       "tabName": "_Shared",
-      "rangeNotation": "G2:H20",
+      "rangeNotation": "H2:I20",
       "scope": "Workbook"
     },
     {
