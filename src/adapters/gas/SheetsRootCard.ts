@@ -10,6 +10,7 @@
 
 import { SheetsContextBinder, SpreadsheetContext, SheetsContextParams } from "./SheetsContextBinder";
 import { TabRole } from "../../core/log/SheetsTabRoleClassifier";
+import { AdminFoldOutPresenter } from "./AdminFoldOutPresenter";
 
 export class SheetsRootCard {
   /**
@@ -42,14 +43,7 @@ export class SheetsRootCard {
           )
         );
 
-      const disabledAdminSection = CardService.newCardSection()
-        .setHeader("Sheet Administration (Disabled)")
-        .setCollapsible(true)
-        .addWidget(
-          CardService.newTextParagraph().setText(
-            "Admin actions are inactive for non-DocumentLog spreadsheets."
-          )
-        );
+      const disabledAdminSection = AdminFoldOutPresenter.renderAdminSection("GoogleSheets", { disabled: true });
 
       cardBuilder.addSection(fallbackSection);
       cardBuilder.addSection(disabledAdminSection);
@@ -98,27 +92,8 @@ export class SheetsRootCard {
       )
     );
 
-    // 2. SheetAdminFoldOut Section
-    const foldOutSection = CardService.newCardSection()
-      .setHeader("Sheet Administration (SheetAdminFoldOut)")
-      .setCollapsible(true)
-      .setNumUncollapsibleWidgets(1)
-      .addWidget(
-        CardService.newTextParagraph().setText("<b>Configuration & Administrative Health</b>")
-      )
-      .addWidget(
-        CardService.newButtonSet()
-          .addButton(
-            CardService.newTextButton()
-              .setText("Run Schema Drift Audit")
-              .setOnClickAction(CardService.newAction().setFunctionName("onRunSchemaDriftAudit"))
-          )
-          .addButton(
-            CardService.newTextButton()
-              .setText("Purge ScriptCache")
-              .setOnClickAction(CardService.newAction().setFunctionName("onFlushScriptCache"))
-          )
-      );
+    // 2. SheetAdminFoldOut Section dispatched via AdminFoldOutPresenter
+    const foldOutSection = AdminFoldOutPresenter.renderAdminSection("GoogleSheets", { spreadsheetId: context.spreadsheetId });
 
     cardBuilder.addSection(headerSection);
     cardBuilder.addSection(foldOutSection);
