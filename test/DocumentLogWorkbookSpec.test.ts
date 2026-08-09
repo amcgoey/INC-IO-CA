@@ -162,3 +162,34 @@ test('DocumentLogWorkbookSpec - defines Contacts picklist schema in _Shared tab'
   assert.ok(headers.includes('Contacts_Arch Key'), 'Header must contain Contacts_Arch Key');
   assert.ok(headers.includes('Contacts_Arch Label'), 'Header must contain Contacts_Arch Label');
 });
+
+test('DocumentLogWorkbookSpec - all calculated column formulas in Submittal Arch and Submittal FFE have balanced parentheses and valid syntax', () => {
+  const logTabs = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.filter(t => t.isLogTab && t.columns);
+  assert.equal(logTabs.length, 2, 'There must be 2 log tabs (Submittal Arch and Submittal FFE)');
+
+  let totalFormulas = 0;
+  for (const tab of logTabs) {
+    const calcCols = tab.columns.filter(c => c.formula);
+    assert.equal(calcCols.length, 5, `${tab.name} must have 5 calculated formula columns`);
+
+    for (const col of calcCols) {
+      totalFormulas++;
+      const formula = col.formula;
+      const openParens = (formula.match(/\(/g) || []).length;
+      const closeParens = (formula.match(/\)/g) || []).length;
+
+      assert.equal(
+        openParens,
+        closeParens,
+        `Formula for ${tab.name} -> ${col.id} has mismatched parentheses (${openParens} open vs ${closeParens} close): "${formula}"`
+      );
+
+      assert.ok(
+        !formula.includes('(('),
+        `Formula for ${tab.name} -> ${col.id} contains unexpected double opening parenthesis "((": "${formula}"`
+      );
+    }
+  }
+
+  assert.equal(totalFormulas, 10, 'Total calculated formulas verified across log tabs must be 10');
+});

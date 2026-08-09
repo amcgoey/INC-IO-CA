@@ -172,14 +172,14 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE Support tab with Vendor a
     (nr: NamedRangeSpec) => nr.name === "Vendors" && nr.tabName === "Submittal FFE Support"
   );
   assert.ok(vendorsNR, "Vendors named range must exist on Submittal FFE Support");
-  assert.strictEqual(vendorsNR.rangeNotation, "A2:B7");
+  assert.strictEqual(vendorsNR.rangeNotation, "A2:B20");
   assert.strictEqual(vendorsNR.scope, "Sheet");
 
   const specTagsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
     (nr: NamedRangeSpec) => nr.name === "SpecTags" && nr.tabName === "Submittal FFE Support"
   );
   assert.ok(specTagsNR, "SpecTags named range must exist on Submittal FFE Support");
-  assert.strictEqual(specTagsNR.rangeNotation, "C2:D7");
+  assert.strictEqual(specTagsNR.rangeNotation, "C2:D20");
   assert.strictEqual(specTagsNR.scope, "Sheet");
 });
 

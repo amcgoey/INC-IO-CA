@@ -64,8 +64,8 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
         { id: "calcFileName", header: "Calc File Name", formula: '=MAP(B6:B, C6:C, E6:E, D6:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & title & "-" & rev)))' },
-        { id: "calcNumber", header: "Calc Number", formula: '=MAP(B6:B, C6:C, D6:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & rev))))' },
-        { id: "calcTitle", header: "Calc Title", formula: '=MAP(B6:B, E6:E, LAMBDA(sec, title, IF(ISBLANK((sec), "", title)))' },
+        { id: "calcNumber", header: "Calc Number", formula: '=MAP(B6:B, C6:C, D6:D, LAMBDA(sec, num, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & rev)))' },
+        { id: "calcTitle", header: "Calc Title", formula: '=MAP(B6:B, E6:E, LAMBDA(sec, title, IF(ISBLANK(sec), "", title)))' },
         { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(B6:B, G6:G, LAMBDA(sec, contact, IF(ISBLANK(sec), "", contact)))' },
         { id: "calcSort", header: "Calc Sort", formula: '=MAP(B6:B, C6:C, LAMBDA(sec, num, IF(ISBLANK(sec), "", TEXT(sec, "000000") & TEXT(num, "0000"))))' }
       ],
@@ -103,11 +103,11 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "action", header: "Action", validationRange: "Actions_Submittal" },
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
-        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(B6:B, C6:C, D6:D, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), "", tag & IF(ISBLANK(rel), "", "-" & rel) & "-" & rev))' },
-        { id: "calcNumber", header: "Calc Number", formula: '=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "-" & rev))' },
-        { id: "calcTitle", header: "Calc Title", formula: '=MAP(B6:B, E6:E, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), "", title), IFERROR(VLOOKUP(tag, \'Submittal FFE Support\'!SpecTags, 2, FALSE), title)))' },
-        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(H6:H, I6:I, LAMBDA(c, a, IF(ISBLANK(c), "", c & IF(ISBLANK(a), "", " (" & a & ")")))' },
-        { id: "calcSort", header: "Calc Sort", formula: '=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "_" & rev))' }
+        { id: "calcFileName", header: "Calc File Name", formula: '=MAP(B6:B, C6:C, D6:D, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), "", tag & IF(ISBLANK(rel), "", "-" & rel) & "-" & rev)))' },
+        { id: "calcNumber", header: "Calc Number", formula: '=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "-" & rev)))' },
+        { id: "calcTitle", header: "Calc Title", formula: '=MAP(B6:B, E6:E, LAMBDA(tag, title, IF(ISBLANK(tag), IF(ISBLANK(title), "", title), IFERROR(VLOOKUP(tag, \'Submittal FFE Support\'!SpecTags, 2, FALSE), title))))' },
+        { id: "calcContactChain", header: "Calc Contact Chain", formula: '=MAP(H6:H, I6:I, LAMBDA(c, a, IF(ISBLANK(c), "", c & IF(ISBLANK(a), "", " (" & a & ")"))))' },
+        { id: "calcSort", header: "Calc Sort", formula: '=MAP(B6:B, D6:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "_" & rev)))' }
       ],
       seedRows: [
         ["Closed", "AC102", "", "0", "Hook", "Ashley Lighting", "2026-07-05", "BW", "Received", "Rev 1 sample submittal received", ""],
