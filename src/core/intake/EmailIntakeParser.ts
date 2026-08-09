@@ -4,11 +4,11 @@
  * @description Tier 1 2-Phase email parser dispatch engine & deterministic field merging logic.
  */
 
-function padSubmittalNumberEmail_(numStr?: string): string {
+function padSubmittalNumberEmail_(numStr?: string, targetLen: number = 3): string {
   if (!numStr) return "";
   const trimmed = numStr.trim();
   if (/^\d+$/.test(trimmed)) {
-    return trimmed.length < 3 ? trimmed.padStart(3, "0") : trimmed;
+    return trimmed.length < targetLen ? trimmed.padStart(targetLen, "0") : trimmed;
   }
   return trimmed;
 }
@@ -42,6 +42,34 @@ function splitNumberAndRevisionEmail_(numRevStr: string): { submittalNum: string
   };
 }
 
+function cleanEmailTitle_(rawTitle: string): string {
+  if (!rawTitle) return "";
+  let title = rawTitle
+    .replace(/^[,\-_|:]\s*/, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+  title = title.replace(TRAILING_NOISE_RE_EMAIL, "").trim();
+  if (title && !EXACT_NOISE_RE_EMAIL.test(title)) {
+    return title;
+  }
+  return "";
+}
+
+function parseSubmittalNumberAndRevision_(numRevStr: string): { submittalNum: string; revNum: string } {
+  if (!numRevStr) return { submittalNum: "", revNum: "0" };
+  const trimmed = numRevStr.trim();
+  if (trimmed.includes(".") || trimmed.includes("-")) {
+    return splitNumberAndRevisionEmail_(trimmed);
+  }
+  return {
+    submittalNum: padSubmittalNumberEmail_(trimmed, 3),
+    revNum: "0"
+  };
+}
+
 const STATUS_NOISE_WORDS_EMAIL = "was|is|was\\s+submitted|has\\s+been\\s+submitted|submitted|for\\s+review|for\\s+approval|for\\s+app|notification|distributed|distribute|provided\\s+for\\s+your\\s+information|for\\s+your\\s+information|fyi";
 const TRAILING_NOISE_RE_EMAIL = new RegExp(`\\s+(?:${STATUS_NOISE_WORDS_EMAIL}).*`, "i");
 const EXACT_NOISE_RE_EMAIL = new RegExp(`^(?:${STATUS_NOISE_WORDS_EMAIL})$`, "i");
@@ -64,10 +92,8 @@ function parseNumberedPrefixEmail_(prefix: string, subject: string = "", body: s
       result.revNum = match[2];
     }
     if (match[3]) {
-      let title = match[3].replace(TRAILING_NOISE_RE_EMAIL, "").trim();
-      if (title && !EXACT_NOISE_RE_EMAIL.test(title)) {
-        result.title = title;
-      }
+      const title = cleanEmailTitle_(match[3]);
+      if (title) result.title = title;
     }
   }
 
@@ -94,20 +120,18 @@ class SubmittalEmailParser {
     const projectMatch = subject.match(/\[([^\]]+)\]/);
     if (projectMatch) result.driveName = projectMatch[1].trim();
 
-    const subMatch = subject.match(/(?:Submittal|Subm)\s*#?\s*([\w.]+)-([\w.]+)(?:[,\-_|:]\s*|\s+)?(.*)?/i);
+    const subMatch = subject.match(/(?:Submittal|Subm)\s*#?\s*(\d{6}|\d{2}[\s.-]?\d{2}[\s.-]?\d{2}|[\w.]+)-([\w.]+)(?:[,\-_|:]\s*|\s+)?(.*)?/i);
     if (subMatch) {
       result.specSection = normalizeSpecSectionEmail_(subMatch[1]);
       result.section = result.specSection;
-      const { submittalNum, revNum } = splitNumberAndRevisionEmail_(subMatch[2]);
+      const { submittalNum, revNum } = parseSubmittalNumberAndRevision_(subMatch[2]);
       result.submittalNum = submittalNum;
       result.number = submittalNum;
       result.revNum = revNum;
       result.revision = revNum;
       if (subMatch[3]) {
-        let title = subMatch[3].replace(TRAILING_NOISE_RE_EMAIL, "").trim();
-        if (title && !EXACT_NOISE_RE_EMAIL.test(title)) {
-          result.title = title;
-        }
+        const title = cleanEmailTitle_(subMatch[3]);
+        if (title) result.title = title;
       }
     } else {
       const generic = GenericEmailParser.parse(subject, body, sender);
@@ -209,9 +233,12 @@ class EmailIntakeParser {
       const { submittalNum, revNum } = splitNumberAndRevisionEmail_(distMatch[2]);
       result.submittalNum = submittalNum;
       result.number = submittalNum;
-      result.revNum = (revNum === "0" || !revNum) ? distMatch[2].trim() : revNum;
+      result.revNum = distMatch[2].includes(".") ? revNum : distMatch[2].trim();
       result.revision = result.revNum;
-      if (distMatch[3]) result.title = distMatch[3].trim();
+      if (distMatch[3]) {
+        const title = cleanEmailTitle_(distMatch[3]);
+        if (title) result.title = title;
+      }
       return result;
     }
 
@@ -222,9 +249,12 @@ class EmailIntakeParser {
       const { submittalNum, revNum } = splitNumberAndRevisionEmail_(updatedMatch[2]);
       result.submittalNum = submittalNum;
       result.number = submittalNum;
-      result.revNum = (revNum === "0" || !revNum) ? updatedMatch[2].trim() : revNum;
+      result.revNum = updatedMatch[2].includes(".") ? revNum : updatedMatch[2].trim();
       result.revision = result.revNum;
-      if (updatedMatch[3]) result.title = updatedMatch[3].trim();
+      if (updatedMatch[3]) {
+        const title = cleanEmailTitle_(updatedMatch[3]);
+        if (title) result.title = title;
+      }
       return result;
     }
 
@@ -235,7 +265,7 @@ class EmailIntakeParser {
       const { submittalNum, revNum } = splitNumberAndRevisionEmail_(submittalMatch[2]);
       result.submittalNum = submittalNum;
       result.number = submittalNum;
-      result.revNum = (revNum === "0" || !revNum) ? submittalMatch[2].trim() : revNum;
+      result.revNum = submittalMatch[2].includes(".") ? revNum : submittalMatch[2].trim();
       result.revision = result.revNum;
     }
 
