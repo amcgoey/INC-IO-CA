@@ -292,10 +292,48 @@ export class MockRange {
     this.sheet.setGridSlice(this.startRow, this.startCol, [[value]]);
     return this;
   }
+
+  public getFormulas(): string[][] {
+    const values = this.getValues();
+    return values.map(row =>
+      row.map(val => (typeof val === "string" && val.startsWith("=") ? val : ""))
+    );
+  }
+
+  public getFormula(): string {
+    const formulas = this.getFormulas();
+    return formulas.length > 0 && formulas[0].length > 0 ? formulas[0][0] : "";
+  }
+
+  public getDataValidation(): any {
+    return this.sheet.getDataValidation(this.startRow, this.startCol);
+  }
+
+  public getDataValidations(): any[][] {
+    const result: any[][] = [];
+    for (let r = 0; r < this.numRows; r++) {
+      const row: any[] = [];
+      for (let c = 0; c < this.numCols; c++) {
+        row.push(this.sheet.getDataValidation(this.startRow + r, this.startCol + c));
+      }
+      result.push(row);
+    }
+    return result;
+  }
+
+  public setDataValidation(rule: any): this {
+    for (let r = 0; r < this.numRows; r++) {
+      for (let c = 0; c < this.numCols; c++) {
+        this.sheet.setDataValidation(this.startRow + r, this.startCol + c, rule);
+      }
+    }
+    return this;
+  }
 }
 
 export class MockSheet {
   private grid: any[][] = [];
+  private validations: Map<string, any> = new Map();
   public calls: CallLog[] = [];
 
   constructor(public name: string, initialData: any[][] = [], public sheetId: number = 101) {
@@ -378,9 +416,22 @@ export class MockSheet {
     return new MockRange(this, targetRow, targetCol, rowCount, colCount);
   }
 
+  public getDataValidation(row: number, col: number): any {
+    return this.validations.get(`${row},${col}`) || null;
+  }
+
+  public setDataValidation(row: number, col: number, rule: any): void {
+    if (rule === null) {
+      this.validations.delete(`${row},${col}`);
+    } else {
+      this.validations.set(`${row},${col}`, rule);
+    }
+  }
+
   public clearContents(): void {
     this.recordCall("clearContents", []);
     this.grid = [];
+    this.validations.clear();
   }
 
   private insertBlankRowAt(insertIdx: number): void {
@@ -426,6 +477,21 @@ export class MockSpreadsheet {
   public getSheetByName(name: string): MockSheet | null {
     this.recordCall("getSheetByName", [name]);
     return this.sheets.get(name) || null;
+  }
+
+  public getNamedRanges(): Array<{ getName(): string; getRange(): MockRange | null }> {
+    this.recordCall("getNamedRanges", []);
+    const result: Array<{ getName(): string; getRange(): MockRange | null }> = [];
+    for (const [name, entry] of this.namedRanges.entries()) {
+      result.push({
+        getName: () => name,
+        getRange: () => {
+          const sheet = this.getSheetByName(entry.tabName);
+          return sheet ? sheet.getRange(entry.rangeNotation) : null;
+        }
+      });
+    }
+    return result;
   }
 
 
