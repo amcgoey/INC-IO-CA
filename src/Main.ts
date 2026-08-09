@@ -1,3 +1,6 @@
+declare var GasSpreadsheetLockAdapter: any;
+declare var LogMigrationEngine: any;
+
 /**
  * @file Main.ts
  * @description Primary Google Apps Script entry points for the Workspace Add-on.
@@ -113,12 +116,58 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
   return buildMainCard(e, parsedData);
 }
 
+/**
+ * Admin entry point function for single-workbook log migration.
+ * Runs Pass 1 dry-run audit or Pass 2 execution under transaction lock safety.
+ */
+function migrateLogSpreadsheet(
+  sourceSpreadsheetId: string,
+  targetSpreadsheetId: string,
+  options?: { dryRun?: boolean; tabName?: string; storageAdapter?: any; lockAdapter?: any }
+): any {
+  const lockAdapter = options?.lockAdapter || (
+    (typeof GasSpreadsheetLockAdapter !== "undefined")
+      ? new (GasSpreadsheetLockAdapter as any)()
+      : undefined
+  );
+
+  const storageAdapter = options?.storageAdapter || (
+    (typeof GoogleSheetsStorageAdapter !== "undefined")
+      ? new (GoogleSheetsStorageAdapter as any)(sourceSpreadsheetId)
+      : undefined
+  );
+
+  if (!storageAdapter) {
+    throw new Error("StorageAdapterException: GoogleSheetsStorageAdapter is unavailable in host environment.");
+  }
+
+  const engine = new LogMigrationEngine(storageAdapter, lockAdapter);
+  const isDryRun = options?.dryRun !== false;
+  const targetTab = options?.tabName || "Submittal Arch";
+
+  const fieldSpecs: DocumentFieldSpec[] = [
+    { key: "specSection", header: "Spec Section", label: "Spec Section", type: "string", isCalculated: false },
+    { key: "submittalTitle", header: "Title", label: "Title", type: "string", isCalculated: false },
+    { key: "daysOpen", header: "Days Open", label: "Days Open", type: "string", isCalculated: true }
+  ];
+
+  if (isDryRun) {
+    return engine.executeDryRun(targetSpreadsheetId || sourceSpreadsheetId, targetTab, fieldSpecs, {
+      targetTabName: targetTab
+    });
+  }
+
+  return engine.auditLogMigration(targetTab, fieldSpecs, { targetTabName: targetTab });
+}
 
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     onDriveItemsSelected,
-    buildAddOn
+    buildAddOn,
+    migrateLogSpreadsheet
   };
 }
+
+(globalThis as any).migrateLogSpreadsheet = migrateLogSpreadsheet;

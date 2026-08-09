@@ -745,6 +745,71 @@ export interface CardServiceStateCallable {
   getNotificationText: typeof CardSerializer.getNotificationText;
 }
 
+
+export class MockLock {
+  private locked: boolean = false;
+  public calls: CallLog[] = [];
+
+  private recordCall(method: string, args: unknown[]): void {
+    this.calls.push({ method, args, timestamp: Date.now() });
+  }
+
+  public tryLock(timeoutInMillis: number): boolean {
+    this.recordCall("tryLock", [timeoutInMillis]);
+    if (this.locked) return false;
+    this.locked = true;
+    return true;
+  }
+
+  public hasLock(): boolean {
+    this.recordCall("hasLock", []);
+    return this.locked;
+  }
+
+  public releaseLock(): void {
+    this.recordCall("releaseLock", []);
+    this.locked = false;
+  }
+
+  public reset(): void {
+    this.locked = false;
+    this.calls = [];
+  }
+}
+
+export class MockLockService {
+  public scriptLock: MockLock = new MockLock();
+  public userLock: MockLock = new MockLock();
+  public documentLock: MockLock = new MockLock();
+  public calls: CallLog[] = [];
+
+  private recordCall(method: string, args: unknown[]): void {
+    this.calls.push({ method, args, timestamp: Date.now() });
+  }
+
+  public getScriptLock(): MockLock {
+    this.recordCall("getScriptLock", []);
+    return this.scriptLock;
+  }
+
+  public getUserLock(): MockLock {
+    this.recordCall("getUserLock", []);
+    return this.userLock;
+  }
+
+  public getDocumentLock(): MockLock {
+    this.recordCall("getDocumentLock", []);
+    return this.documentLock;
+  }
+
+  public reset(): void {
+    this.scriptLock.reset();
+    this.userLock.reset();
+    this.documentLock.reset();
+    this.calls = [];
+  }
+}
+
 export class GasMockHarness {
   private static instance: GasMockHarness | null = null;
   private static originalGlobals: Map<string, unknown> = new Map();
@@ -754,6 +819,7 @@ export class GasMockHarness {
   public sheetsService: MockSheetsService = new MockSheetsService();
   public driveState: MockDriveState = new MockDriveState();
   public cardService: MockCardService = new MockCardService();
+  public lockService: MockLockService = new MockLockService();
   public config: Record<string, unknown> = {};
   private configOverrides: Record<string, unknown> = {};
 
@@ -782,7 +848,7 @@ export class GasMockHarness {
   }
 
   public static install(options?: HarnessInstallOptions): GasMockHarness {
-    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "SpreadsheetApp", "DriveApp", "CardService", "CSI_DIVISIONS", "Drive", "Sheets"];
+    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "SpreadsheetApp", "DriveApp", "CardService", "LockService", "CSI_DIVISIONS", "Drive", "Sheets"];
     for (const name of globalsToStub) {
       if (!GasMockHarness.originalGlobals.has(name)) {
         GasMockHarness.originalGlobals.set(name, (globalThis as any)[name]);
@@ -802,6 +868,7 @@ export class GasMockHarness {
     (globalThis as any).CacheService = GasMockHarness.instance.cacheService;
     (globalThis as any).SpreadsheetApp = GasMockHarness.instance.sheetsService;
     (globalThis as any).CardService = GasMockHarness.instance.cardService;
+    (globalThis as any).LockService = GasMockHarness.instance.lockService;
     (globalThis as any).CONFIG = GasMockHarness.instance.config;
     (globalThis as any).DriveApp = new MockDriveApp(GasMockHarness.instance.driveState);
     (globalThis as any).Utilities = (globalThis as any).Utilities || { formatDate: (d: any, tz: string, f: string)=> (d && d.toISOString ? d.toISOString().slice(2, 10).replace(/-/g, "") : "260726") };
@@ -822,6 +889,7 @@ export class GasMockHarness {
     GasMockHarness.instance!.sheetsService.reset();
     GasMockHarness.instance!.driveState.reset();
     GasMockHarness.instance!.cardService = new MockCardService();
+    GasMockHarness.instance!.lockService.reset();
     GasMockHarness.instance!.configOverrides = {};
     GasMockHarness.instance!.resetConfig();
     (globalThis as any).CONFIG = GasMockHarness.instance!.config;

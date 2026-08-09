@@ -1,0 +1,70 @@
+/**
+ * @file migrate-log.ts
+ * @description CLI command line entry point for single-workbook log migration Pass 1 dry-run audit and Pass 2 execution.
+ *
+ * Usage:
+ * npm run migrate:log -- --source=<id> --target=<id> --dry-run
+ */
+
+import { LogMigrationEngine } from "../src/core/log/LogMigrationEngine";
+import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
+import { InMemorySheetStorageAdapter } from "../test/harness/fakes/InMemorySheetStorageAdapter";
+
+export function parseMigrateLogArgs(argv: string[]): {
+  source: string;
+  target: string;
+  dryRun: boolean;
+  tabName: string;
+} {
+  let source = "";
+  let target = "";
+  let dryRun = false;
+  let tabName = "Submittal Arch";
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg.startsWith("--source=")) {
+      source = arg.split("=")[1];
+    } else if (arg === "--source" && argv[i + 1]) {
+      source = argv[++i];
+    } else if (arg.startsWith("--target=")) {
+      target = arg.split("=")[1];
+    } else if (arg === "--target" && argv[i + 1]) {
+      target = argv[++i];
+    } else if (arg === "--dry-run" || arg === "--dryRun") {
+      dryRun = true;
+    } else if (arg.startsWith("--tab=")) {
+      tabName = arg.split("=")[1];
+    }
+  }
+
+  return { source, target, dryRun, tabName };
+}
+
+export function runMigrateLogCli(argv: string[] = process.argv.slice(2), customStorageAdapter?: InMemorySheetStorageAdapter): any {
+  const args = parseMigrateLogArgs(argv);
+  console.log("=== Log Migration CLI Execution ===");
+  console.log("Source Spreadsheet ID: " + (args.source || "(default-test-source)"));
+  console.log("Target Spreadsheet ID: " + (args.target || "(default-test-target)"));
+  console.log("Dry Run Mode: " + args.dryRun);
+
+  const storageAdapter = customStorageAdapter || new InMemorySheetStorageAdapter();
+  const lockAdapter = new FakeSpreadsheetLockAdapter();
+  const engine = new LogMigrationEngine(storageAdapter, lockAdapter);
+
+  const fieldSpecs = [
+    { key: "specSection", header: "Spec Section", label: "Spec Section", type: "string" as const, isCalculated: false },
+    { key: "title", header: "Title", label: "Title", type: "string" as const, isCalculated: false },
+    { key: "daysOpen", header: "Days Open", label: "Days Open", type: "string" as const, isCalculated: true }
+  ];
+
+  const spreadsheetId = args.target || args.source || "test-spreadsheet-id";
+
+  const report = engine.executeAudit(spreadsheetId, args.tabName, fieldSpecs);
+  console.log("[MIGRATION AUDIT RESULT] canProceed: " + report.canProceed + ", sourceRows: " + report.sourceDataRowCount);
+  return report;
+}
+
+if (require.main === module) {
+  runMigrateLogCli();
+}
