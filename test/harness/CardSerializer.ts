@@ -162,6 +162,15 @@ export class CardSerializer {
   }
 
   private static serializeWidget(widget: any): WidgetJson {
+    if (widget && (widget.topLabel !== undefined || (widget.content !== undefined && widget.bottomLabel !== undefined))) {
+      return {
+        type: "KeyValue",
+        topLabel: widget.topLabel,
+        content: widget.content,
+        bottomLabel: widget.bottomLabel
+      };
+    }
+
     if (widget instanceof MockTextParagraph || (widget?.text !== undefined && typeof widget?.setText === "function")) {
       return {
         type: "TextParagraph",

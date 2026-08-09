@@ -1,3 +1,24 @@
+
+export class MockKeyValue {
+  public topLabel?: string;
+  public content?: string;
+  public bottomLabel?: string;
+
+  public setTopLabel(topLabel: string): this {
+    this.topLabel = topLabel;
+    return this;
+  }
+
+  public setContent(content: string): this {
+    this.content = content;
+    return this;
+  }
+
+  public setBottomLabel(bottomLabel: string): this {
+    this.bottomLabel = bottomLabel;
+    return this;
+  }
+}
 /**
  * @file CardServiceMocks.ts
  * @description In-memory builder mocks for Google Apps Script CardService UI components.
@@ -466,6 +487,11 @@ export class MockCardService {
   public OnClose = OnClose;
   public OpenAs = OpenAs;
   public ImageStyle = ImageStyle;
+
+  
+  public newKeyValue(): MockKeyValue {
+    return new MockKeyValue();
+  }
 
   public newCardBuilder(): MockCardBuilder {
     return new MockCardBuilder();
