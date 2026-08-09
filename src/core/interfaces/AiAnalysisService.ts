@@ -2,10 +2,26 @@
  * @file AiAnalysisService.ts
  * @description Pure core abstract interface for AI email triage and submittal document deep analysis.
  *
- * Classified as Tier 1 (Pure Core Logic) under ADR 0013 / CODING_STANDARDS.md.
+* Classified as Tier 1 (Pure Core Logic) under ADR 0013 / CODING_STANDARDS.md.
  * Dual-compatible with GAS V8 engine and Node.js test environment.
  * Zero GAS ambient API dependencies (no GoogleAppsScript references) and zero Node.js built-in imports.
  */
+
+
+/** Fixed numerical confidence threshold (< 0.85) for triggering visual low-confidence warning indicators. */
+export const FieldConfidenceThreshold = 0.85;
+
+/** Extracted field confidence object from 1-pass AI classification. */
+export interface AiClassificationField {
+  value: string;
+  confidence: number;
+}
+
+/** Standardized payload returned from 1-pass AI document triage and classification. */
+export interface AiClassificationResult {
+  overallConfidence?: number;
+  fields?: Record<string, AiClassificationField>;
+}
 
 /** Raw email header and content structure used for AI triage. */
 export interface EmailData {
@@ -92,5 +108,7 @@ export interface AiAnalysisService {
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = {};
+  module.exports = {
+    FieldConfidenceThreshold
+  };
 }

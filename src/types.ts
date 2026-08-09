@@ -1,3 +1,18 @@
+/** Fixed numerical confidence threshold (< 0.85) for triggering visual low-confidence warning indicators. */
+const FieldConfidenceThreshold = 0.85;
+
+/** Extracted field confidence object from 1-pass AI classification. */
+interface AiClassificationField {
+  value: string;
+  confidence: number;
+}
+
+/** Standardized payload returned from 1-pass AI document triage and classification. */
+interface AiClassificationResult {
+  overallConfidence?: number;
+  fields?: Record<string, AiClassificationField>;
+}
+
 /**
  * @file types.ts
  * @description Global ambient type definitions, domain interfaces, workflow types, and global Google Apps Script declarations.
@@ -698,6 +713,7 @@ interface HydrationContext {
 
 /** Validation and AI confidence UI context for dynamic field formatting. */
 interface ValidationUIContext {
+  aiResult?: AiClassificationResult;
   missingFields?: string[];
   fieldConfidence?: Record<string, number>;
   onStateActionName?: string;

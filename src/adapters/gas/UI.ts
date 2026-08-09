@@ -1,4 +1,17 @@
 
+/**
+ * Helper to append ⚠ Check Value label indicator when field confidence is below threshold (< 0.85).
+ */
+function getWidgetTitle(key: string, baseTitle: string, fieldConfidence: Record<string, number> = {}): string {
+  const threshold = typeof FieldConfidenceThreshold !== "undefined" ? FieldConfidenceThreshold : 0.85;
+  const conf = fieldConfidence ? fieldConfidence[key] : undefined;
+  if (conf !== undefined && conf < threshold) {
+    return baseTitle.includes("⚠") ? baseTitle : baseTitle + " ⚠ Check Value";
+  }
+  return baseTitle;
+}
+
+
 function formatGasDate(d: any): string {
   try {
     const tz = (typeof Session !== "undefined" && Session.getScriptTimeZone) ? Session.getScriptTimeZone() : ((globalThis as any).Session?.getScriptTimeZone() || "America/New_York");
@@ -58,7 +71,8 @@ function renderDynamicFormFields(
     } else {
       const isMissing = field.required && missingFields.includes(field.key);
       const confidence = fieldConfidence[field.key];
-      const isLowConfidence = confidence !== undefined && confidence < 0.85;
+      const threshold = typeof FieldConfidenceThreshold !== "undefined" ? FieldConfidenceThreshold : 0.85;
+      const isLowConfidence = confidence !== undefined && confidence < threshold;
 
       if (isMissing) {
         displayTitle = `❌ ${displayTitle}`;
@@ -519,7 +533,7 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
     section3.addWidget(routingDrop);
   }
 
-  section3.addWidget(CardService.newTextInput().setFieldName("notes").setTitle("Notes").setMultiline(true).setValue(state.notes));
+  section3.addWidget(CardService.newTextInput().setFieldName("notes").setTitle(getTitle("Notes", "Notes")).setMultiline(true).setValue(state.notes));
 
   const subParams: Record<string, string> = { ...getActionParams(), logFileId: logSettings.logFileId, targetFolderId: logSettings.targetFolderId, projectAbbr: logSettings.projectAbbr || state.driveName || "" };
   const buttonSet = CardService.newButtonSet();
@@ -833,12 +847,36 @@ function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
 function buildUnbiasedIntakeCard(
   e: GoogleAppsScriptEvent,
   initialData: ParsedData | null = null,
-  flashMessage: any = null
+  flashMessage: any = null,
+  aiResult: AiClassificationResult | null = null
 ): GoogleAppsScript.Card_Service.Card {
   const header = CardService.newCardHeader().setTitle("File Document");
   if (CONFIG.LOGO_URL) header.setImageUrl(CONFIG.LOGO_URL);
 
   const card = CardService.newCardBuilder().setHeader(header);
+
+  const aiClassification: AiClassificationResult | null = aiResult || (flashMessage && flashMessage.aiResult) || (initialData && (initialData as any).aiResult) || null;
+  const fieldConfidence: Record<string, number> = {};
+  let overallConfidence: number | undefined;
+
+  if (aiClassification) {
+    if (typeof aiClassification.overallConfidence === "number") {
+      overallConfidence = aiClassification.overallConfidence;
+    }
+    if (aiClassification.fields) {
+      Object.keys(aiClassification.fields).forEach(key => {
+        const fieldData = aiClassification.fields![key];
+        if (fieldData && typeof fieldData.confidence === "number") {
+          fieldConfidence[key] = fieldData.confidence;
+        }
+      });
+    }
+  }
+
+  const threshold = typeof FieldConfidenceThreshold !== "undefined" ? FieldConfidenceThreshold : 0.85;
+  const lowConfidenceKeys = Object.keys(fieldConfidence).filter(k => fieldConfidence[k] < threshold);
+  const isOverallLowConfidence = overallConfidence !== undefined && overallConfidence < threshold;
+  const hasLowConfidence = lowConfidenceKeys.length > 0 || isOverallLowConfidence;
 
   const formInput = (e && e.formInput) || {};
   const p = (e && e.parameters) || {};
@@ -864,9 +902,17 @@ function buildUnbiasedIntakeCard(
     documentType: state.documentType
   });
 
-  // 1. Status Message Box (Conditional — only added if a message is displayed)
+  // 1. Status Message Box (Conditional ? only added if a message is displayed or low AI confidence detected)
+  if (hasLowConfidence) {
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextParagraph().setText("?? Low AI Confidence (<85%) ? please review indicated field predictions before processing.")
+      )
+    );
+  }
+
   if (flashMessage && (flashMessage.error || flashMessage.warning)) {
-    const msgText = flashMessage.error ? `⚠️ ${flashMessage.error}` : `⚠️ ${flashMessage.warning}`;
+    const msgText = flashMessage.error ? `?? ${flashMessage.error}` : `?? ${flashMessage.warning}`;
     card.addSection(
       CardService.newCardSection().addWidget(
         CardService.newTextParagraph().setText(msgText)
@@ -883,8 +929,8 @@ function buildUnbiasedIntakeCard(
     .setFieldName("project")
     .setOnChangeAction(CardService.newAction().setFunctionName("onStateChange").setParameters(getActionParams()));
   projDrop.addItem("-- Select Project --", "", state.project === "");
-  projDrop.addItem("PROJ — Main St Tower", "PROJ", state.project === "PROJ");
-  projDrop.addItem("RES — Ocean Beach House", "RES", state.project === "RES");
+  projDrop.addItem("PROJ ? Main St Tower", "PROJ", state.project === "PROJ");
+  projDrop.addItem("RES ? Ocean Beach House", "RES", state.project === "RES");
   cascadeSec.addWidget(projDrop);
 
   const docTypeDrop = CardService.newSelectionInput()
@@ -905,28 +951,28 @@ function buildUnbiasedIntakeCard(
 
   // Heavy AI Analysis Button at top of Document Attributes
   const aiBtn = CardService.newTextButton()
-    .setText("🤖 Analyze Document with AI")
+    .setText("?? Analyze Document with AI")
     .setOnClickAction(CardService.newAction().setFunctionName("handleDeepAnalysis").setParameters(getActionParams()))
     .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
   attrSec.addWidget(CardService.newButtonSet().addButton(aiBtn));
 
   if (state.documentType === "SUBMITTAL_ARCH") {
-    attrSec.addWidget(CardService.newTextInput().setFieldName("section").setTitle("CSI Section # (6 digits)").setValue(state.section));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("number").setTitle("Submittal #").setValue(state.number));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("revision").setTitle("Revision #").setValue(state.revision));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle("Submittal Title").setValue(state.title));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("section").setTitle(getWidgetTitle("section", "CSI Section # (6 digits)", fieldConfidence)).setValue(state.section));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("number").setTitle(getWidgetTitle("number", "Submittal #", fieldConfidence)).setValue(state.number));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("revision").setTitle(getWidgetTitle("revision", "Revision #", fieldConfidence)).setValue(state.revision));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle(getWidgetTitle("title", "Submittal Title", fieldConfidence)).setValue(state.title));
   } else if (state.documentType === "SUBMITTAL_FFE") {
-    attrSec.addWidget(CardService.newTextInput().setFieldName("specTag").setTitle("Spec Tag").setValue(state.specTag));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("relatedTag").setTitle("Related Tags").setValue(state.relatedTag));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle("Spec Title").setValue(state.title));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("vendor").setTitle("Vendor / Supplier").setValue(state.vendor));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("specTag").setTitle(getWidgetTitle("specTag", "Spec Tag", fieldConfidence)).setValue(state.specTag));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("relatedTag").setTitle(getWidgetTitle("relatedTag", "Related Tags", fieldConfidence)).setValue(state.relatedTag));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle(getWidgetTitle("title", "Spec Title", fieldConfidence)).setValue(state.title));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("vendor").setTitle(getWidgetTitle("vendor", "Vendor / Supplier", fieldConfidence)).setValue(state.vendor));
   } else if (state.documentType === "RFI") {
-    attrSec.addWidget(CardService.newTextInput().setFieldName("rfiNumber").setTitle("RFI Number").setValue(state.rfiNumber));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle("RFI Subject / Title").setValue(state.title));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("rfiNumber").setTitle(getWidgetTitle("rfiNumber", "RFI Number", fieldConfidence)).setValue(state.rfiNumber));
+    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle(getWidgetTitle("title", "RFI Subject / Title", fieldConfidence)).setValue(state.title));
   }
 
-  attrSec.addWidget(CardService.newTextInput().setFieldName("date").setTitle("Date (YYMMDD)").setValue(state.date));
-  attrSec.addWidget(CardService.newTextInput().setFieldName("notes").setTitle("Notes").setMultiline(true).setValue(state.notes));
+  attrSec.addWidget(CardService.newTextInput().setFieldName("date").setTitle(getWidgetTitle("date", "Date (YYMMDD)", fieldConfidence)).setValue(state.date));
+  attrSec.addWidget(CardService.newTextInput().setFieldName("notes").setTitle(getWidgetTitle("notes", "Notes", fieldConfidence)).setMultiline(true).setValue(state.notes));
 
   const isFormValid = state.project !== "" && state.documentType !== "";
   const subBtn = CardService.newTextButton()
@@ -946,16 +992,16 @@ function buildUnbiasedIntakeCard(
   const manifestKey = state.documentType || "SUBMITTAL_ARCH";
 
   const adminSec = CardService.newCardSection()
-    .setHeader("⚙️ Admin & Status")
+    .setHeader("?? Admin & Status")
     .setCollapsible(true)
-    .addWidget(CardService.newTextParagraph().setText(`📊 **Target Log Tab:** \`${targetTab}\``))
-    .addWidget(CardService.newTextParagraph().setText(`🗂️ **Config Tier:** \`Config_Manifest\` ➔ \`Config_${manifestKey}\``))
-    .addWidget(CardService.newTextParagraph().setText("📐 **Relative Offsets:** Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4"))
-    .addWidget(CardService.newTextParagraph().setText(`🤖 **AI Triage Status:** Project \`${state.project || "Unselected"}\` | Type \`${state.documentType || "Unselected"}\` (Confidence: 94%)`))
+    .addWidget(CardService.newTextParagraph().setText(`?? **Target Log Tab:** \`${targetTab}\``))
+    .addWidget(CardService.newTextParagraph().setText(`??? **Config Tier:** \`Config_Manifest\` ? \`Config_${manifestKey}\``))
+    .addWidget(CardService.newTextParagraph().setText("?? **Relative Offsets:** Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4"))
+    .addWidget(CardService.newTextParagraph().setText(`?? **AI Triage Status:** Project \`${state.project || "Unselected"}\` | Type \`${state.documentType || "Unselected"}\` (Confidence: 94%)`))
     .addWidget(
       CardService.newButtonSet().addButton(
         CardService.newTextButton()
-          .setText("🔄 Refresh Cache & Reload")
+          .setText("?? Refresh Cache & Reload")
           .setOnClickAction(CardService.newAction().setFunctionName("handleRefreshCache").setParameters(getActionParams()))
       )
     );
