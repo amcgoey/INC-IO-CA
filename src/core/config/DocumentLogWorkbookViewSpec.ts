@@ -100,7 +100,7 @@ const PALE_BLUE_HEX = '#E8F0FE';
 const PALE_GREEN_HEX = '#E6F4EA';
 const PALE_RED_HEX = '#FCE8E6';
 
-export const ThemeColors = {
+const ThemeColors = {
   HEADER_FILL_HEX: '#666666',
   HEADER_FILL_RGB: { red: 0.4, green: 0.4, blue: 0.4 },
   HEADER_TEXT_HEX: '#FFFFFF',
@@ -119,7 +119,7 @@ export const ThemeColors = {
   PALE_RED_RGB: hexToRgb(PALE_RED_HEX)
 };
 
-export const StatusColors: Record<string, { hex: string; rgb: ColorRgb }> = {
+const StatusColors: Record<string, { hex: string; rgb: ColorRgb }> = {
   Open: { hex: '#F4CCCC', rgb: hexToRgb('#F4CCCC') },
   Closed: { hex: '#D9D9D9', rgb: hexToRgb('#D9D9D9') },
   Waiting: { hex: '#D9D2E9', rgb: hexToRgb('#D9D2E9') },
@@ -127,7 +127,7 @@ export const StatusColors: Record<string, { hex: string; rgb: ColorRgb }> = {
   Billed: { hex: '#D9D9D9', rgb: hexToRgb('#D9D9D9') }
 };
 
-export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
+const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
   titleRowStyle: {
     fillHex: ThemeColors.HEADER_FILL_HEX,
     fillRgb: ThemeColors.HEADER_FILL_RGB,
@@ -217,7 +217,14 @@ export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
   statusColors: StatusColors
 };
 
-export const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC: DocumentLogWorkbookViewSpec = VisualStyleSpec;
+const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC: DocumentLogWorkbookViewSpec = VisualStyleSpec;
+
+export {
+  ThemeColors,
+  StatusColors,
+  VisualStyleSpec,
+  DOCUMENT_LOG_WORKBOOK_VIEW_SPEC
+};
 
 declare var module: any;
 
@@ -230,3 +237,9 @@ if (typeof module !== 'undefined' && module.exports) {
     StatusColors
   };
 }
+
+(globalThis as any).hexToRgb = hexToRgb;
+(globalThis as any).ThemeColors = ThemeColors;
+(globalThis as any).StatusColors = StatusColors;
+(globalThis as any).VisualStyleSpec = VisualStyleSpec;
+(globalThis as any).DOCUMENT_LOG_WORKBOOK_VIEW_SPEC = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC;

@@ -9,7 +9,19 @@
 
 
 /** Fixed numerical confidence threshold (< 0.85) for triggering visual low-confidence warning indicators. */
-export const FieldConfidenceThreshold = 0.85;
+const FieldConfidenceThreshold = 0.85;
+
+export { FieldConfidenceThreshold };
+
+declare var module: any;
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    FieldConfidenceThreshold
+  };
+}
+
+(globalThis as any).FieldConfidenceThreshold = FieldConfidenceThreshold;
 
 /** Extracted field confidence object from 1-pass AI classification. */
 export interface AiClassificationField {
@@ -105,10 +117,4 @@ export interface AiAnalysisService {
   ): Promise<DeepAnalysisResult>;
 }
 
-declare var module: any;
 
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    FieldConfidenceThreshold
-  };
-}
