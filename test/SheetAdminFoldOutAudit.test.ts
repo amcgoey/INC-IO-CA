@@ -432,7 +432,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
 
       const cardUnpatchable = CardService.newCardBuilder().addSection(sectionUnpatchable).build();
       const jsonUnpatchable = CardSerializer.toJSON(cardUnpatchable);
-      assert.strictEqual(CardSerializer.findButton(jsonUnpatchable, "onAutoPatchWorkbook"), undefined);
+      assert.strictEqual(CardSerializer.findButton(jsonUnpatchable, "??? Auto-Patch Workbook"), undefined);
     });
 
     it("displays interactive retry prompt on lock contention (status: LOCK_CONTENTION)", () => {
@@ -453,7 +453,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
       const jsonLock = CardSerializer.toJSON(cardLock);
 
       assert.ok(CardSerializer.hasWidgetText(jsonLock, "Workbook Lock Contention Detected"));
-      assert.ok(CardSerializer.findButton(jsonLock, "onAutoPatchWorkbook"));
+      assert.ok(CardSerializer.findButton(jsonLock, "?? Retry Auto-Patch"));
     });
 
     it("onAutoPatchWorkbook emits notification toast and displays lock contention retry prompt when lock cannot be acquired", () => {
@@ -481,7 +481,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
 
         const cardJson = CardSerializer.toJSON(actionJson.navigation.card);
         assert.ok(CardSerializer.hasWidgetText(cardJson, "Lock Contention") || CardSerializer.hasWidgetText(cardJson, "Workbook Lock Contention"));
-        assert.ok(CardSerializer.findButton(cardJson, "onAutoPatchWorkbook"));
+        assert.ok(CardSerializer.findButton(cardJson, "?? Retry Auto-Patch"));
       } finally {
         delete (globalThis as any).defaultSpreadsheetLockAdapter;
       }

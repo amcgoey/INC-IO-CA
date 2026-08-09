@@ -446,7 +446,30 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
   const lockAdapter = (globalThis as any).defaultSpreadsheetLockAdapter || (LockAdapterClass ? new LockAdapterClass() : undefined);
   const cacheAdapter = (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
 
-  const result = AuditorClass.autoPatchWorkbook(storageAdapter, { lockAdapter, cacheAdapter });
+  let result: any = null;
+  let batchReadError: any = undefined;
+
+  try {
+    result = AuditorClass.autoPatchWorkbook(storageAdapter, { lockAdapter, cacheAdapter });
+  } catch (err: any) {
+    if (
+      err instanceof SpreadsheetBatchReadException ||
+      (err && typeof err === "object" && (err as any).name === "SpreadsheetBatchReadException")
+    ) {
+      batchReadError = err;
+    } else {
+      throw err;
+    }
+  }
+
+  if (batchReadError) {
+    const errorSection = AdminFoldOutPresenter.renderAdminErrorSection(spreadsheetId, batchReadError);
+    const card = CardService.newCardBuilder().addSection(errorSection).build();
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card))
+      .setNotification(CardService.newNotification().setText("Advanced Sheets API Unavailable"))
+      .build();
+  }
 
   let notificationText = "";
   if (result.status === "PATCHED") {

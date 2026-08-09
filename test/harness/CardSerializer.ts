@@ -333,10 +333,10 @@ export class CardSerializer {
     const cardJson = CardSerializer.toJSON(cardInput);
 
     const checkButton = (btn: ButtonJson): boolean => {
-      if (btn.type === "TextButton" && btn.text && (btn.text === buttonIdentifier || btn.text.includes(buttonIdentifier))) {
+      if (btn.type === "TextButton" && btn.text === buttonIdentifier) {
         return true;
       }
-      if (btn.type === "ImageButton" && btn.altText && (btn.altText === buttonIdentifier || btn.altText.includes(buttonIdentifier))) {
+      if (btn.type === "ImageButton" && btn.altText === buttonIdentifier) {
         return true;
       }
       if (btn.onClickAction && btn.onClickAction.functionName === buttonIdentifier) {
