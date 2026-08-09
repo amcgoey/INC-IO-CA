@@ -249,7 +249,7 @@ function migrateBatchLogSpreadsheets(
     }
   };
 
-  const BatchEngineClass = typeof BatchMigrationEngine !== "undefined" ? BatchMigrationEngine : require("./core/log/BatchMigrationEngine").BatchMigrationEngine;
+  const BatchEngineClass = (globalThis as any).BatchMigrationEngine || BatchMigrationEngine;
   const engine = new BatchEngineClass(
     getStorage,
     manifestRepo,
@@ -291,6 +291,57 @@ function onBatchMigrationContinuationTrigger(e: any): void {
   migrateBatchLogSpreadsheets();
 }
 
+
+/**
+ * Global GAS entry point to execute Phase 2 cross-log reference scanning and cell hyperlink repair.
+ */
+function repairCrossLogReferences(batchId?: string): any {
+  const StorageClass = (globalThis as any).GoogleSheetsStorageAdapter || (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : eval("require")("./SheetStorageAdapter").GoogleSheetsStorageAdapter);
+  const storageMap = new Map<string, any>();
+  const getStorage = (id: string) => {
+    if (!storageMap.has(id)) {
+      storageMap.set(id, new StorageClass(id));
+    }
+    return storageMap.get(id)!;
+  };
+
+  let inMemoryManifest: any = null;
+  const manifestRepo = {
+    getManifest: () => {
+      if (inMemoryManifest) return inMemoryManifest;
+      if (typeof PropertiesService !== "undefined" && PropertiesService.getScriptProperties) {
+        const json = PropertiesService.getScriptProperties().getProperty("MIGRATION_BATCH_MANIFEST");
+        if (json) {
+          try { return JSON.parse(json); } catch (_e) {}
+        }
+      }
+      return null;
+    },
+    saveManifest: (manifest: any) => {
+      inMemoryManifest = manifest;
+      if (typeof PropertiesService !== "undefined" && PropertiesService.getScriptProperties) {
+        PropertiesService.getScriptProperties().setProperty("MIGRATION_BATCH_MANIFEST", JSON.stringify(manifest));
+      }
+    }
+  };
+
+  const BatchEngineClass = (globalThis as any).BatchMigrationEngine || (typeof BatchMigrationEngine !== "undefined" ? BatchMigrationEngine : eval("require")("./core/log/BatchMigrationEngine").BatchMigrationEngine);
+  const engine = new BatchEngineClass(getStorage, manifestRepo);
+
+  const existingManifest = manifestRepo.getManifest();
+  if (existingManifest) {
+    return engine.runBatch(existingManifest);
+  }
+
+  const targetBatchId = batchId || "batch-" + new Date().getTime();
+  const defaultTargets = [
+    { spreadsheetId: "1WB_DISCOVERED_1", spreadsheetName: "Discovered Log 1", targetTabName: "Submittal Arch Log" }
+  ];
+  const newManifest = engine.initializeBatch(targetBatchId, defaultTargets);
+  return engine.runBatch(newManifest);
+}
+
+
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
@@ -299,10 +350,12 @@ if (typeof module !== "undefined" && module.exports) {
     buildAddOn,
     migrateLogSpreadsheet,
     migrateBatchLogSpreadsheets,
-    onBatchMigrationContinuationTrigger
+    onBatchMigrationContinuationTrigger,
+    repairCrossLogReferences
   };
 }
 
 (globalThis as any).migrateLogSpreadsheet = migrateLogSpreadsheet;
 (globalThis as any).migrateBatchLogSpreadsheets = migrateBatchLogSpreadsheets;
 (globalThis as any).onBatchMigrationContinuationTrigger = onBatchMigrationContinuationTrigger;
+(globalThis as any).repairCrossLogReferences = repairCrossLogReferences;

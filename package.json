@@ -20,7 +20,8 @@
     "template:verify-live": "npx tsx scripts/template/verify-live.ts",
     "template:deploy-live": "npx tsx scripts/template/deploy-live.ts",
     "migrate:log": "npx tsx scripts/migrate-log.ts",
-    "migrate:batch": "npx tsx scripts/migrate-batch.ts"
+    "migrate:batch": "npx tsx scripts/migrate-batch.ts",
+    "repair:hyperlinks": "npx tsx scripts/repair-hyperlinks.ts"
   },
   "devDependencies": {
     "@google/clasp": "^2.4.2",

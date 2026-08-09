@@ -681,21 +681,28 @@ export class LogMigrationEngine {
    * Logs execution event telemetry under Category = 'MIGRATION' in _AuditLog tab.
    */
   public logMigrationEvent(spreadsheetId: string, eventType: string, status: string, detailsObj: Record<string, unknown>): void {
-    const sheetName = "_AuditLog";
-    const auditHeaders = ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"];
-    const logData = this.storageAdapter.getSheetValues(sheetName) || [];
+    try {
+      const sheetName = "_AuditLog";
+      const auditHeaders = ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"];
+      let logData: any[][] = [];
+      try {
+        logData = this.storageAdapter.getSheetValues(sheetName) || [];
+      } catch (_e) {
+        logData = [];
+      }
 
-    let targetRowIndex = logData.length + 1;
-    if (logData.length === 0) {
-      this.storageAdapter.setRowValues(sheetName, 1, auditHeaders, auditHeaders);
-      targetRowIndex = 2;
-    }
+      let targetRowIndex = logData.length + 1;
+      if (logData.length === 0) {
+        this.storageAdapter.setRowValues(sheetName, 1, auditHeaders, auditHeaders);
+        targetRowIndex = 2;
+      }
 
-    const timestamp = new Date().toISOString();
-    const details = JSON.stringify(detailsObj);
+      const timestamp = new Date().toISOString();
+      const details = JSON.stringify(detailsObj);
 
-    const rowData = [timestamp, "MIGRATION", eventType, "LogMigrationEngine", status, details];
-    this.storageAdapter.setRowValues(sheetName, targetRowIndex, auditHeaders, rowData);
+      const rowData = [timestamp, "MIGRATION", eventType, "LogMigrationEngine", status, details];
+      this.storageAdapter.setRowValues(sheetName, targetRowIndex, auditHeaders, rowData);
+    } catch (_err) {}
   }
 
   /**
