@@ -5,11 +5,10 @@
  * against DocumentLogWorkbookSpec to detect version, tab, named range, header, formula, or validation discrepancies
  * (Issue #221, Issue #225, ADR 0019, ADR 0029, ADR 0037, ADR 0041, ADR 0043).
  *
- * Adheres strictly to Tier 1 Pure Core guidelines: zero GAS globals, zero Node built-ins.
+ * Adheres strictly to Tier 1 Pure Core guidelines: zero GAS globals, zero Node built-ins, zero inverted Tier 2 dependencies.
  */
 
-import { DOCUMENT_LOG_WORKBOOK_SPEC, ColumnSpec } from "../config/DocumentLogWorkbookSpec";
-import { SpreadsheetBatchData } from "../../adapters/gas/SpreadsheetBatchReaderAdapter";
+import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../config/DocumentLogWorkbookSpec";
 
 export type SchemaDriftStatus = "MATCH" | "MINOR_DRIFT" | "MAJOR_DRIFT" | "INCOMPATIBLE";
 export type IssueSeverity = "CRITICAL" | "WARNING" | "INFO";
@@ -41,29 +40,54 @@ export interface TemplateDriftReport {
 
 export interface AuditWorkbookOptions {
   bypassCache?: boolean;
+  logger?: (msg: string) => void;
+}
+
+export interface BatchPayloadSheet {
+  properties?: { sheetId?: number; title?: string };
+  data?: Array<{
+    rowData?: Array<{
+      values?: Array<{
+        userEnteredValue?: { stringValue?: string; numberValue?: number; boolValue?: boolean; formulaValue?: string };
+        dataValidation?: any;
+      }>;
+    }>;
+  }>;
+}
+
+export interface BatchPayloadNamedRange {
+  name?: string;
+  range?: { sheetId?: number; startRowIndex?: number; endRowIndex?: number; startColumnIndex?: number; endColumnIndex?: number };
+}
+
+export interface BatchPayload {
+  spreadsheetId: string;
+  namedRanges?: BatchPayloadNamedRange[];
+  sheets?: BatchPayloadSheet[];
 }
 
 export class TemplateDriftAuditor {
-  public static readonly CODE_SCHEMA_VERSION = DOCUMENT_LOG_WORKBOOK_SPEC.schemaVersion || "1.2.0";
+  public static readonly CODE_SCHEMA_VERSION = DOCUMENT_LOG_WORKBOOK_SPEC.schemaVersion || "1.0.0";
 
   /**
-   * Performs a dry-run 6-dimension structural schema audit against target workbook without mutating sheet structure.
-   * Always reads direct uncached live state when bypassCache: true.
+   * Performs a dry-run 6-dimension structural schema audit against target workbook without mutating sheet structure or cache state.
+   * Lock-free read-only operation. Direct uncached reads enforced when bypassCache: true.
    *
-   * @param storageAdapter - Tier 1 SheetStorageAdapter, SpreadsheetBatchData payload, or spreadsheetId string.
-   * @param options - Audit execution options (bypassCache, etc.).
+   * @param storageAdapter - Tier 1 SheetStorageAdapter, BatchPayload, or spreadsheetId string.
+   * @param options - Audit execution options (bypassCache, logger, etc.).
    * @returns TemplateDriftReport object.
    */
   public static auditWorkbook(
     storageAdapter: any,
-    _options: AuditWorkbookOptions = { bypassCache: true }
+    options: AuditWorkbookOptions = { bypassCache: true }
   ): TemplateDriftReport {
     const startTime = Date.now();
+    const bypassCache = options.bypassCache !== false; // default true
     let spreadsheetId = "active-workbook";
     let apiReadCount = 0;
     let inspectionStrategy: "ADVANCED_SHEETS_BATCH_V1" | "STORAGE_ADAPTER_LIVE" = "STORAGE_ADAPTER_LIVE";
 
-    let batchData: SpreadsheetBatchData | null = null;
+    let batchData: BatchPayload | null = null;
     let ssObject: any = null;
     let adapter: any = null;
 
@@ -77,7 +101,8 @@ export class TemplateDriftAuditor {
       spreadsheetId = typeof storageAdapter.getId === "function" ? storageAdapter.getId() : (storageAdapter.id || "active-workbook");
     } else if (typeof storageAdapter === "string") {
       spreadsheetId = storageAdapter;
-      if (typeof (globalThis as any).Sheets !== "undefined" && (globalThis as any).Sheets?.Spreadsheets?.get) {
+      // In GAS environment, resolve batch reader via global registry or fallback to openById seam
+      if (bypassCache && typeof (globalThis as any).Sheets !== "undefined" && (globalThis as any).Sheets?.Spreadsheets?.get) {
         try {
           const BatchReader = (globalThis as any).SpreadsheetBatchReaderAdapter ||
             (typeof require !== "undefined" ? require("../../adapters/gas/SpreadsheetBatchReaderAdapter").SpreadsheetBatchReaderAdapter : null);
@@ -89,7 +114,7 @@ export class TemplateDriftAuditor {
           }
         } catch (e) {}
       }
-      if (!batchData && typeof (globalThis as any).SpreadsheetApp !== "undefined") {
+      if (!batchData && (globalThis as any).SpreadsheetApp && typeof (globalThis as any).SpreadsheetApp.openById === "function") {
         try {
           ssObject = (globalThis as any).SpreadsheetApp.openById(spreadsheetId);
           apiReadCount++;
@@ -98,7 +123,7 @@ export class TemplateDriftAuditor {
     } else if (storageAdapter) {
       adapter = storageAdapter;
       spreadsheetId = (storageAdapter as any)?.spreadsheetId || "active-workbook";
-      if (typeof (globalThis as any).SpreadsheetApp !== "undefined" && spreadsheetId) {
+      if ((globalThis as any).SpreadsheetApp && typeof (globalThis as any).SpreadsheetApp.openById === "function") {
         try {
           ssObject = (globalThis as any).SpreadsheetApp.openById(spreadsheetId);
           apiReadCount++;
@@ -110,7 +135,7 @@ export class TemplateDriftAuditor {
     let liveSchemaVersion: string | undefined = undefined;
 
     const getLiveSheetNames = (): string[] => {
-      if (batchData) {
+      if (batchData && batchData.sheets) {
         return batchData.sheets.map(s => s.properties?.title || "").filter(Boolean);
       }
       if (ssObject && typeof ssObject.getSheets === "function") {
@@ -125,7 +150,7 @@ export class TemplateDriftAuditor {
     const liveSheetNames = getLiveSheetNames();
 
     const getSheetGrid = (tabName: string): any[][] => {
-      if (batchData) {
+      if (batchData && batchData.sheets) {
         const sheet = batchData.sheets.find(s => s.properties?.title === tabName);
         if (!sheet || !sheet.data || sheet.data.length === 0 || !sheet.data[0].rowData) {
           return [];
@@ -155,18 +180,28 @@ export class TemplateDriftAuditor {
       return [];
     };
 
-    const hasNamedRange = (name: string): boolean => {
-      if (batchData) {
-        return batchData.namedRanges.some(nr => nr.name === name);
+    const hasNamedRange = (name: string, tabName?: string): boolean => {
+      if (batchData && batchData.namedRanges) {
+        return batchData.namedRanges.some(nr => {
+          if (nr.name === name) return true;
+          if (tabName && nr.name === tabName + "_" + name) return true;
+          return false;
+        });
       }
       if (ssObject && typeof ssObject.getNamedRanges === "function") {
         const nrs = ssObject.getNamedRanges();
         if (Array.isArray(nrs) && nrs.length > 0) {
-          return nrs.some((nr: any) => nr.getName() === name);
+          return nrs.some((nr: any) => {
+            const nrName = typeof nr.getName === "function" ? nr.getName() : nr.name;
+            if (nrName === name) return true;
+            if (tabName && (nrName === tabName + "_" + name || nrName === tabName + "!" + name)) return true;
+            return false;
+          });
         }
       }
       if (ssObject && typeof ssObject.getRangeByName === "function") {
-        return !!ssObject.getRangeByName(name);
+        if (ssObject.getRangeByName(name)) return true;
+        if (tabName && (ssObject.getRangeByName(tabName + "_" + name) || ssObject.getRangeByName(tabName + "!" + name))) return true;
       }
       return false;
     };
@@ -282,9 +317,7 @@ export class TemplateDriftAuditor {
     for (const nrSpec of DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges) {
       if (!liveSheetNames.includes(nrSpec.tabName)) continue;
 
-      const exists = hasNamedRange(nrSpec.name) ||
-                     hasNamedRange(nrSpec.tabName + "_" + nrSpec.name) ||
-                     (nrSpec.scope === "Sheet" && hasNamedRange(nrSpec.tabName + "!" + nrSpec.name));
+      const exists = hasNamedRange(nrSpec.name, nrSpec.tabName);
 
       if (!exists) {
         if (nrSpec.scope === "Sheet" || nrSpec.name === "AuditLog_Events") {
@@ -310,7 +343,7 @@ export class TemplateDriftAuditor {
       }
 
       const grid = getSheetGrid(specTab.name);
-      const liveHeaders = grid.length >= 3 ? grid[2].map(h => String(h || "").trim()) : [];
+      const liveHeaders = grid.length >= 3 ? grid[2].map(h => String(h || "").trim()) : (grid.length >= 1 ? grid[0].map(h => String(h || "").trim()) : []);
 
       // Dimension 4: Header Schema Alignment Audit
       for (let colIdx = 0; colIdx < specTab.columns.length; colIdx++) {
@@ -340,9 +373,25 @@ export class TemplateDriftAuditor {
         }
       }
 
-      // Dimension 5: Formula Integrity Audit (Row 2 Scoped)
-      const formulaRowIndex = grid.length >= 4 ? 3 : (grid.length >= 2 ? 1 : -1);
-      const liveFormulas = formulaRowIndex >= 0 ? grid[formulaRowIndex] : [];
+      // Dimension 5: Formula Integrity Audit (Strictly Scoped to FormulaRow)
+      // Dynamically resolve formula row index from FormulaRow named range notation or fallback
+      let formulaRowIdx = 3; // Default Row 4 (index 3) in standard view spec
+      if (batchData && batchData.namedRanges) {
+        const nr = batchData.namedRanges.find(r => r.name === "FormulaRow" || r.name === specTab.name + "_FormulaRow");
+        if (nr && nr.range && typeof nr.range.startRowIndex === "number") {
+          formulaRowIdx = nr.range.startRowIndex;
+        }
+      } else if (ssObject && typeof ssObject.getRangeByName === "function") {
+        const nr = ssObject.getRangeByName("FormulaRow") || ssObject.getRangeByName(specTab.name + "_FormulaRow");
+        if (nr && typeof nr.getRow === "function") {
+          formulaRowIdx = nr.getRow() - 1;
+        }
+      }
+      if (formulaRowIdx >= grid.length) {
+        formulaRowIdx = grid.length >= 4 ? 3 : (grid.length >= 2 ? 1 : -1);
+      }
+
+      const liveFormulas = formulaRowIdx >= 0 && formulaRowIdx < grid.length ? grid[formulaRowIdx] : [];
 
       for (let colIdx = 0; colIdx < specTab.columns.length; colIdx++) {
         const colSpec = specTab.columns[colIdx];
@@ -382,7 +431,7 @@ export class TemplateDriftAuditor {
         } else if (ssObject) {
           const sheet = ssObject.getSheetByName(specTab.name);
           if (sheet) {
-            const rule = sheet.getRange(6, colIdx + 1).getDataValidation();
+            const rule = sheet.getRange(2, colIdx + 1).getDataValidation();
             hasValidation = !!rule;
           }
         }
@@ -419,27 +468,6 @@ export class TemplateDriftAuditor {
       canAutoPatch = true;
     }
 
-    // PrefixCacheManager Eviction (ADR 0041)
-    if (status !== "MATCH" && spreadsheetId) {
-      try {
-        let PrefixClass = (globalThis as any).PrefixCacheManager;
-        if (!PrefixClass && typeof require !== "undefined") {
-          try { PrefixClass = require("./PrefixCacheManager").PrefixCacheManager; } catch (e) {}
-        }
-        if (PrefixClass) {
-          let CacheAdapterClass = (globalThis as any).GoogleScriptCacheAdapter;
-          if (!CacheAdapterClass && typeof require !== "undefined") {
-            try { CacheAdapterClass = require("../../adapters/gas/GoogleScriptCacheAdapter").GoogleScriptCacheAdapter; } catch (e) {}
-          }
-          if (CacheAdapterClass) {
-            const cacheAdapter = (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
-            const mgr = new PrefixClass(cacheAdapter);
-            mgr.invalidatePrefix("DOC_CONFIG_" + spreadsheetId);
-          }
-        }
-      } catch (e) {}
-    }
-
     const auditDurationMs = Date.now() - startTime;
     const telemetry: TemplateDriftTelemetry = {
       auditDurationMs,
@@ -448,15 +476,19 @@ export class TemplateDriftAuditor {
       apiReadCount
     };
 
-    if (typeof Logger !== "undefined" && typeof Logger.log === "function") {
-      Logger.log(JSON.stringify({
-        event: "TEMPLATE_DRIFT_AUDIT_EXECUTION",
-        spreadsheetId,
-        status,
-        canAutoPatch,
-        issuesCount: issues.length,
-        telemetry
-      }));
+    const executionLogPayload = JSON.stringify({
+      event: "TEMPLATE_DRIFT_AUDIT_EXECUTION",
+      spreadsheetId,
+      status,
+      canAutoPatch,
+      issuesCount: issues.length,
+      telemetry
+    });
+
+    if (typeof options.logger === "function") {
+      options.logger(executionLogPayload);
+    } else if ((globalThis as any).Logger && typeof (globalThis as any).Logger.log === "function") {
+      (globalThis as any).Logger.log(executionLogPayload);
     }
 
     let summary = "";

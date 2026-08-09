@@ -119,7 +119,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     ssOverwritten.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
 
     const archSheet = ssOverwritten.getSheetByName("Submittal Arch")!;
-    // Overwrite Row 4 (FormulaRow) calculated column formula with static string
+    // Overwrite Row 2 (FormulaRow) calculated column formula with static string
     archSheet.getRange(4, 11).setValue("STATIC_OVERWRITE");
 
     const reportOverwritten = TemplateDriftAuditor.auditWorkbook("wb-formula-overwritten", { bypassCache: true });
