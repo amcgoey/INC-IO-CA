@@ -95,7 +95,8 @@ export class SheetsRootCard {
     // 2. SheetAdminFoldOut Section dispatched via AdminFoldOutPresenter
     const foldOutSection = AdminFoldOutPresenter.renderAdminSection("GoogleSheets", {
       spreadsheetId: context.spreadsheetId,
-      auditReport: params?.auditReport
+      auditReport: params?.auditReport,
+      lockContention: params?.lockContention
     });
 
     cardBuilder.addSection(headerSection);

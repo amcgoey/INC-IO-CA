@@ -368,4 +368,124 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     });
   });
 
+  describe("Issue #228 Acceptance Criteria & UI Verification", () => {
+    it("renders inline Schema Health Report with overall status badge, live vs code version, and issue breakdown", () => {
+      const report = {
+        spreadsheetId: "wb-228-ui",
+        status: "MINOR_DRIFT" as const,
+        codeSchemaVersion: "1.2.0",
+        liveSchemaVersion: "1.1.0",
+        canAutoPatch: true,
+        issues: [
+          { category: "VERSION" as const, description: "Schema version mismatch", severity: "WARNING" as const }
+        ]
+      };
+
+      const section = AdminFoldOutPresenter.renderSheetAdminFoldOut({
+        spreadsheetId: "wb-228-ui",
+        auditReport: report
+      });
+
+      const card = CardService.newCardBuilder().addSection(section).build();
+      const cardJson = CardSerializer.toJSON(card);
+
+      assert.ok(CardSerializer.hasWidgetText(cardJson, "Schema Health Report"));
+      assert.ok(CardSerializer.hasWidgetText(cardJson, "Status: MINOR_DRIFT"));
+      assert.ok(CardSerializer.hasWidgetText(cardJson, "Code Schema:</b> v1.2.0"));
+      assert.ok(CardSerializer.hasWidgetText(cardJson, "Live Schema:</b> v1.1.0"));
+      assert.ok(CardSerializer.hasWidgetText(cardJson, "Auto-Patch Readiness: Ready (true)"));
+      assert.ok(CardSerializer.hasWidgetText(cardJson, "Schema version mismatch"));
+    });
+
+    it("displays 'Auto-Patch Workbook' button strictly when canAutoPatch is true and omits button when canAutoPatch is false", () => {
+      // 1. canAutoPatch === true
+      const sectionPatchable = AdminFoldOutPresenter.renderSheetAdminFoldOut({
+        spreadsheetId: "wb-228-patchable",
+        auditReport: {
+          spreadsheetId: "wb-228-patchable",
+          status: "MINOR_DRIFT",
+          codeSchemaVersion: "1.2.0",
+          liveSchemaVersion: "1.2.0",
+          canAutoPatch: true,
+          issues: []
+        }
+      });
+
+      const cardPatchable = CardService.newCardBuilder().addSection(sectionPatchable).build();
+      const jsonPatchable = CardSerializer.toJSON(cardPatchable);
+      assert.ok(CardSerializer.findButton(jsonPatchable, "Auto-Patch Workbook") || CardSerializer.findButton(jsonPatchable, "Auto-Patch Workbook"));
+
+      // 2. canAutoPatch === false
+      const sectionUnpatchable = AdminFoldOutPresenter.renderSheetAdminFoldOut({
+        spreadsheetId: "wb-228-unpatchable",
+        auditReport: {
+          spreadsheetId: "wb-228-unpatchable",
+          status: "MAJOR_DRIFT",
+          codeSchemaVersion: "1.2.0",
+          liveSchemaVersion: "1.2.0",
+          canAutoPatch: false,
+          issues: [
+            { category: "TAB", description: "Missing log tab Submittal Arch", severity: "CRITICAL" }
+          ]
+        }
+      });
+
+      const cardUnpatchable = CardService.newCardBuilder().addSection(sectionUnpatchable).build();
+      const jsonUnpatchable = CardSerializer.toJSON(cardUnpatchable);
+      assert.strictEqual(CardSerializer.findButton(jsonUnpatchable, "Auto-Patch Workbook"), undefined);
+    });
+
+    it("displays interactive retry prompt on lock contention (status: LOCK_CONTENTION)", () => {
+      const sectionLock = AdminFoldOutPresenter.renderSheetAdminFoldOut({
+        spreadsheetId: "wb-228-locked",
+        lockContention: true,
+        auditReport: {
+          spreadsheetId: "wb-228-locked",
+          status: "MINOR_DRIFT",
+          codeSchemaVersion: "1.2.0",
+          liveSchemaVersion: "1.2.0",
+          canAutoPatch: true,
+          issues: []
+        }
+      });
+
+      const cardLock = CardService.newCardBuilder().addSection(sectionLock).build();
+      const jsonLock = CardSerializer.toJSON(cardLock);
+
+      assert.ok(CardSerializer.hasWidgetText(jsonLock, "Workbook Lock Contention Detected"));
+      assert.ok(CardSerializer.findButton(jsonLock, "Retry Auto-Patch") || CardSerializer.findButton(jsonLock, "Retry Auto-Patch"));
+    });
+
+    it("onAutoPatchWorkbook emits notification toast and displays lock contention retry prompt when lock cannot be acquired", () => {
+      const ss = harness.sheetsService.openById("wb-228-lock-event");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
+
+      const lockAdapter = new FakeSpreadsheetLockAdapter();
+      lockAdapter.acquireLock("wb-228-lock-event", 900000); // Hold lock
+
+      (globalThis as any).defaultSpreadsheetLockAdapter = lockAdapter;
+
+      const event = {
+        sheetsContext: {
+          spreadsheetId: "wb-228-lock-event",
+          sheetName: "Submittal Arch"
+        }
+      };
+
+      try {
+        const response = onAutoPatchWorkbook(event);
+        const actionJson = CardSerializer.actionResponseToJSON(response);
+
+        assert.ok(actionJson.notification?.text?.includes("Workbook lock currently held by another process"));
+        assert.ok(actionJson.navigation?.card);
+
+        const cardJson = CardSerializer.toJSON(actionJson.navigation.card);
+        assert.ok(CardSerializer.hasWidgetText(cardJson, "Lock Contention") || CardSerializer.hasWidgetText(cardJson, "Workbook Lock Contention"));
+        assert.ok(CardSerializer.findButton(cardJson, "Retry Auto-Patch") || CardSerializer.findButton(cardJson, "Retry Auto-Patch"));
+      } finally {
+        delete (globalThis as any).defaultSpreadsheetLockAdapter;
+      }
+    });
+  });
+
 });

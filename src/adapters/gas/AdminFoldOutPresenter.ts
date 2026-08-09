@@ -28,6 +28,7 @@ export interface AdminFoldOutContextData {
   documentType?: string;
   tabName?: string;
   auditReport?: TemplateDriftReport;
+  lockContention?: boolean;
   error?: Error | SpreadsheetBatchReadException | unknown;
   [key: string]: any;
 }
@@ -158,6 +159,29 @@ export class AdminFoldOutPresenter {
               )
           )
       );
+
+
+    if (contextData?.lockContention || (report?.status as any) === "LOCK_CONTENTION") {
+      section.addWidget(
+        CardService.newTextParagraph().setText(
+          "?? <b>Workbook Lock Contention Detected</b><br/>" +
+          "Another administrative process or migration is currently modifying this spreadsheet. " +
+          "The workbook lock (<code>LOCK_MIGRATION_" + spreadsheetId + "</code>) could not be acquired within the 5-second timeout.<br/><br/>" +
+          "Please wait a moment and click below to retry auto-patching."
+        )
+      );
+      section.addWidget(
+        CardService.newButtonSet().addButton(
+          CardService.newTextButton()
+            .setText("?? Retry Auto-Patch")
+            .setOnClickAction(
+              CardService.newAction()
+                .setFunctionName("onAutoPatchWorkbook")
+                .setParameters({ spreadsheetId })
+            )
+        )
+      );
+    }
 
     // If an inline Schema Health Report is present, render it
     if (report) {
@@ -445,7 +469,8 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
   const updatedCard = SheetsRootCardClass.buildSheetsRootCard({
     spreadsheetId,
     sheetName,
-    auditReport: result.auditReport
+    auditReport: result.auditReport,
+    lockContention: result.status === "LOCK_CONTENTION"
   });
 
   return CardService.newActionResponseBuilder()

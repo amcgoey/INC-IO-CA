@@ -23,6 +23,7 @@ export interface SheetsContextParams {
   sheetName?: string;
   sheetId?: number;
   auditReport?: TemplateDriftReport;
+  lockContention?: boolean;
 }
 
 export class SheetsContextBinder {
