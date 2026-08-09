@@ -413,7 +413,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
 
       const cardPatchable = CardService.newCardBuilder().addSection(sectionPatchable).build();
       const jsonPatchable = CardSerializer.toJSON(cardPatchable);
-      assert.ok(CardSerializer.findButton(jsonPatchable, "Auto-Patch Workbook") || CardSerializer.findButton(jsonPatchable, "Auto-Patch Workbook"));
+      assert.ok(CardSerializer.findButton(jsonPatchable, "onAutoPatchWorkbook"));
 
       // 2. canAutoPatch === false
       const sectionUnpatchable = AdminFoldOutPresenter.renderSheetAdminFoldOut({
@@ -432,7 +432,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
 
       const cardUnpatchable = CardService.newCardBuilder().addSection(sectionUnpatchable).build();
       const jsonUnpatchable = CardSerializer.toJSON(cardUnpatchable);
-      assert.strictEqual(CardSerializer.findButton(jsonUnpatchable, "Auto-Patch Workbook"), undefined);
+      assert.strictEqual(CardSerializer.findButton(jsonUnpatchable, "onAutoPatchWorkbook"), undefined);
     });
 
     it("displays interactive retry prompt on lock contention (status: LOCK_CONTENTION)", () => {
@@ -453,7 +453,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
       const jsonLock = CardSerializer.toJSON(cardLock);
 
       assert.ok(CardSerializer.hasWidgetText(jsonLock, "Workbook Lock Contention Detected"));
-      assert.ok(CardSerializer.findButton(jsonLock, "Retry Auto-Patch") || CardSerializer.findButton(jsonLock, "Retry Auto-Patch"));
+      assert.ok(CardSerializer.findButton(jsonLock, "onAutoPatchWorkbook"));
     });
 
     it("onAutoPatchWorkbook emits notification toast and displays lock contention retry prompt when lock cannot be acquired", () => {
@@ -481,7 +481,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
 
         const cardJson = CardSerializer.toJSON(actionJson.navigation.card);
         assert.ok(CardSerializer.hasWidgetText(cardJson, "Lock Contention") || CardSerializer.hasWidgetText(cardJson, "Workbook Lock Contention"));
-        assert.ok(CardSerializer.findButton(cardJson, "Retry Auto-Patch") || CardSerializer.findButton(cardJson, "Retry Auto-Patch"));
+        assert.ok(CardSerializer.findButton(cardJson, "onAutoPatchWorkbook"));
       } finally {
         delete (globalThis as any).defaultSpreadsheetLockAdapter;
       }

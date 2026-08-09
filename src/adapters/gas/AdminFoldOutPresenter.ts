@@ -161,12 +161,12 @@ export class AdminFoldOutPresenter {
       );
 
 
-    if (contextData?.lockContention || (report?.status as any) === "LOCK_CONTENTION") {
+    if (contextData?.lockContention) {
       section.addWidget(
         CardService.newTextParagraph().setText(
           "?? <b>Workbook Lock Contention Detected</b><br/>" +
           "Another administrative process or migration is currently modifying this spreadsheet. " +
-          "The workbook lock (<code>LOCK_MIGRATION_" + spreadsheetId + "</code>) could not be acquired within the 5-second timeout.<br/><br/>" +
+          "The spreadsheet lock could not be acquired within the 5-second timeout.<br/><br/>" +
           "Please wait a moment and click below to retry auto-patching."
         )
       );
@@ -182,7 +182,6 @@ export class AdminFoldOutPresenter {
         )
       );
     }
-
     // If an inline Schema Health Report is present, render it
     if (report) {
       const statusPillMap: Record<string, string> = {
@@ -214,7 +213,7 @@ export class AdminFoldOutPresenter {
         )
       );
 
-      if (report.canAutoPatch) {
+      if (report.canAutoPatch && !contextData?.lockContention) {
         section.addWidget(
           CardService.newButtonSet().addButton(
             CardService.newTextButton()
