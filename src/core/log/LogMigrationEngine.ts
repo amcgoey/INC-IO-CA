@@ -20,6 +20,17 @@ export interface LegacyCalculatedFormulaDiscrepancy {
   actionTaken: "CLEARED_FOR_SPILL" | "COERCED_TO_SNAPSHOT" | "PRESERVED_USER_FORMULA" | string;
 }
 
+export interface LiveMigrationResult {
+  status: "MIGRATION_COMMITTED" | "ROLLED_BACK" | "ALREADY_MIGRATED" | "FAILED";
+  tabName: string;
+  sourceDataRowCount: number;
+  targetAppendedRowCount: number;
+  lastMigrationHash?: string;
+  snapshotName?: string;
+  auditReport?: MigrationAuditReport;
+  error?: string;
+}
+
 export interface MigrationAuditReport {
   tabName: string;
   totalRows: number;
@@ -45,7 +56,7 @@ export interface MigrationAuditReport {
  * Validates snapshot tab name length against Google Sheets 100-character tab name limit.
  */
 export function validateSnapshotTabName(tabName: string, timestamp: string): { valid: boolean; snapshotName: string; error?: string } {
-  const snapshotName = tabName + "_Snapshot_" + timestamp;
+  const snapshotName = tabName.startsWith("_Backup_") ? tabName : "_Backup_" + tabName + "_" + timestamp;
   if (snapshotName.length > 100) {
     return {
       valid: false,
@@ -287,7 +298,11 @@ export class LogMigrationEngine {
    * Validates 100-character tab name length guard.
    */
   public createPreMigrationSnapshot(tabName: string, timestamp: string): string {
-    const snapshotName = tabName + "_Snapshot_" + timestamp;
+    const snapshotGuard = validateSnapshotTabName(tabName, timestamp);
+    if (!snapshotGuard.valid) {
+      throw new Error(snapshotGuard.error);
+    }
+    const snapshotName = snapshotGuard.snapshotName;
     
     if (snapshotName.length > 100) {
       throw new Error("Tab name '" + snapshotName + "' exceeds maximum length for snapshot cloning. Please shorten tab name before migrating.");
@@ -436,7 +451,7 @@ export class LogMigrationEngine {
   public auditLogMigration(
     tabName: string,
     fieldSpecs: DocumentFieldSpec[],
-    options?: { targetTabName?: string; timestamp?: string }
+    options?: { targetTabName?: string; timestamp?: string; sourceStorageAdapter?: SheetStorageAdapter }
   ): MigrationAuditReport {
     const reasons: string[] = [];
     const validationErrors: string[] = [];
@@ -448,7 +463,8 @@ export class LogMigrationEngine {
       validationErrors.push(snapshotGuard.error);
     }
 
-    const sourceValues: CellValue[][] = this.storageAdapter.getSheetValues(tabName) || [];
+    const sourceAdapter = options?.sourceStorageAdapter || this.storageAdapter;
+    const sourceValues: CellValue[][] = sourceAdapter.getSheetValues(tabName) || [];
     const sourceDataRowCount = Math.max(0, sourceValues.length - 2);
 
     let idempotencyStatus: "PENDING" | "ALREADY_MIGRATED" = "PENDING";
@@ -485,7 +501,7 @@ export class LogMigrationEngine {
       validationErrors.push(budgetErr);
     }
 
-    const coercionResult = this.coerceInlineFormulas(tabName, fieldSpecs);
+    const coercionResult = this.coerceInlineFormulas(tabName, fieldSpecs, { sourceValues });
     let targetSpillCollisionBlocked = false;
 
     const targetTab = options?.targetTabName;
@@ -506,6 +522,7 @@ export class LogMigrationEngine {
         }
 
         for (let r = 2; r < targetValues.length; r++) {
+          if (options?.targetTabName === tabName) { continue; }
           for (const colIdx of calcColIndices) {
             const val = targetValues[r][colIdx];
             if (val !== "" && val !== null && val !== undefined) {
@@ -603,6 +620,270 @@ export class LogMigrationEngine {
   /**
    * Executes Pass 1 audit under transaction lock safety.
    */
+
+  /**
+   * Restores target tab from pre-migration backup snapshot tab and cleans up snapshot tab on rollback.
+   */
+  public restoreFromSnapshot(storageAdapter: SheetStorageAdapter, tabName: string, snapshotName: string): boolean {
+    const snapshotValues = storageAdapter.getSheetValues(snapshotName);
+    if (snapshotValues && snapshotValues.length > 0) {
+      storageAdapter.setSheetValues(tabName, snapshotValues);
+      const snapshotFormulas = typeof storageAdapter.getSheetFormulas === "function"
+        ? storageAdapter.getSheetFormulas(snapshotName)
+        : null;
+      if (snapshotFormulas && typeof storageAdapter.setSheetFormulas === "function") {
+        storageAdapter.setSheetFormulas(tabName, snapshotFormulas);
+      }
+    }
+    if (typeof storageAdapter.deleteTab === "function") {
+      storageAdapter.deleteTab(snapshotName);
+    }
+    const allTabs = storageAdapter.getTabNames ? storageAdapter.getTabNames() : [];
+    this.preserveBackupTabs(allTabs);
+    return true;
+  }
+
+  /**
+   * Archives source spreadsheet: prefixes title with [MIGRATED_LEGACY] and prepends read-only _MIGRATION_INFO summary tab at index 0.
+   */
+  public archiveSourceSpreadsheet(
+    sourceStorage: SheetStorageAdapter,
+    targetSpreadsheetId: string,
+    targetTabName: string,
+    lastMigrationHash: string,
+    rowCount: number,
+    timestamp: string,
+    sourceSpreadsheetId?: string
+  ): void {
+    const titleId = sourceSpreadsheetId || targetSpreadsheetId;
+    if (typeof sourceStorage.setSpreadsheetTitle === "function") {
+      sourceStorage.setSpreadsheetTitle("[MIGRATED_LEGACY] Legacy Log " + titleId);
+    }
+
+    const infoSheetName = "_MIGRATION_INFO";
+    const infoRows: CellValue[][] = [
+      ["NOTICE", "This spreadsheet has been migrated to the new DocumentLogWorkbook structure and is read-only."],
+      ["Target Spreadsheet ID", targetSpreadsheetId],
+      ["Migrated Log Tab", targetTabName],
+      ["Migration Timestamp", timestamp],
+      ["Migrated Data Row Count", rowCount],
+      ["Migration SHA-256 Hash", lastMigrationHash]
+    ];
+    sourceStorage.setSheetValues(infoSheetName, infoRows);
+    const tabs = sourceStorage.getTabNames ? sourceStorage.getTabNames() : [];
+    if (tabs.includes(infoSheetName) && sourceStorage.reorderTabs) {
+      const remaining = tabs.filter(t => t !== infoSheetName);
+      sourceStorage.reorderTabs([infoSheetName, ...remaining]);
+    }
+  }
+
+  /**
+   * Logs execution event telemetry under Category = 'MIGRATION' in _AuditLog tab.
+   */
+  public logMigrationEvent(spreadsheetId: string, eventType: string, status: string, detailsObj: Record<string, unknown>): void {
+    const sheetName = "_AuditLog";
+    const auditHeaders = ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"];
+    const logData = this.storageAdapter.getSheetValues(sheetName) || [];
+
+    let targetRowIndex = logData.length + 1;
+    if (logData.length === 0) {
+      this.storageAdapter.setRowValues(sheetName, 1, auditHeaders, auditHeaders);
+      targetRowIndex = 2;
+    }
+
+    const timestamp = new Date().toISOString();
+    const details = JSON.stringify(detailsObj);
+
+    const rowData = [timestamp, "MIGRATION", eventType, "LogMigrationEngine", status, details];
+    this.storageAdapter.setRowValues(sheetName, targetRowIndex, auditHeaders, rowData);
+  }
+
+  /**
+   * Executes Pass 2 live row migration with pre-migration backup snapshot (_Backup_<TabName>_<Timestamp>),
+   * 4-tier legacy formula coercion, post-flight row count parity check, atomic rollback safety,
+   * SHA-256 fingerprinting, source spreadsheet archiving, and _AuditLog event telemetry.
+   */
+  public executeLiveMigration(
+    spreadsheetId: string,
+    tabName: string,
+    fieldSpecs: DocumentFieldSpec[],
+    options?: {
+      targetTabName?: string;
+      timestamp?: string;
+      sourceStorageAdapter?: SheetStorageAdapter;
+      sourceSpreadsheetId?: string;
+      forceParityFailureForTest?: boolean;
+      forceWriteErrorForTest?: boolean;
+    }
+  ): LiveMigrationResult {
+    let executionId: string | null = null;
+    if (this.lockAdapter) {
+      executionId = this.lockAdapter.acquireLock(spreadsheetId);
+      if (!executionId) {
+        throw new Error("ConcurrentMigrationException: Unable to acquire transaction lock for spreadsheet '" + spreadsheetId + "'. Migration locked by active transaction.");
+      }
+    }
+
+    const targetStorage = this.storageAdapter;
+    const sourceStorage = options?.sourceStorageAdapter || targetStorage;
+    const targetTabName = options?.targetTabName || tabName;
+    const timestamp = options?.timestamp || "20260809_120000";
+
+    try {
+      const sourceValues: CellValue[][] = sourceStorage.getSheetValues(tabName) || [];
+      const sourceFormulas: string[][] | undefined = typeof sourceStorage.getSheetFormulas === "function"
+        ? sourceStorage.getSheetFormulas(tabName)
+        : undefined;
+
+      const sourceHash = computeMigrationHash(sourceValues);
+
+      // Check idempotency in target _Config tab
+      const configValues = targetStorage.getSheetValues("_Config") || [];
+      for (const r of configValues) {
+        if (r[0] === "lastMigrationHash" && String(r[1] || "") === sourceHash) {
+          const sourceRowCount = Math.max(0, sourceValues.length - 2);
+          return {
+            status: "ALREADY_MIGRATED",
+            tabName: targetTabName,
+            sourceDataRowCount: sourceRowCount,
+            targetAppendedRowCount: 0,
+            lastMigrationHash: sourceHash
+          };
+        }
+      }
+
+      // Pass 1 audit
+      const auditReport = this.auditLogMigration(tabName, fieldSpecs, { targetTabName, timestamp, sourceStorageAdapter: sourceStorage });
+      if (!auditReport.canProceed || auditReport.idempotencyStatus === "ALREADY_MIGRATED") {
+        return {
+          status: auditReport.idempotencyStatus === "ALREADY_MIGRATED" ? "ALREADY_MIGRATED" : "FAILED",
+          tabName: targetTabName,
+          sourceDataRowCount: auditReport.sourceDataRowCount,
+          targetAppendedRowCount: 0,
+          auditReport,
+          error: auditReport.reasons.join("; ")
+        };
+      }
+
+      // Pre-migration snapshot creation
+      const snapshotName = this.createPreMigrationSnapshot(targetTabName, timestamp);
+
+      let targetAppendedRowCount = 0;
+      const sourceDataRowCount = auditReport.sourceDataRowCount;
+
+      try {
+        if (options?.forceWriteErrorForTest) {
+          throw new Error("Simulated mid-write database failure");
+        }
+
+        // Apply 4-tier legacy formula coercion
+        const coercionResult = this.coerceInlineFormulas(tabName, fieldSpecs, {
+          sourceValues,
+          sourceFormulas
+        });
+
+        const dataRows = coercionResult.coercedValues.slice(2);
+        const headers = (sourceValues[0] || []).map(String);
+
+        // Determine target append starting row index (First Active Data Row is Row H + 3 = Row 4)
+        const targetValues = targetStorage.getSheetValues(targetTabName) || [];
+        let startRowIndex = 4;
+        if (targetValues.length >= 3) {
+          startRowIndex = Math.max(4, targetValues.length + 1);
+        }
+
+        for (let i = 0; i < dataRows.length; i++) {
+          const rIdx = startRowIndex + i;
+          targetStorage.setRowValues(targetTabName, rIdx, headers, dataRows[i]);
+          targetAppendedRowCount++;
+        }
+
+        // Post-flight row count parity verification against live target sheet
+        const finalTargetValues = targetStorage.getSheetValues(targetTabName) || [];
+        const finalTargetDataRowCount = Math.max(0, finalTargetValues.length - (startRowIndex - 1));
+        if (sourceDataRowCount !== targetAppendedRowCount || sourceDataRowCount !== finalTargetDataRowCount) {
+          throw new Error("RowCountParityException: Source data row count (" + sourceDataRowCount + ") does not match target appended row count (" + finalTargetDataRowCount + ").");
+        }
+
+        // Verified success cleanup: delete backup snapshot tab
+        if (typeof targetStorage.deleteTab === "function") {
+          targetStorage.deleteTab(snapshotName);
+        }
+
+        // Update lastMigrationHash in _Config
+        let hashUpdated = false;
+        for (let i = 0; i < configValues.length; i++) {
+          if (configValues[i][0] === "lastMigrationHash") {
+            configValues[i][1] = sourceHash;
+            hashUpdated = true;
+            break;
+          }
+        }
+        if (!hashUpdated) {
+          if (configValues.length === 0) {
+            configValues.push(["Key", "Value"]);
+          }
+          configValues.push(["lastMigrationHash", sourceHash]);
+        }
+        targetStorage.setSheetValues("_Config", configValues);
+
+        // Archive legacy source spreadsheet
+        this.archiveSourceSpreadsheet(
+          sourceStorage,
+          options?.sourceSpreadsheetId || spreadsheetId,
+          targetTabName,
+          sourceHash,
+          sourceDataRowCount,
+          timestamp
+        );
+
+        // Telemetry logging to _AuditLog
+        this.logMigrationEvent(spreadsheetId, "MIGRATION_COMMITTED", "SUCCESS", {
+          tabName: targetTabName,
+          sourceDataRowCount,
+          targetAppendedRowCount,
+          lastMigrationHash: sourceHash
+        });
+
+        return {
+          status: "MIGRATION_COMMITTED",
+          tabName: targetTabName,
+          sourceDataRowCount,
+          targetAppendedRowCount,
+          lastMigrationHash: sourceHash,
+          snapshotName,
+          auditReport
+        };
+
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        // Atomic Rollback
+        this.restoreFromSnapshot(targetStorage, targetTabName, snapshotName);
+
+        this.logMigrationEvent(spreadsheetId, "MIGRATION_ROLLED_BACK", "ROLLED_BACK", {
+          tabName: targetTabName,
+          error: errorMsg,
+          snapshotName
+        });
+
+        return {
+          status: "ROLLED_BACK",
+          tabName: targetTabName,
+          sourceDataRowCount,
+          targetAppendedRowCount: 0,
+          snapshotName,
+          auditReport,
+          error: errorMsg
+        };
+      }
+
+    } finally {
+      if (this.lockAdapter && executionId) {
+        this.lockAdapter.releaseLock(spreadsheetId, executionId);
+      }
+    }
+  }
+
   public executeAudit(
     spreadsheetId: string,
     tabName: string,

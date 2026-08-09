@@ -123,25 +123,41 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
 function migrateLogSpreadsheet(
   sourceSpreadsheetId: string,
   targetSpreadsheetId: string,
-  options?: { dryRun?: boolean; tabName?: string; storageAdapter?: any; lockAdapter?: any }
+  options?: {
+    dryRun?: boolean;
+    tabName?: string;
+    storageAdapter?: any;
+    sourceStorageAdapter?: any;
+    targetStorageAdapter?: any;
+    lockAdapter?: any;
+  }
 ): any {
+  const targetId = targetSpreadsheetId || sourceSpreadsheetId;
   const lockAdapter = options?.lockAdapter || (
     (typeof GasSpreadsheetLockAdapter !== "undefined")
       ? new (GasSpreadsheetLockAdapter as any)()
       : undefined
   );
 
-  const storageAdapter = options?.storageAdapter || (
+  const targetStorage = options?.targetStorageAdapter || options?.storageAdapter || (
     (typeof GoogleSheetsStorageAdapter !== "undefined")
-      ? new (GoogleSheetsStorageAdapter as any)(sourceSpreadsheetId)
+      ? new (GoogleSheetsStorageAdapter as any)(targetId)
       : undefined
   );
 
-  if (!storageAdapter) {
+  const sourceStorage = options?.sourceStorageAdapter || (
+    sourceSpreadsheetId === targetId
+      ? targetStorage
+      : ((typeof GoogleSheetsStorageAdapter !== "undefined")
+          ? new (GoogleSheetsStorageAdapter as any)(sourceSpreadsheetId)
+          : targetStorage)
+  );
+
+  if (!targetStorage) {
     throw new Error("StorageAdapterException: GoogleSheetsStorageAdapter is unavailable in host environment.");
   }
 
-  const engine = new LogMigrationEngine(storageAdapter, lockAdapter);
+  const engine = new LogMigrationEngine(targetStorage, lockAdapter);
   const isDryRun = options?.dryRun !== false;
   const targetTab = options?.tabName || "Submittal Arch";
 
@@ -152,14 +168,18 @@ function migrateLogSpreadsheet(
   ];
 
   if (isDryRun) {
-    return engine.executeDryRun(targetSpreadsheetId || sourceSpreadsheetId, targetTab, fieldSpecs, {
-      targetTabName: targetTab
+    return engine.executeDryRun(targetId, targetTab, fieldSpecs, {
+      targetTabName: targetTab,
+      sourceStorageAdapter: sourceStorage
     });
   }
 
-  return engine.auditLogMigration(targetTab, fieldSpecs, { targetTabName: targetTab });
+  return engine.executeLiveMigration(targetId, targetTab, fieldSpecs, {
+    targetTabName: targetTab,
+    sourceStorageAdapter: sourceStorage,
+    sourceSpreadsheetId
+  });
 }
-
 declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
