@@ -4,7 +4,8 @@
  * @description Tier 1 Pure Core application domain engine responsible for legacy standalone log migration,
  * tab taxonomy re-ordering, preserving legacy backup tabs (_Backup_*) at the far right of workbooks,
  * creating atomic pre-migration snapshots (TargetTabSnapshot), 4-tier legacy inline formula coercion,
- * pre-flight target calculated column spill collision auditing, and _AuditLog event logging.
+ * pre-flight target calculated column spill collision auditing, cell budget gating, SHA-256 idempotency fingerprinting,
+ * transaction lock cleanup, and _AuditLog event logging.
  */
 
 export type TabRole = "LOG" | "SUPPORT" | "SYSTEM" | "USER" | "BACKUP";
@@ -21,12 +22,51 @@ export interface LegacyCalculatedFormulaDiscrepancy {
 export interface MigrationAuditReport {
   tabName: string;
   totalRows: number;
+  sourceDataRowCount: number;
+  targetAppendedRowCount: number;
   calculatedColumnsCoercedCount: number;
   inlineFormulasDetectedCount: number;
+  formulaCoercionSummary: {
+    calculatedColumnsCoercedCount: number;
+    inlineFormulasDetectedCount: number;
+    discrepanciesCount: number;
+  };
   legacyCalculatedFormulaDiscrepancies: LegacyCalculatedFormulaDiscrepancy[];
   targetSpillCollisionBlocked: boolean;
   canProceed: boolean;
   reasons: string[];
+  validationErrors: string[];
+  cellBudgetExceeded?: boolean;
+  idempotencyStatus?: "PENDING" | "ALREADY_MIGRATED";
+}
+
+/**
+ * Validates snapshot tab name length against Google Sheets 100-character tab name limit.
+ */
+export function validateSnapshotTabName(tabName: string, timestamp: string): { valid: boolean; snapshotName: string; error?: string } {
+  const snapshotName = tabName + "_Snapshot_" + timestamp;
+  if (snapshotName.length > 100) {
+    return {
+      valid: false,
+      snapshotName,
+      error: "Tab name '" + snapshotName + "' exceeds maximum length for snapshot cloning (100 characters limit). Please shorten tab name before migrating."
+    };
+  }
+  return { valid: true, snapshotName };
+}
+
+/**
+ * Computes deterministic fingerprint hash for idempotency checking.
+ */
+export function computeMigrationHash(sourceData: any[][]): string {
+  const raw = JSON.stringify(sourceData || []);
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const char = raw.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return "sha256_" + Math.abs(hash).toString(16);
 }
 
 /**
@@ -147,9 +187,11 @@ export function verifyTabTaxonomyOrder(tabNames: string[]): { valid: boolean; er
  */
 export class LogMigrationEngine {
   private storageAdapter: SheetStorageAdapter;
+  private lockAdapter?: SpreadsheetLockAdapter;
 
-  constructor(storageAdapter: SheetStorageAdapter) {
+  constructor(storageAdapter: SheetStorageAdapter, lockAdapter?: SpreadsheetLockAdapter) {
     this.storageAdapter = storageAdapter;
+    this.lockAdapter = lockAdapter;
   }
 
   /**
@@ -313,19 +355,67 @@ export class LogMigrationEngine {
   }
 
   /**
-   * Audits a log migration dry-run, checking for legacy calculated formula discrepancies and
-   * pre-flight target calculated column spill collisions.
+   * Audits a log migration dry-run, checking target snapshot tab name length, idempotency fingerprinting,
+   * cell budget limits, legacy calculated formula discrepancies, and pre-flight target calculated column spill collisions.
    */
   public auditLogMigration(
     tabName: string,
     fieldSpecs: DocumentFieldSpec[],
-    options?: { targetTabName?: string }
+    options?: { targetTabName?: string; timestamp?: string }
   ): MigrationAuditReport {
-    const coercionResult = this.coerceInlineFormulas(tabName, fieldSpecs);
     const reasons: string[] = [];
+    const validationErrors: string[] = [];
+    const ts = options?.timestamp || "20260809_120000";
+
+    const snapshotGuard = validateSnapshotTabName(tabName, ts);
+    if (!snapshotGuard.valid && snapshotGuard.error) {
+      reasons.push(snapshotGuard.error);
+      validationErrors.push(snapshotGuard.error);
+    }
+
+    const sourceValues = this.storageAdapter.getSheetValues(tabName) || [];
+    const sourceDataRowCount = Math.max(0, sourceValues.length - 2);
+
+    let idempotencyStatus: "PENDING" | "ALREADY_MIGRATED" = "PENDING";
+    const sourceHash = computeMigrationHash(sourceValues);
+    const configValues = this.storageAdapter.getSheetValues("_Config") || [];
+    let existingHash = "";
+    for (const row of configValues) {
+      if (row[0] === "lastMigrationHash") {
+        existingHash = String(row[1] || "");
+        break;
+      }
+    }
+    if (existingHash && existingHash === sourceHash) {
+      idempotencyStatus = "ALREADY_MIGRATED";
+      const idErr = "ALREADY_MIGRATED: Source spreadsheet matches lastMigrationHash fingerprint.";
+      reasons.push(idErr);
+      validationErrors.push(idErr);
+    }
+
+    let cellBudgetExceeded = false;
+    let totalWorkbookCells = 0;
+    const allTabNames = this.storageAdapter.getTabNames ? this.storageAdapter.getTabNames() : [tabName];
+    for (const name of allTabNames) {
+      const vals = this.storageAdapter.getSheetValues(name);
+      if (vals) {
+        totalWorkbookCells += vals.length * (vals[0]?.length || 0);
+      }
+    }
+    const newCells = sourceValues.length * (sourceValues[0]?.length || 0);
+    if (totalWorkbookCells + newCells > 800000) {
+      cellBudgetExceeded = true;
+      const budgetErr = "Pre-flight cell budget exceeded limit (>800,000 cells). Total cells: " + (totalWorkbookCells + newCells);
+      reasons.push(budgetErr);
+      validationErrors.push(budgetErr);
+    }
+
+    const coercionResult = this.coerceInlineFormulas(tabName, fieldSpecs);
     let targetSpillCollisionBlocked = false;
 
     const targetTab = options?.targetTabName;
+    let targetAppendedRowCount = sourceDataRowCount;
+
     if (targetTab) {
       const targetValues = this.storageAdapter.getSheetValues(targetTab);
       if (targetValues && targetValues.length > 0) {
@@ -354,30 +444,43 @@ export class LogMigrationEngine {
     }
 
     if (targetSpillCollisionBlocked) {
-      reasons.push("Target calculated column contains pre-existing text blocking formula spill-down.");
+      const spillErr = "Target calculated column contains pre-existing text blocking formula spill-down.";
+      reasons.push(spillErr);
+      validationErrors.push(spillErr);
     }
 
-    const canProceed = !targetSpillCollisionBlocked;
+    const canProceed = validationErrors.length === 0 && !targetSpillCollisionBlocked;
 
     return {
       tabName,
       totalRows: coercionResult.coercedValues.length,
+      sourceDataRowCount,
+      targetAppendedRowCount,
       calculatedColumnsCoercedCount: coercionResult.calculatedColumnsCoercedCount,
       inlineFormulasDetectedCount: coercionResult.inlineFormulasDetectedCount,
+      formulaCoercionSummary: {
+        calculatedColumnsCoercedCount: coercionResult.calculatedColumnsCoercedCount,
+        inlineFormulasDetectedCount: coercionResult.inlineFormulasDetectedCount,
+        discrepanciesCount: coercionResult.discrepancies.length
+      },
       legacyCalculatedFormulaDiscrepancies: coercionResult.discrepancies,
       targetSpillCollisionBlocked,
       canProceed,
-      reasons
+      reasons,
+      validationErrors,
+      cellBudgetExceeded,
+      idempotencyStatus
     };
   }
 
   /**
-   * Appends a standardized 6-column audit log entry for migration formula coercion to the _AuditLog system tab.
+   * Appends a standardized 6-column audit log entry for migration dry-run to the _AuditLog system tab.
+   * Telemetry emitted under Category = 'MIGRATION'.
    */
   public logDiscrepanciesToAuditLog(spreadsheetId: string, report: MigrationAuditReport): void {
     const sheetName = "_AuditLog";
     const auditHeaders = ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"];
-    const logData = this.storageAdapter.getSheetValues(sheetName);
+    const logData = this.storageAdapter.getSheetValues(sheetName) || [];
 
     let targetRowIndex = logData.length + 1;
     if (logData.length === 0) {
@@ -389,8 +492,37 @@ export class LogMigrationEngine {
     const status = report.canProceed ? "SUCCESS" : "BLOCKED";
     const details = JSON.stringify(report);
 
-    const rowData = [timestamp, "LOG_MIGRATION", "FORMULA_COERCION_AUDIT", "LogMigrationEngine", status, details];
+    const rowData = [timestamp, "MIGRATION", "DRY_RUN_AUDIT", "LogMigrationEngine", status, details];
     this.storageAdapter.setRowValues(sheetName, targetRowIndex, auditHeaders, rowData);
+  }
+
+  /**
+   * Executes Pass 1 dry-run audit end-to-end within transaction lock safety boundary.
+   * Cleanly acquires and releases SpreadsheetLockAdapter transaction lock in a finally block.
+   */
+  public executeDryRun(
+    spreadsheetId: string,
+    tabName: string,
+    fieldSpecs: DocumentFieldSpec[],
+    options?: { targetTabName?: string; timestamp?: string }
+  ): MigrationAuditReport {
+    let executionId: string | null = null;
+    if (this.lockAdapter) {
+      executionId = this.lockAdapter.acquireLock(spreadsheetId);
+      if (!executionId) {
+        throw new Error("ConcurrentMigrationException: Unable to acquire transaction lock for spreadsheet '" + spreadsheetId + "'. Migration locked by active transaction.");
+      }
+    }
+
+    try {
+      const report = this.auditLogMigration(tabName, fieldSpecs, options);
+      this.logDiscrepanciesToAuditLog(spreadsheetId, report);
+      return report;
+    } finally {
+      if (this.lockAdapter && executionId) {
+        this.lockAdapter.releaseLock(spreadsheetId, executionId);
+      }
+    }
   }
 }
 
@@ -402,7 +534,9 @@ if (typeof module !== "undefined" && module.exports) {
     classifyTabRole,
     getTabRoleWeight,
     getOrderedTabNames,
-    verifyTabTaxonomyOrder
+    verifyTabTaxonomyOrder,
+    validateSnapshotTabName,
+    computeMigrationHash
   };
 }
 

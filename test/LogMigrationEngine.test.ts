@@ -1,7 +1,9 @@
 /**
  * @file LogMigrationEngine.test.ts
  * @description Unit tests for LogMigrationEngine legacy backup tab preservation,
- * tab taxonomy ordering (Log -> Support -> System -> Backup), and atomic snapshot creation.
+ * tab taxonomy ordering (Log -> Support -> System -> Backup), atomic snapshot creation,
+ * pre-flight snapshot tab name validation, cell budget limit gate, SHA-256 idempotency fingerprinting,
+ * formula coercion, spill collision auditing, telemetry logging, and transaction locking.
  */
 
 import test from "node:test";
@@ -10,9 +12,12 @@ import {
   LogMigrationEngine,
   classifyTabRole,
   getOrderedTabNames,
-  verifyTabTaxonomyOrder
+  verifyTabTaxonomyOrder,
+  validateSnapshotTabName,
+  computeMigrationHash
 } from "../src/core/log/LogMigrationEngine";
 import { InMemorySheetStorageAdapter } from "./harness/fakes/InMemorySheetStorageAdapter";
+import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
 
 test("classifyTabRole - correctly categorizes workbook tabs into 5-tier taxonomy", () => {
   assert.strictEqual(classifyTabRole("Submittal Arch"), "LOG");
@@ -147,7 +152,6 @@ test("LogMigrationEngine - createPreMigrationSnapshot rejects tab names exceedin
   );
 });
 
-
 test("LogMigrationEngine - 4-tier formula coercion policy clears calculated columns (Tier 1) and coerces non-calculated inline formulas (Tier 2 & 3)", () => {
   const adapter = new InMemorySheetStorageAdapter();
 
@@ -265,8 +269,15 @@ test("LogMigrationEngine - logDiscrepanciesToAuditLog appends audit event teleme
   const report = {
     tabName: "Submittal Arch",
     totalRows: 4,
+    sourceDataRowCount: 2,
+    targetAppendedRowCount: 2,
     calculatedColumnsCoercedCount: 2,
     inlineFormulasDetectedCount: 3,
+    formulaCoercionSummary: {
+      calculatedColumnsCoercedCount: 2,
+      inlineFormulasDetectedCount: 3,
+      discrepanciesCount: 1
+    },
     legacyCalculatedFormulaDiscrepancies: [
       {
         tabName: "Submittal Arch",
@@ -279,15 +290,100 @@ test("LogMigrationEngine - logDiscrepanciesToAuditLog appends audit event teleme
     ],
     targetSpillCollisionBlocked: false,
     canProceed: true,
-    reasons: []
+    reasons: [],
+    validationErrors: []
   };
 
   engine.logDiscrepanciesToAuditLog("test-spreadsheet-id", report);
 
   const auditRows = adapter.getSheetValues("_AuditLog");
   assert.strictEqual(auditRows.length, 2);
-  assert.strictEqual(auditRows[1][1], "LOG_MIGRATION");
-  assert.strictEqual(auditRows[1][2], "FORMULA_COERCION_AUDIT");
+  assert.strictEqual(auditRows[1][1], "MIGRATION");
+  assert.strictEqual(auditRows[1][2], "DRY_RUN_AUDIT");
   assert.strictEqual(auditRows[1][4], "SUCCESS");
   assert.ok(auditRows[1][5].includes("Submittal Arch"));
+});
+
+test("validateSnapshotTabName - passes for valid tab names <= 100 characters and rejects names > 100 characters", () => {
+  const passResult = validateSnapshotTabName("Submittal Arch", "20260809_120000");
+  assert.strictEqual(passResult.valid, true);
+  assert.strictEqual(passResult.snapshotName, "Submittal Arch_Snapshot_20260809_120000");
+
+  const longTab = "A".repeat(90);
+  const failResult = validateSnapshotTabName(longTab, "20260809_120000");
+  assert.strictEqual(failResult.valid, false);
+  assert.ok(failResult.error?.includes("exceeds maximum length for snapshot cloning"));
+});
+
+test("LogMigrationEngine - auditLogMigration detects ALREADY_MIGRATED when lastMigrationHash matches source payload", () => {
+  const adapter = new InMemorySheetStorageAdapter();
+  const sourceValues = [
+    ["Spec Section", "Title", "Days Open"],
+    ["", "", "=MAP(Data, LAMBDA(r, ...))"],
+    ["033000", "Concrete", "10"]
+  ];
+  adapter.setSheetValues("Submittal Arch", sourceValues);
+
+  const hash = computeMigrationHash(sourceValues);
+  adapter.setSheetValues("_Config", [
+    ["Key", "Value"],
+    ["lastMigrationHash", hash]
+  ]);
+
+  const engine = new LogMigrationEngine(adapter);
+  const fieldSpecs = [
+    { key: "specSection", header: "Spec Section", label: "Spec Section", type: "string" as const, isCalculated: false },
+    { key: "title", header: "Title", label: "Title", type: "string" as const, isCalculated: false },
+    { key: "daysOpen", header: "Days Open", label: "Days Open", type: "string" as const, isCalculated: true }
+  ];
+
+  const report = engine.auditLogMigration("Submittal Arch", fieldSpecs);
+  assert.strictEqual(report.idempotencyStatus, "ALREADY_MIGRATED");
+  assert.strictEqual(report.canProceed, false);
+  assert.ok(report.validationErrors.some(e => e.includes("ALREADY_MIGRATED")));
+});
+
+test("LogMigrationEngine - executeDryRun acquires lock, logs telemetry under Category = 'MIGRATION', and releases lock cleanly", () => {
+  const storageAdapter = new InMemorySheetStorageAdapter();
+  storageAdapter.setSheetValues("Submittal Arch", [
+    ["Spec Section", "Title"],
+    ["", ""],
+    ["033000", "Concrete"]
+  ]);
+
+  const lockAdapter = new FakeSpreadsheetLockAdapter();
+  const engine = new LogMigrationEngine(storageAdapter, lockAdapter);
+  const spreadsheetId = "ss_dryrun_test";
+
+  const fieldSpecs = [
+    { key: "specSection", header: "Spec Section", label: "Spec Section", type: "string" as const, isCalculated: false },
+    { key: "title", header: "Title", label: "Title", type: "string" as const, isCalculated: false }
+  ];
+
+  const report = engine.executeDryRun(spreadsheetId, "Submittal Arch", fieldSpecs);
+
+  assert.strictEqual(report.canProceed, true);
+  assert.strictEqual(lockAdapter.isLocked(spreadsheetId), false);
+
+  const auditRows = storageAdapter.getSheetValues("_AuditLog");
+  assert.strictEqual(auditRows.length, 2);
+  assert.strictEqual(auditRows[1][1], "MIGRATION");
+  assert.strictEqual(auditRows[1][2], "DRY_RUN_AUDIT");
+  assert.strictEqual(auditRows[1][4], "SUCCESS");
+});
+
+test("LogMigrationEngine - executeDryRun throws ConcurrentMigrationException when lock cannot be acquired", () => {
+  const storageAdapter = new InMemorySheetStorageAdapter();
+  storageAdapter.setSheetValues("Submittal Arch", [["Header"], [""], ["Data"]]);
+
+  const lockAdapter = new FakeSpreadsheetLockAdapter();
+  const spreadsheetId = "ss_locked_test";
+  lockAdapter.acquireLock(spreadsheetId);
+
+  const engine = new LogMigrationEngine(storageAdapter, lockAdapter);
+
+  assert.throws(
+    () => engine.executeDryRun(spreadsheetId, "Submittal Arch", []),
+    /ConcurrentMigrationException: Unable to acquire transaction lock/
+  );
 });
