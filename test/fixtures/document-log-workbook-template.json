@@ -920,7 +920,7 @@
     {
       "name": "Data",
       "tabName": "Submittal FFE",
-      "rangeNotation": "A6:P18",
+      "rangeNotation": "A6:P20",
       "scope": "Sheet"
     },
     {
@@ -938,20 +938,20 @@
     {
       "name": "Submittal_FFE_Data",
       "tabName": "Submittal FFE",
-      "rangeNotation": "A6:P18",
+      "rangeNotation": "A6:P20",
       "scope": "Workbook"
     },
     {
       "name": "Vendors",
       "tabName": "Submittal FFE Support",
       "rangeNotation": "A2:B20",
-      "scope": "Sheet"
+      "scope": "Workbook"
     },
     {
       "name": "SpecTags",
       "tabName": "Submittal FFE Support",
       "rangeNotation": "C2:D20",
-      "scope": "Sheet"
+      "scope": "Workbook"
     }
   ]
 }

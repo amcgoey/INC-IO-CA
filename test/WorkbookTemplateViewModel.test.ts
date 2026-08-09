@@ -90,7 +90,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
     (nr: NamedRangeSpec) => nr.name === "Data" && nr.tabName === "Submittal FFE"
   );
   assert.ok(sheetData, "Sheet-scoped Data named range must exist for Submittal FFE");
-  assert.strictEqual(sheetData.rangeNotation, "A6:P18");
+  assert.strictEqual(sheetData.rangeNotation, "A6:P20");
   assert.strictEqual(sheetData.scope, "Sheet");
 
   const wbConfigFFE = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
@@ -122,7 +122,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC registers dual-tier named ranges for Submittal 
   );
   assert.ok(wbData, "Workbook-scoped Submittal_FFE_Data named range must exist");
   assert.strictEqual(wbData.tabName, "Submittal FFE");
-  assert.strictEqual(wbData.rangeNotation, "A6:P18");
+  assert.strictEqual(wbData.rangeNotation, "A6:P20");
   assert.strictEqual(wbData.scope, "Workbook");
 });
 
@@ -173,14 +173,14 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE Support tab with Vendor a
   );
   assert.ok(vendorsNR, "Vendors named range must exist on Submittal FFE Support");
   assert.strictEqual(vendorsNR.rangeNotation, "A2:B20");
-  assert.strictEqual(vendorsNR.scope, "Sheet");
+  assert.strictEqual(vendorsNR.scope, "Workbook");
 
   const specTagsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
     (nr: NamedRangeSpec) => nr.name === "SpecTags" && nr.tabName === "Submittal FFE Support"
   );
   assert.ok(specTagsNR, "SpecTags named range must exist on Submittal FFE Support");
   assert.strictEqual(specTagsNR.rangeNotation, "C2:D20");
-  assert.strictEqual(specTagsNR.scope, "Sheet");
+  assert.strictEqual(specTagsNR.scope, "Workbook");
 });
 
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines MAP/LAMBDA formulas in Submittal FFE including calcTitle tag VLOOKUP", () => {

@@ -95,6 +95,8 @@ export class WorkbookTemplateViewModel {
     const { titleRowStyle, dateRowStyle, headerStyle, formulaRowStyle, offsets, columnWidths, defaultColumnWidth } = this.viewSpec;
 
     const tabIndexMap = new Map<string, number>();
+    const seedRowRequests: object[] = [];
+
     this.model.tabs.forEach((tab, index) => {
       const existingSheetId = existingSheetsMap?.get(tab.name);
       const sheetId = existingSheetId !== undefined ? existingSheetId : index;
@@ -157,7 +159,7 @@ export class WorkbookTemplateViewModel {
             return { userEnteredValue: { stringValue: String(val) } };
           })
         }));
-        requests.push({
+        seedRowRequests.push({
           updateCells: {
             range: {
               sheetId,
@@ -580,6 +582,9 @@ export class WorkbookTemplateViewModel {
         });
       });
     }
+
+    // 3. Seed Rows Population (Emitted LAST so values populate directly into fully formatted and validated cells)
+    requests.push(...seedRowRequests);
 
     return { requests };
   }
