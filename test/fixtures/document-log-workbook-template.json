@@ -579,8 +579,8 @@
           "Lighting",
           "Not Reviewed",
           "Not Reviewed",
-          "",
-          ""
+          "Waiting",
+          "Waiting"
         ],
         [
           "IE",
@@ -589,8 +589,8 @@
           "Brand",
           "Rejected",
           "Rejected",
-          "",
-          ""
+          "Manager",
+          "Manager"
         ],
         [
           "VLD",
@@ -599,8 +599,8 @@
           "",
           "Revise & Resubmit",
           "Revise & Resubmit",
-          "",
-          ""
+          "Billed",
+          "Billed"
         ],
         [
           "",

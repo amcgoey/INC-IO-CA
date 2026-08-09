@@ -78,10 +78,13 @@ describe("Canonical Reference Seed Data for Contacts, Actions & Project Settings
 
       const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
       const seedRows = sharedTab?.seedRows || [];
-      const statuses = seedRows.slice(1, 3).map((r: (string | number | boolean)[]) => [r[6], r[7]]);
+      const statuses = seedRows.slice(1, 6).map((r: (string | number | boolean)[]) => [r[6], r[7]]);
       assert.deepEqual(statuses, [
         ["Open", "Open"],
-        ["Closed", "Closed"]
+        ["Closed", "Closed"],
+        ["Waiting", "Waiting"],
+        ["Manager", "Manager"],
+        ["Billed", "Billed"]
       ]);
     });
 

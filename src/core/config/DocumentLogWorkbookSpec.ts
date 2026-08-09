@@ -162,9 +162,9 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Actions Key", "Actions Label", "Statuses Key", "Statuses Label"],
         ["INC", "INC Architecture and Design", "INC", "INC Architecture & Design", "Received", "Received", "Open", "Open"],
         ["PMG", "Pavarini McGovern", "BW", "Benjamin West", "Referred", "Referred", "Closed", "Closed"],
-        ["FXC", "FX Collaborative", "Lighting", "Lighting", "Not Reviewed", "Not Reviewed", "", ""],
-        ["IE", "Interface Engineering", "Brand", "Brand", "Rejected", "Rejected", "", ""],
-        ["VLD", "Ventresca Lighting Design", "", "", "Revise & Resubmit", "Revise & Resubmit", "", ""],
+        ["FXC", "FX Collaborative", "Lighting", "Lighting", "Not Reviewed", "Not Reviewed", "Waiting", "Waiting"],
+        ["IE", "Interface Engineering", "Brand", "Brand", "Rejected", "Rejected", "Manager", "Manager"],
+        ["VLD", "Ventresca Lighting Design", "", "", "Revise & Resubmit", "Revise & Resubmit", "Billed", "Billed"],
         ["", "", "", "", "No Objection as Corrected", "No Objection as Corrected", "", ""],
         ["", "", "", "", "No Exceptions Taken", "No Exceptions Taken", "", ""]
       ]
