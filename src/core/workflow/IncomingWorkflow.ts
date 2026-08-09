@@ -235,7 +235,7 @@ class IncomingWorkflow {
           stampSubmittalNo: appendResult.targetKey,
           templateId: templateId
         },
-        pdfDocumentService: (input as any).adapters?.pdfDocumentService || input.pdfDocumentService || (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : null)
+        pdfDocumentService: pdfService
       });
     }
 

@@ -443,7 +443,7 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     FormIntakeParser,
-    EmailIntakeParser: typeof EmailIntakeParser !== "undefined" ? EmailIntakeParser : (typeof require !== "undefined" ? require("./EmailIntakeParser").EmailIntakeParser : (globalThis as any).EmailIntakeParser),
+    EmailIntakeParser: typeof EmailIntakeParser !== "undefined" ? EmailIntakeParser : (typeof require !== "undefined" ? require("./EmailIntakeParser").EmailIntakeParser : (globalThis as Record<string, unknown>).EmailIntakeParser),
     DriveFilenameIntakeParser,
     DocumentPipeline,
     ListDocumentField,
