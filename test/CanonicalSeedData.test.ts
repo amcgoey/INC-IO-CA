@@ -110,8 +110,9 @@ describe("Canonical Reference Seed Data for Contacts, Actions & Project Settings
       assert.equal(specTagsRange.rangeNotation, "C2:D20");
 
       const seedRows = ffeSupportTab.seedRows || [];
-      const vendors = seedRows.slice(1, 7).map((r: (string | number | boolean)[]) => [r[0], r[1]]);
+      const vendors = seedRows.slice(1, 8).map((r: (string | number | boolean)[]) => [r[0], r[1]]);
       assert.deepEqual(vendors, [
+        ["Berman Falk", "Berman Falk"],
         ["Ashley Lighting", "Ashley Lighting"],
         ["Fil Doux Textiles", "Fil Doux Textiles"],
         ["Carnegie", "Carnegie"],
@@ -185,8 +186,8 @@ describe("Canonical Reference Seed Data for Contacts, Actions & Project Settings
       ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
       const resVendors = PicklistResolver.resolvePicklistOptionsRange("Vendors", ss, "Submittal_FFE", "Submittal FFE");
       assert.equal(resVendors.success, true);
-      assert.equal(resVendors.options.length, 6);
-      assert.deepEqual(resVendors.options[0], { value: "Ashley Lighting", label: "Ashley Lighting" });
+      assert.equal(resVendors.options.length, 7);
+      assert.deepEqual(resVendors.options[0], { value: "Berman Falk", label: "Berman Falk" });
 
       const resSpecTags = PicklistResolver.resolvePicklistOptionsRange("SpecTags", ss, "Submittal_FFE", "Submittal FFE");
       assert.equal(resSpecTags.success, true);

@@ -29,7 +29,7 @@ interface RepeatCellReq {
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE log tab (1000x26) with 16 columns", () => {
   const ffeTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "Submittal FFE");
   assert.ok(ffeTab, "Submittal FFE log tab must be defined in tabs");
-  assert.strictEqual(ffeTab.rowCount, 18, "Submittal FFE rowCount should be 18");
+  assert.strictEqual(ffeTab.rowCount, 25, "Submittal FFE rowCount should be 25");
   assert.strictEqual(ffeTab.columnCount, 26, "Submittal FFE columnCount should be 26");
   assert.strictEqual(ffeTab.isLogTab, true, "Submittal FFE isLogTab should be true");
 
@@ -144,7 +144,7 @@ test("WorkbookTemplateViewModel binds spec and view spec to export complete fixt
 
   const ffeTab = fixtureJson.tabs.find((t: any) => t.name === "Submittal FFE");
   assert.ok(ffeTab, "Fixture JSON must include Submittal FFE tab");
-  assert.strictEqual(ffeTab.rowCount, 18);
+  assert.strictEqual(ffeTab.rowCount, 25);
   assert.strictEqual(ffeTab.columnCount, 26);
   assert.strictEqual(ffeTab.isLogTab, true);
   assert.strictEqual(ffeTab.headers.length, 16);
@@ -160,13 +160,13 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE Support tab with Vendor a
   const supportTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "Submittal FFE Support");
   assert.ok(supportTab, "Submittal FFE Support tab must exist");
   assert.strictEqual(supportTab.isSupportTab, true, "isSupportTab should be true");
-  assert.strictEqual(supportTab.rowCount, 7);
+  assert.strictEqual(supportTab.rowCount, 8);
   assert.strictEqual(supportTab.columnCount, 10);
   assert.ok(supportTab.seedRows, "seedRows must be defined on Submittal FFE Support");
-  assert.strictEqual(supportTab.seedRows.length, 7);
+  assert.strictEqual(supportTab.seedRows.length, 8);
   assert.deepStrictEqual(supportTab.seedRows[0], ["Vendor Key", "Vendor Label", "SpecTag Key", "SpecTag Label"]);
-  assert.deepStrictEqual(supportTab.seedRows[1], ["Ashley Lighting", "Ashley Lighting", "AC102", "Hook"]);
-  assert.deepStrictEqual(supportTab.seedRows[2], ["Fil Doux Textiles", "Fil Doux Textiles", "CG138", "Credenza"]);
+  assert.deepStrictEqual(supportTab.seedRows[1], ["Berman Falk", "Berman Falk", "AC102", "Hook"]);
+  assert.deepStrictEqual(supportTab.seedRows[2], ["Ashley Lighting", "Ashley Lighting", "CG138", "Credenza"]);
 
   const vendorsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
     (nr: NamedRangeSpec) => nr.name === "Vendors" && nr.tabName === "Submittal FFE Support"

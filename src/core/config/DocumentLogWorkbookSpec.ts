@@ -93,7 +93,7 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     },
     {
       name: "Submittal FFE",
-      rowCount: 18,
+      rowCount: 25,
       columnCount: 26,
       isLogTab: true,
       columns: [
@@ -115,18 +115,21 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "calcSort", header: "Calc Sort", formula: '=MAP(B4:B, D4:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "_" & rev)))' }
       ],
       seedRows: [
-        ["Closed", "AC102", "", "0", "Hook", "Ashley Lighting", "2026-07-05", "BW", "Received", "Rev 1 sample submittal received", ""],
-        ["Closed", "AC102", "", "0", "Hook", "Ashley Lighting", "2026-07-07", "INC", "Revise & Resubmit", "Finish sample rejected, resubmittal required", ""],
-        ["Closed", "AC102", "", "1", "Hook", "Ashley Lighting", "2026-07-15", "BW", "Received", "Rev 2 finish sample resubmittal received", ""],
-        ["Closed", "AC102", "", "1", "Hook", "Ashley Lighting", "2026-07-17", "INC", "No Objection as Corrected", "Approved with finish notes", ""],
-        ["Closed", "CG138", "", "0", "Credenza", "Fil Doux Textiles", "2026-07-08", "BW", "Received", "Rev 1 shop drawings received", ""],
-        ["Closed", "CG138", "", "0", "Credenza", "Fil Doux Textiles", "2026-07-10", "INC", "Rejected", "Dimensions do not match specification", ""],
-        ["Closed", "CG138", "", "1", "Credenza", "Fil Doux Textiles", "2026-07-20", "BW", "Received", "Rev 2 revised shop drawings received", ""],
-        ["Closed", "CG138", "", "1", "Credenza", "Fil Doux Textiles", "2026-07-22", "INC", "No Objection as Corrected", "Approved as corrected with dimension updates", ""],
-        ["Open", "FB132B", "", "0", "Fabric Woven", "Carnegie", "2026-08-03", "BW", "Received", "Initial fabric submittal received", ""],
-        ["Open", "FB132B", "", "0", "Fabric Woven", "Carnegie", "2026-08-04", "INC", "Open", "Under active review by INC", ""],
-        ["Open", "LT150", "", "0", "Pendant", "Light Annex", "2026-08-01", "BW", "Received", "Initial fixture cutsheet submittal received", ""],
-        ["Open", "LT150", "", "0", "Pendant", "Light Annex", "2026-08-03", "INC", "Revise & Resubmit", "Driver voltage specification missing", ""]
+        ["Billed", "AC102", "", "1", "HOOK", "Berman Falk", "230720", "BW", "Received", "", ""],
+        ["Billed", "AC102", "", "1", "HOOK", "Berman Falk", "230721", "INC", "Revise & Resubmit", "", ""],
+        ["Billed", "AC102", "", "2", "HOOK", "Berman Falk", "230722", "BW", "Received", "", ""],
+        ["Billed", "AC102", "", "2", "HOOK", "Berman Falk", "230724", "INC", "No Objection as Corrected", "", ""],
+        ["", "", "", "", "", "", "", "", "", "", ""],
+        ["Closed", "CG138", "", "1", "CREDENZA", "Berman Falk", "230720", "BW", "Received", "", ""],
+        ["Closed", "CG138", "", "1", "CREDENZA", "Berman Falk", "230721", "INC", "Rejected", "", ""],
+        ["Closed", "CG138", "", "2", "CREDENZA", "Berman Falk", "230722", "BW", "Received", "", ""],
+        ["Manager", "CG138", "", "2", "CREDENZA", "Berman Falk", "230724", "INC", "No Objection as Corrected", "", ""],
+        ["", "", "", "", "", "", "", "", "", "", ""],
+        ["Closed", "FB132B", "", "1", "FABRIC - WOVEN", "Berman Falk", "230726", "BW", "Received", "", ""],
+        ["Open", "FB132B", "", "1", "FABRIC - WOVEN", "Berman Falk", "230726", "INC", "", "", ""],
+        ["", "", "", "", "", "", "", "", "", "", ""],
+        ["Closed", "LT150", "", "1", "PENDANT", "Berman Falk", "230731", "BW", "Received", "", ""],
+        ["Open", "LT150", "", "1", "PENDANT", "Berman Falk", "230731", "INC", "Revise & Resubmit", "", ""]
       ]
     },
     {
@@ -140,17 +143,18 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     },
     {
       name: "Submittal FFE Support",
-      rowCount: 7,
+      rowCount: 8,
       columnCount: 10,
       isSupportTab: true,
       seedRows: [
         ["Vendor Key", "Vendor Label", "SpecTag Key", "SpecTag Label"],
-        ["Ashley Lighting", "Ashley Lighting", "AC102", "Hook"],
-        ["Fil Doux Textiles", "Fil Doux Textiles", "CG138", "Credenza"],
-        ["Carnegie", "Carnegie", "FB132B", "Fabric Woven"],
-        ["Light Annex", "Light Annex", "LT150", "Pendant"],
-        ["ACME", "Acme Supplies", "CH-01", "Dining Chair"],
-        ["GLOBAL", "Global Materials", "TBL-01", "Conference Table"]
+        ["Berman Falk", "Berman Falk", "AC102", "Hook"],
+        ["Ashley Lighting", "Ashley Lighting", "CG138", "Credenza"],
+        ["Fil Doux Textiles", "Fil Doux Textiles", "FB132B", "Fabric Woven"],
+        ["Carnegie", "Carnegie", "LT150", "Pendant"],
+        ["Light Annex", "Light Annex", "CH-01", "Dining Chair"],
+        ["ACME", "Acme Supplies", "TBL-01", "Conference Table"],
+        ["GLOBAL", "Global Materials", "", ""]
       ]
     },
     {
@@ -223,12 +227,12 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Submittal_Arch_Data", tabName: "Submittal Arch", rangeNotation: "A6:O20", scope: "Workbook" },
     { name: "Headers", tabName: "Submittal FFE", rangeNotation: "A3:P4", scope: "Sheet" },
     { name: "FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:P4", scope: "Sheet" },
-    { name: "Data", tabName: "Submittal FFE", rangeNotation: "A6:P18", scope: "Sheet" },
+    { name: "Data", tabName: "Submittal FFE", rangeNotation: "A6:P20", scope: "Sheet" },
     { name: "Submittal_FFE_Headers", tabName: "Submittal FFE", rangeNotation: "A3:P4", scope: "Workbook" },
     { name: "Submittal_FFE_FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:P4", scope: "Workbook" },
-    { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A6:P18", scope: "Workbook" },
-    { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Sheet" },
-    { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Sheet" }
+    { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A6:P20", scope: "Workbook" },
+    { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Workbook" },
+    { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Workbook" }
   ]
 };
 
