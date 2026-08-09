@@ -160,26 +160,26 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines Submittal FFE Support tab with Vendor a
   const supportTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "Submittal FFE Support");
   assert.ok(supportTab, "Submittal FFE Support tab must exist");
   assert.strictEqual(supportTab.isSupportTab, true, "isSupportTab should be true");
-  assert.strictEqual(supportTab.rowCount, 8);
+  assert.strictEqual(supportTab.rowCount, 50);
   assert.strictEqual(supportTab.columnCount, 10);
   assert.ok(supportTab.seedRows, "seedRows must be defined on Submittal FFE Support");
-  assert.strictEqual(supportTab.seedRows.length, 8);
+  assert.strictEqual(supportTab.seedRows.length, 36);
   assert.deepStrictEqual(supportTab.seedRows[0], ["Vendor Key", "Vendor Label", "SpecTag Key", "SpecTag Label"]);
-  assert.deepStrictEqual(supportTab.seedRows[1], ["Berman Falk", "Berman Falk", "AC102", "Hook"]);
-  assert.deepStrictEqual(supportTab.seedRows[2], ["Ashley Lighting", "Ashley Lighting", "CG138", "Credenza"]);
+  assert.deepStrictEqual(supportTab.seedRows[1], ["Berman Falk", "Berman Falk", "AC102", "HOOK"]);
+  assert.deepStrictEqual(supportTab.seedRows[2], ["Ashley Lighting", "Ashley Lighting", "CG104", "BED - KING"]);
 
   const vendorsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
     (nr: NamedRangeSpec) => nr.name === "Vendors" && nr.tabName === "Submittal FFE Support"
   );
   assert.ok(vendorsNR, "Vendors named range must exist on Submittal FFE Support");
-  assert.strictEqual(vendorsNR.rangeNotation, "A2:B20");
+  assert.strictEqual(vendorsNR.rangeNotation, "A2:B50");
   assert.strictEqual(vendorsNR.scope, "Workbook");
 
   const specTagsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(
     (nr: NamedRangeSpec) => nr.name === "SpecTags" && nr.tabName === "Submittal FFE Support"
   );
   assert.ok(specTagsNR, "SpecTags named range must exist on Submittal FFE Support");
-  assert.strictEqual(specTagsNR.rangeNotation, "C2:D20");
+  assert.strictEqual(specTagsNR.rangeNotation, "C2:D50");
   assert.strictEqual(specTagsNR.scope, "Workbook");
 });
 

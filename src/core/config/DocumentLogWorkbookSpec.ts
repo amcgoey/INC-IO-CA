@@ -143,18 +143,46 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     },
     {
       name: "Submittal FFE Support",
-      rowCount: 8,
+      rowCount: 50,
       columnCount: 10,
       isSupportTab: true,
       seedRows: [
         ["Vendor Key", "Vendor Label", "SpecTag Key", "SpecTag Label"],
-        ["Berman Falk", "Berman Falk", "AC102", "Hook"],
-        ["Ashley Lighting", "Ashley Lighting", "CG138", "Credenza"],
-        ["Fil Doux Textiles", "Fil Doux Textiles", "FB132B", "Fabric Woven"],
-        ["Carnegie", "Carnegie", "LT150", "Pendant"],
-        ["Light Annex", "Light Annex", "CH-01", "Dining Chair"],
-        ["ACME", "Acme Supplies", "TBL-01", "Conference Table"],
-        ["GLOBAL", "Global Materials", "", ""]
+        ["Berman Falk", "Berman Falk", "AC102", "HOOK"],
+        ["Ashley Lighting", "Ashley Lighting", "CG104", "BED - KING"],
+        ["Fil Doux Textiles", "Fil Doux Textiles", "CG126", "BED - DOUBLE QUEEN"],
+        ["Carnegie", "Carnegie", "CG138", "CREDENZA"],
+        ["Light Annex", "Light Annex", "CG138M", "CREDENZA - MIRRORED"],
+        ["ACME", "Acme Supplies", "CP112", "CARPET - CORRIDOR"],
+        ["GLOBAL", "Global Materials", "CP119", "CARPET"],
+        ["", "", "FB127", "FABRIC - LEATHER"],
+        ["", "", "FB132", "FABRIC - WOVEN"],
+        ["", "", "FB132B", "FABRIC - WOVEN"],
+        ["", "", "FB135", "FABRIC - LEATHER"],
+        ["", "", "FB141", "FABRIC - WOVEN"],
+        ["", "", "FB149", "FABRIC - LEATHER"],
+        ["", "", "FB156", "FABRIC - LEATHER"],
+        ["", "", "FB158", "FABRIC - WOVEN"],
+        ["", "", "FB174", "FABRIC - BLACKOUT"],
+        ["", "", "FB198", "FABRIC - SHEER"],
+        ["", "", "LT108", "SCONCE"],
+        ["", "", "LT125", "TABLE LAMP"],
+        ["", "", "LT134", "SCONCE"],
+        ["", "", "LT136", "SCONCE - HEADBOARD"],
+        ["", "", "LT150", "PENDANT"],
+        ["", "", "LT159A", "SCONCE - CORRIDOR"],
+        ["", "", "LT159B", "SCONCE - CORRIDOR"],
+        ["", "", "LT162", "PENDANT"],
+        ["", "", "MI132", "MIRROR - VANITY"],
+        ["", "", "MI166", "MIRROR - FULL LENGTH"],
+        ["", "", "SE145A", "CHAISE"],
+        ["", "", "SE145B", "CHAISE - OPEN BACK"],
+        ["", "", "SE145C", "CHAISE - HYBRID"],
+        ["", "", "SE167", "CHAISE - SMALL"],
+        ["", "", "TA139", "TABLE - WORK"],
+        ["", "", "TA139B", "TABLE - WORK - SMALL"],
+        ["", "", "CH-01", "Dining Chair"],
+        ["", "", "TBL-01", "Conference Table"]
       ]
     },
     {
@@ -231,8 +259,8 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Submittal_FFE_Headers", tabName: "Submittal FFE", rangeNotation: "A3:P4", scope: "Workbook" },
     { name: "Submittal_FFE_FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:P4", scope: "Workbook" },
     { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A6:P20", scope: "Workbook" },
-    { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Workbook" },
-    { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Workbook" }
+    { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B50", scope: "Workbook" },
+    { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D50", scope: "Workbook" }
   ]
 };
 
