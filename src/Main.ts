@@ -157,7 +157,10 @@ function migrateLogSpreadsheet(
     });
   }
 
-  return engine.auditLogMigration(targetTab, fieldSpecs, { targetTabName: targetTab });
+  return engine.executeLiveMigration(targetSpreadsheetId || sourceSpreadsheetId, targetTab, fieldSpecs, {
+    targetTabName: targetTab,
+    sourceSpreadsheetId
+  });
 }
 
 declare var module: any;

@@ -9,6 +9,8 @@ import { parseMigrateLogArgs, runMigrateLogCli } from "../scripts/migrate-log";
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { InMemorySheetStorageAdapter } from "./harness/fakes/InMemorySheetStorageAdapter";
 
+import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
+
 test.beforeEach(() => {
   GasMockHarness.install();
 });
@@ -45,4 +47,39 @@ test("migrateLogSpreadsheet - GAS function executes dry-run audit under GasMockH
   const report = migrateLogSpreadsheet("1SRC_GAS", "1TGT_GAS", { dryRun: true, storageAdapter });
   assert.ok(report);
   assert.strictEqual(typeof report.canProceed, "boolean");
+});
+
+
+test("runMigrateLogCli - executes live migration via CLI when --dry-run is absent", () => {
+  const storageAdapter = new InMemorySheetStorageAdapter();
+  storageAdapter.setSheetValues("Submittal Arch", [
+    ["Spec Section", "Title", "Days Open"],
+    ["", "", "=MAP(Data, LAMBDA(r, ...))"],
+    ["033000", "Concrete", "=TODAY()-C3"]
+  ]);
+
+  const result = runMigrateLogCli(["--source=1SRC", "--target=1TGT"], storageAdapter);
+  assert.strictEqual(result.status, "MIGRATION_COMMITTED");
+  assert.strictEqual(result.sourceDataRowCount, 1);
+  assert.strictEqual(result.targetAppendedRowCount, 1);
+});
+
+test("migrateLogSpreadsheet - executes live migration via GAS function when dryRun: false", () => {
+  const storageAdapter = new InMemorySheetStorageAdapter();
+  storageAdapter.setSheetValues("Submittal Arch", [
+    ["Spec Section", "Title", "Days Open"],
+    ["", "", "=MAP(Data, LAMBDA(r, ...))"],
+    ["051200", "Steel", "12"]
+  ]);
+
+  const lockAdapter = new FakeSpreadsheetLockAdapter();
+  const result = migrateLogSpreadsheet("1SRC_GAS", "1TGT_GAS", {
+    dryRun: false,
+    storageAdapter,
+    lockAdapter
+  });
+
+  assert.strictEqual(result.status, "MIGRATION_COMMITTED");
+  assert.strictEqual(result.sourceDataRowCount, 1);
+  assert.strictEqual(result.targetAppendedRowCount, 1);
 });

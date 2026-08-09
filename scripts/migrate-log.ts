@@ -60,9 +60,17 @@ export function runMigrateLogCli(argv: string[] = process.argv.slice(2), customS
 
   const spreadsheetId = args.target || args.source || "test-spreadsheet-id";
 
-  const report = engine.executeAudit(spreadsheetId, args.tabName, fieldSpecs);
-  console.log("[MIGRATION AUDIT RESULT] canProceed: " + report.canProceed + ", sourceRows: " + report.sourceDataRowCount);
-  return report;
+  if (args.dryRun) {
+    const report = engine.executeAudit(spreadsheetId, args.tabName, fieldSpecs);
+    console.log("[MIGRATION AUDIT RESULT] canProceed: " + report.canProceed + ", sourceRows: " + report.sourceDataRowCount);
+    return report;
+  }
+
+  const result = engine.executeLiveMigration(spreadsheetId, args.tabName, fieldSpecs, {
+    targetTabName: args.tabName
+  });
+  console.log("[MIGRATION LIVE RESULT] status: " + result.status + ", sourceRows: " + result.sourceDataRowCount + ", appendedRows: " + result.targetAppendedRowCount);
+  return result;
 }
 
 if (require.main === module) {
