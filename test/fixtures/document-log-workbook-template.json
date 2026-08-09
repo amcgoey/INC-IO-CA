@@ -523,7 +523,7 @@
     },
     {
       "name": "_Shared",
-      "rowCount": 6,
+      "rowCount": 100,
       "columnCount": 20,
       "isConfigTab": false,
       "isSharedTab": true,
@@ -531,69 +531,78 @@
       "isLogTab": false,
       "isSupportTab": false,
       "headers": [
-        "Contact Type",
-        "Contact Abbr.",
-        "Contact Full Name",
-        "",
-        "Action Order",
-        "Actions",
-        "Action Abbr."
+        "Contacts_Arch Key",
+        "Contacts_Arch Label",
+        "Contacts_FFE Key",
+        "Contacts_FFE Label",
+        "Actions Key",
+        "Actions Label"
       ],
       "formulaRow": [],
       "seedRows": [
         [
-          "Contact Type",
-          "Contact Abbr.",
-          "Contact Full Name",
-          "",
-          "Action Order",
-          "Actions",
-          "Action Abbr."
+          "Contacts_Arch Key",
+          "Contacts_Arch Label",
+          "Contacts_FFE Key",
+          "Contacts_FFE Label",
+          "Actions Key",
+          "Actions Label"
         ],
         [
-          "Arch",
-          "ARCH",
-          "arch-reviewer@example.com",
-          "",
-          1,
-          "For Approval",
-          "_NET"
+          "INC",
+          "INC Architecture and Design",
+          "INC",
+          "INC Architecture & Design",
+          "Received",
+          "Received"
         ],
         [
-          "Arch",
-          "ARCH-LEAD",
-          "arch-lead@example.com",
-          "",
-          2,
-          "Approved as Noted",
-          "_NOC"
+          "PMG",
+          "Pavarini McGovern",
+          "BW",
+          "Benjamin West",
+          "Referred",
+          "Referred"
         ],
         [
-          "FFE",
-          "FFE",
-          "ffe-reviewer@example.com",
-          "",
-          3,
-          "Revise and Resubmit",
-          "_RR"
+          "FXC",
+          "FX Collaborative",
+          "Lighting",
+          "Lighting",
+          "Not Reviewed",
+          "Not Reviewed"
         ],
         [
-          "FFE",
-          "FFE-LEAD",
-          "ffe-lead@example.com",
-          "",
-          4,
+          "IE",
+          "Interface Engineering",
+          "Brand",
+          "Brand",
           "Rejected",
-          "_REJ"
+          "Rejected"
+        ],
+        [
+          "VLD",
+          "Ventresca Lighting Design",
+          "",
+          "",
+          "Revise & Resubmit",
+          "Revise & Resubmit"
         ],
         [
           "",
           "",
           "",
           "",
-          5,
-          "For Information Only",
-          "_REF"
+          "No Objection as Corrected",
+          "No Objection as Corrected"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "No Exceptions Taken",
+          "No Exceptions Taken"
         ]
       ]
     },

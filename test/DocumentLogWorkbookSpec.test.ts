@@ -143,30 +143,55 @@ test('DocumentLogWorkbookSpec - places _Shared, _Config, _AuditLog system tabs a
   assert.deepEqual(lastThreeTabs, ['_Shared', '_Config', '_AuditLog'], 'System tabs must appear at the far right');
 });
 
-test('DocumentLogWorkbookSpec - defines Actions multi-column picklist schema in _Shared tab', () => {
+test('DocumentLogWorkbookSpec - defines Actions picklist schema in _Shared tab', () => {
   const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === '_Shared');
   assert.ok(sharedTab, '_Shared tab must exist');
   assert.ok(sharedTab.seedRows, 'seedRows must be defined on _Shared tab');
 
   const headers = sharedTab.seedRows[0];
-  assert.ok(headers.includes('Action Order'), 'Header must contain Action Order');
-  assert.ok(headers.includes('Actions'), 'Header must contain Actions');
-  assert.ok(headers.includes('Action Abbr.'), 'Header must contain Action Abbr.');
-
-  const actionAbbrIdx = headers.indexOf('Action Abbr.');
-  const abbreviations = sharedTab.seedRows.slice(1).map(r => r[actionAbbrIdx]).filter(Boolean);
-  assert.deepEqual(abbreviations, ['_NET', '_NOC', '_RR', '_REJ', '_REF']);
+  assert.ok(headers.includes('Actions Key'), 'Header must contain Actions Key');
+  assert.ok(headers.includes('Actions Label'), 'Header must contain Actions Label');
 });
 
-test('DocumentLogWorkbookSpec - defines Contacts multi-column picklist schema in _Shared tab', () => {
+test('DocumentLogWorkbookSpec - defines Contacts picklist schema in _Shared tab', () => {
   const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === '_Shared');
   assert.ok(sharedTab, '_Shared tab must exist');
   assert.ok(sharedTab.seedRows, 'seedRows must be defined on _Shared tab');
 
   const headers = sharedTab.seedRows[0];
-  assert.ok(headers.includes('Contact Type'), 'Header must contain Contact Type');
-  assert.ok(headers.includes('Contact Abbr.'), 'Header must contain Contact Abbr.');
-  assert.ok(headers.includes('Contact Full Name'), 'Header must contain Contact Full Name');
+  assert.ok(headers.includes('Contacts_Arch Key'), 'Header must contain Contacts_Arch Key');
+  assert.ok(headers.includes('Contacts_Arch Label'), 'Header must contain Contacts_Arch Label');
+});
+
+test('DocumentLogWorkbookSpec - all calculated column formulas in Submittal Arch and Submittal FFE have balanced parentheses and valid syntax', () => {
+  const logTabs = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.filter(t => t.isLogTab && t.columns);
+  assert.equal(logTabs.length, 2, 'There must be 2 log tabs (Submittal Arch and Submittal FFE)');
+
+  let totalFormulas = 0;
+  for (const tab of logTabs) {
+    const calcCols = tab.columns.filter(c => c.formula);
+    assert.equal(calcCols.length, 5, `${tab.name} must have 5 calculated formula columns`);
+
+    for (const col of calcCols) {
+      totalFormulas++;
+      const formula = col.formula;
+      const openParens = (formula.match(/\(/g) || []).length;
+      const closeParens = (formula.match(/\)/g) || []).length;
+
+      assert.equal(
+        openParens,
+        closeParens,
+        `Formula for ${tab.name} -> ${col.id} has mismatched parentheses (${openParens} open vs ${closeParens} close): "${formula}"`
+      );
+
+      assert.ok(
+        !formula.includes('(('),
+        `Formula for ${tab.name} -> ${col.id} contains unexpected double opening parenthesis "((": "${formula}"`
+      );
+    }
+  }
+
+  assert.equal(totalFormulas, 10, 'Total calculated formulas verified across log tabs must be 10');
 });
 
 

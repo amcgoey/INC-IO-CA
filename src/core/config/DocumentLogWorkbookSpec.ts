@@ -6,6 +6,9 @@
 
 export const DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION = "1.0.0";
 
+export const TEST_TEMPLATE_SPREADSHEET_TITLE = "INC Document Log - Test Template";
+export const PROD_TEMPLATE_SPREADSHEET_TITLE = "INC Document Log - Template";
+
 export interface ColumnSpec {
   id: string;
   header: string;
@@ -152,16 +155,18 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     },
     {
       name: "_Shared",
-      rowCount: 6,
+      rowCount: 100,
       columnCount: 20,
       isSharedTab: true,
       seedRows: [
-        ["Contact Type", "Contact Abbr.", "Contact Full Name", "", "Action Order", "Actions", "Action Abbr."],
-        ["Arch", "ARCH", "arch-reviewer@example.com", "", 1, "For Approval", "_NET"],
-        ["Arch", "ARCH-LEAD", "arch-lead@example.com", "", 2, "Approved as Noted", "_NOC"],
-        ["FFE", "FFE", "ffe-reviewer@example.com", "", 3, "Revise and Resubmit", "_RR"],
-        ["FFE", "FFE-LEAD", "ffe-lead@example.com", "", 4, "Rejected", "_REJ"],
-        ["", "", "", "", 5, "For Information Only", "_REF"]
+        ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Actions Key", "Actions Label"],
+        ["INC", "INC Architecture and Design", "INC", "INC Architecture & Design", "Received", "Received"],
+        ["PMG", "Pavarini McGovern", "BW", "Benjamin West", "Referred", "Referred"],
+        ["FXC", "FX Collaborative", "Lighting", "Lighting", "Not Reviewed", "Not Reviewed"],
+        ["IE", "Interface Engineering", "Brand", "Brand", "Rejected", "Rejected"],
+        ["VLD", "Ventresca Lighting Design", "", "", "Revise & Resubmit", "Revise & Resubmit"],
+        ["", "", "", "", "No Objection as Corrected", "No Objection as Corrected"],
+        ["", "", "", "", "No Exceptions Taken", "No Exceptions Taken"]
       ]
     },
     {
@@ -233,6 +238,8 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION,
+    TEST_TEMPLATE_SPREADSHEET_TITLE,
+    PROD_TEMPLATE_SPREADSHEET_TITLE,
     DOCUMENT_LOG_WORKBOOK_SPEC
   };
 }

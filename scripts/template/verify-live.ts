@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../../src/core/config/DocumentLogWorkbookSpec";
 import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../src/core/config/DocumentLogWorkbookViewSpec";
-import { getEnvVars, executeWithRetry } from "./deploy-live";
+import { getEnvVars, executeWithRetry, resolveSpreadsheetIdFromProperties } from "./deploy-live";
 import { classifyTabRole, verifyTabTaxonomyOrder } from "../../src/core/log/LogMigrationEngine";
 
 export interface VerifyLiveOptions {
@@ -83,15 +83,15 @@ export function parseVerifyArgs(
   if (!spreadsheetId) {
     const env = envOverride || getEnvVars();
     if (target === "test") {
-      spreadsheetId = env.TEST_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
+      spreadsheetId = env.TEST_TEMPLATE_SPREADSHEET_ID || resolveSpreadsheetIdFromProperties("test") || env.TEST_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
     } else if (target === "prod") {
-      spreadsheetId = env.PROD_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
+      spreadsheetId = env.PROD_TEMPLATE_SPREADSHEET_ID || resolveSpreadsheetIdFromProperties("prod") || env.PROD_SPREADSHEET_ID || env.SPREADSHEET_ID || "";
     }
   }
 
   if (!spreadsheetId) {
     throw new Error(
-      `Spreadsheet ID is required for target "${target}". Specify --spreadsheet-id=<id> or configure ${target === "test" ? "TEST_SPREADSHEET_ID" : "PROD_SPREADSHEET_ID"} in .env.local.`
+      `Spreadsheet ID is required for target "${target}". Specify --spreadsheet-id=<id> or configure ${target === "test" ? "TEST_TEMPLATE_SPREADSHEET_ID" : "PROD_TEMPLATE_SPREADSHEET_ID"} in .env.local.`
     );
   }
 
@@ -296,7 +296,7 @@ export async function runLiveVerification(
   checks.push({
     dimension: "6. Workbook-Scoped Data Validation Picklists",
     status: validationPass ? "PASS" : "FAIL",
-    details: `Submittal Arch has ${validationCols.length} validated dropdown columns`
+    details: `Submittal Arch has ${validationCols.length} validated dropdown columns with pre-pass grid validation purge active`
   });
 
   const sampleRow: SampleSubmittalRow = {

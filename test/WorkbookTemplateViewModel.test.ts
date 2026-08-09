@@ -20,7 +20,7 @@ interface RepeatCellReq {
     cell?: {
       userEnteredFormat?: {
         backgroundColor?: { red: number; green: number; blue: number };
-        textFormat?: { foregroundColor?: { red: number; green: number; blue: number }; bold?: boolean };
+        textFormat?: { foregroundColor?: { red: number; green: number; blue: number }; bold?: boolean; italic?: boolean; fontSize?: number; fontFamily?: string };
       };
     };
   };
@@ -228,7 +228,7 @@ test("WorkbookTemplateViewModel generates setDataValidation batch update request
       rule?: { condition?: { values?: Array<{ userEnteredValue?: string }> } };
     };
   }
-  const validationReqs = (payload.requests as DataValidationRequest[]).filter(r => r.setDataValidation);
+  const validationReqs = (payload.requests as DataValidationRequest[]).filter(r => r.setDataValidation && r.setDataValidation.rule !== undefined);
   assert.ok(validationReqs.length > 0, 'setDataValidation requests must be generated');
   const specTagValidation = validationReqs.find(r => r.setDataValidation?.rule?.condition?.values?.[0]?.userEnteredValue === '=SpecTags');
   assert.ok(specTagValidation, 'Data validation rule for =SpecTags must be included in batch requests');
@@ -274,7 +274,7 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell req
 
   const allRequests = payload.requests as RepeatCellReq[];
 
-  // Find index of _Config pale fill request for Config_Manifest (sheetId 5, startRow 0, endRow 3)
+  // Find index of _Config pale fill request for Config_Manifest (sheetId 5, startRow 0, endRow 5)
   const manifestFillIdx = allRequests.findIndex(
     r => r.repeatCell?.range?.sheetId === 5 &&
          r.repeatCell?.range?.startRowIndex === 0 &&
@@ -323,22 +323,22 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell req
   assert.ok(schemaVersionReq, "MANIFEST_SCHEMA_VERSION pale gray fill repeatCell request must exist with exact single-cell boundaries");
   assert.deepStrictEqual(schemaVersionReq?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, ThemeColors.PALE_GRAY_RGB);
 
-  // Actions_Submittal: _Shared (sheetId 4), E2:G6 -> row 1..6, col 4..7, pale red
+  // Actions_Submittal: _Shared (sheetId 4), E2:F20 -> row 1..20, col 4..6, pale red
   const actionsReq = repeatCells.find(
     r => r.repeatCell?.range?.sheetId === 4 &&
          r.repeatCell?.range?.startRowIndex === 1 &&
-         r.repeatCell?.range?.endRowIndex === 6 &&
+         r.repeatCell?.range?.endRowIndex === 20 &&
          r.repeatCell?.range?.startColumnIndex === 4 &&
-         r.repeatCell?.range?.endColumnIndex === 7
+         r.repeatCell?.range?.endColumnIndex === 6
   );
   assert.ok(actionsReq, "Actions_Submittal pale red fill repeatCell request must exist with exact range boundaries");
   assert.deepStrictEqual(actionsReq?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, ThemeColors.PALE_RED_RGB);
 
-  // Verify no duplicate fill requests for dual-scoped range Sections / Submittal_Arch_Support_Sections (sheetId 2, A2:B3)
+  // Verify no duplicate fill requests for dual-scoped range Sections / Submittal_Arch_Support_Sections (sheetId 2, A2:B20)
   const sectionsReqs = repeatCells.filter(
     r => r.repeatCell?.range?.sheetId === 2 &&
          r.repeatCell?.range?.startRowIndex === 1 &&
-         r.repeatCell?.range?.endRowIndex === 6 &&
+         r.repeatCell?.range?.endRowIndex === 20 &&
          r.repeatCell?.range?.startColumnIndex === 0 &&
          r.repeatCell?.range?.endColumnIndex === 2
   );
@@ -388,7 +388,7 @@ test("WorkbookTemplateViewModel setDataValidation specifies strict: false (Warni
     };
   }
 
-  const validationReqs = (payload.requests as DataValidationReq[]).filter(r => r.setDataValidation);
+  const validationReqs = (payload.requests as DataValidationReq[]).filter(r => r.setDataValidation && r.setDataValidation.rule !== undefined);
   assert.ok(validationReqs.length > 0, "setDataValidation requests must exist");
 
   validationReqs.forEach(req => {
@@ -460,4 +460,112 @@ test("indexToColLetter converts column indices to 1-based A1 notation column let
   assert.strictEqual(indexToColLetter(25), "Z");
   assert.strictEqual(indexToColLetter(26), "AA");
   assert.strictEqual(indexToColLetter(27), "AB");
+});
+
+test("DOCUMENT_LOG_WORKBOOK_VIEW_SPEC specifies canonical typography tokens: Abril Fatface 27pt Title, Raleway Date/Headers/FormulaRow", () => {
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.titleRowStyle.fontFamily, "Abril Fatface");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.titleRowStyle.fontSize, 27);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.titleRowStyle.bold, true);
+
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.dateRowStyle.fontFamily, "Raleway");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.dateRowStyle.fontSize, 10);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.dateRowStyle.italic, true);
+
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.fontFamily, "Raleway");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.fontSize, 11);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.headerStyle.bold, true);
+
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.formulaRowStyle.fontFamily, "Raleway");
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.formulaRowStyle.fontSize, 7);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.formulaRowStyle.italic, true);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.formulaRowStyle.fontColorHex, "#B7B7B7");
+  assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.formulaRowStyle.fontColorRgb, { red: 0.7176, green: 0.7176, blue: 0.7176 });
+
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.defaultFontFamily, "Raleway");
+});
+
+
+test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits exact textFormat font requests for Title, Date, Headers, and FormulaRow", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+
+  const allRequests = payload.requests as RepeatCellReq[];
+
+  const titleReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 0 && r.repeatCell?.range?.startRowIndex === 0 && r.repeatCell?.range?.endRowIndex === 1 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Abril Fatface");
+  assert.ok(titleReq, "Submittal Arch Title Row repeatCell request must exist with Abril Fatface 27pt textFormat");
+  assert.strictEqual(titleReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontSize, 27);
+  assert.strictEqual(titleReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.bold, true);
+
+  const dateReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 0 && r.repeatCell?.range?.startRowIndex === 1 && r.repeatCell?.range?.endRowIndex === 2 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(dateReq, "Submittal Arch Date Row repeatCell request must exist with Raleway 10pt textFormat");
+  assert.strictEqual(dateReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontSize, 10);
+  assert.strictEqual(dateReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.italic, true);
+
+  const headerReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 0 && r.repeatCell?.range?.startRowIndex === 2 && r.repeatCell?.range?.endRowIndex === 3 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(headerReq, "Submittal Arch Header Row repeatCell request must exist with Raleway 11pt bold textFormat");
+  assert.strictEqual(headerReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontSize, 11);
+  assert.strictEqual(headerReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.bold, true);
+
+  const formulaReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 0 && r.repeatCell?.range?.startRowIndex === 3 && r.repeatCell?.range?.endRowIndex === 4 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(formulaReq, "Submittal Arch FormulaRow repeatCell request must exist with Raleway 7pt #B7B7B7 textFormat");
+  assert.strictEqual(formulaReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontSize, 7);
+  assert.strictEqual(formulaReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.italic, true);
+  assert.deepStrictEqual(formulaReq?.repeatCell?.cell?.userEnteredFormat?.textFormat?.foregroundColor, { red: 0.7176, green: 0.7176, blue: 0.7176 });
+});
+
+test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits default font family repeatCell requests across all tabs", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+  const allRequests = payload.requests as RepeatCellReq[];
+  const configDefaultFontReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 5 && r.repeatCell?.range?.startRowIndex === 0 && r.repeatCell?.range?.startColumnIndex === 0 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(configDefaultFontReq, "_Config tab default font family repeatCell request must exist with Raleway");
+  const archDefaultFontReq = allRequests.find(r => r.repeatCell?.range?.sheetId === 0 && r.repeatCell?.range?.startRowIndex === 0 && r.repeatCell?.range?.startColumnIndex === 0 && r.repeatCell?.cell?.userEnteredFormat?.textFormat?.fontFamily === "Raleway");
+  assert.ok(archDefaultFontReq, "Submittal Arch tab default font family repeatCell request must exist with Raleway");
+});
+
+test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits pre-pass setDataValidation purge requests omitting rule across full grid range for all tabs", () => {
+  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+  const payload = viewModel.toBatchUpdateRequestPayload();
+
+  interface PurgeValidationReq {
+    setDataValidation?: {
+      range?: {
+        sheetId?: number;
+        startRowIndex?: number;
+        endRowIndex?: number;
+        startColumnIndex?: number;
+        endColumnIndex?: number;
+      };
+      rule?: unknown;
+    };
+  }
+
+  const allReqs = payload.requests as PurgeValidationReq[];
+  const purgeReqs = allReqs.filter(r => r.setDataValidation && r.setDataValidation.rule === undefined);
+
+  assert.strictEqual(
+    purgeReqs.length,
+    DOCUMENT_LOG_WORKBOOK_SPEC.tabs.length,
+    "Must emit pre-pass setDataValidation purge requests for all tabs"
+  );
+
+  DOCUMENT_LOG_WORKBOOK_SPEC.tabs.forEach((tab, index) => {
+    const purgeForTab = purgeReqs.find(r => r.setDataValidation?.range?.sheetId === index);
+    assert.ok(purgeForTab, "Pre-pass purge request for tab " + tab.name + " sheetId " + index + " must exist");
+    assert.strictEqual(purgeForTab.setDataValidation?.range?.startRowIndex, 0, "Purge startRowIndex must be 0");
+    assert.strictEqual(purgeForTab.setDataValidation?.range?.endRowIndex, tab.rowCount, "Purge endRowIndex must match tab.rowCount");
+    assert.strictEqual(purgeForTab.setDataValidation?.range?.startColumnIndex, 0, "Purge startColumnIndex must be 0");
+    assert.strictEqual(purgeForTab.setDataValidation?.range?.endColumnIndex, tab.columnCount, "Purge endColumnIndex must match tab.columnCount");
+    assert.strictEqual(purgeForTab.setDataValidation?.rule, undefined, "Purge request must omit rule property");
+  });
+
+  const firstRuleIdx = allReqs.findIndex(r => r.setDataValidation && r.setDataValidation.rule !== undefined);
+  const lastPurgeIdx = Math.max(...purgeReqs.map(r => allReqs.indexOf(r)));
+
+  if (firstRuleIdx >= 0) {
+    assert.ok(
+      lastPurgeIdx < firstRuleIdx,
+      "All pre-pass purge requests must precede column-level data validation rules"
+    );
+  }
 });
