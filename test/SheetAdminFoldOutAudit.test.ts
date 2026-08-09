@@ -250,7 +250,10 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
       const existingLockId = lockAdapter.acquireLock("wb-autopatch-lock", 900000);
       assert.ok(existingLockId);
 
-      const result = TemplateDriftAuditor.autoPatchWorkbook(ss, { lockAdapter });
+      let logged = false;
+      const logger = (msg: string) => { logged = true; assert.ok(msg.includes("LOCK_CONTENTION")); };
+      const result = TemplateDriftAuditor.autoPatchWorkbook(ss, { lockAdapter, logger });
+      assert.ok(logged);
 
       assert.strictEqual(result.success, false);
       assert.strictEqual(result.status, "LOCK_CONTENTION");

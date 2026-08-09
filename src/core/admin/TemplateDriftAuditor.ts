@@ -54,8 +54,8 @@ export interface AutoPatchResult {
 }
 
 export interface AutoPatchWorkbookOptions {
-  lockAdapter?: any;
-  cacheAdapter?: any;
+  lockAdapter?: SpreadsheetLockAdapter;
+  cacheAdapter?: CacheAdapter;
   logger?: (logPayloadJson: string) => void;
 }
 
@@ -598,28 +598,48 @@ class TemplateDriftPatcher {
     }
   }
 
-  private resolveLockAdapter(): any {
+  private resolveLockAdapter(): SpreadsheetLockAdapter | null {
     if (this.options.lockAdapter) return this.options.lockAdapter;
     const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
     if (g.defaultSpreadsheetLockAdapter) return g.defaultSpreadsheetLockAdapter;
     if (g.FakeSpreadsheetLockAdapter) return new g.FakeSpreadsheetLockAdapter();
-    try {
-      const FakeLock = require("../../adapters/fakes/FakeSpreadsheetLockAdapter").FakeSpreadsheetLockAdapter;
-      return new FakeLock();
-    } catch (e) {}
     return null;
   }
 
-  private resolveCacheAdapter(): any {
+  private resolveCacheAdapter(): CacheAdapter | null {
     if (this.options.cacheAdapter) return this.options.cacheAdapter;
     const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
     if (g.defaultCacheAdapter) return g.defaultCacheAdapter;
     if (g.FakeCacheAdapter) return new g.FakeCacheAdapter();
-    try {
-      const FakeCache = require("../../adapters/fakes/FakeCacheAdapter").FakeCacheAdapter;
-      return new FakeCache();
-    } catch (e) {}
     return null;
+  }
+
+  private invalidateConfigCache(): void {
+    const cacheAdapter = this.resolveCacheAdapter();
+    if (cacheAdapter) {
+      try {
+        const PrefixManagerClass = (globalThis as any).PrefixCacheManager ||
+          (typeof PrefixCacheManager !== "undefined" ? PrefixCacheManager : require("./PrefixCacheManager").PrefixCacheManager);
+        const manager = new PrefixManagerClass(cacheAdapter);
+        manager.invalidatePrefix("DOC_CONFIG_" + this.spreadsheetId);
+      } catch (e) {}
+    }
+  }
+
+  private hasNamedRangeInSeam(seam: any, name: string, tabName: string): boolean {
+    if (typeof seam.getNamedRanges === "function") {
+      const nrs = seam.getNamedRanges();
+      if (Array.isArray(nrs)) {
+        return nrs.some((nr: any) => {
+          const nrName = nr.name || (typeof nr.getName === "function" ? nr.getName() : "");
+          return nrName === name || nrName === tabName + "_" + name || nrName === tabName + "!" + name;
+        });
+      }
+    }
+    if (typeof seam.getRangeByName === "function") {
+      if (seam.getRangeByName(name) || seam.getRangeByName(tabName + "_" + name) || seam.getRangeByName(tabName + "!" + name)) return true;
+    }
+    return false;
   }
 
   public runAutoPatch(): AutoPatchResult {
@@ -629,6 +649,14 @@ class TemplateDriftPatcher {
     if (lockAdapter && typeof lockAdapter.acquireLock === "function") {
       executionId = lockAdapter.acquireLock(this.spreadsheetId, 5000);
       if (!executionId) {
+        if (typeof this.options.logger === "function") {
+          this.options.logger(JSON.stringify({
+            event: "AUTO_PATCH_LOCK_CONTENTION",
+            spreadsheetId: this.spreadsheetId,
+            status: "LOCK_CONTENTION",
+            message: "Failed to acquire workbook lock (LOCK_MIGRATION_" + this.spreadsheetId + ") within 5,000 ms timeout."
+          }));
+        }
         return {
           success: false,
           status: "LOCK_CONTENTION",
@@ -693,41 +721,17 @@ class TemplateDriftPatcher {
 
         const tabName = specTab.name;
 
-        // Check Headers
-        let hasHeaders = false;
-        if (typeof seam.getNamedRanges === "function") {
-          const nrs = seam.getNamedRanges();
-          if (Array.isArray(nrs)) {
-            hasHeaders = nrs.some((nr: any) => (nr.name || nr.getName?.()) === "Headers" || (nr.name || nr.getName?.()) === tabName + "_Headers");
-          }
-        }
-        if (!hasHeaders && typeof seam.setNamedRange === "function") {
+        if (!this.hasNamedRangeInSeam(seam, "Headers", tabName) && typeof seam.setNamedRange === "function") {
           seam.setNamedRange("Headers", tabName, "A3:Z3");
           repairsApplied.push("Re-created sheet-scoped Named Range 'Headers' on tab '" + tabName + "'");
         }
 
-        // Check FormulaRow
-        let hasFormulaRow = false;
-        if (typeof seam.getNamedRanges === "function") {
-          const nrs = seam.getNamedRanges();
-          if (Array.isArray(nrs)) {
-            hasFormulaRow = nrs.some((nr: any) => (nr.name || nr.getName?.()) === "FormulaRow" || (nr.name || nr.getName?.()) === tabName + "_FormulaRow");
-          }
-        }
-        if (!hasFormulaRow && typeof seam.setNamedRange === "function") {
+        if (!this.hasNamedRangeInSeam(seam, "FormulaRow", tabName) && typeof seam.setNamedRange === "function") {
           seam.setNamedRange("FormulaRow", tabName, "A2:Z2");
           repairsApplied.push("Re-created sheet-scoped Named Range 'FormulaRow' on tab '" + tabName + "'");
         }
 
-        // Check Data
-        let hasData = false;
-        if (typeof seam.getNamedRanges === "function") {
-          const nrs = seam.getNamedRanges();
-          if (Array.isArray(nrs)) {
-            hasData = nrs.some((nr: any) => (nr.name || nr.getName?.()) === "Data" || (nr.name || nr.getName?.()) === tabName + "_Data");
-          }
-        }
-        if (!hasData && typeof seam.setNamedRange === "function") {
+        if (!this.hasNamedRangeInSeam(seam, "Data", tabName) && typeof seam.setNamedRange === "function") {
           seam.setNamedRange("Data", tabName, "A4:Z1000");
           repairsApplied.push("Re-created sheet-scoped Named Range 'Data' on tab '" + tabName + "'");
         }
@@ -756,15 +760,7 @@ class TemplateDriftPatcher {
       }
 
       // 3. Post-repair Cache Invalidation
-      const cacheAdapter = this.resolveCacheAdapter();
-      if (cacheAdapter) {
-        try {
-          const PrefixManagerClass = (globalThis as any).PrefixCacheManager ||
-            (typeof PrefixCacheManager !== "undefined" ? PrefixCacheManager : require("./PrefixCacheManager").PrefixCacheManager);
-          const manager = new PrefixManagerClass(cacheAdapter);
-          manager.invalidatePrefix("DOC_CONFIG_" + this.spreadsheetId);
-        } catch (e) {}
-      }
+      this.invalidateConfigCache();
 
       // 4. Log telemetry events to _AuditLog
       this.writeTelemetryEvents(seam, repairsApplied);
@@ -784,15 +780,7 @@ class TemplateDriftPatcher {
       // Mid-Repair Exception Recovery
       const errorMessage = String(err && err.message ? err.message : err);
 
-      try {
-        const cacheAdapter = this.resolveCacheAdapter();
-        if (cacheAdapter) {
-          const PrefixManagerClass = (globalThis as any).PrefixCacheManager ||
-            (typeof PrefixCacheManager !== "undefined" ? PrefixCacheManager : require("./PrefixCacheManager").PrefixCacheManager);
-          const manager = new PrefixManagerClass(cacheAdapter);
-          manager.invalidatePrefix("DOC_CONFIG_" + this.spreadsheetId);
-        }
-      } catch (e) {}
+      this.invalidateConfigCache();
 
       try {
         this.writeFailureEvent(this.storageInput, errorMessage);
