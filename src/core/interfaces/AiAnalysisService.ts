@@ -9,9 +9,11 @@
 
 
 /** Fixed numerical confidence threshold (< 0.85) for triggering visual low-confidence warning indicators. */
-const FieldConfidenceThreshold = 0.85;
+var FieldConfidenceThreshold: number = (typeof globalThis !== "undefined" && (globalThis as any).FieldConfidenceThreshold) || 0.85;
 
 export { FieldConfidenceThreshold };
+
+(globalThis as any).FieldConfidenceThreshold = FieldConfidenceThreshold;
 
 declare var module: any;
 
@@ -21,7 +23,6 @@ if (typeof module !== "undefined" && module.exports) {
   };
 }
 
-(globalThis as any).FieldConfidenceThreshold = FieldConfidenceThreshold;
 
 /** Extracted field confidence object from 1-pass AI classification. */
 export interface AiClassificationField {

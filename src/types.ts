@@ -1,5 +1,5 @@
 /** Fixed numerical confidence threshold (< 0.85) for triggering visual low-confidence warning indicators. */
-const FieldConfidenceThreshold = 0.85;
+var FieldConfidenceThreshold: number = (typeof globalThis !== "undefined" && (globalThis as any).FieldConfidenceThreshold) || 0.85;
 
 /** Extracted field confidence object from 1-pass AI classification. */
 interface AiClassificationField {
