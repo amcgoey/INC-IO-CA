@@ -334,18 +334,22 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell req
 
 });
 
-test("Log data rows remain unstyled white #FFFFFF without background fill repeatCell requests", () => {
+test("Log data rows reset background fill to white #FFFFFF", () => {
   const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
   const payload = viewModel.toBatchUpdateRequestPayload();
 
-  // Check Submittal Arch (sheetId 0) and Submittal FFE (sheetId 1) data rows (Row 6+, startRowIndex >= 5)
+  // Check Submittal Arch (sheetId 0) data rows white fill (startRowIndex 5)
   const logDataFills = (payload.requests as RepeatCellReq[]).filter(
     r => r.repeatCell &&
-         (r.repeatCell.range?.sheetId === 0 || r.repeatCell.range?.sheetId === 1) &&
-         r.repeatCell && r.repeatCell.range && r.repeatCell.range.startRowIndex >= 5 && r.repeatCell.range.startRowIndex < 7 && (r.repeatCall.range?.startRowIndex ?? 0) < 7
+         r.repeatCell.range?.sheetId === 0 &&
+         r.repeatCell.range?.startRowIndex === 5
   );
 
-  assert.strictEqual(logDataFills.length, 0, "No repeatCell fill requests must be emitted for log data rows");
+  assert.ok(logDataFills.length > 0, "White repeatCell fill request must be emitted for log data rows");
+  assert.deepStrictEqual(
+    logDataFills[0].repeatCell?.cell?.userEnteredFormat?.backgroundColor,
+    { red: 1, green: 1, blue: 1 }
+  );
 });
 
 

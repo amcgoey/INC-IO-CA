@@ -144,11 +144,18 @@ export class WorkbookTemplateViewModel {
 
       if (tab.seedRows && tab.seedRows.length > 0) {
         const rows = tab.seedRows.map((row: any[]) => ({
-          values: row.map((val: any) => ({
-            userEnteredValue: {
-              stringValue: String(val)
+          values: row.map((val: any) => {
+            if (val === null || val === undefined || val === "") {
+              return {};
             }
-          }))
+            if (typeof val === "number") {
+              return { userEnteredValue: { numberValue: val } };
+            }
+            if (typeof val === "boolean") {
+              return { userEnteredValue: { boolValue: val } };
+            }
+            return { userEnteredValue: { stringValue: String(val) } };
+          })
         }));
         requests.push({
           updateCells: {
@@ -387,6 +394,25 @@ export class WorkbookTemplateViewModel {
             cell: {
               userEnteredFormat: {
                 backgroundColor: headerStyle.fillRgb
+              }
+            },
+            fields: "userEnteredFormat(backgroundColor)"
+          }
+        });
+
+        // Data Rows: White Background Reset (Row 6 to Row tab.rowCount - 1)
+        requests.push({
+          repeatCell: {
+            range: {
+              sheetId,
+              startRowIndex: offsets.FIRST_DATA_ROW_INDEX - 1,
+              endRowIndex: tab.rowCount - 1,
+              startColumnIndex: 0,
+              endColumnIndex: tab.columnCount
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 1, green: 1, blue: 1 }
               }
             },
             fields: "userEnteredFormat(backgroundColor)"
