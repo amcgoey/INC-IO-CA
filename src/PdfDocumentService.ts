@@ -241,16 +241,20 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
     for (const blob of blobs) {
       const bytes = (blob && typeof blob.getBytes === "function") ? blobToUint8Array(blob) : new Uint8Array(0);
       const contentType = (blob && typeof blob.getContentType === "function" ? (blob.getContentType() || "") : "").toLowerCase();
+      const fileName = (blob && typeof blob.getName === "function" ? (blob.getName() || "") : "").toLowerCase();
+      const isPdf = contentType.includes("pdf") || fileName.endsWith(".pdf");
+      const isPng = contentType.includes("png") || fileName.endsWith(".png");
+      const isJpg = contentType.includes("jpeg") || contentType.includes("jpg") || fileName.endsWith(".jpg") || fileName.endsWith(".jpeg");
 
-      if (contentType.includes("pdf")) {
+      if (isPdf) {
         const srcPdf = await pdfLib.PDFDocument.load(bytes);
         const copiedPages = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
         copiedPages.forEach((page: any) => mergedPdf.addPage(page));
-      } else if (contentType.includes("png")) {
+      } else if (isPng) {
         const image = await mergedPdf.embedPng(bytes);
         const page = mergedPdf.addPage([image.width, image.height]);
         page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
-      } else if (contentType.includes("jpeg") || contentType.includes("jpg")) {
+      } else if (isJpg) {
         const image = await mergedPdf.embedJpg(bytes);
         const page = mergedPdf.addPage([image.width, image.height]);
         page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });

@@ -219,7 +219,7 @@ class GenericEmailParser {
 class EmailIntakeParser {
   static parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> {
     const result: Partial<ParsedData> = {
-      discipline: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture",
+      discipline: "Architecture",
       action: "Received"
     };
 
@@ -274,7 +274,7 @@ class EmailIntakeParser {
 
   static parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
     const result: Partial<ParsedData> = {
-      discipline: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture",
+      discipline: "Architecture",
       action: "Received"
     };
 
@@ -460,7 +460,7 @@ class EmailIntakeParser {
     return EmailIntakeParser.mergeAiTriageAndRegex(aiObj, regexParsed);
   }
 
-  static parseEmail(emailData: EmailData | any): ParsedData {
+  static parseEmail(emailData?: any): ParsedData {
     const defaultResult: ParsedData = {
       discipline: "Architecture",
       driveName: "",

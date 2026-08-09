@@ -419,8 +419,8 @@ class DocumentPipeline {
   }
 
   static parseEmail(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
-    const ep = typeof EmailIntakeParser !== "undefined" ? EmailIntakeParser : (typeof require !== "undefined" ? require(",/EmailIntakeParser").EmailIntakeParser : (globalThis as any).EmailIntakeParser);
-    return ep ? ep.parseEmail(message) : { driveName: "", action: "Received" };
+    const ep = typeof EmailIntakeParser !== "undefined" ? EmailIntakeParser : (globalThis as Record<string, unknown>).EmailIntakeParser as { parseEmail: (msg?: any) => ParsedData } | undefined;
+    return ep ? ep.parseEmail(message as any) : { driveName: "", action: "Received" };
   }
 
   static parseFilename(filename: string): RawDocument {
