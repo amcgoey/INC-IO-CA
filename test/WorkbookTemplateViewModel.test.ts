@@ -191,7 +191,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines MAP/LAMBDA formulas in Submittal FFE in
   const calcTitleCol = ffeTab.columns.find((c) => c.id === "calcTitle");
   assert.ok(calcTitleCol, "calcTitle column must exist");
   assert.ok(calcTitleCol.formula, "calcTitle formula must be defined");
-  assert.ok(calcTitleCol.formula.includes("MAP(B6:B, E6:E, LAMBDA("), "calcTitle formula must be a MAP/LAMBDA expression");
+  assert.ok(calcTitleCol.formula.includes("MAP(B4:B, E4:E, LAMBDA("), "calcTitle formula must be a MAP/LAMBDA expression");
   assert.ok(calcTitleCol.formula.includes("VLOOKUP(tag, 'Submittal FFE Support'!SpecTags, 2, FALSE)"), "calcTitle formula must perform VLOOKUP against SpecTags");
 
   const calcFileNameCol = ffeTab.columns.find((c) => c.id === "calcFileName");

@@ -85,11 +85,11 @@ describe("Canonical Reference Seed Data for Contacts, Actions & Project Settings
 
       const vendorsRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "Vendors");
       assert.ok(vendorsRange, "Vendors named range must exist");
-      assert.equal(vendorsRange.rangeNotation, "A2:B7");
+      assert.equal(vendorsRange.rangeNotation, "A2:B20");
 
       const specTagsRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "SpecTags");
       assert.ok(specTagsRange, "SpecTags named range must exist");
-      assert.equal(specTagsRange.rangeNotation, "C2:D7");
+      assert.equal(specTagsRange.rangeNotation, "C2:D20");
 
       const seedRows = ffeSupportTab.seedRows || [];
       const vendors = seedRows.slice(1, 7).map((r: (string | number | boolean)[]) => [r[0], r[1]]);

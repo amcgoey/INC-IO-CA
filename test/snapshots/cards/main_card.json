@@ -151,7 +151,7 @@
               "type": "TextInput",
               "fieldName": "date",
               "title": "Date (YYMMDD)",
-              "value": "260808",
+              "value": "260809",
               "multiline": false
             },
             {

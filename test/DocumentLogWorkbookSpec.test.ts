@@ -193,3 +193,22 @@ test('DocumentLogWorkbookSpec - all calculated column formulas in Submittal Arch
 
   assert.equal(totalFormulas, 10, 'Total calculated formulas verified across log tabs must be 10');
 });
+
+
+test('DocumentLogWorkbookSpec - Submittal Arch and Submittal FFE MAP/LAMBDA formulas start input ranges at Row 4 (FormulaRow)', () => {
+  const archTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal Arch');
+  const ffeTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal FFE');
+
+  assert.ok(archTab?.columns, 'Submittal Arch columns must be defined');
+  assert.ok(ffeTab?.columns, 'Submittal FFE columns must be defined');
+
+  const verifyRow4Formulas = (tabName: string, columns: NonNullable<typeof archTab.columns>) => {
+    columns.filter(c => c.formula).forEach(col => {
+      assert.ok(!col.formula!.includes('6:'), `${tabName} column ${col.id} formula must not contain Row 6 range reference: ${col.formula}`);
+      assert.ok(col.formula!.includes('4:'), `${tabName} column ${col.id} formula must reference Row 4 input range: ${col.formula}`);
+    });
+  };
+
+  verifyRow4Formulas('Submittal Arch', archTab.columns);
+  verifyRow4Formulas('Submittal FFE', ffeTab.columns);
+});
