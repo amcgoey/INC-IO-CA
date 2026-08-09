@@ -1,6 +1,6 @@
 /// <reference path="../../types.ts" />
 declare var LogEngine: any;
-declare var GoogleSheetsStorageAdapter: any;
+declare var PrefixCacheManager: any;
 /**
  * @file TemplateDriftAuditor.ts
  * @description Tier 1 Pure Core inspection engine auditing 6 structural dimensions of Google Sheet workbooks
@@ -618,10 +618,12 @@ class TemplateDriftPatcher {
     const cacheAdapter = this.resolveCacheAdapter();
     if (cacheAdapter) {
       try {
-        const PrefixManagerClass = (globalThis as any).PrefixCacheManager ||
-          (typeof PrefixCacheManager !== "undefined" ? PrefixCacheManager : require("./PrefixCacheManager").PrefixCacheManager);
-        const manager = new PrefixManagerClass(cacheAdapter);
-        manager.invalidatePrefix("DOC_CONFIG_" + this.spreadsheetId);
+        const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
+        const PrefixManagerClass = g.PrefixCacheManager || (typeof PrefixCacheManager !== "undefined" ? PrefixCacheManager : null);
+        if (PrefixManagerClass) {
+          const manager = new PrefixManagerClass(cacheAdapter);
+          manager.invalidatePrefix("DOC_CONFIG_" + this.spreadsheetId);
+        }
       } catch (e) {}
     }
   }
@@ -800,57 +802,50 @@ class TemplateDriftPatcher {
     }
   }
 
-  private getStorageAdapter(seam: any): any {
+  private getLogEngineClass(): any {
     const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
-    const StorageAdapterClass = g.GoogleSheetsStorageAdapter ||
-      (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : require("../../SheetStorageAdapter").GoogleSheetsStorageAdapter);
-    if (seam && typeof seam.getSheetValues === "function" && typeof seam.setRowValues === "function") {
-      return seam;
-    }
-    return new StorageAdapterClass(this.spreadsheetId);
+    if (g.LogEngine) return g.LogEngine;
+    if (typeof LogEngine !== "undefined") return LogEngine;
+    try {
+      const p = require("path").resolve(__dirname, "../log/LogEngine");
+      return require(p).LogEngine;
+    } catch (e) {}
+    return null;
   }
 
   private writeTelemetryEvents(seam: any, repairsApplied: string[]): void {
     try {
-      const adapter = this.getStorageAdapter(seam);
-      const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
-      const LogEngineClass = g.LogEngine ||
-        (typeof LogEngine !== "undefined" ? LogEngine : require("../log/LogEngine").LogEngine);
-      const engine = new LogEngineClass(adapter);
-
-      engine.logAuditEvent(this.spreadsheetId, {
-        category: "SCHEMA_DRIFT",
-        eventType: "DRIFT_REPAIR_EXECUTED",
-        actor: "TemplateDriftAuditor",
-        status: "SUCCESS",
-        details: { repairsApplied, count: repairsApplied.length }
-      });
-
-      engine.logAuditEvent(this.spreadsheetId, {
-        category: "CACHE_PURGE",
-        eventType: "EVICT_PREFIX",
-        actor: "TemplateDriftAuditor",
-        status: "SUCCESS",
-        details: { scope: "DOC_CONFIG_" + this.spreadsheetId }
-      });
+      const now = new Date().toISOString();
+      const auditSheet = typeof seam.getSheetByName === "function" ? seam.getSheetByName("_AuditLog") : null;
+      if (auditSheet) {
+        const row1 = [now, "SCHEMA_DRIFT", "DRIFT_REPAIR_EXECUTED", "TemplateDriftAuditor", "SUCCESS", JSON.stringify({ repairsApplied, count: repairsApplied.length })];
+        const row2 = [now, "CACHE_PURGE", "EVICT_PREFIX", "TemplateDriftAuditor", "SUCCESS", JSON.stringify({ scope: "DOC_CONFIG_" + this.spreadsheetId })];
+        if (typeof auditSheet.appendRow === "function") {
+          auditSheet.appendRow(row1);
+          auditSheet.appendRow(row2);
+        } else if (typeof auditSheet.setGridSlice === "function") {
+          const data = typeof auditSheet.getDataRange === "function" ? auditSheet.getDataRange().getValues() : [];
+          const startRow = data.length + 1;
+          auditSheet.setGridSlice(startRow, 1, [row1]);
+          auditSheet.setGridSlice(startRow + 1, 1, [row2]);
+        }
+      }
     } catch (e) {}
   }
 
   private writeFailureEvent(seam: any, errorMessage: string): void {
     try {
-      const adapter = this.getStorageAdapter(seam);
-      const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
-      const LogEngineClass = g.LogEngine ||
-        (typeof LogEngine !== "undefined" ? LogEngine : require("../log/LogEngine").LogEngine);
-      const engine = new LogEngineClass(adapter);
-
-      engine.logAuditEvent(this.spreadsheetId, {
-        category: "SCHEMA_DRIFT",
-        eventType: "DRIFT_REPAIR_FAILED",
-        actor: "TemplateDriftAuditor",
-        status: "ERROR",
-        details: { error: errorMessage }
-      });
+      const now = new Date().toISOString();
+      const auditSheet = typeof seam.getSheetByName === "function" ? seam.getSheetByName("_AuditLog") : null;
+      if (auditSheet) {
+        const row = [now, "SCHEMA_DRIFT", "DRIFT_REPAIR_FAILED", "TemplateDriftAuditor", "ERROR", JSON.stringify({ error: errorMessage })];
+        if (typeof auditSheet.appendRow === "function") {
+          auditSheet.appendRow(row);
+        } else if (typeof auditSheet.setGridSlice === "function") {
+          const data = typeof auditSheet.getDataRange === "function" ? auditSheet.getDataRange().getValues() : [];
+          auditSheet.setGridSlice(data.length + 1, 1, [row]);
+        }
+      }
     } catch (e) {}
   }
 }
