@@ -35,7 +35,6 @@ function ffeStrategyValidationHook(rawDoc: RawDocument, context?: ValidationCont
   const specTag = (rawDoc.specTag || '').trim();
   const vendor = (rawDoc.vendor || '').trim();
   const relatedTag = (rawDoc.relatedTag || '').trim();
-  if (!specTag && !vendor && !relatedTag) return;
 
   const validTags = context?.ffeTags?.tags || [];
   const validVendors = context?.ffeTags?.vendors || [];
@@ -56,22 +55,26 @@ function ffeStrategyValidationHook(rawDoc: RawDocument, context?: ValidationCont
   const bypassTag = !!context?.bypassTagValidation;
   const bypassVendor = !!context?.bypassVendorValidation;
 
-  const tagExists = validTags.some(t => t.toLowerCase() === specTag.toLowerCase());
-  if (!tagExists && !bypassTag) {
-    return {
-      status: 'interaction_required',
-      interactionType: 'ADD_TAG',
-      message: `Spec Tag "${specTag}" is not in the Tag List. Would you like to add it?`
-    };
+  if (specTag) {
+    const tagExists = validTags.some(t => t.toLowerCase() === specTag.toLowerCase());
+    if (!tagExists && !bypassTag) {
+      return {
+        status: 'interaction_required',
+        interactionType: 'ADD_TAG',
+        message: `Spec Tag "${specTag}" is not in the Tag List. Would you like to add it?`
+      };
+    }
   }
 
-  const vendorExists = validVendors.some(v => v.toLowerCase() === vendor.toLowerCase());
-  if (!vendorExists && !bypassVendor) {
-    return {
-      status: 'interaction_required',
-      interactionType: 'ADD_VENDOR',
-      message: `Vendor "${vendor}" is not in the Tag List. Would you like to add it?`
-    };
+  if (vendor) {
+    const vendorExists = validVendors.some(v => v.toLowerCase() === vendor.toLowerCase());
+    if (!vendorExists && !bypassVendor) {
+      return {
+        status: 'interaction_required',
+        interactionType: 'ADD_VENDOR',
+        message: `Vendor "${vendor}" is not in the Tag List. Would you like to add it?`
+      };
+    }
   }
 }
 
@@ -204,7 +207,7 @@ class DocumentTypeConfigRegistry {
   /**
    * Parses dynamic field subtable 2D array rows from _Config (Config_<DocTypeKey>_Fields) into DocumentFieldSpec[].
    */
-  public parseFieldSpecs(rows: any[][]): DocumentFieldSpec[] {
+  public parseFieldSpecs(rows: unknown[][]): DocumentFieldSpec[] {
     if (!rows || rows.length === 0) return [];
 
     let headerRowIdx = 0;

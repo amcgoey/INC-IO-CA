@@ -489,26 +489,27 @@ class DriveFilenameIntakeParser {
 
 function validateDocFn(raw: RawDocument, context?: ValidationContext): ValidationResult {
   const rawDoc = FormIntakeParser.parse(raw, context);
-  let registry: any = typeof defaultDocumentTypeConfigRegistry !== "undefined" ? defaultDocumentTypeConfigRegistry : undefined;
-  if (!registry && typeof globalThis !== "undefined" && (globalThis as any).defaultDocumentTypeConfigRegistry) {
-    registry = (globalThis as any).defaultDocumentTypeConfigRegistry;
+  const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
+  let registry: DocumentTypeConfigRegistry | undefined = g.defaultDocumentTypeConfigRegistry;
+  if (!registry && typeof defaultDocumentTypeConfigRegistry !== "undefined") {
+    registry = defaultDocumentTypeConfigRegistry;
   }
   if (!registry && typeof require !== "undefined") {
     try {
-      const regModule = require('../../DocumentTypeConfigRegistry');
-      registry = regModule.defaultDocumentTypeConfigRegistry;
+      const regMod = require('../../DocumentTypeConfigRegistry');
+      registry = g.defaultDocumentTypeConfigRegistry || regMod.defaultDocumentTypeConfigRegistry;
     } catch (e) {}
   }
 
   let config: DocumentTypeConfig | undefined;
   if (registry) {
-    const rawType = raw.documentType;
-    const rawDiscipline = raw.discipline;
+    const userDiscipline = raw.discipline;
+    const userDocType = raw.documentType;
 
-    if (rawDiscipline && registry.hasConfig(rawDiscipline)) {
-      config = registry.getConfig(rawDiscipline);
-    } else if (rawType && registry.hasConfig(rawType)) {
-      config = registry.getConfig(rawType);
+    if (userDiscipline && registry.hasConfig(userDiscipline)) {
+      config = registry.getConfig(userDiscipline);
+    } else if (userDocType && registry.hasConfig(userDocType)) {
+      config = registry.getConfig(userDocType);
     } else if (rawDoc.documentType && registry.hasConfig(rawDoc.documentType)) {
       config = registry.getConfig(rawDoc.documentType);
     } else if (rawDoc.discipline && registry.hasConfig(rawDoc.discipline)) {
@@ -528,8 +529,7 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
   const fields: DocumentFieldSpec[] = config?.fields || [
     { key: 'date', label: 'Date', type: 'date', required: true },
     { key: 'contact', label: 'Contact', type: 'string', required: true },
-    { key: 'action', label: 'Action', type: 'string', required: true },
-    { key: 'title', label: 'Title', type: 'string', required: true }
+    { key: 'action', label: 'Action', type: 'string', required: true }
   ];
 
   const isReceived = resolvedAction.longForm === 'Received' || resolvedAction.abbreviation === 'Received' || getTrimmed(rawDoc.action) === 'Received';
@@ -550,10 +550,6 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
     }
   }
 
-  if (isReceived && isEmpty(rawDoc.incomingRouting) && !missingFields.includes('Incoming Routing')) {
-    missingFields.push('Incoming Routing');
-  }
-
   if (missingFields.length > 0) {
     return {
       status: 'error',
@@ -570,11 +566,12 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
   }
 
   const warnings: string[] = [];
-  const hasSpecTag = fields.some(f => f.key === 'specTag');
+  const targetDocType = getTrimmed(rawDoc.documentType) || config?.documentType || 'Submittal';
+  const targetDiscipline = getTrimmed(rawDoc.discipline) || 'Architecture';
 
-  let disciplineDetails: ArchitectureDetails | FFEDetails;
+  let disciplineDetails: any;
 
-  if (hasSpecTag) {
+  if (targetDiscipline === 'FF&E' || config?.documentType === 'FF&E') {
     const revisionVal = getTrimmed(rawDoc.revision);
     if (!revisionVal) warnings.push('Revision');
 
@@ -586,7 +583,7 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
       revision: revisionVal,
       relatedTag: getTrimmed(rawDoc.relatedTag)
     };
-  } else {
+  } else if (targetDocType === 'Submittal') {
     const sectionVal = normalizeSpecSection(rawDoc.section);
     if (!sectionVal) warnings.push('Section');
 
@@ -603,10 +600,21 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
       title: getTrimmed(rawDoc.title),
       revision: revisionVal
     };
+  } else {
+    // Dynamic document details for custom document types (e.g. RFI, ASI)
+    const customDetails: Record<string, string> = {
+      discipline: raw.discipline || config?.documentType || targetDocType
+    };
+    for (const f of fields) {
+      if (!f.isCalculated && rawDoc[f.key] !== undefined) {
+        customDetails[f.key] = getTrimmed(rawDoc[f.key]);
+      }
+    }
+    disciplineDetails = customDetails;
   }
 
   const validatedDoc: ValidatedDocument = {
-    documentType: getTrimmed(rawDoc.documentType) || config?.documentType || 'Submittal',
+    documentType: targetDocType,
     date: getTrimmed(rawDoc.date),
     contact: resolvedContact.storedValue,
     action: resolvedAction.storedValue,

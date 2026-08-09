@@ -1,8 +1,16 @@
-import { test } from 'node:test';
+import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { DocumentPipeline, validateDocument } from '../../../src/core/intake/DocumentPipeline';
 import { defaultDocumentTypeConfigRegistry, DocumentTypeConfigRegistry } from '../../../src/DocumentTypeConfigRegistry';
 import { DocumentTypeConfig, RawDocument, ValidationContext } from '../../../src/types';
+
+beforeEach(() => {
+  defaultDocumentTypeConfigRegistry.reset();
+});
+
+afterEach(() => {
+  defaultDocumentTypeConfigRegistry.reset();
+});
 
 test('DocumentPipeline.validate - schema-driven validation for Architecture submittal', () => {
   const raw: RawDocument = {
@@ -75,10 +83,7 @@ test('DocumentPipeline.validate - invokes custom DocumentTypeConfig strategy val
   }
 });
 
-test('DocumentPipeline.validate - supports custom dynamic document types registered in DocumentTypeConfigRegistry', (t) => {
-  t.after(() => {
-    defaultDocumentTypeConfigRegistry.reset();
-  });
+test('DocumentPipeline.validate - supports custom dynamic document types registered in DocumentTypeConfigRegistry', () => {
   const customRfiConfig: DocumentTypeConfig = {
     documentType: 'RFI',
     rootFolderSearchTerms: ['RFIs'],
@@ -109,9 +114,11 @@ test('DocumentPipeline.validate - supports custom dynamic document types registe
   };
 
   const result = DocumentPipeline.validate(rawRfi);
-
+  
   assert.equal(result.status, 'success');
   if (result.status === 'success') {
     assert.equal(result.data.documentType, 'RFI');
+    assert.equal(result.data.disciplineDetails.subject, 'Foundation Rebar Detail');
+    assert.equal(result.data.disciplineDetails.rfiNumber, 'RFI-005');
   }
 });
