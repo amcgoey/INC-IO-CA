@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file SheetsRootCard.ts
  * @description GAS Infrastructure Adapter for rendering the SheetsRootCard sidebar root card in AppContext.GoogleSheets.
  *
@@ -32,7 +32,7 @@ export class SheetsRootCard {
         .setHeader("Unrecognized Document Log")
         .addWidget(
           CardService.newTextParagraph().setText(
-            `The active spreadsheet <b>${context.spreadsheetTitle}</b> is not a recognized Document Log (missing configuration information).`
+            "The active spreadsheet <b>" + context.spreadsheetTitle + "</b> is not a recognized Document Log (missing configuration information)."
           )
         )
         .addWidget(
@@ -66,7 +66,7 @@ export class SheetsRootCard {
         CardService.newKeyValue()
           .setTopLabel("Active Spreadsheet")
           .setContent(context.spreadsheetTitle)
-          .setBottomLabel(`ID: ${context.spreadsheetId} | Schema v${context.schemaVersion}`)
+          .setBottomLabel("ID: " + context.spreadsheetId + " | Schema v" + context.schemaVersion)
       )
       .addWidget(
         CardService.newKeyValue()
@@ -80,7 +80,7 @@ export class SheetsRootCard {
         CardService.newKeyValue()
           .setTopLabel("DocumentType & Active Data Rows")
           .setContent(context.documentTypeKey)
-          .setBottomLabel(`Data Rows: ${context.dataRowCount} bounded by Sheet-Scoped 'Data' range`)
+          .setBottomLabel("Data Rows: " + context.dataRowCount + " bounded by Sheet-Scoped 'Data' range")
       );
     }
 
@@ -93,7 +93,10 @@ export class SheetsRootCard {
     );
 
     // 2. SheetAdminFoldOut Section dispatched via AdminFoldOutPresenter
-    const foldOutSection = AdminFoldOutPresenter.renderAdminSection("GoogleSheets", { spreadsheetId: context.spreadsheetId });
+    const foldOutSection = AdminFoldOutPresenter.renderAdminSection("GoogleSheets", {
+      spreadsheetId: context.spreadsheetId,
+      auditReport: params?.auditReport
+    });
 
     cardBuilder.addSection(headerSection);
     cardBuilder.addSection(foldOutSection);
@@ -113,15 +116,14 @@ export function buildSheetsRootCard(params?: SheetsContextParams): GoogleAppsScr
  * Action handler: Re-inspects active spreadsheet context and updates the card.
  */
 export function onSheetsContextRefresh(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
-  let params: SheetsContextParams = {};
-  if (e && e.sheetsContext) {
-    params = e.sheetsContext;
-  } else if (e && e.parameters) {
-    params = {
-      spreadsheetId: e.parameters.spreadsheetId,
-      sheetName: e.parameters.sheetName
-    };
-  }
+  const BinderClass = (globalThis as any).SheetsContextBinder ||
+    (typeof SheetsContextBinder !== "undefined" ? SheetsContextBinder : require("./SheetsContextBinder").SheetsContextBinder);
+  const spreadsheetId = BinderClass.extractSpreadsheetId(e);
+
+  const params: SheetsContextParams = {
+    spreadsheetId,
+    sheetName: e?.sheetsContext?.sheetName || e?.parameters?.sheetName || undefined
+  };
 
   const updatedCard = buildSheetsRootCard(params);
 

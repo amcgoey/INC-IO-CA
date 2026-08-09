@@ -1,9 +1,10 @@
-/**
+﻿/**
  * @file SheetsContextBinder.ts
  * @description GAS Infrastructure Adapter for auto-binding active spreadsheet ID and sheet tab context in AppContext.GoogleSheets.
  */
 
 import { SheetsTabRoleClassifier, TabRole } from "../../core/log/SheetsTabRoleClassifier";
+import { TemplateDriftReport } from "../../core/admin/TemplateDriftAuditor";
 
 export interface SpreadsheetContext {
   spreadsheetId: string;
@@ -21,9 +22,32 @@ export interface SheetsContextParams {
   spreadsheetId?: string;
   sheetName?: string;
   sheetId?: number;
+  auditReport?: TemplateDriftReport;
 }
 
 export class SheetsContextBinder {
+  /**
+   * Helper method to extract target spreadsheetId from action event parameters or active spreadsheet context.
+   */
+  public static extractSpreadsheetId(e?: any): string {
+    if (e && e.sheetsContext && e.sheetsContext.spreadsheetId) {
+      return e.sheetsContext.spreadsheetId;
+    }
+    if (e && e.parameters && e.parameters.spreadsheetId) {
+      return e.parameters.spreadsheetId;
+    }
+    if (e && e.parameter && e.parameter.spreadsheetId) {
+      return e.parameter.spreadsheetId;
+    }
+    if (typeof SpreadsheetApp !== "undefined" && (SpreadsheetApp as any).getActiveSpreadsheet) {
+      try {
+        const activeSs = (SpreadsheetApp as any).getActiveSpreadsheet();
+        if (activeSs) return activeSs.getId();
+      } catch (err) {}
+    }
+    return "";
+  }
+
   /**
    * Binds active spreadsheet and sheet tab context automatically from SpreadsheetApp or given event parameters.
    */
