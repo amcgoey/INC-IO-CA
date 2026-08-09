@@ -41,16 +41,21 @@ export function parseMigrateLogArgs(argv: string[]): {
   return { source, target, dryRun, tabName };
 }
 
-export function runMigrateLogCli(argv: string[] = process.argv.slice(2), customStorageAdapter?: InMemorySheetStorageAdapter): any {
+export function runMigrateLogCli(
+  argv: string[] = process.argv.slice(2),
+  customStorageAdapter?: InMemorySheetStorageAdapter,
+  customSourceStorageAdapter?: InMemorySheetStorageAdapter
+): any {
   const args = parseMigrateLogArgs(argv);
   console.log("=== Log Migration CLI Execution ===");
   console.log("Source Spreadsheet ID: " + (args.source || "(default-test-source)"));
   console.log("Target Spreadsheet ID: " + (args.target || "(default-test-target)"));
   console.log("Dry Run Mode: " + args.dryRun);
 
-  const storageAdapter = customStorageAdapter || new InMemorySheetStorageAdapter();
+  const targetStorage = customStorageAdapter || new InMemorySheetStorageAdapter();
+  const sourceStorage = customSourceStorageAdapter || (customStorageAdapter ? customStorageAdapter : new InMemorySheetStorageAdapter());
   const lockAdapter = new FakeSpreadsheetLockAdapter();
-  const engine = new LogMigrationEngine(storageAdapter, lockAdapter);
+  const engine = new LogMigrationEngine(targetStorage, lockAdapter);
 
   const fieldSpecs = [
     { key: "specSection", header: "Spec Section", label: "Spec Section", type: "string" as const, isCalculated: false },
@@ -61,13 +66,17 @@ export function runMigrateLogCli(argv: string[] = process.argv.slice(2), customS
   const spreadsheetId = args.target || args.source || "test-spreadsheet-id";
 
   if (args.dryRun) {
-    const report = engine.executeAudit(spreadsheetId, args.tabName, fieldSpecs);
+    const report = engine.executeAudit(spreadsheetId, args.tabName, fieldSpecs, {
+      sourceStorageAdapter: sourceStorage
+    });
     console.log("[MIGRATION AUDIT RESULT] canProceed: " + report.canProceed + ", sourceRows: " + report.sourceDataRowCount);
     return report;
   }
 
   const result = engine.executeLiveMigration(spreadsheetId, args.tabName, fieldSpecs, {
-    targetTabName: args.tabName
+    targetTabName: args.tabName,
+    sourceStorageAdapter: sourceStorage,
+    sourceSpreadsheetId: args.source || spreadsheetId
   });
   console.log("[MIGRATION LIVE RESULT] status: " + result.status + ", sourceRows: " + result.sourceDataRowCount + ", appendedRows: " + result.targetAppendedRowCount);
   return result;

@@ -678,7 +678,7 @@ export class LogMigrationEngine {
   /**
    * Logs execution event telemetry under Category = 'MIGRATION' in _AuditLog tab.
    */
-  public logMigrationEvent(spreadsheetId: string, eventType: string, status: string, detailsObj: any): void {
+  public logMigrationEvent(spreadsheetId: string, eventType: string, status: string, detailsObj: Record<string, unknown>): void {
     const sheetName = "_AuditLog";
     const auditHeaders = ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"];
     const logData = this.storageAdapter.getSheetValues(sheetName) || [];
@@ -796,13 +796,11 @@ export class LogMigrationEngine {
           targetAppendedRowCount++;
         }
 
-        if (options?.forceParityFailureForTest) {
-          targetAppendedRowCount = sourceDataRowCount + 99;
-        }
-
-        // Post-flight row count parity check
-        if (sourceDataRowCount !== targetAppendedRowCount) {
-          throw new Error("RowCountParityException: Source data row count (" + sourceDataRowCount + ") does not match target appended row count (" + targetAppendedRowCount + ").");
+        // Post-flight row count parity verification against live target sheet
+        const finalTargetValues = targetStorage.getSheetValues(targetTabName) || [];
+        const finalTargetDataRowCount = Math.max(0, finalTargetValues.length - (startRowIndex - 1));
+        if (sourceDataRowCount !== targetAppendedRowCount || sourceDataRowCount !== finalTargetDataRowCount) {
+          throw new Error("RowCountParityException: Source data row count (" + sourceDataRowCount + ") does not match target appended row count (" + finalTargetDataRowCount + ").");
         }
 
         // Verified success cleanup: delete backup snapshot tab
@@ -855,13 +853,14 @@ export class LogMigrationEngine {
           auditReport
         };
 
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
         // Atomic Rollback
         this.restoreFromSnapshot(targetStorage, targetTabName, snapshotName);
 
         this.logMigrationEvent(spreadsheetId, "MIGRATION_ROLLED_BACK", "ROLLED_BACK", {
           tabName: targetTabName,
-          error: err.message || String(err),
+          error: errorMsg,
           snapshotName
         });
 
@@ -872,7 +871,7 @@ export class LogMigrationEngine {
           targetAppendedRowCount: 0,
           snapshotName,
           auditReport,
-          error: err.message || String(err)
+          error: errorMsg
         };
       }
 

@@ -453,7 +453,16 @@ test("LogMigrationEngine - executeLiveMigration appends data rows at Row H + 3 (
 });
 
 test("LogMigrationEngine - executeLiveMigration executes atomic rollback restoreFromSnapshot() on mid-execution failure", () => {
-  const targetStorage = new InMemorySheetStorageAdapter();
+  class FailingStorageAdapter extends InMemorySheetStorageAdapter {
+    setRowValues(sheetName: string, rowIndex: number, headers: string[], rowData: any[]): { failedColumns: string[] } {
+      if (rowIndex >= 4 && sheetName === "Submittal Arch") {
+        throw new Error("Simulated mid-write database failure");
+      }
+      return super.setRowValues(sheetName, rowIndex, headers, rowData);
+    }
+  }
+
+  const targetStorage = new FailingStorageAdapter();
   targetStorage.setSheetValues("Submittal Arch", [
     ["Spec Section", "Title", "Days Open"],
     ["", "", "=MAP(Data, LAMBDA(r, ...))"],
@@ -477,8 +486,7 @@ test("LogMigrationEngine - executeLiveMigration executes atomic rollback restore
   ];
 
   const result = engine.executeLiveMigration("ss_live_fail", "Submittal Arch", fieldSpecs, {
-    sourceStorageAdapter: sourceStorage,
-    forceWriteErrorForTest: true
+    sourceStorageAdapter: sourceStorage
   });
 
   assert.strictEqual(result.status, "ROLLED_BACK");
@@ -501,7 +509,29 @@ test("LogMigrationEngine - executeLiveMigration executes atomic rollback restore
 });
 
 test("LogMigrationEngine - executeLiveMigration executes atomic rollback on post-flight row count parity failure", () => {
-  const targetStorage = new InMemorySheetStorageAdapter();
+  class MismatchStorageAdapter extends InMemorySheetStorageAdapter {
+    private writeCount = 0;
+    setRowValues(sheetName: string, rowIndex: number, headers: string[], rowData: any[]): { failedColumns: string[] } {
+      if (rowIndex >= 4 && sheetName === "Submittal Arch") {
+        this.writeCount++;
+        if (this.writeCount > 1) {
+          // Drop extra rows to simulate parity mismatch
+          return { failedColumns: [] };
+        }
+      }
+      return super.setRowValues(sheetName, rowIndex, headers, rowData);
+    }
+    getSheetValues(sheetName: string): any[][] {
+      const vals = super.getSheetValues(sheetName);
+      if (sheetName === "Submittal Arch" && vals.length > 3) {
+        // Return 1 row less than written to force parity failure
+        return vals.slice(0, vals.length - 1);
+      }
+      return vals;
+    }
+  }
+
+  const targetStorage = new MismatchStorageAdapter();
   targetStorage.setSheetValues("Submittal Arch", [
     ["Spec Section", "Title"],
     ["", ""],
@@ -512,7 +542,8 @@ test("LogMigrationEngine - executeLiveMigration executes atomic rollback on post
   sourceStorage.setSheetValues("Submittal Arch", [
     ["Spec Section", "Title"],
     ["", ""],
-    ["033000", "Concrete"]
+    ["033000", "Concrete"],
+    ["051200", "Steel"]
   ]);
 
   const engine = new LogMigrationEngine(targetStorage);
@@ -522,8 +553,7 @@ test("LogMigrationEngine - executeLiveMigration executes atomic rollback on post
   ];
 
   const result = engine.executeLiveMigration("ss_parity_fail", "Submittal Arch", fieldSpecs, {
-    sourceStorageAdapter: sourceStorage,
-    forceParityFailureForTest: true
+    sourceStorageAdapter: sourceStorage
   });
 
   assert.strictEqual(result.status, "ROLLED_BACK");
