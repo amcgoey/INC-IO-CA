@@ -8,6 +8,7 @@ export class InMemorySheetStorageAdapter implements SheetStorageAdapter {
     return Array.from(this.sheets.keys());
   }
   private sheets: Map<string, any[][]> = new Map();
+  private formulas: Map<string, string[][]> = new Map();
 
   /**
    * Constructs an `InMemorySheetStorageAdapter` instance initialized with optional sheets data.
@@ -35,6 +36,20 @@ export class InMemorySheetStorageAdapter implements SheetStorageAdapter {
   }
 
   /** @override */
+  setSheetFormulas(sheetName: string, formulas: string[][]): void {
+    this.formulas.set(sheetName, formulas.map(row => [...row]));
+  }
+
+  getSheetFormulas(sheetName: string): string[][] {
+    if (this.formulas.has(sheetName)) {
+      return this.formulas.get(sheetName)!.map(row => [...row]);
+    }
+    const values = this.getSheetValues(sheetName);
+    return values.map(row =>
+      row.map(val => (typeof val === "string" && val.startsWith("=") ? val : ""))
+    );
+  }
+
   getSheetValues(sheetName: string): any[][] {
     const grid = this.getOrCreateSheet(sheetName);
     return grid.map(row => [...row]);
@@ -134,7 +149,7 @@ export class InMemorySheetStorageAdapter implements SheetStorageAdapter {
 }
 
 /**
- * Production implementation of `SheetStorageAdapter` using Google Apps Script `SpreadsheetApp`.
+ * In-memory test fake alias for `SheetStorageAdapter` used in unit test suites.
  */
 
 export const FakeSheetStorageAdapter = InMemorySheetStorageAdapter;

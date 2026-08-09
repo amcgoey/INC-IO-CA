@@ -12,6 +12,7 @@
 interface SheetStorageAdapter {
   /** Retrieves all cell values from a sheet as a 2D matrix array. */
   getSheetValues(sheetName: string): any[][];
+  getSheetFormulas?(sheetName: string): string[][];
   /** Overwrites all contents of a sheet with a 2D matrix array. */
   setSheetValues(sheetName: string, values: any[][]): void;
   /** Gets a single cell value at 1-based row and column coordinates. */
@@ -58,6 +59,10 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
   /** @override */
   getSheetValues(sheetName: string): any[][] {
     return this.getSheet(sheetName).getDataRange().getValues();
+  }
+
+  getSheetFormulas(sheetName: string): string[][] {
+    return this.getSheet(sheetName).getDataRange().getFormulas();
   }
 
   /** @override */

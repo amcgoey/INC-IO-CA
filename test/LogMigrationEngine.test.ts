@@ -146,3 +146,148 @@ test("LogMigrationEngine - createPreMigrationSnapshot rejects tab names exceedin
     /Tab name '.*' exceeds maximum length for snapshot cloning/
   );
 });
+
+
+test("LogMigrationEngine - 4-tier formula coercion policy clears calculated columns (Tier 1) and coerces non-calculated inline formulas (Tier 2 & 3)", () => {
+  const adapter = new InMemorySheetStorageAdapter();
+
+  const legacyValues = [
+    ["Spec Section", "Title", "Days Open", "Custom User Col"],
+    ["", "", "=MAP(Data, LAMBDA(r, ...))", "=SUM(A2:B2)"],
+    ["033000", "Concrete", "=TODAY()-C3", "=A3+10"],
+    ["051200", "=CONCAT('Steel',' Phase 1')", "15", "42"]
+  ];
+
+  const legacyFormulas = [
+    ["", "", "", ""],
+    ["", "", "=MAP(Data, LAMBDA(r, ...))", "=SUM(A2:B2)"],
+    ["", "", "=TODAY()-C3", "=A3+10"],
+    ["", "=CONCAT('Steel',' Phase 1')", "", ""]
+  ];
+
+  adapter.setSheetValues("Submittal Arch", legacyValues);
+  adapter.setSheetFormulas("Submittal Arch", legacyFormulas);
+
+  const engine = new LogMigrationEngine(adapter);
+
+  const fieldSpecs = [
+    { key: "specSection", header: "Spec Section", label: "Spec Section", type: "string" as const, isCalculated: false },
+    { key: "title", header: "Title", label: "Title", type: "string" as const, isCalculated: false },
+    { key: "daysOpen", header: "Days Open", label: "Days Open", type: "string" as const, isCalculated: true }
+  ];
+
+  const result = engine.coerceInlineFormulas("Submittal Arch", fieldSpecs, {
+    sourceValues: legacyValues,
+    sourceFormulas: legacyFormulas
+  });
+
+  assert.strictEqual(result.coercedValues[2][2], "");
+  assert.strictEqual(result.coercedValues[3][2], "");
+  assert.strictEqual(result.coercedValues[3][1], "=CONCAT('Steel',' Phase 1')");
+  assert.strictEqual(result.coercedValues[2][3], "=A3+10");
+  assert.strictEqual(result.coercedValues[1][3], "=SUM(A2:B2)");
+
+  assert.strictEqual(result.calculatedColumnsCoercedCount, 2);
+  assert.strictEqual(result.inlineFormulasDetectedCount, 5);
+  assert.ok(result.discrepancies.length > 0);
+  assert.ok(result.discrepancies.some(d => d.actionTaken === "CLEARED_FOR_SPILL"));
+  assert.ok(result.discrepancies.some(d => d.actionTaken === "COERCED_TO_SNAPSHOT"));
+  assert.ok(result.discrepancies.some(d => d.actionTaken === "PRESERVED_USER_FORMULA"));
+});
+
+test("LogMigrationEngine - auditLogMigration detects pre-flight target spill collisions and sets canProceed to false", () => {
+  const adapter = new InMemorySheetStorageAdapter();
+
+  adapter.setSheetValues("Submittal Arch", [
+    ["Spec Section", "Title", "Days Open"],
+    ["", "", "=MAP(Data, LAMBDA(r, ...))"],
+    ["033000", "Concrete", "10"]
+  ]);
+
+  adapter.setSheetValues("Target_Log", [
+    ["Spec Section", "Title", "Days Open"],
+    ["", "", "=MAP(Data, LAMBDA(r, ...))"],
+    ["", "", "BLOCKED_SPILL_TEXT"]
+  ]);
+
+  const engine = new LogMigrationEngine(adapter);
+
+  const fieldSpecs = [
+    { key: "specSection", header: "Spec Section", label: "Spec Section", type: "string" as const, isCalculated: false },
+    { key: "title", header: "Title", label: "Title", type: "string" as const, isCalculated: false },
+    { key: "daysOpen", header: "Days Open", label: "Days Open", type: "string" as const, isCalculated: true }
+  ];
+
+  const report = engine.auditLogMigration("Submittal Arch", fieldSpecs, { targetTabName: "Target_Log" });
+
+  assert.strictEqual(report.targetSpillCollisionBlocked, true);
+  assert.strictEqual(report.canProceed, false);
+  assert.ok(report.reasons.some(r => r.includes("Target calculated column contains pre-existing text blocking formula spill-down")));
+});
+
+test("LogMigrationEngine - auditLogMigration passes pre-flight check when target calculated columns are clear", () => {
+  const adapter = new InMemorySheetStorageAdapter();
+
+  adapter.setSheetValues("Submittal Arch", [
+    ["Spec Section", "Title", "Days Open"],
+    ["", "", "=MAP(Data, LAMBDA(r, ...))"],
+    ["033000", "Concrete", "10"]
+  ]);
+
+  adapter.setSheetValues("Target_Log", [
+    ["Spec Section", "Title", "Days Open"],
+    ["", "", "=MAP(Data, LAMBDA(r, ...))"],
+    ["", "", ""]
+  ]);
+
+  const engine = new LogMigrationEngine(adapter);
+
+  const fieldSpecs = [
+    { key: "specSection", header: "Spec Section", label: "Spec Section", type: "string" as const, isCalculated: false },
+    { key: "title", header: "Title", label: "Title", type: "string" as const, isCalculated: false },
+    { key: "daysOpen", header: "Days Open", label: "Days Open", type: "string" as const, isCalculated: true }
+  ];
+
+  const report = engine.auditLogMigration("Submittal Arch", fieldSpecs, { targetTabName: "Target_Log" });
+
+  assert.strictEqual(report.targetSpillCollisionBlocked, false);
+  assert.strictEqual(report.canProceed, true);
+});
+
+test("LogMigrationEngine - logDiscrepanciesToAuditLog appends audit event telemetry to _AuditLog tab", () => {
+  const adapter = new InMemorySheetStorageAdapter();
+  adapter.setSheetValues("_AuditLog", [
+    ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"]
+  ]);
+
+  const engine = new LogMigrationEngine(adapter);
+
+  const report = {
+    tabName: "Submittal Arch",
+    totalRows: 4,
+    calculatedColumnsCoercedCount: 2,
+    inlineFormulasDetectedCount: 3,
+    legacyCalculatedFormulaDiscrepancies: [
+      {
+        tabName: "Submittal Arch",
+        rowIndex: 3,
+        columnIndex: 3,
+        header: "Days Open",
+        formula: "=TODAY()-C3",
+        actionTaken: "CLEARED_FOR_SPILL"
+      }
+    ],
+    targetSpillCollisionBlocked: false,
+    canProceed: true,
+    reasons: []
+  };
+
+  engine.logDiscrepanciesToAuditLog("test-spreadsheet-id", report);
+
+  const auditRows = adapter.getSheetValues("_AuditLog");
+  assert.strictEqual(auditRows.length, 2);
+  assert.strictEqual(auditRows[1][1], "LOG_MIGRATION");
+  assert.strictEqual(auditRows[1][2], "FORMULA_COERCION_AUDIT");
+  assert.strictEqual(auditRows[1][4], "SUCCESS");
+  assert.ok(auditRows[1][5].includes("Submittal Arch"));
+});
