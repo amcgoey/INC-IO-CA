@@ -7,14 +7,23 @@
 
 import type { LogCandidateMetadata, ScoredLogCandidate } from '../../core/log/LogDisambiguationScorer';
 
-// CommonJS require shim for PrefixCacheManager ambient class resolution in Node environment
-const LogDisambiguationScorerClass = typeof LogDisambiguationScorer !== 'undefined'
-  ? LogDisambiguationScorer
-  : require('../../core/log/LogDisambiguationScorer').LogDisambiguationScorer;
+declare var LogDisambiguationScorer: any;
+declare var PrefixCacheManager: any;
+declare var require: any;
 
-const PrefixCacheManagerClass = typeof PrefixCacheManager !== 'undefined'
-  ? PrefixCacheManager
-  : require('../../core/admin/PrefixCacheManager').PrefixCacheManager;
+function getLogDisambiguationScorerClass(): any {
+  if (typeof LogDisambiguationScorer !== 'undefined') return LogDisambiguationScorer;
+  if (typeof (globalThis as any).LogDisambiguationScorer !== 'undefined') return (globalThis as any).LogDisambiguationScorer;
+  if (typeof require !== 'undefined') return require('../../core/log/LogDisambiguationScorer').LogDisambiguationScorer;
+  return undefined;
+}
+
+function getPrefixCacheManagerClass(): any {
+  if (typeof PrefixCacheManager !== 'undefined') return PrefixCacheManager;
+  if (typeof (globalThis as any).PrefixCacheManager !== 'undefined') return (globalThis as any).PrefixCacheManager;
+  if (typeof require !== 'undefined') return require('../../core/admin/PrefixCacheManager').PrefixCacheManager;
+  return undefined;
+}
 
 /**
  * Formats a disjunctive Google Drive API query string from DocumentType logSearchTerms.
@@ -61,7 +70,7 @@ export function invalidateLogSearchCache(
   if (!cacheAdapter) return;
 
   const prefix = driveId && driveId.trim() !== '' ? `log_search_${driveId.trim()}_` : 'log_search_';
-  const prefixManager = new PrefixCacheManagerClass(cacheAdapter);
+  const prefixManager = new (getPrefixCacheManagerClass())(cacheAdapter);
 
   if (docTypeKey) {
     const key = getDocumentTypeSearchCacheKey(driveId, docTypeKey);
@@ -181,13 +190,14 @@ export class GoogleDriveLogSearchAdapter {
     }
 
     // 2. Score candidates and rank
+    const LogDisambiguationScorerClass = getLogDisambiguationScorerClass();
     const rankedCandidates = LogDisambiguationScorerClass.rankCandidates(candidates, config);
     const topRanked = rankedCandidates.slice(0, cappedLimit);
 
     // 3. Cache top ranked results with 3600s TTL and PrefixCacheManager tracking (ADR 0030 �2)
     if (this.cacheAdapter) {
       try {
-        const prefixManager = new PrefixCacheManagerClass(this.cacheAdapter);
+        const prefixManager = new (getPrefixCacheManagerClass())(this.cacheAdapter);
         const prefix = driveId && driveId.trim() !== '' ? `log_search_${driveId.trim()}_` : 'log_search_';
         prefixManager.putScoped(prefix, cacheKey, JSON.stringify(topRanked), 3600);
       } catch (_e) {
