@@ -101,7 +101,7 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "specTag", header: "Spec Tag", validationRange: "SpecTags" },
         { id: "relatedTag", header: "Related Tag", validationRange: "SpecTags" },
         { id: "revision", header: "Revision" },
-        { id: "specTitle", header: "Spec Title" },
+        { id: "specTitle", header: "Spec Title", formula: '=MAP(B4:B, LAMBDA(tag, IF(ISBLANK(tag), "", IFERROR(VLOOKUP(tag, \'Submittal FFE Support\'!SpecTags, 2, FALSE), ""))))' },
         { id: "vendor", header: "Vendor", validationRange: "Vendors" },
         { id: "date", header: "Date" },
         { id: "contact", header: "Contact", validationRange: "Shared_Contacts_FFE" },
@@ -115,21 +115,21 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "calcSort", header: "Calc Sort", formula: '=MAP(B4:B, D4:D, LAMBDA(tag, rev, IF(ISBLANK(tag), "", tag & "_" & rev)))' }
       ],
       seedRows: [
-        ["Billed", "AC102", "", "1", "HOOK", "Berman Falk", "230720", "BW", "Received", "", ""],
-        ["Billed", "AC102", "", "1", "HOOK", "Berman Falk", "230721", "INC", "Revise & Resubmit", "", ""],
-        ["Billed", "AC102", "", "2", "HOOK", "Berman Falk", "230722", "BW", "Received", "", ""],
-        ["Billed", "AC102", "", "2", "HOOK", "Berman Falk", "230724", "INC", "No Objection as Corrected", "", ""],
+        ["Billed", "AC102", "", "1", "", "Berman Falk", "230720", "BW", "Received", "", ""],
+        ["Billed", "AC102", "", "1", "", "Berman Falk", "230721", "INC", "Revise & Resubmit", "", ""],
+        ["Billed", "AC102", "", "2", "", "Berman Falk", "230722", "BW", "Received", "", ""],
+        ["Billed", "AC102", "", "2", "", "Berman Falk", "230724", "INC", "No Objection as Corrected", "", ""],
         ["", "", "", "", "", "", "", "", "", "", ""],
-        ["Closed", "CG138", "", "1", "CREDENZA", "Berman Falk", "230720", "BW", "Received", "", ""],
-        ["Closed", "CG138", "", "1", "CREDENZA", "Berman Falk", "230721", "INC", "Rejected", "", ""],
-        ["Closed", "CG138", "", "2", "CREDENZA", "Berman Falk", "230722", "BW", "Received", "", ""],
-        ["Manager", "CG138", "", "2", "CREDENZA", "Berman Falk", "230724", "INC", "No Objection as Corrected", "", ""],
+        ["Closed", "CG138", "", "1", "", "Berman Falk", "230720", "BW", "Received", "", ""],
+        ["Closed", "CG138", "", "1", "", "Berman Falk", "230721", "INC", "Rejected", "", ""],
+        ["Closed", "CG138", "", "2", "", "Berman Falk", "230722", "BW", "Received", "", ""],
+        ["Manager", "CG138", "", "2", "", "Berman Falk", "230724", "INC", "No Objection as Corrected", "", ""],
         ["", "", "", "", "", "", "", "", "", "", ""],
-        ["Closed", "FB132B", "", "1", "FABRIC - WOVEN", "Berman Falk", "230726", "BW", "Received", "", ""],
-        ["Open", "FB132B", "", "1", "FABRIC - WOVEN", "Berman Falk", "230726", "INC", "", "", ""],
+        ["Closed", "FB132B", "", "1", "", "Berman Falk", "230726", "BW", "Received", "", ""],
+        ["Open", "FB132B", "", "1", "", "Berman Falk", "230726", "INC", "", "", ""],
         ["", "", "", "", "", "", "", "", "", "", ""],
-        ["Closed", "LT150", "", "1", "PENDANT", "Berman Falk", "230731", "BW", "Received", "", ""],
-        ["Open", "LT150", "", "1", "PENDANT", "Berman Falk", "230731", "INC", "Revise & Resubmit", "", ""]
+        ["Closed", "LT150", "", "1", "", "Berman Falk", "230731", "BW", "Received", "", ""],
+        ["Open", "LT150", "", "1", "", "Berman Falk", "230731", "INC", "Revise & Resubmit", "", ""]
       ]
     },
     {

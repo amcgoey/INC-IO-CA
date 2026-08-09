@@ -154,7 +154,8 @@ test('DocumentLogWorkbookSpec - all calculated column formulas in Submittal Arch
   let totalFormulas = 0;
   for (const tab of logTabs) {
     const calcCols = tab.columns.filter(c => c.formula);
-    assert.equal(calcCols.length, 5, `${tab.name} must have 5 calculated formula columns`);
+    const expectedCount = tab.name === 'Submittal FFE' ? 6 : 5;
+    assert.equal(calcCols.length, expectedCount, `${tab.name} must have ${expectedCount} calculated formula columns`);
 
     for (const col of calcCols) {
       totalFormulas++;
@@ -175,7 +176,7 @@ test('DocumentLogWorkbookSpec - all calculated column formulas in Submittal Arch
     }
   }
 
-  assert.equal(totalFormulas, 10, 'Total calculated formulas verified across log tabs must be 10');
+  assert.equal(totalFormulas, 11, 'Total calculated formulas verified across log tabs must be 11');
 });
 
 
