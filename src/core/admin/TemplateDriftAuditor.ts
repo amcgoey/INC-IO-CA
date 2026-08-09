@@ -806,10 +806,11 @@ class TemplateDriftPatcher {
     const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
     if (g.LogEngine) return g.LogEngine;
     if (typeof LogEngine !== "undefined") return LogEngine;
-    try {
-      const p = require("path").resolve(__dirname, "../log/LogEngine");
-      return require(p).LogEngine;
-    } catch (e) {}
+    if (typeof require !== "undefined") {
+      try {
+        return require("../log/LogEngine").LogEngine;
+      } catch (e) {}
+    }
     return null;
   }
 

@@ -415,7 +415,7 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
   const AuditorClass = (globalThis as any).TemplateDriftAuditor ||
     (typeof TemplateDriftAuditor !== "undefined" ? TemplateDriftAuditor : require("../../core/admin/TemplateDriftAuditor").TemplateDriftAuditor);
   const LockAdapterClass = (globalThis as any).FakeSpreadsheetLockAdapter ||
-    (typeof FakeSpreadsheetLockAdapter !== "undefined" ? FakeSpreadsheetLockAdapter : (typeof require !== "undefined" ? require("../fakes/FakeSpreadsheetLockAdapter").FakeSpreadsheetLockAdapter : null));
+    (typeof FakeSpreadsheetLockAdapter !== "undefined" ? FakeSpreadsheetLockAdapter : null);
   const CacheAdapterClass = (globalThis as any).GoogleScriptCacheAdapter ||
     (typeof GoogleScriptCacheAdapter !== "undefined" ? GoogleScriptCacheAdapter : require("./GoogleScriptCacheAdapter").GoogleScriptCacheAdapter);
 
