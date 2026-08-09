@@ -14,15 +14,18 @@ function resolveAiAnalysisService(): AiAnalysisService {
   if ((globalThis as any).defaultAiAnalysisService) {
     return (globalThis as any).defaultAiAnalysisService;
   }
-  try {
-    const analyzeMod = require("./AnalyzeDocumentAction");
-    if (analyzeMod && analyzeMod.resolveAiAnalysisServiceHelper) {
-      return analyzeMod.resolveAiAnalysisServiceHelper();
+  if (typeof require !== "undefined") {
+    try {
+      const analyzeMod = require("./AnalyzeDocumentAction");
+      if (analyzeMod && analyzeMod.resolveAiAnalysisServiceHelper) {
+        return analyzeMod.resolveAiAnalysisServiceHelper();
+      }
+      return require("./AiAnalysisService").defaultAiAnalysisService;
+    } catch (e) {
+      throw new Error("AiAnalysisService is not available");
     }
-    return require("./AiAnalysisService").defaultAiAnalysisService;
-  } catch (e) {
-    throw new Error("AiAnalysisService is not available");
   }
+  throw new Error("AiAnalysisService is not available");
 }
 
 /**

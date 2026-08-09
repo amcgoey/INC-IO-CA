@@ -18,6 +18,42 @@ declare var TemplateDriftAuditor: any;
 declare var SheetsRootCard: any;
 declare var SheetsContextBinder: any;
 declare var FakeSpreadsheetLockAdapter: any;
+declare var require: any;
+
+function getSheetsContextBinderClass(): any {
+  return (globalThis as any).SheetsContextBinder ||
+    (typeof SheetsContextBinder !== "undefined" ? SheetsContextBinder : (typeof require !== "undefined" ? require("./SheetsContextBinder").SheetsContextBinder : undefined));
+}
+
+function getGoogleSheetsStorageAdapterClass(): any {
+  return (globalThis as any).GoogleSheetsStorageAdapter ||
+    (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : (typeof require !== "undefined" ? require("../../SheetStorageAdapter").GoogleSheetsStorageAdapter : undefined));
+}
+
+function getTemplateDriftAuditorClass(): any {
+  return (globalThis as any).TemplateDriftAuditor ||
+    (typeof TemplateDriftAuditor !== "undefined" ? TemplateDriftAuditor : (typeof require !== "undefined" ? require("../../core/admin/TemplateDriftAuditor").TemplateDriftAuditor : undefined));
+}
+
+function getLogEngineClass(): any {
+  return (globalThis as any).LogEngine ||
+    (typeof LogEngine !== "undefined" ? LogEngine : (typeof require !== "undefined" ? require("../../core/log/LogEngine").LogEngine : undefined));
+}
+
+function getSheetsRootCardClass(): any {
+  return (globalThis as any).SheetsRootCard ||
+    (typeof SheetsRootCard !== "undefined" ? SheetsRootCard : (typeof require !== "undefined" ? require("./SheetsRootCard").SheetsRootCard : undefined));
+}
+
+function getGoogleScriptCacheAdapterClass(): any {
+  return (globalThis as any).GoogleScriptCacheAdapter ||
+    (typeof GoogleScriptCacheAdapter !== "undefined" ? GoogleScriptCacheAdapter : (typeof require !== "undefined" ? require("./GoogleScriptCacheAdapter").GoogleScriptCacheAdapter : undefined));
+}
+
+function getPrefixCacheManagerClass(): any {
+  return (globalThis as any).PrefixCacheManager ||
+    (typeof PrefixCacheManager !== "undefined" ? PrefixCacheManager : (typeof require !== "undefined" ? require("../../core/admin/PrefixCacheManager").PrefixCacheManager : undefined));
+}
 
 export type AppContextType = "GoogleSheets" | "Gmail" | "GoogleDrive";
 
@@ -278,14 +314,11 @@ export class AdminFoldOutPresenter {
  * and logs telemetry event to _AuditLog tab under Category: SCHEMA_DRIFT (Issue #221, Issue #224).
  */
 export function onRunSchemaDriftAudit(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
-  const BinderClass = (globalThis as any).SheetsContextBinder ||
-    (typeof SheetsContextBinder !== "undefined" ? SheetsContextBinder : require("./SheetsContextBinder").SheetsContextBinder);
+  const BinderClass = getSheetsContextBinderClass();
   const spreadsheetId = BinderClass.extractSpreadsheetId(e);
 
-  const StorageAdapterClass = (globalThis as any).GoogleSheetsStorageAdapter ||
-    (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : require("../../SheetStorageAdapter").GoogleSheetsStorageAdapter);
-  const AuditorClass = (globalThis as any).TemplateDriftAuditor ||
-    (typeof TemplateDriftAuditor !== "undefined" ? TemplateDriftAuditor : require("../../core/admin/TemplateDriftAuditor").TemplateDriftAuditor);
+  const StorageAdapterClass = getGoogleSheetsStorageAdapterClass();
+  const AuditorClass = getTemplateDriftAuditorClass();
 
   let report: TemplateDriftReport | undefined;
   let batchReadError: any = undefined;
@@ -307,8 +340,7 @@ export function onRunSchemaDriftAudit(e?: any): GoogleAppsScript.Card_Service.Ac
 
   if (spreadsheetId && report) {
     try {
-      const LogEngineClass = (globalThis as any).LogEngine ||
-        (typeof LogEngine !== "undefined" ? LogEngine : require("../../core/log/LogEngine").LogEngine);
+      const LogEngineClass = getLogEngineClass();
 
       const engine = new LogEngineClass(storageAdapter);
 
@@ -339,8 +371,7 @@ export function onRunSchemaDriftAudit(e?: any): GoogleAppsScript.Card_Service.Ac
     }
   }
 
-  const SheetsRootCardClass = (globalThis as any).SheetsRootCard ||
-    (typeof SheetsRootCard !== "undefined" ? SheetsRootCard : require("./SheetsRootCard").SheetsRootCard);
+  const SheetsRootCardClass = getSheetsRootCardClass();
 
   const sheetName = e?.sheetsContext?.sheetName || e?.parameters?.sheetName || undefined;
 
@@ -370,25 +401,20 @@ export function onRunSchemaDriftAudit(e?: any): GoogleAppsScript.Card_Service.Ac
  * and logs telemetry event to _AuditLog tab under Category: CACHE_PURGE.
  */
 export function onFlushScriptCache(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
-  const BinderClass = (globalThis as any).SheetsContextBinder ||
-    (typeof SheetsContextBinder !== "undefined" ? SheetsContextBinder : require("./SheetsContextBinder").SheetsContextBinder);
+  const BinderClass = getSheetsContextBinderClass();
   const spreadsheetId = BinderClass.extractSpreadsheetId(e);
 
   if (spreadsheetId) {
-    const CacheAdapterClass = (globalThis as any).GoogleScriptCacheAdapter ||
-      (typeof GoogleScriptCacheAdapter !== "undefined" ? GoogleScriptCacheAdapter : require("./GoogleScriptCacheAdapter").GoogleScriptCacheAdapter);
-    const PrefixManagerClass = (globalThis as any).PrefixCacheManager ||
-      (typeof PrefixCacheManager !== "undefined" ? PrefixCacheManager : require("../../core/admin/PrefixCacheManager").PrefixCacheManager);
+    const CacheAdapterClass = getGoogleScriptCacheAdapterClass();
+    const PrefixManagerClass = getPrefixCacheManagerClass();
 
     const cacheAdapter = (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
     const prefixManager = new PrefixManagerClass(cacheAdapter);
     prefixManager.invalidatePrefix("DOC_CONFIG_" + spreadsheetId);
 
     try {
-      const StorageAdapterClass = (globalThis as any).GoogleSheetsStorageAdapter ||
-        (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : require("../../SheetStorageAdapter").GoogleSheetsStorageAdapter);
-      const LogEngineClass = (globalThis as any).LogEngine ||
-        (typeof LogEngine !== "undefined" ? LogEngine : require("../../core/log/LogEngine").LogEngine);
+      const StorageAdapterClass = getGoogleSheetsStorageAdapterClass();
+      const LogEngineClass = getLogEngineClass();
 
       const storageAdapter = new StorageAdapterClass(spreadsheetId);
       const engine = new LogEngineClass(storageAdapter);
@@ -429,17 +455,13 @@ export function onFlushScriptCache(e?: any): GoogleAppsScript.Card_Service.Actio
  * invalidates PrefixCacheManager cache keys, logs telemetry to _AuditLog tab, and re-renders SheetAdminFoldOut card (Issue #226).
  */
 export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
-  const BinderClass = (globalThis as any).SheetsContextBinder ||
-    (typeof SheetsContextBinder !== "undefined" ? SheetsContextBinder : require("./SheetsContextBinder").SheetsContextBinder);
+  const BinderClass = getSheetsContextBinderClass();
   const spreadsheetId = BinderClass.extractSpreadsheetId(e);
 
-  const StorageAdapterClass = (globalThis as any).GoogleSheetsStorageAdapter ||
-    (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : require("../../SheetStorageAdapter").GoogleSheetsStorageAdapter);
-  const AuditorClass = (globalThis as any).TemplateDriftAuditor ||
-    (typeof TemplateDriftAuditor !== "undefined" ? TemplateDriftAuditor : require("../../core/admin/TemplateDriftAuditor").TemplateDriftAuditor);
+  const StorageAdapterClass = getGoogleSheetsStorageAdapterClass();
+  const AuditorClass = getTemplateDriftAuditorClass();
 
-  const CacheAdapterClass = (globalThis as any).GoogleScriptCacheAdapter ||
-    (typeof GoogleScriptCacheAdapter !== "undefined" ? GoogleScriptCacheAdapter : require("./GoogleScriptCacheAdapter").GoogleScriptCacheAdapter);
+  const CacheAdapterClass = getGoogleScriptCacheAdapterClass();
 
   const storageAdapter = new StorageAdapterClass(spreadsheetId);
   const lockAdapter = (globalThis as any).defaultSpreadsheetLockAdapter;
@@ -487,8 +509,7 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
     notificationText = "Auto-patching failed: " + (result.error || "Mid-repair exception occurred.");
   }
 
-  const SheetsRootCardClass = (globalThis as any).SheetsRootCard ||
-    (typeof SheetsRootCard !== "undefined" ? SheetsRootCard : require("./SheetsRootCard").SheetsRootCard);
+  const SheetsRootCardClass = getSheetsRootCardClass();
   const sheetName = e?.sheetsContext?.sheetName || e?.parameters?.sheetName || undefined;
 
   const updatedCard = SheetsRootCardClass.buildSheetsRootCard({

@@ -137,11 +137,14 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
   private getDriveNameProvider(): DriveNameProvider | null {
     if (this.driveNameProvider) return this.driveNameProvider;
     if (typeof defaultDriveNameProvider !== "undefined") return defaultDriveNameProvider;
-    try {
-      return require("./GoogleDriveNameProvider").defaultDriveNameProvider;
-    } catch (e) {
-      return null;
+    if (typeof require !== "undefined") {
+      try {
+        return require("./GoogleDriveNameProvider").defaultDriveNameProvider;
+      } catch (e) {
+        return null;
+      }
     }
+    return null;
   }
 
   private getCacheAdapter(): CacheAdapter | null {
@@ -160,25 +163,33 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (pdfService) {
       const ExtractActionClass = typeof ExtractPagesAction !== "undefined"
         ? ExtractPagesAction
-        : require("./core/workflow/ExtractPagesAction").ExtractPagesAction;
-      return new ExtractActionClass({ pdfDocumentService: pdfService });
+        : (typeof require !== "undefined" ? require("./core/workflow/ExtractPagesAction").ExtractPagesAction : (globalThis as any).ExtractPagesAction);
+      if (ExtractActionClass) {
+        return new ExtractActionClass({ pdfDocumentService: pdfService });
+      }
     }
     if (typeof defaultExtractPagesAction !== "undefined") return defaultExtractPagesAction;
-    try {
-      return require("./core/workflow/ExtractPagesAction").defaultExtractPagesAction;
-    } catch (e) {
-      return null;
+    if (typeof require !== "undefined") {
+      try {
+        return require("./core/workflow/ExtractPagesAction").defaultExtractPagesAction;
+      } catch (e) {
+        return null;
+      }
     }
+    return null;
   }
 
   private getPdfDocumentService(): PdfDocumentService | null {
     if (this.pdfDocumentService) return this.pdfDocumentService;
     if (typeof defaultPdfDocumentService !== "undefined") return defaultPdfDocumentService;
-    try {
-      return require("./PdfDocumentService").defaultPdfDocumentService;
-    } catch (e) {
-      return null;
+    if (typeof require !== "undefined") {
+      try {
+        return require("./PdfDocumentService").defaultPdfDocumentService;
+      } catch (e) {
+        return null;
+      }
     }
+    return null;
   }
 
   /**

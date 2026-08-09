@@ -8,6 +8,20 @@
 import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./core/config/DocumentLogWorkbookViewSpec";
 
 
+declare var GoogleSheetsStorageAdapter: any;
+declare var LogEngine: any;
+declare var require: any;
+
+function getGoogleSheetsStorageAdapterClass(): any {
+  return (globalThis as any).GoogleSheetsStorageAdapter ||
+    (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : (typeof require !== "undefined" ? require("./SheetStorageAdapter").GoogleSheetsStorageAdapter : undefined));
+}
+
+function getLogEngineClass(): any {
+  return (globalThis as any).LogEngine ||
+    (typeof LogEngine !== "undefined" ? LogEngine : (typeof require !== "undefined" ? require("./core/log/LogEngine").LogEngine : undefined));
+}
+
 class GoogleSheetsLogRepository implements LogRepository {
   /**
    * Invalidates the cached user settings payload for a specific spreadsheet and discipline.
@@ -355,9 +369,9 @@ class GoogleSheetsLogRepository implements LogRepository {
     strategy: DocumentLogStrategy,
     options: AppendDocumentOptions = {}
   ): AppendDocumentResult {
-    const StorageAdapterClass = (globalThis as any).GoogleSheetsStorageAdapter || (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : require("./SheetStorageAdapter").GoogleSheetsStorageAdapter);
+    const StorageAdapterClass = getGoogleSheetsStorageAdapterClass();
     const adapter = new StorageAdapterClass(spreadsheetId);
-    const LogEngineClass = (globalThis as any).LogEngine || require("./core/log/LogEngine").LogEngine;
+    const LogEngineClass = getLogEngineClass();
     const engine = new LogEngineClass(adapter);
     return engine.appendDocument(spreadsheetId, document, strategy, options);
   }
@@ -366,7 +380,7 @@ class GoogleSheetsLogRepository implements LogRepository {
     options: { sheetName?: string; rowIndex: number; url: string }
   ): void {
     if (!spreadsheetId || !options.url || !options.rowIndex || options.rowIndex <= 0) return;
-    const StorageAdapterClass = (globalThis as any).GoogleSheetsStorageAdapter || (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : require("./SheetStorageAdapter").GoogleSheetsStorageAdapter);
+    const StorageAdapterClass = getGoogleSheetsStorageAdapterClass();
     const adapter = new StorageAdapterClass(spreadsheetId);
     const sheetName = options.sheetName || "Submittal Arch";
     const grid = adapter.getSheetValues(sheetName);
@@ -400,9 +414,9 @@ class GoogleSheetsLogRepository implements LogRepository {
     strategy?: DocumentLogStrategy,
     options: ReadLogOptions = {}
   ): ReadLogResult {
-    const StorageAdapterClass = (globalThis as any).GoogleSheetsStorageAdapter || (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : require("./SheetStorageAdapter").GoogleSheetsStorageAdapter);
+    const StorageAdapterClass = getGoogleSheetsStorageAdapterClass();
     const adapter = new StorageAdapterClass(spreadsheetId);
-    const LogEngineClass = (globalThis as any).LogEngine || require("./core/log/LogEngine").LogEngine;
+    const LogEngineClass = getLogEngineClass();
     const engine = new LogEngineClass(adapter);
     return engine.readLog(spreadsheetId, identityData, strategy, options);
   }

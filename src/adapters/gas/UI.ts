@@ -643,8 +643,11 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
   const analyzeAction = (typeof defaultAnalyzeDocumentAction !== "undefined" && defaultAnalyzeDocumentAction)
     ? defaultAnalyzeDocumentAction
     : ((globalThis as any).defaultAnalyzeDocumentAction || (function() {
-        try { return require("../../AnalyzeDocumentAction").defaultAnalyzeDocumentAction; }
-        catch(e) { return new AnalyzeDocumentAction(); }
+        if (typeof require !== "undefined") {
+          try { return require("../../AnalyzeDocumentAction").defaultAnalyzeDocumentAction; }
+          catch(e) { return typeof AnalyzeDocumentAction !== "undefined" ? new AnalyzeDocumentAction() : null; }
+        }
+        return typeof AnalyzeDocumentAction !== "undefined" ? new AnalyzeDocumentAction() : null;
       })());
   const result = await analyzeAction.execute({ sourceBlob, emailText, contextObj });
   

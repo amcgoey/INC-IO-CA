@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file SheetsRootCard.ts
  * @description GAS Infrastructure Adapter for rendering the SheetsRootCard sidebar root card in AppContext.GoogleSheets.
  *
@@ -118,7 +118,7 @@ export function buildSheetsRootCard(params?: SheetsContextParams): GoogleAppsScr
  */
 export function onSheetsContextRefresh(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
   const BinderClass = (globalThis as any).SheetsContextBinder ||
-    (typeof SheetsContextBinder !== "undefined" ? SheetsContextBinder : require("./SheetsContextBinder").SheetsContextBinder);
+    (typeof SheetsContextBinder !== "undefined" ? SheetsContextBinder : (typeof require !== "undefined" ? require("./SheetsContextBinder").SheetsContextBinder : undefined));
   const spreadsheetId = BinderClass.extractSpreadsheetId(e);
 
   const params: SheetsContextParams = {
