@@ -126,16 +126,11 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     },
     {
       name: "Submittal Arch Support",
-      rowCount: 6,
+      rowCount: 2,
       columnCount: 10,
       isSupportTab: true,
       seedRows: [
-        ["Section Key", "Section Label"],
-        ["071200", "Fluid-Applied Waterproofing"],
-        ["092900", "Gypsum Board Shaft Wall Assemblies"],
-        ["093000", "Tiling Assemblies"],
-        ["033000", "Cast-in-Place Concrete"],
-        ["081100", "Metal Doors"]
+        ["", ""]
       ]
     },
     {
@@ -227,8 +222,6 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Submittal_FFE_Headers", tabName: "Submittal FFE", rangeNotation: "A3:P4", scope: "Workbook" },
     { name: "Submittal_FFE_FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:P4", scope: "Workbook" },
     { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A6:P18", scope: "Workbook" },
-    { name: "Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Sheet" },
-    { name: "Submittal_Arch_Support_Sections", tabName: "Submittal Arch Support", rangeNotation: "A2:B20", scope: "Workbook" },
     { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B20", scope: "Sheet" },
     { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D20", scope: "Sheet" }
   ]

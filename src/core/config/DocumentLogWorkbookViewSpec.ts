@@ -200,8 +200,6 @@ export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
   namedRangeFills: {
     MANIFEST_SCHEMA_VERSION: ThemeColors.PALE_GRAY_RGB,
     Config_Manifest: ThemeColors.PALE_GRAY_RGB,
-    Sections: ThemeColors.PALE_GRAY_RGB,
-    Submittal_Arch_Support_Sections: ThemeColors.PALE_GRAY_RGB,
     Config_Submittal_Arch: ThemeColors.PALE_BLUE_RGB,
     Config_Submittal_FFE: ThemeColors.PALE_BLUE_RGB,
     Vendors: ThemeColors.PALE_BLUE_RGB,
@@ -213,8 +211,7 @@ export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
   },
   settingHeaderRanges: {
     _Config: ['A1:B1', 'A5:D5'],
-    _Shared: ['A1:H1'],
-    'Submittal Arch Support': ['A1:B1'],
+    _Shared: ['A1:I1'],
     'Submittal FFE Support': ['A1:D1']
   },
   statusColors: StatusColors

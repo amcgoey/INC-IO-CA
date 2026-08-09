@@ -251,8 +251,6 @@ test("DOCUMENT_LOG_WORKBOOK_VIEW_SPEC specifies namedRangeFills and settingHeade
   assert.ok(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills, "namedRangeFills must be defined");
   assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.MANIFEST_SCHEMA_VERSION, ThemeColors.PALE_GRAY_RGB);
   assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Config_Manifest, ThemeColors.PALE_GRAY_RGB);
-  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Sections, ThemeColors.PALE_GRAY_RGB);
-  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Submittal_Arch_Support_Sections, ThemeColors.PALE_GRAY_RGB);
   assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Config_Submittal_Arch, ThemeColors.PALE_BLUE_RGB);
   assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Config_Submittal_FFE, ThemeColors.PALE_BLUE_RGB);
   assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Vendors, ThemeColors.PALE_BLUE_RGB);
@@ -264,8 +262,7 @@ test("DOCUMENT_LOG_WORKBOOK_VIEW_SPEC specifies namedRangeFills and settingHeade
 
   assert.ok(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges, "settingHeaderRanges must be defined");
   assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges._Config, ["A1:B1", "A5:D5"]);
-  assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges._Shared, ["A1:H1"]);
-  assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges["Submittal Arch Support"], ["A1:B1"]);
+  assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges._Shared, ["A1:I1"]);
   assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges["Submittal FFE Support"], ["A1:D1"]);
 });
 
@@ -335,15 +332,6 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits repeatCell req
   assert.ok(actionsReq, "Actions_Submittal pale red fill repeatCell request must exist with exact range boundaries");
   assert.deepStrictEqual(actionsReq?.repeatCell?.cell?.userEnteredFormat?.backgroundColor, ThemeColors.PALE_RED_RGB);
 
-  // Verify no duplicate fill requests for dual-scoped range Sections / Submittal_Arch_Support_Sections (sheetId 2, A2:B20)
-  const sectionsReqs = repeatCells.filter(
-    r => r.repeatCell?.range?.sheetId === 2 &&
-         r.repeatCell?.range?.startRowIndex === 1 &&
-         r.repeatCell?.range?.endRowIndex === 20 &&
-         r.repeatCell?.range?.startColumnIndex === 0 &&
-         r.repeatCell?.range?.endColumnIndex === 2
-  );
-  assert.strictEqual(sectionsReqs.length, 1, "Exactly 1 repeatCell request must be emitted for dual-scoped Sections range");
 });
 
 test("Log data rows remain unstyled white #FFFFFF without background fill repeatCell requests", () => {

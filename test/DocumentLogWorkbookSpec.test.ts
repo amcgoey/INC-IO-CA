@@ -112,29 +112,14 @@ test('WorkbookTemplateViewModel - binds model and view spec into fixture JSON an
   assert.ok(Array.isArray(batchPayload.requests), 'Batch payload requests must be an array');
   assert.ok(batchPayload.requests.length > 0, 'Batch payload should contain requests');
 });
-test('DocumentLogWorkbookSpec - defines Submittal Arch Support tab with CSI section seed rows', () => {
+test('DocumentLogWorkbookSpec - defines Submittal Arch Support tab with single blank row', () => {
   const supportTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal Arch Support');
   assert.ok(supportTab, 'Submittal Arch Support tab must exist in spec');
-  assert.equal(supportTab.rowCount, 6);
+  assert.equal(supportTab.rowCount, 2);
   assert.equal(supportTab.columnCount, 10);
   assert.equal(supportTab.isSupportTab, true);
   assert.ok(supportTab.seedRows, 'seedRows must be defined for Submittal Arch Support');
-  assert.deepEqual(supportTab.seedRows[0], ['Section Key', 'Section Label']);
-  assert.deepEqual(supportTab.seedRows[1], ['071200', 'Fluid-Applied Waterproofing']);
-  assert.deepEqual(supportTab.seedRows[2], ['092900', 'Gypsum Board Shaft Wall Assemblies']);
-});
-
-test('DocumentLogWorkbookSpec - defines Sections sheet-scoped and workbook-scoped named ranges', () => {
-  const namedRanges = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges;
-  const sectionsSheet = namedRanges.find(r => r.name === 'Sections' && r.tabName === 'Submittal Arch Support');
-  assert.ok(sectionsSheet, 'Sheet-Scoped Sections named range must exist on Submittal Arch Support');
-  assert.equal(sectionsSheet.rangeNotation, 'A2:B20');
-  assert.equal(sectionsSheet.scope, 'Sheet');
-
-  const sectionsWb = namedRanges.find(r => r.name === 'Submittal_Arch_Support_Sections');
-  assert.ok(sectionsWb, 'Workbook-Scoped Submittal_Arch_Support_Sections range must exist');
-  assert.equal(sectionsWb.rangeNotation, 'A2:B20');
-  assert.equal(sectionsWb.scope, 'Workbook');
+  assert.deepEqual(supportTab.seedRows[0], ['', '']);
 });
 
 test('DocumentLogWorkbookSpec - places _Shared, _Config, _AuditLog system tabs at the far right of workbook tab order', () => {
