@@ -34,7 +34,7 @@ function isRowBlank(row: unknown[]): boolean {
  * @param logData - Full 2D array of spreadsheet values.
  * @returns Bounded 2D array ending after data boundaries.
  */
-function getBoundedData(logData: unknown[][]): unknown[][] {
+export function getBoundedData(logData: unknown[][]): unknown[][] {
   const boundedData: unknown[][] = [];
   let emptyGapCount = 0;
 
@@ -82,8 +82,58 @@ function normalizeValueForGroupKey(val: string, fieldSpec?: MinimalFieldSpec): s
  * @param fieldSpecs - Optional document field specifications array.
  * @returns Uppercase group key string.
  */
-function getRowGroupKey(row: unknown[], discipline: string, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
-  if (discipline === "Architecture") {
+/**
+ * Creates an in-memory RowKeyFn for IdentityGroup calculation.
+ */
+export function createRowIdentityGroupKeyFn(fieldSpecs?: DocumentFieldSpec[]): RowKeyFn {
+  return (row: unknown[], headers: string[]) => {
+    return getRowGroupKey(row, "", headers, fieldSpecs);
+  };
+}
+
+/**
+ * Creates an in-memory RowKeyFn for IdentityRevisionGroup calculation.
+ */
+export function createRowIdentityRevisionGroupKeyFn(fieldSpecs?: DocumentFieldSpec[]): RowKeyFn {
+  return (row: unknown[], headers: string[]) => {
+    const groupKey = getRowGroupKey(row, "", headers, fieldSpecs);
+    const revIdx = headers.indexOf("Revision");
+    if (revIdx !== -1 && row[revIdx] !== undefined && String(row[revIdx]).trim() !== "") {
+      const revStr = String(row[revIdx]).trim();
+      const rev = /^\d+$/.test(revStr) ? padNum(revStr, 1) : revStr;
+      return `${groupKey}-${rev}`;
+    }
+    return groupKey;
+  };
+}
+
+/**
+ * Creates an in-memory RowKeyFn for Identity (sort key) calculation.
+ */
+export function createRowIdentityKeyFn(fieldSpecs?: DocumentFieldSpec[]): RowKeyFn {
+  return (row: unknown[], headers: string[]) => {
+    const revGroupKey = createRowIdentityRevisionGroupKeyFn(fieldSpecs)(row, headers);
+    const dateIdx = headers.indexOf("Date");
+    let rawDate = dateIdx !== -1 ? row[dateIdx] : "";
+    let dateStr = "";
+    if (rawDate instanceof Date) {
+      const yy = String(rawDate.getFullYear()).slice(-2);
+      const mm = String(rawDate.getMonth() + 1).padStart(2, "0");
+      const dd = String(rawDate.getDate()).padStart(2, "0");
+      dateStr = `${yy}${mm}${dd}`;
+    } else {
+      dateStr = String(rawDate || "").replace(/\D/g, "").padStart(6, "0");
+    }
+    return dateStr ? `${revGroupKey}-${dateStr}` : revGroupKey;
+  };
+}
+
+export const createRowGroupKeyFn = createRowIdentityGroupKeyFn;
+export const createRowSortKeyFn = createRowIdentityKeyFn;
+
+export function getRowGroupKey(row: unknown[], disciplineOrGroupKeyFn: string | RowKeyFn, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
+  if (typeof disciplineOrGroupKeyFn === "function") return disciplineOrGroupKeyFn(row, headers);
+  if (disciplineOrGroupKeyFn === "Architecture" || (headers.includes("Section") && headers.includes("Number"))) {
     const secIdx = headers.indexOf("Section");
     const numIdx = headers.indexOf("Number");
     let secVal = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
@@ -113,7 +163,8 @@ function getRowGroupKey(row: unknown[], discipline: string, headers: string[], f
  * @param fieldSpecs - Optional document field specifications array.
  * @returns Sort key string used to order submittal revisions within a group.
  */
-function getRowSortKey(row: unknown[], discipline: string, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
+export function getRowSortKey(row: unknown[], disciplineOrGroupKeyFn: string | RowKeyFn, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
+  if (typeof disciplineOrGroupKeyFn === "function") return disciplineOrGroupKeyFn(row, headers);
   const revIdx = headers.indexOf("Revision");
   const dateIdx = headers.indexOf("Date");
   
@@ -134,14 +185,14 @@ function getRowSortKey(row: unknown[], discipline: string, headers: string[], fi
     dateStr = String(rawDate || "").replace(/\D/g, '').padStart(6, '0');
   }
 
-  const groupKey = getRowGroupKey(row, discipline, headers, fieldSpecs);
+  const groupKey = getRowGroupKey(row, disciplineOrGroupKeyFn, headers, fieldSpecs);
   return `${groupKey}-${rev}-${dateStr}`;
 }
 
 /**
  * Pure function computing the row insertion plan for placing a new submittal into the log sheet.
  */
-function computeRowInsertionPlan(
+export function computeRowInsertionPlan(
   boundedData: unknown[][],
   headers: string[],
   rowData: unknown[],
@@ -249,6 +300,11 @@ if (typeof module !== "undefined" && module.exports) {
     getBoundedData,
     getRowGroupKey,
     getRowSortKey,
-    computeRowInsertionPlan
+    computeRowInsertionPlan,
+    createRowGroupKeyFn,
+    createRowSortKeyFn,
+    createRowIdentityGroupKeyFn,
+    createRowIdentityRevisionGroupKeyFn,
+    createRowIdentityKeyFn
   };
 }

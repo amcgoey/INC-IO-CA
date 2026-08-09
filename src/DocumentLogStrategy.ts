@@ -54,8 +54,9 @@ function formatDateStr(rawDate: any): string {
  * @returns Zero-padded string representation of the value.
  */
 function safePadNum(val: any, len: number): string {
-  if (typeof padNum !== "undefined") return padNum(val, len);
-  if ((globalThis as any).padNum) return (globalThis as any).padNum(val, len);
+  if (typeof (globalThis as any).padNum === "function") {
+    return (globalThis as any).padNum(val, len);
+  }
   return String(val || "").trim().padStart(len, '0');
 }
 
