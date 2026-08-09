@@ -227,8 +227,50 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
     const slicedBlob = await this.extractPages(sourceBlob, maxPages);
     return Utilities.base64Encode(slicedBlob.getBytes());
   }
-}
+  async mergeBlobsToPdf(
+    blobs: GoogleAppsScript.Base.Blob[],
+    newFileName?: string
+  ): Promise<GoogleAppsScript.Base.Blob> {
+    if (!blobs || blobs.length === 0) {
+      throw new Error("Cannot merge empty array of blobs into PDF.");
+    }
 
+    const pdfLib = getPdfLib();
+    const mergedPdf = await pdfLib.PDFDocument.create();
+
+    for (const blob of blobs) {
+      const bytes = (blob && typeof blob.getBytes === "function") ? new Uint8Array(blob.getBytes()) : new Uint8Array(0);
+      const contentType = (blob && typeof blob.getContentType === "function" ? (blob.getContentType() || "") : "").toLowerCase();
+
+      if (contentType.includes("pdf")) {
+        const srcPdf = await pdfLib.PDFDocument.load(bytes);
+        const copiedPages = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
+        copiedPages.forEach((page: any) => mergedPdf.addPage(page));
+      } else if (contentType.includes("png")) {
+        const image = await mergedPdf.embedPng(bytes);
+        const page = mergedPdf.addPage([image.width, image.height]);
+        page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+      } else if (contentType.includes("jpeg") || contentType.includes("jpg")) {
+        const image = await mergedPdf.embedJpg(bytes);
+        const page = mergedPdf.addPage([image.width, image.height]);
+        page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+      } else {
+        throw new Error("Unsupported content type for PDF merging: " + contentType);
+      }
+    }
+
+    const mergedBytes = await mergedPdf.save();
+    const filename = newFileName || "composite_merged.pdf";
+
+    return (typeof Utilities !== "undefined" && typeof Utilities.newBlob === "function")
+      ? Utilities.newBlob(mergedBytes, "application/pdf", filename)
+      : ({
+         getBytes: () => mergedBytes,
+         getName: () => filename,
+         getContentType: () => "application/pdf"
+        } as any);
+  }
+}
 
 /** Global default instance seam for PDF document service. */
 var defaultPdfDocumentService: PdfDocumentService = new GoogleAppsScriptPdfDocumentService();
