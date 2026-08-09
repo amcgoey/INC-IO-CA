@@ -37,8 +37,8 @@ function splitNumberAndRevisionEmail_(numRevStr: string): { submittalNum: string
     };
   }
   return {
-    submittalNum: padSubmittalNumberEmail_(trimmed, 2),
-    revNum: trimmed
+    submittalNum: padSubmittalNumberEmail_(trimmed, 3),
+    revNum: "0"
   };
 }
 
@@ -142,8 +142,8 @@ class GenericEmailParser {
 
     const searchableEmailContent = (subject + "\n" + (body || "")).replace(/=\r?\n/g, "");
 
-    const submittalSectionMatch = searchableEmailContent.match(/(?:Submittal\s*#?|Subm\s*#?|Spec\s*#?|Section\s*#?|Transmittal\s*(?:for)?\s*)\s*(\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]*#?\s*([\w.]+(?:-[\w.]+)*)/i) ||
-                                searchableEmailContent.match(/(\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]+(\d{1,4})(?:[.-](\d{1,3}))?/);
+    const submittalSectionMatch = searchableEmailContent.match(/(?:Submittal\s*#?|Subm\s*#?|Spec\s*#?|Section\s*#?|Transmittal\s*(?:for)?\s*)\s*(\d{6}|\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]*#?\s*([\w.]+(?:-[\w.]+)*)/i) ||
+                                searchableEmailContent.match(/(\d{6}|\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]+(\d{1,4})(?:[.-](\d{1,3}))?/);
 
     if (submittalSectionMatch) {
       result.specSection = normalizeSpecSectionEmail_(submittalSectionMatch[1]);
@@ -167,7 +167,7 @@ class GenericEmailParser {
       const matchIndex = typeof submittalSectionMatch.index === "number" ? submittalSectionMatch.index : searchableEmailContent.indexOf(matchedFullText);
       if (matchIndex !== -1) {
         const remainingText = searchableEmailContent.substring(matchIndex + matchedFullText.length);
-        const delimiterMatch = remainingText.match(/^\s*(?:[,\-_|:]\s*|\s+-\s+|\s+)(.+)/);
+        const delimiterMatch = remainingText.match(/^\s*(?:[,_\-:|]\s*|\s+-\s+|\s+)(.+)/);
         if (delimiterMatch) {
           let extractedTitle = delimiterMatch[1].replace(/[\r\n].*/s, "").trim();
 
@@ -209,8 +209,8 @@ class EmailIntakeParser {
       const { submittalNum, revNum } = splitNumberAndRevisionEmail_(distMatch[2]);
       result.submittalNum = submittalNum;
       result.number = submittalNum;
-      result.revNum = revNum;
-      result.revision = revNum;
+      result.revNum = (revNum === "0" || !revNum) ? distMatch[2].trim() : revNum;
+      result.revision = result.revNum;
       if (distMatch[3]) result.title = distMatch[3].trim();
       return result;
     }
@@ -222,8 +222,8 @@ class EmailIntakeParser {
       const { submittalNum, revNum } = splitNumberAndRevisionEmail_(updatedMatch[2]);
       result.submittalNum = submittalNum;
       result.number = submittalNum;
-      result.revNum = revNum;
-      result.revision = revNum;
+      result.revNum = (revNum === "0" || !revNum) ? updatedMatch[2].trim() : revNum;
+      result.revision = result.revNum;
       if (updatedMatch[3]) result.title = updatedMatch[3].trim();
       return result;
     }
@@ -235,8 +235,8 @@ class EmailIntakeParser {
       const { submittalNum, revNum } = splitNumberAndRevisionEmail_(submittalMatch[2]);
       result.submittalNum = submittalNum;
       result.number = submittalNum;
-      result.revNum = revNum;
-      result.revision = revNum;
+      result.revNum = (revNum === "0" || !revNum) ? submittalMatch[2].trim() : revNum;
+      result.revision = result.revNum;
     }
 
     return result;
@@ -262,8 +262,8 @@ class EmailIntakeParser {
         const { submittalNum, revNum } = splitNumberAndRevisionEmail_(numRevStr);
         result.submittalNum = submittalNum;
         result.number = submittalNum;
-        result.revNum = revNum;
-        result.revision = revNum;
+        result.revNum = (revNum === "0" || !revNum) ? numRevStr : revNum;
+        result.revision = result.revNum;
       }
     }
 
