@@ -1,13 +1,14 @@
-﻿/**
+/**
  * @file AdminFoldOutPresenter.ts
  * @description Declarative presenter module constructing AppContext-scoped admin foldouts
  * (SheetAdminFoldOut for GoogleSheets, TriageAdminFoldOut for Gmail/GoogleDrive) and managing
- * targeted cache eviction, dry-run schema drift audits, and audit telemetry (Issue #220, Issue #221, ADR 0029, ADR 0035).
+ * targeted cache eviction, dry-run schema drift audits, audit telemetry, and exception guards (Issue #220, Issue #221, Issue #224, ADR 0029, ADR 0035).
  *
  * Tier 2 GAS Infrastructure Adapter.
  */
 
 import { TemplateDriftReport, TemplateDriftIssue } from "../../core/admin/TemplateDriftAuditor";
+import { SpreadsheetBatchReadException } from "./SpreadsheetBatchReaderAdapter";
 
 declare var PrefixCacheManager: any;
 declare var GoogleScriptCacheAdapter: any;
@@ -17,11 +18,16 @@ declare var TemplateDriftAuditor: any;
 declare var SheetsRootCard: any;
 declare var SheetsContextBinder: any;
 
+export type AppContextType = "GoogleSheets" | "Gmail" | "GoogleDrive";
+
 export interface AdminFoldOutContextData {
   spreadsheetId?: string;
   driveId?: string;
   disabled?: boolean;
+  documentType?: string;
+  tabName?: string;
   auditReport?: TemplateDriftReport;
+  error?: Error | SpreadsheetBatchReadException | unknown;
   [key: string]: any;
 }
 
@@ -30,18 +36,77 @@ export class AdminFoldOutPresenter {
    * Dispatches and renders the context-appropriate admin foldout section.
    *
    * @param appContext - Target execution environment ("GoogleSheets" | "Gmail" | "GoogleDrive")
-   * @param contextData - Contextual data (spreadsheetId, driveId, disabled flag, auditReport)
+   * @param contextData - Contextual data (spreadsheetId, driveId, disabled flag, auditReport, error)
    * @returns CardService.CardSection instance
    */
   public static renderAdminSection(
-    appContext: AppContext,
-    contextData?: AdminFoldOutContextData
+    appContext: AppContextType | AppContext,
+    contextData: AdminFoldOutContextData = {}
   ): GoogleAppsScript.Card_Service.CardSection {
-    if (appContext === "GoogleSheets") {
-      return AdminFoldOutPresenter.renderSheetAdminFoldOut(contextData);
-    } else {
-      return AdminFoldOutPresenter.renderTriageAdminFoldOut(contextData);
+    try {
+      if (
+        contextData.error instanceof SpreadsheetBatchReadException ||
+        (contextData.error && typeof contextData.error === "object" && (contextData.error as any).name === "SpreadsheetBatchReadException")
+      ) {
+        return AdminFoldOutPresenter.renderAdminErrorSection(contextData.spreadsheetId || "", contextData.error);
+      }
+
+      if (appContext === "GoogleSheets") {
+        return AdminFoldOutPresenter.renderSheetAdminFoldOut(contextData);
+      } else {
+        return AdminFoldOutPresenter.renderTriageAdminFoldOut(contextData);
+      }
+    } catch (err: unknown) {
+      if (
+        err instanceof SpreadsheetBatchReadException ||
+        (err && typeof err === "object" && (err as any).name === "SpreadsheetBatchReadException")
+      ) {
+        return AdminFoldOutPresenter.renderAdminErrorSection(contextData.spreadsheetId || "", err);
+      }
+      throw err;
     }
+  }
+
+  /**
+   * Renders dedicated Error State Card when SpreadsheetBatchReadException occurs.
+   */
+  public static renderAdminErrorSection(
+    spreadsheetId: string,
+    error: Error | SpreadsheetBatchReadException | unknown
+  ): GoogleAppsScript.Card_Service.CardSection {
+    const section = CardService.newCardSection()
+      .setHeader("⚠️ Advanced Sheets API Unavailable")
+      .setCollapsible(false);
+
+    const errorMessage = error && typeof error === "object" && "message" in error
+      ? String((error as any).message)
+      : "Advanced Sheets API batch read failed.";
+
+    section.addWidget(
+      CardService.newTextParagraph().setText(
+        `⚠️ **Advanced Sheets API Unavailable**\n` +
+        `The Advanced Sheets Service (v4) could not read workbook structure.\n\n` +
+        `**Details:** ${errorMessage}\n\n` +
+        `**Troubleshooting Instructions:**\n` +
+        `1. Ensure \`Sheets\` (v4) is enabled under \`dependencies.enabledAdvancedServices\` in \`appsscript.json\` manifest.\n` +
+        `2. Verify Google Workspace domain API permissions and quota settings.\n` +
+        `3. Click **Retry Audit** below to attempt inspecting the spreadsheet again.`
+      )
+    );
+
+    section.addWidget(
+      CardService.newButtonSet().addButton(
+        CardService.newTextButton()
+          .setText("🔄 Retry Audit")
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName("onRunSchemaDriftAudit")
+              .setParameters({ spreadsheetId: spreadsheetId || "" })
+          )
+      )
+    );
+
+    return section;
   }
 
   /**
@@ -123,6 +188,20 @@ export class AdminFoldOutPresenter {
           "<b>Discrepancy Breakdown:</b><br/>" + issueBulletsText
         )
       );
+
+      if (report.canAutoPatch) {
+        section.addWidget(
+          CardService.newButtonSet().addButton(
+            CardService.newTextButton()
+              .setText("🛠️ Auto-Patch Workbook")
+              .setOnClickAction(
+                CardService.newAction()
+                  .setFunctionName("onAutoPatchWorkbook")
+                  .setParameters({ spreadsheetId })
+              )
+          )
+        );
+      }
     }
 
     return section;
@@ -132,8 +211,9 @@ export class AdminFoldOutPresenter {
    * Renders TriageAdminFoldOut collapsible card section for Gmail and GoogleDrive contexts.
    */
   public static renderTriageAdminFoldOut(
-    _contextData?: AdminFoldOutContextData
+    contextData?: AdminFoldOutContextData
   ): GoogleAppsScript.Card_Service.CardSection {
+    const driveId = contextData?.driveId || "";
     const section = CardService.newCardSection()
       .setHeader("Triage Administration (TriageAdminFoldOut)")
       .setCollapsible(true)
@@ -146,7 +226,11 @@ export class AdminFoldOutPresenter {
           .addButton(
             CardService.newTextButton()
               .setText("🔄 Reset Log Search Cache")
-              .setOnClickAction(CardService.newAction().setFunctionName("onResetLogSearchCache"))
+              .setOnClickAction(
+                CardService.newAction()
+                  .setFunctionName("onResetLogSearchCache")
+                  .setParameters({ driveId })
+              )
           )
           .addButton(
             CardService.newTextButton()
@@ -167,7 +251,7 @@ export class AdminFoldOutPresenter {
 /**
  * Action Handler: Executes TemplateDriftAuditor.auditWorkbook in read-only dry-run mode (bypassCache: true),
  * re-renders SheetAdminFoldOut with inline Schema Health Report card, emits notification toast,
- * and logs telemetry event to _AuditLog tab under Category: SCHEMA_DRIFT (Issue #221).
+ * and logs telemetry event to _AuditLog tab under Category: SCHEMA_DRIFT (Issue #221, Issue #224).
  */
 export function onRunSchemaDriftAudit(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
   const BinderClass = (globalThis as any).SheetsContextBinder ||
@@ -179,10 +263,25 @@ export function onRunSchemaDriftAudit(e?: any): GoogleAppsScript.Card_Service.Ac
   const AuditorClass = (globalThis as any).TemplateDriftAuditor ||
     (typeof TemplateDriftAuditor !== "undefined" ? TemplateDriftAuditor : require("../../core/admin/TemplateDriftAuditor").TemplateDriftAuditor);
 
-  const storageAdapter = new StorageAdapterClass(spreadsheetId);
-  const report: TemplateDriftReport = AuditorClass.auditWorkbook(storageAdapter, { bypassCache: true });
+  let report: TemplateDriftReport | undefined;
+  let batchReadError: any = undefined;
 
-  if (spreadsheetId) {
+  const storageAdapter = new StorageAdapterClass(spreadsheetId);
+
+  try {
+    report = AuditorClass.auditWorkbook(storageAdapter, { bypassCache: true });
+  } catch (err: any) {
+    if (
+      err instanceof SpreadsheetBatchReadException ||
+      (err && typeof err === "object" && (err as any).name === "SpreadsheetBatchReadException")
+    ) {
+      batchReadError = err;
+    } else {
+      throw err;
+    }
+  }
+
+  if (spreadsheetId && report) {
     try {
       const LogEngineClass = (globalThis as any).LogEngine ||
         (typeof LogEngine !== "undefined" ? LogEngine : require("../../core/log/LogEngine").LogEngine);
@@ -220,6 +319,16 @@ export function onRunSchemaDriftAudit(e?: any): GoogleAppsScript.Card_Service.Ac
     (typeof SheetsRootCard !== "undefined" ? SheetsRootCard : require("./SheetsRootCard").SheetsRootCard);
 
   const sheetName = e?.sheetsContext?.sheetName || e?.parameters?.sheetName || undefined;
+
+  if (batchReadError) {
+    const errorSection = AdminFoldOutPresenter.renderAdminErrorSection(spreadsheetId, batchReadError);
+    const card = CardService.newCardBuilder().addSection(errorSection).build();
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card))
+      .setNotification(CardService.newNotification().setText("Advanced Sheets API Unavailable"))
+      .build();
+  }
+
   const updatedCard = SheetsRootCardClass.buildSheetsRootCard({
     spreadsheetId,
     sheetName,
@@ -228,7 +337,7 @@ export function onRunSchemaDriftAudit(e?: any): GoogleAppsScript.Card_Service.Ac
 
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().updateCard(updatedCard))
-    .setNotification(CardService.newNotification().setText("Schema audit complete: " + report.status))
+    .setNotification(CardService.newNotification().setText("Schema audit complete: " + (report?.status || "UNKNOWN")))
     .build();
 }
 

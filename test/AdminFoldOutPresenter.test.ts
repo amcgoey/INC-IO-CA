@@ -1,7 +1,7 @@
 /**
  * @file AdminFoldOutPresenter.test.ts
  * @description Unit tests for AdminFoldOutPresenter dispatch, SheetAdminFoldOut and TriageAdminFoldOut UI sections,
- * scoped ScriptCache eviction, and _AuditLog event logging (Issue #220).
+ * scoped ScriptCache eviction, _AuditLog event logging, and SpreadsheetBatchReadException error state card (Issue #220, Issue #224).
  */
 
 import { describe, it, beforeEach, afterEach } from "node:test";
@@ -10,8 +10,9 @@ import { GasMockHarness } from "./harness/GasMockHarness";
 import { CardSerializer } from "./harness/CardSerializer";
 import { AdminFoldOutPresenter, onFlushScriptCache } from "../src/adapters/gas/AdminFoldOutPresenter";
 import { buildSheetsRootCard } from "../src/adapters/gas/SheetsRootCard";
+import { SpreadsheetBatchReadException } from "../src/adapters/gas/SpreadsheetBatchReaderAdapter";
 
-describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220)", () => {
+describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
   let harness: ReturnType<typeof GasMockHarness.install>;
 
   beforeEach(() => {
@@ -131,5 +132,27 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220)", () => {
     assert.strictEqual(row[2], "CONFIG_CACHE_PURGED");
     assert.strictEqual(row[4], "SUCCESS");
     assert.ok(String(row[5]).includes("wb-audit-220"));
+  });
+
+  it("dispatches dedicated Error State Card on SpreadsheetBatchReadException", () => {
+    const error = new SpreadsheetBatchReadException(
+      "Advanced Sheets Service (v4) is un-enabled or unavailable in appsscript.json manifest.",
+      "ss-123"
+    );
+
+    // Verify renderAdminSection correctly catches/dispatches error
+    const section = AdminFoldOutPresenter.renderAdminSection("GoogleSheets", {
+      spreadsheetId: "ss-123",
+      error
+    });
+    assert.ok(section);
+
+    const card = CardService.newCardBuilder().addSection(section).build();
+    const serialized = CardSerializer.toJSON(card);
+    const textJson = JSON.stringify(serialized);
+
+    assert.match(textJson, /Advanced Sheets API Unavailable/i);
+    assert.match(textJson, /appsscript\.json/i);
+    assert.match(textJson, /Retry Audit/i);
   });
 });

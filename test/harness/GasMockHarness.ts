@@ -650,6 +650,7 @@ export interface HarnessInstallOptions {
   configOverrides?: Record<string, unknown>;
   csiDivisionsOverrides?: Record<string, string>;
   driveAdvancedServiceOverrides?: Record<string, unknown>;
+  sheetsAdvancedServiceOverrides?: any;
 }
 
 
@@ -715,7 +716,7 @@ export class GasMockHarness {
   }
 
   public static install(options?: HarnessInstallOptions): GasMockHarness {
-    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "SpreadsheetApp", "DriveApp", "CardService", "CSI_DIVISIONS", "Drive"];
+    const globalsToStub = ["CONFIG", "CacheService", "PropertiesService", "SpreadsheetApp", "DriveApp", "CardService", "CSI_DIVISIONS", "Drive", "Sheets"];
     for (const name of globalsToStub) {
       if (!GasMockHarness.originalGlobals.has(name)) {
         GasMockHarness.originalGlobals.set(name, (globalThis as any)[name]);
@@ -741,6 +742,7 @@ export class GasMockHarness {
     (globalThis as any).Session = (globalThis as any).Session || { getScriptTimeZone : () => "America/New_York", getActiveUser: () => ({ getEmail: () => "user@example.com" }) };
     (globalThis as any).CSI_DIVISIONS = options?.csiDivisionsOverrides || DEFAULT_CSI_DIVISIONS;
     (globalThis as any).Drive = options?.driveAdvancedServiceOverrides !== undefined ? options.driveAdvancedServiceOverrides : undefined;
+    (globalThis as any).Sheets = options?.sheetsAdvancedServiceOverrides !== undefined ? options.sheetsAdvancedServiceOverrides : undefined;
 
     return GasMockHarness.instance;
   }
