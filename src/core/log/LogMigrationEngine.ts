@@ -648,20 +648,22 @@ export class LogMigrationEngine {
    */
   public archiveSourceSpreadsheet(
     sourceStorage: SheetStorageAdapter,
-    sourceSpreadsheetId: string,
+    targetSpreadsheetId: string,
     targetTabName: string,
     lastMigrationHash: string,
     rowCount: number,
-    timestamp: string
+    timestamp: string,
+    sourceSpreadsheetId?: string
   ): void {
+    const titleId = sourceSpreadsheetId || targetSpreadsheetId;
     if (typeof sourceStorage.setSpreadsheetTitle === "function") {
-      sourceStorage.setSpreadsheetTitle("[MIGRATED_LEGACY] Legacy Log " + sourceSpreadsheetId);
+      sourceStorage.setSpreadsheetTitle("[MIGRATED_LEGACY] Legacy Log " + titleId);
     }
 
     const infoSheetName = "_MIGRATION_INFO";
     const infoRows: CellValue[][] = [
       ["NOTICE", "This spreadsheet has been migrated to the new DocumentLogWorkbook structure and is read-only."],
-      ["Target Spreadsheet ID", sourceSpreadsheetId],
+      ["Target Spreadsheet ID", targetSpreadsheetId],
       ["Migrated Log Tab", targetTabName],
       ["Migration Timestamp", timestamp],
       ["Migrated Data Row Count", rowCount],
