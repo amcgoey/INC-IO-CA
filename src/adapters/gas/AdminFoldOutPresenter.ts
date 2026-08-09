@@ -7,7 +7,7 @@
  * Tier 2 GAS Infrastructure Adapter.
  */
 
-import { TemplateDriftReport, TemplateDriftIssue } from "../../core/admin/TemplateDriftAuditor";
+import { TemplateDriftReport, TemplateDriftIssue, AutoPatchResult } from "../../core/admin/TemplateDriftAuditor";
 import { SpreadsheetBatchReadException } from "./SpreadsheetBatchReaderAdapter";
 
 declare var PrefixCacheManager: any;
@@ -164,7 +164,7 @@ export class AdminFoldOutPresenter {
     if (contextData?.lockContention) {
       section.addWidget(
         CardService.newTextParagraph().setText(
-          "?? <b>Workbook Lock Contention Detected</b><br/>" +
+          "\uD83D\uDD12 <b>Workbook Lock Contention Detected</b><br/>" +
           "Another administrative process or migration is currently modifying this spreadsheet. " +
           "The spreadsheet lock could not be acquired within the 5-second timeout.<br/><br/>" +
           "Please wait a moment and click below to retry auto-patching."
@@ -173,7 +173,7 @@ export class AdminFoldOutPresenter {
       section.addWidget(
         CardService.newButtonSet().addButton(
           CardService.newTextButton()
-            .setText("?? Retry Auto-Patch")
+            .setText("\uD83D\uDD04 Retry Auto-Patch")
             .setOnClickAction(
               CardService.newAction()
                 .setFunctionName("onAutoPatchWorkbook")
