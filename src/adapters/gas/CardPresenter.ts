@@ -33,7 +33,8 @@ class CardPresenter implements UserInterfacePresenter {
   ): { displayTitle: string; hintText: string } {
     const isMissing = field.required && missingFields.includes(field.key);
     const confidence = fieldConfidence[field.key];
-    const isLowConfidence = confidence !== undefined && confidence < 0.85;
+    const threshold = (typeof FieldConfidenceThreshold !== "undefined" ? FieldConfidenceThreshold : 0.85);
+    const isLowConfidence = confidence !== undefined && confidence < threshold;
 
     let displayTitle = field.label || field.key;
     if (isMissing) {
