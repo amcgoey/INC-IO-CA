@@ -49,7 +49,7 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
   tabs: [
     {
       name: "Submittal Arch",
-      rowCount: 20,
+      rowCount: 25,
       columnCount: 26,
       isLogTab: true,
       columns: [
@@ -70,20 +70,25 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "calcSort", header: "Calc Sort", formula: '=MAP(B4:B, C4:C, LAMBDA(sec, num, IF(ISBLANK(sec), "", TEXT(sec, "000000") & TEXT(num, "0000"))))' }
       ],
       seedRows: [
-        ["Open", "071200", 1, "0", "Fluid-Applied Waterproofing", "2026-08-01", "PMG", "Received", "Initial submittal received from PMG", ""],
-        ["Open", "071200", 1, "0", "Fluid-Applied Waterproofing", "2026-08-02", "INC", "Open", "Under active review by INC", ""],
-        ["Closed", "092900", 1, "0", "Gypsum Board Shaft Wall Assemblies", "2026-07-10", "PMG", "Received", "Rev 1 submittal received from PMG", ""],
-        ["Closed", "092900", 1, "0", "Gypsum Board Shaft Wall Assemblies", "2026-07-12", "INC", "Revise & Resubmit", "Returned to PMG for resubmittal", ""],
-        ["Closed", "092900", 1, "1", "Gypsum Board Shaft Wall Assemblies", "2026-07-20", "PMG", "Received", "Rev 2 resubmittal received from PMG", ""],
-        ["Closed", "092900", 1, "1", "Gypsum Board Shaft Wall Assemblies", "2026-07-21", "IE", "Referred", "Referred to IE for consultant review", ""],
-        ["Closed", "092900", 1, "1", "Gypsum Board Shaft Wall Assemblies", "2026-07-24", "IE", "No Exceptions Taken", "Consultant review complete - no exceptions", ""],
-        ["Closed", "092900", 1, "1", "Gypsum Board Shaft Wall Assemblies", "2026-07-25", "INC", "No Objection as Corrected", "Final approval as corrected", ""],
-        ["Closed", "093000", 1, "0", "Tiling Assemblies", "2026-07-01", "PMG", "Received", "Rev 1 submittal received from PMG", ""],
-        ["Closed", "093000", 1, "0", "Tiling Assemblies", "2026-07-03", "INC", "Rejected", "Rejected due to missing product data", ""],
-        ["Closed", "093000", 1, "1", "Tiling Assemblies", "2026-07-15", "PMG", "Received", "Rev 2 resubmittal received from PMG", ""],
-        ["Closed", "093000", 1, "1", "Tiling Assemblies", "2026-07-16", "IE", "Referred", "Referred to IE for tile membrane review", ""],
-        ["Closed", "093000", 1, "1", "Tiling Assemblies", "2026-07-18", "IE", "No Exceptions Taken", "Consultant review complete - no exceptions", ""],
-        ["Closed", "093000", 1, "1", "Tiling Assemblies", "2026-07-19", "INC", "No Objection as Corrected", "Final approval as corrected", ""]
+        ["Closed", "071200", 1, "1", "Test", "230726", "PMG", "Received", "", ""],
+        ["Open", "071200", 1, "1", "Test", "230726", "INC", "", "", ""],
+        ["", "", "", "", "", "", "", "", "", ""],
+        ["Billed", "092900", 1, "1", "Gyp Bd", "230720", "PMG", "Received", "", ""],
+        ["Billed", "092900", 1, "1", "Gyp Bd", "230721", "INC", "Revise & Resubmit", "", ""],
+        ["Billed", "092900", 1, "2", "Gyp Bd", "230722", "PMG", "Received", "", ""],
+        ["Billed", "092900", 1, "2", "Gyp Bd", "230722", "IE", "Referred", "", ""],
+        ["Billed", "092900", 1, "2", "Gyp Bd", "230723", "IE", "No Exceptions Taken", "", ""],
+        ["Billed", "092900", 1, "2", "Gyp Bd", "230724", "INC", "No Objection as Corrected", "", ""],
+        ["", "", "", "", "", "", "", "", "", ""],
+        ["Closed", "093000", 1, "1", "Gyp Bd", "230720", "PMG", "Received", "", ""],
+        ["Closed", "093000", 1, "1", "Gyp Bd", "230721", "INC", "Rejected", "", ""],
+        ["Closed", "093000", 1, "2", "Gyp Bd", "230722", "PMG", "Received", "", ""],
+        ["Waiting", "093000", 1, "2", "Gyp Bd", "230722", "IE", "Referred", "", ""],
+        ["Open", "093000", 1, "2", "Gyp Bd", "230723", "IE", "No Exceptions Taken", "", ""],
+        ["Manager", "093000", 1, "2", "Gyp Bd", "230724", "INC", "No Objection as Corrected", "", ""],
+        ["", "", "", "", "", "", "", "", "", ""],
+        ["Closed", "280000", 1, "1", "Test 2", "230731", "PMG", "Received", "", ""],
+        ["Open", "280000", 1, "1", "Test 2", "230731", "INC", "Revise & Resubmit", "", ""]
       ]
     },
     {

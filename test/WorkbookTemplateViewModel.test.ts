@@ -424,7 +424,7 @@ test("WorkbookTemplateViewModel emits addConditionalFormatRule for status rules 
   );
   assert.ok(archOpenRule, "Submittal Arch Open status conditional format rule must exist");
   assert.strictEqual(archOpenRule.addConditionalFormatRule?.rule?.ranges?.[0]?.startRowIndex, 5, "Content row start index must be 5 (Row 6)");
-  assert.strictEqual(archOpenRule.addConditionalFormatRule?.rule?.ranges?.[0]?.endRowIndex, 19, "Content row end index must be 19 (Row 20 End BufferRow excluded)");
+  assert.strictEqual(archOpenRule.addConditionalFormatRule?.rule?.ranges?.[0]?.endRowIndex, 24, "Content row end index must be 24 (Row 25 End BufferRow excluded)");
   assert.strictEqual(archOpenRule.addConditionalFormatRule?.rule?.booleanRule?.condition?.type, "CUSTOM_FORMULA");
   assert.deepStrictEqual(
     archOpenRule.addConditionalFormatRule?.rule?.booleanRule?.format?.backgroundColor,

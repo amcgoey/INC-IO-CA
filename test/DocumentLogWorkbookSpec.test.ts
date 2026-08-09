@@ -7,7 +7,7 @@ import { WorkbookTemplateViewModel } from '../src/core/config/WorkbookTemplateVi
 test('DocumentLogWorkbookSpec - defines Submittal Arch tab with 1000x26 layout', () => {
   const submittalArchTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal Arch');
   assert.ok(submittalArchTab, 'Submittal Arch tab must exist in spec');
-  assert.equal(submittalArchTab.rowCount, 20, 'Submittal Arch rowCount must be 20');
+  assert.equal(submittalArchTab.rowCount, 25, 'Submittal Arch rowCount must be 25');
   assert.equal(submittalArchTab.columnCount, 26, 'Submittal Arch columnCount must be 26');
   assert.equal(submittalArchTab.isLogTab, true, 'Submittal Arch must be marked as log tab');
 });
