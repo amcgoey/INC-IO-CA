@@ -489,155 +489,138 @@ class DriveFilenameIntakeParser {
 
 function validateDocFn(raw: RawDocument, context?: ValidationContext): ValidationResult {
   const rawDoc = FormIntakeParser.parse(raw, context);
-  const discipline = rawDoc.discipline || "Architecture";
+  let registry = (globalThis as any).defaultDocumentTypeConfigRegistry;
+  if (!registry && typeof defaultDocumentTypeConfigRegistry !== "undefined") {
+    registry = defaultDocumentTypeConfigRegistry;
+  }
+  if (!registry && typeof require !== "undefined") {
+    try {
+      const regModule = require('../../DocumentTypeConfigRegistry');
+      registry = regModule.defaultDocumentTypeConfigRegistry;
+    } catch (e) {}
+  }
+
+  let config: DocumentTypeConfig | undefined;
+  if (registry) {
+    const rawType = raw.documentType;
+    const rawDiscipline = raw.discipline;
+
+    if (rawDiscipline && registry.hasConfig(rawDiscipline)) {
+      config = registry.getConfig(rawDiscipline);
+    } else if (rawType && registry.hasConfig(rawType)) {
+      config = registry.getConfig(rawType);
+    } else if (rawDoc.discipline && registry.hasConfig(rawDoc.discipline)) {
+      config = registry.getConfig(rawDoc.discipline);
+    } else if (rawDoc.documentType && registry.hasConfig(rawDoc.documentType)) {
+      config = registry.getConfig(rawDoc.documentType);
+    } else {
+      try {
+        config = registry.getConfig('Submittal');
+      } catch (e) {}
+    }
+  }
 
   const listFields = ListDocumentField.createDefaultListFields(context);
   const resolvedContact = listFields.contact.resolve(rawDoc.contact);
   const resolvedAction = listFields.action.resolve(rawDoc.action);
 
   const missingFields: string[] = [];
-  if (isEmpty(rawDoc.date)) missingFields.push("Date");
-  if (isEmpty(rawDoc.contact)) missingFields.push("Contact");
-  if (isEmpty(rawDoc.action)) missingFields.push("Action");
+  const fields: DocumentFieldSpec[] = config?.fields || [
+    { key: 'date', label: 'Date', type: 'date', required: true },
+    { key: 'contact', label: 'Contact', type: 'string', required: true },
+    { key: 'action', label: 'Action', type: 'string', required: true },
+    { key: 'title', label: 'Title', type: 'string', required: true }
+  ];
 
-  if (resolvedAction.longForm === "Received" && isEmpty(rawDoc.incomingRouting)) {
-    missingFields.push("Incoming Routing");
+  for (let i = 0; i < fields.length; i++) {
+    const field = fields[i];
+    if (field.isCalculated) continue;
+
+    if (field.key === 'incomingRouting') {
+      if (resolvedAction.longForm === 'Received' && isEmpty(rawDoc.incomingRouting)) {
+        missingFields.push('Incoming Routing');
+      }
+      continue;
+    }
+
+    if (field.required && isEmpty(rawDoc[field.key])) {
+      missingFields.push(field.label || field.key);
+    }
   }
 
-  if (discipline === "Architecture") {
-    if (isEmpty(rawDoc.title)) missingFields.push("Title");
-  } else if (discipline === "FF&E") {
-    if (isEmpty(rawDoc.specTag)) missingFields.push("Spec Tag");
-    if (isEmpty(rawDoc.specTitle)) missingFields.push("Spec Title");
-    if (isEmpty(rawDoc.vendor)) missingFields.push("Vendor");
+  if (resolvedAction.longForm === 'Received' && isEmpty(rawDoc.incomingRouting) && !missingFields.includes('Incoming Routing')) {
+    missingFields.push('Incoming Routing');
   }
 
   if (missingFields.length > 0) {
     return {
-      status: "error",
-      errors: [`Missing required fields: ${missingFields.join(", ")}`],
+      status: 'error',
+      errors: [`Missing required fields: ${missingFields.join(', ')}`],
       missingFields
     };
   }
 
-  const warnings: string[] = [];
-  const validTags = context?.ffeTags?.tags || [];
-  const validVendors = context?.ffeTags?.vendors || [];
+  if (config?.validateHook) {
+    const hookResult = config.validateHook(rawDoc, context);
+    if (hookResult) {
+      return hookResult;
+    }
+  }
 
-  if (discipline === "Architecture") {
+  const warnings: string[] = [];
+  const discipline = rawDoc.discipline || 'Architecture';
+
+  let disciplineDetails: ArchitectureDetails | FFEDetails;
+
+  if (discipline === 'FF&E' || config?.documentType === 'FF&E' || fields.some(f => f.key === 'specTag')) {
+    const revisionVal = getTrimmed(rawDoc.revision);
+    if (!revisionVal) warnings.push('Revision');
+
+    disciplineDetails = {
+      discipline: 'FF&E',
+      specTag: getTrimmed(rawDoc.specTag),
+      specTitle: getTrimmed(rawDoc.specTitle),
+      vendor: getTrimmed(rawDoc.vendor),
+      revision: revisionVal,
+      relatedTag: getTrimmed(rawDoc.relatedTag)
+    };
+  } else {
     const sectionVal = normalizeSpecSection(rawDoc.section);
-    if (!sectionVal) warnings.push("Section");
+    if (!sectionVal) warnings.push('Section');
 
     const numberVal = getTrimmed(rawDoc.number);
-    if (!numberVal) warnings.push("Number");
+    if (!numberVal) warnings.push('Number');
 
     const revisionVal = getTrimmed(rawDoc.revision);
-    if (!revisionVal) warnings.push("Revision");
+    if (!revisionVal) warnings.push('Revision');
 
-    const archDetails: ArchitectureDetails = {
-      discipline: "Architecture",
+    disciplineDetails = {
+      discipline: 'Architecture',
       section: sectionVal,
       number: numberVal,
       title: getTrimmed(rawDoc.title),
       revision: revisionVal
     };
-
-    const validatedDoc: ValidatedDocument = {
-      documentType: getTrimmed(rawDoc.documentType) || "Submittal",
-      date: getTrimmed(rawDoc.date),
-      contact: resolvedContact.storedValue,
-      action: resolvedAction.storedValue,
-      listFields: {
-        contact: resolvedContact,
-        action: resolvedAction
-      },
-      notes: getTrimmed(rawDoc.notes),
-      incomingRouting: getTrimmed(rawDoc.incomingRouting),
-      disciplineDetails: archDetails
-    };
-
-    return {
-      status: "success",
-      data: validatedDoc,
-      warnings
-    };
   }
 
-  if (discipline === "FF&E") {
-    const specTag = getTrimmed(rawDoc.specTag);
-    const vendor = getTrimmed(rawDoc.vendor);
-    const relatedTag = getTrimmed(rawDoc.relatedTag);
-
-    if (relatedTag) {
-      const inputRelatedTags = relatedTag.split(",").map(t => t.trim()).filter(Boolean);
-      const invalidRelatedTags = inputRelatedTags.filter(
-        t => !validTags.some(valid => valid.toLowerCase() === t.toLowerCase())
-      );
-      if (invalidRelatedTags.length > 0) {
-        return {
-          status: "error",
-          errors: [`Invalid Related Tags: ${invalidRelatedTags.join(", ")}. Only valid options from the tag list are accepted.`]
-        };
-      }
-    }
-
-    const bypassTag = !!context?.bypassTagValidation;
-    const bypassVendor = !!context?.bypassVendorValidation;
-
-    const tagExists = validTags.some(t => t.toLowerCase() === specTag.toLowerCase());
-    if (!tagExists && !bypassTag) {
-      return {
-        status: "interaction_required",
-        interactionType: "ADD_TAG",
-        message: `Spec Tag "${specTag}" is not in the Tag List. Would you like to add it?`
-      };
-    }
-
-    const vendorExists = validVendors.some(v => v.toLowerCase() === vendor.toLowerCase());
-    if (!vendorExists && !bypassVendor) {
-      return {
-        status: "interaction_required",
-        interactionType: "ADD_VENDOR",
-        message: `Vendor "${vendor}" is not in the Tag List. Would you like to add it?`
-      };
-    }
-
-    const revisionVal = getTrimmed(rawDoc.revision);
-    if (!revisionVal) warnings.push("Revision");
-
-    const ffeDetails: FFEDetails = {
-      discipline: "FF&E",
-      specTag,
-      specTitle: getTrimmed(rawDoc.specTitle),
-      vendor,
-      revision: revisionVal,
-      relatedTag
-    };
-
-    const validatedDoc: ValidatedDocument = {
-      documentType: getTrimmed(rawDoc.documentType) || "Submittal",
-      date: getTrimmed(rawDoc.date),
-      contact: resolvedContact.storedValue,
-      action: resolvedAction.storedValue,
-      listFields: {
-        contact: resolvedContact,
-        action: resolvedAction
-      },
-      notes: getTrimmed(rawDoc.notes),
-      incomingRouting: getTrimmed(rawDoc.incomingRouting),
-      disciplineDetails: ffeDetails
-    };
-
-    return {
-      status: "success",
-      data: validatedDoc,
-      warnings
-    };
-  }
+  const validatedDoc: ValidatedDocument = {
+    documentType: getTrimmed(rawDoc.documentType) || config?.documentType || 'Submittal',
+    date: getTrimmed(rawDoc.date),
+    contact: resolvedContact.storedValue,
+    action: resolvedAction.storedValue,
+    listFields: {
+      contact: resolvedContact,
+      action: resolvedAction
+    },
+    notes: getTrimmed(rawDoc.notes),
+    incomingRouting: getTrimmed(rawDoc.incomingRouting),
+    disciplineDetails
+  };
 
   return {
-    status: "error",
-    errors: [`Discipline ${discipline} validation not yet implemented`]
+    status: 'success',
+    data: validatedDoc,
+    warnings
   };
 }
 
