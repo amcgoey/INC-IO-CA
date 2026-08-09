@@ -70,6 +70,21 @@ describe("Canonical Reference Seed Data for Contacts, Actions & Project Settings
       ]);
     });
 
+    it("should include canonical Statuses_Submittal seed data in _Shared tab", () => {
+      const statusesRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((r: NamedRangeSpec) => r.name === "Statuses_Submittal");
+      assert.ok(statusesRange, "Statuses_Submittal named range must exist");
+      assert.equal(statusesRange.tabName, "_Shared");
+      assert.equal(statusesRange.rangeNotation, "G2:H20");
+
+      const sharedTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Shared");
+      const seedRows = sharedTab?.seedRows || [];
+      const statuses = seedRows.slice(1, 3).map((r: (string | number | boolean)[]) => [r[6], r[7]]);
+      assert.deepEqual(statuses, [
+        ["Open", "Open"],
+        ["Closed", "Closed"]
+      ]);
+    });
+
     it("should include Contact Chain Max (-5) and Project Abbreviation (INC) in _Config and _Shared", () => {
       const configTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find((t: TabSpec) => t.name === "_Config");
       assert.ok(configTab, "_Config tab must exist");

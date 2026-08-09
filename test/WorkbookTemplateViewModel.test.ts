@@ -260,10 +260,11 @@ test("DOCUMENT_LOG_WORKBOOK_VIEW_SPEC specifies namedRangeFills and settingHeade
   assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Shared_Contacts_FFE, ThemeColors.PALE_GREEN_RGB);
   assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.SpecTags, ThemeColors.PALE_GREEN_RGB);
   assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Actions_Submittal, ThemeColors.PALE_RED_RGB);
+  assert.strictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.namedRangeFills.Statuses_Submittal, ThemeColors.PALE_BLUE_RGB);
 
   assert.ok(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges, "settingHeaderRanges must be defined");
   assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges._Config, ["A1:B1", "A5:D5"]);
-  assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges._Shared, ["A1:C1", "E1:G1"]);
+  assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges._Shared, ["A1:H1"]);
   assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges["Submittal Arch Support"], ["A1:B1"]);
   assert.deepStrictEqual(DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.settingHeaderRanges["Submittal FFE Support"], ["A1:D1"]);
 });

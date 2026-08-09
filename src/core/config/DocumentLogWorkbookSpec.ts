@@ -53,7 +53,7 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       columnCount: 26,
       isLogTab: true,
       columns: [
-        { id: "status", header: "Status", validationRange: "Actions_Submittal" },
+        { id: "status", header: "Status", validationRange: "Statuses_Submittal" },
         { id: "section", header: "Section" },
         { id: "number", header: "Number" },
         { id: "revision", header: "Revision" },
@@ -92,7 +92,7 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       columnCount: 26,
       isLogTab: true,
       columns: [
-        { id: "status", header: "Status", validationRange: "Actions_Submittal" },
+        { id: "status", header: "Status", validationRange: "Statuses_Submittal" },
         { id: "specTag", header: "Spec Tag", validationRange: "SpecTags" },
         { id: "relatedTag", header: "Related Tag", validationRange: "SpecTags" },
         { id: "revision", header: "Revision" },
@@ -159,14 +159,14 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       columnCount: 20,
       isSharedTab: true,
       seedRows: [
-        ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Actions Key", "Actions Label"],
-        ["INC", "INC Architecture and Design", "INC", "INC Architecture & Design", "Received", "Received"],
-        ["PMG", "Pavarini McGovern", "BW", "Benjamin West", "Referred", "Referred"],
-        ["FXC", "FX Collaborative", "Lighting", "Lighting", "Not Reviewed", "Not Reviewed"],
-        ["IE", "Interface Engineering", "Brand", "Brand", "Rejected", "Rejected"],
-        ["VLD", "Ventresca Lighting Design", "", "", "Revise & Resubmit", "Revise & Resubmit"],
-        ["", "", "", "", "No Objection as Corrected", "No Objection as Corrected"],
-        ["", "", "", "", "No Exceptions Taken", "No Exceptions Taken"]
+        ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Actions Key", "Actions Label", "Statuses Key", "Statuses Label"],
+        ["INC", "INC Architecture and Design", "INC", "INC Architecture & Design", "Received", "Received", "Open", "Open"],
+        ["PMG", "Pavarini McGovern", "BW", "Benjamin West", "Referred", "Referred", "Closed", "Closed"],
+        ["FXC", "FX Collaborative", "Lighting", "Lighting", "Not Reviewed", "Not Reviewed", "", ""],
+        ["IE", "Interface Engineering", "Brand", "Brand", "Rejected", "Rejected", "", ""],
+        ["VLD", "Ventresca Lighting Design", "", "", "Revise & Resubmit", "Revise & Resubmit", "", ""],
+        ["", "", "", "", "No Objection as Corrected", "No Objection as Corrected", "", ""],
+        ["", "", "", "", "No Exceptions Taken", "No Exceptions Taken", "", ""]
       ]
     },
     {
@@ -213,6 +213,7 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Shared_Contacts_Arch", tabName: "_Shared", rangeNotation: "A2:B20", scope: "Workbook" },
     { name: "Shared_Contacts_FFE", tabName: "_Shared", rangeNotation: "C2:D20", scope: "Workbook" },
     { name: "Actions_Submittal", tabName: "_Shared", rangeNotation: "E2:F20", scope: "Workbook" },
+    { name: "Statuses_Submittal", tabName: "_Shared", rangeNotation: "G2:H20", scope: "Workbook" },
     { name: "AuditLog_Events", tabName: "_AuditLog", rangeNotation: "A6:F7", scope: "Workbook" },
     { name: "Headers", tabName: "Submittal Arch", rangeNotation: "A3:O4", scope: "Sheet" },
     { name: "FormulaRow", tabName: "Submittal Arch", rangeNotation: "A4:O4", scope: "Sheet" },

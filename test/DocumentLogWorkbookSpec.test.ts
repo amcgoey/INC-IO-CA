@@ -18,7 +18,7 @@ test('DocumentLogWorkbookSpec - defines all 15 columns for Submittal Arch with f
   assert.equal(submittalArchTab.columns.length, 15, 'Submittal Arch must have 15 columns');
 
   const expectedColumns = [
-    { id: 'status', header: 'Status', validationRange: 'Actions_Submittal' },
+    { id: 'status', header: 'Status', validationRange: 'Statuses_Submittal' },
     { id: 'section', header: 'Section' },
     { id: 'number', header: 'Number' },
     { id: 'revision', header: 'Revision' },

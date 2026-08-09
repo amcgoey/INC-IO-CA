@@ -536,7 +536,9 @@
         "Contacts_FFE Key",
         "Contacts_FFE Label",
         "Actions Key",
-        "Actions Label"
+        "Actions Label",
+        "Statuses Key",
+        "Statuses Label"
       ],
       "formulaRow": [],
       "seedRows": [
@@ -546,7 +548,9 @@
           "Contacts_FFE Key",
           "Contacts_FFE Label",
           "Actions Key",
-          "Actions Label"
+          "Actions Label",
+          "Statuses Key",
+          "Statuses Label"
         ],
         [
           "INC",
@@ -554,7 +558,9 @@
           "INC",
           "INC Architecture & Design",
           "Received",
-          "Received"
+          "Received",
+          "Open",
+          "Open"
         ],
         [
           "PMG",
@@ -562,7 +568,9 @@
           "BW",
           "Benjamin West",
           "Referred",
-          "Referred"
+          "Referred",
+          "Closed",
+          "Closed"
         ],
         [
           "FXC",
@@ -570,7 +578,9 @@
           "Lighting",
           "Lighting",
           "Not Reviewed",
-          "Not Reviewed"
+          "Not Reviewed",
+          "",
+          ""
         ],
         [
           "IE",
@@ -578,7 +588,9 @@
           "Brand",
           "Brand",
           "Rejected",
-          "Rejected"
+          "Rejected",
+          "",
+          ""
         ],
         [
           "VLD",
@@ -586,7 +598,9 @@
           "",
           "",
           "Revise & Resubmit",
-          "Revise & Resubmit"
+          "Revise & Resubmit",
+          "",
+          ""
         ],
         [
           "",
@@ -594,7 +608,9 @@
           "",
           "",
           "No Objection as Corrected",
-          "No Objection as Corrected"
+          "No Objection as Corrected",
+          "",
+          ""
         ],
         [
           "",
@@ -602,7 +618,9 @@
           "",
           "",
           "No Exceptions Taken",
-          "No Exceptions Taken"
+          "No Exceptions Taken",
+          "",
+          ""
         ]
       ]
     },
@@ -743,6 +761,12 @@
       "name": "Actions_Submittal",
       "tabName": "_Shared",
       "rangeNotation": "E2:F20",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Statuses_Submittal",
+      "tabName": "_Shared",
+      "rangeNotation": "G2:H20",
       "scope": "Workbook"
     },
     {

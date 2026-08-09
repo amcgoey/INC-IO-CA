@@ -282,7 +282,7 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (100x20), contact lists, ac
   assert.strictEqual(sharedTab.isSharedTab, true, "_Shared tab isSharedTab flag should be true");
 
   assert.ok(sharedTab.seedRows, "_Shared seedRows must be present");
-  assert.deepStrictEqual(sharedTab.seedRows[0], ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Actions Key", "Actions Label"]);
+  assert.deepStrictEqual(sharedTab.seedRows[0], ["Contacts_Arch Key", "Contacts_Arch Label", "Contacts_FFE Key", "Contacts_FFE Label", "Actions Key", "Actions Label", "Statuses Key", "Statuses Label"]);
 
   const archContactsNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: NamedRangeSpec) => nr.name === "Shared_Contacts_Arch");
   assert.ok(archContactsNR, "Shared_Contacts_Arch named range must exist");
@@ -301,6 +301,12 @@ test("DOCUMENT_LOG_WORKBOOK_SPEC defines _Shared tab (100x20), contact lists, ac
   assert.strictEqual(actionsSubmittalNR.tabName, "_Shared");
   assert.strictEqual(actionsSubmittalNR.rangeNotation, "E2:F20");
   assert.strictEqual(actionsSubmittalNR.scope, "Workbook");
+
+  const statusesSubmittalNR = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find((nr: NamedRangeSpec) => nr.name === "Statuses_Submittal");
+  assert.ok(statusesSubmittalNR, "Statuses_Submittal named range must exist");
+  assert.strictEqual(statusesSubmittalNR.tabName, "_Shared");
+  assert.strictEqual(statusesSubmittalNR.rangeNotation, "G2:H20");
+  assert.strictEqual(statusesSubmittalNR.scope, "Workbook");
 });
 
 test("DOCUMENT_LOG_WORKBOOK_SPEC defines _AuditLog system tab (7x10) and AuditLog_Events named range A6:F7", () => {

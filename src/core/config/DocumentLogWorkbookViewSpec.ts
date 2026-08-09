@@ -208,11 +208,12 @@ export const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
     Shared_Contacts_Arch: ThemeColors.PALE_GREEN_RGB,
     Shared_Contacts_FFE: ThemeColors.PALE_GREEN_RGB,
     SpecTags: ThemeColors.PALE_GREEN_RGB,
-    Actions_Submittal: ThemeColors.PALE_RED_RGB
+    Actions_Submittal: ThemeColors.PALE_RED_RGB,
+    Statuses_Submittal: ThemeColors.PALE_BLUE_RGB
   },
   settingHeaderRanges: {
     _Config: ['A1:B1', 'A5:D5'],
-    _Shared: ['A1:C1', 'E1:G1'],
+    _Shared: ['A1:H1'],
     'Submittal Arch Support': ['A1:B1'],
     'Submittal FFE Support': ['A1:D1']
   },
