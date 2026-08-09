@@ -489,9 +489,9 @@ class DriveFilenameIntakeParser {
 
 function validateDocFn(raw: RawDocument, context?: ValidationContext): ValidationResult {
   const rawDoc = FormIntakeParser.parse(raw, context);
-  let registry = (globalThis as any).defaultDocumentTypeConfigRegistry;
-  if (!registry && typeof defaultDocumentTypeConfigRegistry !== "undefined") {
-    registry = defaultDocumentTypeConfigRegistry;
+  let registry: any = typeof defaultDocumentTypeConfigRegistry !== "undefined" ? defaultDocumentTypeConfigRegistry : undefined;
+  if (!registry && typeof globalThis !== "undefined" && (globalThis as any).defaultDocumentTypeConfigRegistry) {
+    registry = (globalThis as any).defaultDocumentTypeConfigRegistry;
   }
   if (!registry && typeof require !== "undefined") {
     try {
@@ -509,10 +509,10 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
       config = registry.getConfig(rawDiscipline);
     } else if (rawType && registry.hasConfig(rawType)) {
       config = registry.getConfig(rawType);
-    } else if (rawDoc.discipline && registry.hasConfig(rawDoc.discipline)) {
-      config = registry.getConfig(rawDoc.discipline);
     } else if (rawDoc.documentType && registry.hasConfig(rawDoc.documentType)) {
       config = registry.getConfig(rawDoc.documentType);
+    } else if (rawDoc.discipline && registry.hasConfig(rawDoc.discipline)) {
+      config = registry.getConfig(rawDoc.discipline);
     } else {
       try {
         config = registry.getConfig('Submittal');
@@ -532,12 +532,14 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
     { key: 'title', label: 'Title', type: 'string', required: true }
   ];
 
+  const isReceived = resolvedAction.longForm === 'Received' || resolvedAction.abbreviation === 'Received' || getTrimmed(rawDoc.action) === 'Received';
+
   for (let i = 0; i < fields.length; i++) {
     const field = fields[i];
     if (field.isCalculated) continue;
 
     if (field.key === 'incomingRouting') {
-      if (resolvedAction.longForm === 'Received' && isEmpty(rawDoc.incomingRouting)) {
+      if (isReceived && isEmpty(rawDoc.incomingRouting)) {
         missingFields.push('Incoming Routing');
       }
       continue;
@@ -548,7 +550,7 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
     }
   }
 
-  if (resolvedAction.longForm === 'Received' && isEmpty(rawDoc.incomingRouting) && !missingFields.includes('Incoming Routing')) {
+  if (isReceived && isEmpty(rawDoc.incomingRouting) && !missingFields.includes('Incoming Routing')) {
     missingFields.push('Incoming Routing');
   }
 
@@ -568,11 +570,11 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
   }
 
   const warnings: string[] = [];
-  const discipline = rawDoc.discipline || 'Architecture';
+  const hasSpecTag = fields.some(f => f.key === 'specTag');
 
   let disciplineDetails: ArchitectureDetails | FFEDetails;
 
-  if (discipline === 'FF&E' || config?.documentType === 'FF&E' || fields.some(f => f.key === 'specTag')) {
+  if (hasSpecTag) {
     const revisionVal = getTrimmed(rawDoc.revision);
     if (!revisionVal) warnings.push('Revision');
 

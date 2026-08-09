@@ -32,11 +32,13 @@ const DEFAULT_FFE_SUBMITTAL_FIELDS: DocumentFieldSpec[] = [
 ];
 
 function ffeStrategyValidationHook(rawDoc: RawDocument, context?: ValidationContext): ValidationResult | void {
-  const validTags = context?.ffeTags?.tags || [];
-  const validVendors = context?.ffeTags?.vendors || [];
   const specTag = (rawDoc.specTag || '').trim();
   const vendor = (rawDoc.vendor || '').trim();
   const relatedTag = (rawDoc.relatedTag || '').trim();
+  if (!specTag && !vendor && !relatedTag) return;
+
+  const validTags = context?.ffeTags?.tags || [];
+  const validVendors = context?.ffeTags?.vendors || [];
 
   if (relatedTag) {
     const inputRelatedTags = relatedTag.split(',').map(t => t.trim()).filter(Boolean);
@@ -173,15 +175,22 @@ class DocumentTypeConfigRegistry {
   /**
    * Retrieves a DocumentTypeConfig by document type name.
    */
+  private findConfigKey(documentType: string): string | undefined {
+    if (!documentType) return undefined;
+    if (this.configs.has(documentType)) return documentType;
+    const lower = documentType.toLowerCase();
+    for (const key of this.configs.keys()) {
+      if (key.toLowerCase() === lower) return key;
+    }
+    return undefined;
+  }
+
+  /**
+   * Retrieves a DocumentTypeConfig by document type name.
+   */
   public getConfig(documentType: string): DocumentTypeConfig {
-    if (this.configs.has(documentType)) {
-      return this.configs.get(documentType)!;
-    }
-    for (const [key, cfg] of this.configs.entries()) {
-      if (key.toLowerCase() === (documentType || '').toLowerCase()) {
-        return cfg;
-      }
-    }
+    const key = this.findConfigKey(documentType);
+    if (key) return this.configs.get(key)!;
     throw new Error('DocumentTypeConfig not registered for document type: ' + documentType);
   }
 
@@ -189,11 +198,7 @@ class DocumentTypeConfigRegistry {
    * Checks if a DocumentTypeConfig is registered for a given document type.
    */
   public hasConfig(documentType: string): boolean {
-    if (this.configs.has(documentType)) return true;
-    for (const key of this.configs.keys()) {
-      if (key.toLowerCase() === (documentType || '').toLowerCase()) return true;
-    }
-    return false;
+    return this.findConfigKey(documentType) !== undefined;
   }
 
   /**

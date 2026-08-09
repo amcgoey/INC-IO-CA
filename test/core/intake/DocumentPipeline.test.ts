@@ -75,7 +75,10 @@ test('DocumentPipeline.validate - invokes custom DocumentTypeConfig strategy val
   }
 });
 
-test('DocumentPipeline.validate - supports custom dynamic document types registered in DocumentTypeConfigRegistry', () => {
+test('DocumentPipeline.validate - supports custom dynamic document types registered in DocumentTypeConfigRegistry', (t) => {
+  t.after(() => {
+    defaultDocumentTypeConfigRegistry.reset();
+  });
   const customRfiConfig: DocumentTypeConfig = {
     documentType: 'RFI',
     rootFolderSearchTerms: ['RFIs'],
