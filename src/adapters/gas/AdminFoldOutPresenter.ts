@@ -164,7 +164,7 @@ export class AdminFoldOutPresenter {
     if (contextData?.lockContention) {
       section.addWidget(
         CardService.newTextParagraph().setText(
-          "?? <b>Workbook Lock Contention Detected</b><br/>" +
+          "🔒 <b>Workbook Lock Contention Detected</b><br/>" +
           "Another administrative process or migration is currently modifying this spreadsheet. " +
           "The spreadsheet lock could not be acquired within the 5-second timeout.<br/><br/>" +
           "Please wait a moment and click below to retry auto-patching."
@@ -173,7 +173,7 @@ export class AdminFoldOutPresenter {
       section.addWidget(
         CardService.newButtonSet().addButton(
           CardService.newTextButton()
-            .setText("?? Retry Auto-Patch")
+            .setText("🔄 Retry Auto-Patch")
             .setOnClickAction(
               CardService.newAction()
                 .setFunctionName("onAutoPatchWorkbook")
@@ -468,10 +468,6 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
       .setNavigation(CardService.newNavigation().updateCard(card))
       .setNotification(CardService.newNotification().setText("Advanced Sheets API Unavailable"))
       .build();
-  }
-
-  if (!result) {
-    result = { success: false, status: "REPAIR_FAILED", spreadsheetId, repairsApplied: [], error: "No result" };
   }
 
   if (!result) {
