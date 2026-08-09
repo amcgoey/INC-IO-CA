@@ -446,15 +446,22 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
   const lockAdapter = (globalThis as any).defaultSpreadsheetLockAdapter || (LockAdapterClass ? new LockAdapterClass() : undefined);
   const cacheAdapter = (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
 
-  let result: any = null;
-  let batchReadError: any = undefined;
+  let result: {
+    success: boolean;
+    status: string;
+    spreadsheetId: string;
+    repairsApplied: string[];
+    auditReport?: TemplateDriftReport;
+    error?: string;
+  } | null = null;
+  let batchReadError: unknown = undefined;
 
   try {
     result = AuditorClass.autoPatchWorkbook(storageAdapter, { lockAdapter, cacheAdapter });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (
       err instanceof SpreadsheetBatchReadException ||
-      (err && typeof err === "object" && (err as any).name === "SpreadsheetBatchReadException")
+      (err && typeof err === "object" && (err as { name?: string }).name === "SpreadsheetBatchReadException")
     ) {
       batchReadError = err;
     } else {
@@ -469,6 +476,14 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
       .setNavigation(CardService.newNavigation().updateCard(card))
       .setNotification(CardService.newNotification().setText("Advanced Sheets API Unavailable"))
       .build();
+  }
+
+  if (!result) {
+    result = { success: false, status: "REPAIR_FAILED", spreadsheetId, repairsApplied: [], error: "No result" };
+  }
+
+  if (!result) {
+    result = { success: false, status: "REPAIR_FAILED", spreadsheetId, repairsApplied: [], error: "No result" };
   }
 
   let notificationText = "";
