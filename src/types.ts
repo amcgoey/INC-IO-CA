@@ -110,6 +110,7 @@ interface ParsedData {
   targetKey?: string;
   driveFileId?: string;
   blob?: GoogleAppsScript.Base.Blob;
+  attachments?: GoogleAppsScript.Base.Blob[];
   attachmentIndex?: number;
   pdfUrl?: string;
   fileName?: string;
@@ -570,6 +571,10 @@ interface PdfDocumentService {
     sourceBlob: GoogleAppsScript.Base.Blob,
     maxPages: number
   ): Promise<string>;
+  mergeBlobsToPdf(
+    blobs: GoogleAppsScript.Base.Blob[],
+    newFileName?: string
+  ): Promise<GoogleAppsScript.Base.Blob>;
 }
 
 /** Repository interface for Drive filing and local path resolution. */
@@ -658,6 +663,7 @@ interface DocumentWorkflowInput {
   targetFolderId: string;
   driveFileId?: string;
   blob?: GoogleAppsScript.Base.Blob;
+  attachments?: GoogleAppsScript.Base.Blob[];
   fileSource?: string;
   messageId?: string;
   attachmentName?: string;

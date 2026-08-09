@@ -5,6 +5,12 @@
  */
 
 export class FakePdfDocumentService implements PdfDocumentService {
+  mergeBlobsCalls: Array<{ blobs: GoogleAppsScript.Base.Blob[]; newFileName?: string }> = [];
+  mergeBlobsResultBlob: GoogleAppsScript.Base.Blob | null = null;
+
+  setMergeBlobsResultBlob(blob: GoogleAppsScript.Base.Blob | null): void {
+    this.mergeBlobsResultBlob = blob;
+  }
   public extractCalls: string[] = [];
   public stampCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; data: ParsedData; options: StampOptions }> = [];
   public sliceCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; maxPages: number }> = [];
@@ -97,9 +103,25 @@ export class FakePdfDocumentService implements PdfDocumentService {
     this.calls.push({ method: "slicePagesToBase64", args: [sourceBlob, maxPages] });
     return this.sliceResultBase64;
   }
+  async mergeBlobsToPdf(
+    blobs: GoogleAppsScript.Base.Blob[],
+    newFileName?: string
+  ): Promise<GoogleAppsScript.Base.Blob> {
+    this.mergeBlobsCalls.push({ blobs, newFileName });
+    this.calls.push({ method: "mergeBlobsToPdf", args: [blobs, newFileName] });
+    if (this.mergeBlobsResultBlob) return this.mergeBlobsResultBlob;
+    const name = newFileName || "composite_merged.pdf";
+    const mockBytes = Buffer.from("%PDF-1.4 Fake Composite PDF Buffer");
+    const bytesArray = Array.from(mockBytes);
+    return (typeof Utilities !== "undefined" && Utilities.newBlob)
+      ? Utilities.newBlob(bytesArray, "application/pdf", name)
+      : ({
+         getBytes: () => mockBytes,
+         getName: () => name,
+         getContentType: () => "application/pdf"
+        } as unknown as GoogleAppsScript.Base.Blob);
+  }
 }
-
-declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     FakePdfDocumentService

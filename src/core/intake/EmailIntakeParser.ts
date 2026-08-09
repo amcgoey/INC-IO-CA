@@ -450,7 +450,7 @@ class EmailIntakeParser {
   }
 }
 
-declare var module: { exports?: unknown };
+declare var module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {

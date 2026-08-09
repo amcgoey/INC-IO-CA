@@ -69,6 +69,23 @@ class IncomingWorkflow {
     return dummy as GoogleAppsScript.Base.Blob;
   }
 
+  static resolveSourceBlobs(input: DocumentWorkflowInput): GoogleAppsScript.Base.Blob[] {
+    if (input.attachments && input.attachments.length > 0) {
+      return input.attachments;
+    }
+    if (input.fileSource === "Email Attachment" && input.messageId && input.gmailApp) {
+      const msg = input.gmailApp.getMessageById(input.messageId);
+      if (msg) {
+        const atts = msg.getAttachments();
+        if (atts && atts.length > 0) {
+          return atts.map((a: any) => a.getBlob());
+        }
+      }
+    }
+    const single = this.resolveSourceBlob(input);
+    return single ? [single] : [];
+  }
+
   static resolveSourceBlob(input: DocumentWorkflowInput): GoogleAppsScript.Base.Blob | null {
     if (input.blob) return input.blob;
 
@@ -132,7 +149,12 @@ class IncomingWorkflow {
     const moveAction = input.moveDocumentAction || (MoveCtor ? new MoveCtor() : null);
 
     // 1. Resolve source document blob and title
-    const blob = this.resolveSourceBlob(input);
+    const blobs = this.resolveSourceBlobs(input);
+    let blob: GoogleAppsScript.Base.Blob | null = blobs.length > 0 ? blobs[0] : null;
+    const pdfService = input.pdfDocumentService || (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : null);
+    if (blobs.length > 1 && pdfService) {
+      blob = await pdfService.mergeBlobsToPdf(blobs, "composite_intake.pdf");
+    }
     const titleFn = (globalThis as any).getDocumentTitle || (typeof getDocumentTitle !== "undefined" ? getDocumentTitle : null);
     const itemTitle = titleFn ? titleFn(input.validatedDoc) : "";
 
