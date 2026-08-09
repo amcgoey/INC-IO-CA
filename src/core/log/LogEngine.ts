@@ -115,7 +115,7 @@ export class LogEngine {
   /**
    * Helper function searching bounded log data backwards for matching group or target key.
    */
-      private extractFallbackRowGroupKey(row: unknown[], headers: string[]): string {
+  private extractFallbackRowGroupKey(row: unknown[], headers: string[]): string {
     const secIdx = headers.indexOf("Section");
     const numIdx = headers.indexOf("Number");
     const specTagIdx = headers.indexOf("Spec Tag");

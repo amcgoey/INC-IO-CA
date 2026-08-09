@@ -29,14 +29,10 @@ function padNum(val: unknown, len: number): string {
  */
 function formatRowDate(rawDate: unknown): string {
   if (rawDate instanceof Date) {
-    if (typeof Utilities !== "undefined" && Utilities.formatDate && typeof Session !== "undefined") {
-      return Utilities.formatDate(rawDate, Session.getScriptTimeZone(), "yyMMdd");
-    } else {
-      const yy = String(rawDate.getFullYear()).slice(-2);
-      const mm = String(rawDate.getMonth() + 1).padStart(2, "0");
-      const dd = String(rawDate.getDate()).padStart(2, "0");
-      return `${yy}${mm}${dd}`;
-    }
+    const yy = String(rawDate.getFullYear()).slice(-2);
+    const mm = String(rawDate.getMonth() + 1).padStart(2, "0");
+    const dd = String(rawDate.getDate()).padStart(2, "0");
+    return `${yy}${mm}${dd}`;
   }
   return String(rawDate || "").replace(/\D/g, "").padStart(6, "0");
 }

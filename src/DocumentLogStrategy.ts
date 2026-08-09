@@ -228,17 +228,17 @@ class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
   }
 
   /** @override */
-  getGroupKeyFromRow(row: any[], headers: string[]): string {
+  getGroupKeyFromRow(row: unknown[], headers: string[]): string {
     return getRowGroupKey(row, "FF&E", headers);
   }
 
   /** @override */
-  getSortKeyFromRow(row: any[], headers: string[]): string {
+  getSortKeyFromRow(row: unknown[], headers: string[]): string {
     return getRowSortKey(row, "FF&E", headers);
   }
 
   /** @override */
-  getTargetKeyFromRow(row: any[], headers: string[]): string {
+  getTargetKeyFromRow(row: unknown[], headers: string[]): string {
     const tagIdx = headers.indexOf("Spec Tag");
     const revIdx = headers.indexOf("Revision");
     const tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim();
