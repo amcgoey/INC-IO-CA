@@ -432,7 +432,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
 
       const cardUnpatchable = CardService.newCardBuilder().addSection(sectionUnpatchable).build();
       const jsonUnpatchable = CardSerializer.toJSON(cardUnpatchable);
-      assert.strictEqual(CardSerializer.findButton(jsonUnpatchable, "??? Auto-Patch Workbook"), undefined);
+      assert.strictEqual(CardSerializer.findButton(jsonUnpatchable, "onAutoPatchWorkbook"), undefined);
     });
 
     it("displays interactive retry prompt on lock contention (status: LOCK_CONTENTION)", () => {

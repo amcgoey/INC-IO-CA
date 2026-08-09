@@ -446,14 +446,7 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
   const lockAdapter = (globalThis as any).defaultSpreadsheetLockAdapter || (LockAdapterClass ? new LockAdapterClass() : undefined);
   const cacheAdapter = (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
 
-  let result: {
-    success: boolean;
-    status: string;
-    spreadsheetId: string;
-    repairsApplied: string[];
-    auditReport?: TemplateDriftReport;
-    error?: string;
-  } | null = null;
+  let result: AutoPatchResult | null = null;
   let batchReadError: unknown = undefined;
 
   try {
