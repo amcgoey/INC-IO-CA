@@ -10,7 +10,9 @@ import { GasMockHarness } from "./harness/GasMockHarness";
 import { CardSerializer } from "./harness/CardSerializer";
 import { TemplateDriftAuditor } from "../src/core/admin/TemplateDriftAuditor";
 import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../src/core/config/DocumentLogWorkbookSpec";
-import { onRunSchemaDriftAudit } from "../src/adapters/gas/AdminFoldOutPresenter";
+import { onRunSchemaDriftAudit, onAutoPatchWorkbook } from "../src/adapters/gas/AdminFoldOutPresenter";
+import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
+import { FakeCacheAdapter } from "../src/adapters/fakes/FakeCacheAdapter";
 
 describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", () => {
   let harness: ReturnType<typeof GasMockHarness.install>;
@@ -238,4 +240,129 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     assert.ok(String(lastRow[4]).length > 0); // Status
     assert.ok(String(lastRow[5]).includes("wb-audit-log-221"));
   });
+
+  describe("Auto-Patching Engine & Mid-Repair Recovery (Issue #226)", () => {
+    it("fast-fails with status LOCK_CONTENTION when SpreadsheetLockAdapter lock is held by another process", () => {
+      const ss = harness.sheetsService.openById("wb-autopatch-lock");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
+
+      const lockAdapter = new FakeSpreadsheetLockAdapter();
+      const existingLockId = lockAdapter.acquireLock("wb-autopatch-lock", 900000);
+      assert.ok(existingLockId);
+
+      const result = TemplateDriftAuditor.autoPatchWorkbook(ss, { lockAdapter });
+
+      assert.strictEqual(result.success, false);
+      assert.strictEqual(result.status, "LOCK_CONTENTION");
+      assert.strictEqual(result.spreadsheetId, "wb-autopatch-lock");
+      assert.ok(result.error?.includes("lock"));
+    });
+
+    it("returns status NO_OP under lock when double-checked audit confirms zero structural drift", () => {
+      const ss = harness.sheetsService.openById("wb-autopatch-clean");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
+
+      const lockAdapter = new FakeSpreadsheetLockAdapter();
+      const cacheAdapter = new FakeCacheAdapter();
+
+      const result = TemplateDriftAuditor.autoPatchWorkbook(ss, { lockAdapter, cacheAdapter });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.status, "NO_OP");
+      assert.strictEqual(result.repairsApplied.length, 0);
+      assert.strictEqual(lockAdapter.isLocked("wb-autopatch-clean"), false);
+    });
+
+    it("repairs MINOR_DRIFT under lock, invalidates cache scope, logs telemetry, and releases lock in finally", () => {
+      const ss = harness.sheetsService.openById("wb-autopatch-minor");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
+      (ss as any).sheets.delete("_AuditLog");
+      (ss as any).namedRanges.delete("Headers");
+      (ss as any).namedRanges.delete("Submittal_Arch_Headers");
+
+      const lockAdapter = new FakeSpreadsheetLockAdapter();
+      const cacheAdapter = new FakeCacheAdapter();
+
+      const result = TemplateDriftAuditor.autoPatchWorkbook(ss, { lockAdapter, cacheAdapter });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.status, "PATCHED");
+      assert.ok(result.repairsApplied.length > 0);
+      assert.strictEqual(lockAdapter.isLocked("wb-autopatch-minor"), false);
+
+      const auditSheet = ss.getSheetByName("_AuditLog");
+      assert.ok(auditSheet);
+      const data = auditSheet.getDataRange().getValues();
+      assert.ok(data.length >= 2);
+
+      const events = data.slice(1).map(r => r[2]);
+      assert.ok(events.includes("DRIFT_REPAIR_EXECUTED"));
+      assert.ok(events.includes("EVICT_PREFIX"));
+    });
+
+    it("rejects auto-patching and returns status UNPATCHABLE when MAJOR_DRIFT or INCOMPATIBLE schema is detected", () => {
+      const ss = harness.sheetsService.openById("wb-autopatch-incompatible");
+
+      const lockAdapter = new FakeSpreadsheetLockAdapter();
+      const result = TemplateDriftAuditor.autoPatchWorkbook(ss, { lockAdapter });
+
+      assert.strictEqual(result.success, false);
+      assert.strictEqual(result.status, "UNPATCHABLE");
+      assert.strictEqual(result.repairsApplied.length, 0);
+      assert.strictEqual(lockAdapter.isLocked("wb-autopatch-incompatible"), false);
+    });
+
+    it("catches mid-repair execution exception, logs DRIFT_REPAIR_FAILED to _AuditLog, invalidates cache, releases lock in finally, and returns REPAIR_FAILED", () => {
+      const ss = harness.sheetsService.openById("wb-autopatch-faulty");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
+      (ss as any).sheets.delete("_AuditLog");
+
+      const faultySeam = {
+        getId: () => "wb-autopatch-faulty",
+        getSheets: () => ss.getSheets(),
+        getTabNames: () => ["_Config", "Submittal Arch"],
+        getSheetByName: (name: string) => {
+          if (name === "_AuditLog") return null;
+          const s = ss.getSheetByName(name);
+          return s;
+        },
+        insertSheet: () => {
+          throw new Error("Simulated storage mutation failure mid-repair");
+        },
+        getNamedRanges: () => ss.getNamedRanges(),
+        getRangeByName: (n: string) => ss.getRangeByName(n),
+        getSheetValues: (n: string) => ss.getSheetValues(n)
+      };
+
+      const lockAdapter = new FakeSpreadsheetLockAdapter();
+      const cacheAdapter = new FakeCacheAdapter();
+
+      const result = TemplateDriftAuditor.autoPatchWorkbook(faultySeam as any, { lockAdapter, cacheAdapter });
+
+      assert.strictEqual(result.success, false);
+      assert.strictEqual(result.status, "REPAIR_FAILED");
+      assert.ok(result.error?.includes("Simulated storage mutation failure"));
+      assert.strictEqual(lockAdapter.isLocked("wb-autopatch-faulty"), false);
+    });
+
+    it("onAutoPatchWorkbook action handler executes auto-patching, updates card, and emits notification toast", () => {
+      const ss = harness.sheetsService.openById("wb-action-autopatch");
+      ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
+      (ss as any).sheets.delete("_AuditLog");
+
+      const event = {
+        sheetsContext: {
+          spreadsheetId: "wb-action-autopatch",
+          sheetName: "Submittal Arch"
+        }
+      };
+
+      const response = onAutoPatchWorkbook(event);
+      const actionJson = CardSerializer.actionResponseToJSON(response);
+
+      assert.ok(actionJson.notification?.text?.includes("Auto-patch complete:") || actionJson.notification?.text?.includes("Auto-patch"));
+      assert.ok(actionJson.navigation?.card);
+    });
+  });
+
 });

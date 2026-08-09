@@ -17,6 +17,7 @@ declare var LogEngine: any;
 declare var TemplateDriftAuditor: any;
 declare var SheetsRootCard: any;
 declare var SheetsContextBinder: any;
+declare var FakeSpreadsheetLockAdapter: any;
 
 export type AppContextType = "GoogleSheets" | "Gmail" | "GoogleDrive";
 
@@ -399,14 +400,71 @@ export function onFlushScriptCache(e?: any): GoogleAppsScript.Card_Service.Actio
     .build();
 }
 
+
+/**
+ * Action Handler: Executes TemplateDriftAuditor.autoPatchWorkbook under SpreadsheetLockAdapter lock,
+ * invalidates PrefixCacheManager cache keys, logs telemetry to _AuditLog tab, and re-renders SheetAdminFoldOut card (Issue #226).
+ */
+export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
+  const BinderClass = (globalThis as any).SheetsContextBinder ||
+    (typeof SheetsContextBinder !== "undefined" ? SheetsContextBinder : require("./SheetsContextBinder").SheetsContextBinder);
+  const spreadsheetId = BinderClass.extractSpreadsheetId(e);
+
+  const StorageAdapterClass = (globalThis as any).GoogleSheetsStorageAdapter ||
+    (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : require("../../SheetStorageAdapter").GoogleSheetsStorageAdapter);
+  const AuditorClass = (globalThis as any).TemplateDriftAuditor ||
+    (typeof TemplateDriftAuditor !== "undefined" ? TemplateDriftAuditor : require("../../core/admin/TemplateDriftAuditor").TemplateDriftAuditor);
+  const LockAdapterClass = (globalThis as any).FakeSpreadsheetLockAdapter ||
+    (typeof FakeSpreadsheetLockAdapter !== "undefined" ? FakeSpreadsheetLockAdapter : require("../fakes/FakeSpreadsheetLockAdapter").FakeSpreadsheetLockAdapter);
+  const CacheAdapterClass = (globalThis as any).GoogleScriptCacheAdapter ||
+    (typeof GoogleScriptCacheAdapter !== "undefined" ? GoogleScriptCacheAdapter : require("./GoogleScriptCacheAdapter").GoogleScriptCacheAdapter);
+
+  const storageAdapter = new StorageAdapterClass(spreadsheetId);
+  const lockAdapter = (globalThis as any).defaultSpreadsheetLockAdapter || new LockAdapterClass();
+  const cacheAdapter = (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
+
+  const result = AuditorClass.autoPatchWorkbook(storageAdapter, { lockAdapter, cacheAdapter });
+
+  let notificationText = "";
+  if (result.status === "PATCHED") {
+    notificationText = "Auto-patch complete: " + result.repairsApplied.length + " repair(s) applied.";
+  } else if (result.status === "NO_OP") {
+    notificationText = "Workbook is already fully aligned with template schema. Zero repairs needed.";
+  } else if (result.status === "LOCK_CONTENTION") {
+    notificationText = "Workbook lock currently held by another process. Please retry shortly.";
+  } else if (result.status === "UNPATCHABLE") {
+    notificationText = "Auto-patching blocked: Workbook has major structural discrepancies requiring manual migration.";
+  } else {
+    notificationText = "Auto-patching failed: " + (result.error || "Mid-repair exception occurred.");
+  }
+
+  const SheetsRootCardClass = (globalThis as any).SheetsRootCard ||
+    (typeof SheetsRootCard !== "undefined" ? SheetsRootCard : require("./SheetsRootCard").SheetsRootCard);
+  const sheetName = e?.sheetsContext?.sheetName || e?.parameters?.sheetName || undefined;
+
+  const updatedCard = SheetsRootCardClass.buildSheetsRootCard({
+    spreadsheetId,
+    sheetName,
+    auditReport: result.auditReport
+  });
+
+  return CardService.newActionResponseBuilder()
+    .setNavigation(CardService.newNavigation().updateCard(updatedCard))
+    .setNotification(CardService.newNotification().setText(notificationText))
+    .build();
+}
+
+
 declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   (globalThis as any).AdminFoldOutPresenter = AdminFoldOutPresenter;
   (globalThis as any).onRunSchemaDriftAudit = onRunSchemaDriftAudit;
   (globalThis as any).onFlushScriptCache = onFlushScriptCache;
+  (globalThis as any).onAutoPatchWorkbook = onAutoPatchWorkbook;
   module.exports = {
     AdminFoldOutPresenter,
     onRunSchemaDriftAudit,
-    onFlushScriptCache
+    onFlushScriptCache,
+    onAutoPatchWorkbook
   };
 }
