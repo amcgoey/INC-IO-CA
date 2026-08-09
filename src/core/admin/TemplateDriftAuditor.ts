@@ -5,7 +5,7 @@
  * against DocumentLogWorkbookSpec to detect version, tab, named range, header, formula, or validation discrepancies
  * (Issue #221, Issue #225, ADR 0019, ADR 0029, ADR 0037, ADR 0041, ADR 0043).
  *
- * Adheres strictly to Tier 1 Pure Core guidelines: zero GAS globals, zero Node built-ins, zero inverted Tier 2 dependencies.
+ * Adheres strictly to Tier 1 Pure Core guidelines: zero GAS globals, zero Node built-ins, zero Tier 2 imports.
  */
 
 import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../config/DocumentLogWorkbookSpec";
@@ -40,7 +40,27 @@ export interface TemplateDriftReport {
 
 export interface AuditWorkbookOptions {
   bypassCache?: boolean;
-  logger?: (msg: string) => void;
+  logger?: (logPayloadJson: string) => void;
+}
+
+export interface SheetStorageSeam {
+  spreadsheetId?: string;
+  id?: string;
+  getId?(): string;
+  getTabNames?(): string[];
+  getSheetValues?(sheetName: string): any[][];
+  getRangeValues?(sheetName: string, rangeNotation: string): any[][];
+  getSheets?(): Array<{
+    getName(): string;
+    getDataRange(): { getValues(): any[][] };
+    getRange(rowOrNotation: number | string, col?: number): {
+      getValues(): any[][];
+      getDataValidation(): any;
+    };
+  }>;
+  getSheetByName?(name: string): any;
+  getNamedRanges?(): Array<{ getName(): string; name?: string }>;
+  getRangeByName?(name: string): any;
 }
 
 export interface BatchPayloadSheet {
@@ -66,169 +86,208 @@ export interface BatchPayload {
   sheets?: BatchPayloadSheet[];
 }
 
+export type StorageAdapterInput = BatchPayload | SheetStorageSeam | string;
+
 export class TemplateDriftAuditor {
   public static readonly CODE_SCHEMA_VERSION = DOCUMENT_LOG_WORKBOOK_SPEC.schemaVersion || "1.0.0";
 
-  /**
-   * Performs a dry-run 6-dimension structural schema audit against target workbook without mutating sheet structure or cache state.
-   * Lock-free read-only operation. Direct uncached reads enforced when bypassCache: true.
-   *
-   * @param storageAdapter - Tier 1 SheetStorageAdapter, BatchPayload, or spreadsheetId string.
-   * @param options - Audit execution options (bypassCache, logger, etc.).
-   * @returns TemplateDriftReport object.
-   */
   public static auditWorkbook(
-    storageAdapter: any,
+    storageAdapter: StorageAdapterInput,
     options: AuditWorkbookOptions = { bypassCache: true }
   ): TemplateDriftReport {
     const startTime = Date.now();
-    const bypassCache = options.bypassCache !== false; // default true
-    let spreadsheetId = "active-workbook";
-    let apiReadCount = 0;
-    let inspectionStrategy: "ADVANCED_SHEETS_BATCH_V1" | "STORAGE_ADAPTER_LIVE" = "STORAGE_ADAPTER_LIVE";
+    const inspector = new TemplateDriftInspector(storageAdapter, options);
+    return inspector.runAudit(startTime);
+  }
+}
 
-    let batchData: BatchPayload | null = null;
-    let ssObject: any = null;
-    let adapter: any = null;
+class TemplateDriftInspector {
+  private spreadsheetId: string = "active-workbook";
+  private apiReadCount: number = 0;
+  private inspectionStrategy: "ADVANCED_SHEETS_BATCH_V1" | "STORAGE_ADAPTER_LIVE" = "STORAGE_ADAPTER_LIVE";
+  private batchData: BatchPayload | null = null;
+  private seam: SheetStorageSeam | null = null;
+  private options: AuditWorkbookOptions;
 
-    if (storageAdapter && typeof storageAdapter === "object" && Array.isArray(storageAdapter.sheets)) {
-      batchData = storageAdapter;
-      spreadsheetId = storageAdapter.spreadsheetId || "active-workbook";
-      inspectionStrategy = "ADVANCED_SHEETS_BATCH_V1";
-      apiReadCount = 1;
-    } else if (storageAdapter && typeof storageAdapter === "object" && typeof storageAdapter.getSheets === "function") {
-      ssObject = storageAdapter;
-      spreadsheetId = typeof storageAdapter.getId === "function" ? storageAdapter.getId() : (storageAdapter.id || "active-workbook");
-    } else if (typeof storageAdapter === "string") {
-      spreadsheetId = storageAdapter;
-      // In GAS environment, resolve batch reader via global registry or fallback to openById seam
-      if (bypassCache && typeof (globalThis as any).Sheets !== "undefined" && (globalThis as any).Sheets?.Spreadsheets?.get) {
-        try {
-          const BatchReader = (globalThis as any).SpreadsheetBatchReaderAdapter ||
-            (typeof require !== "undefined" ? require("../../adapters/gas/SpreadsheetBatchReaderAdapter").SpreadsheetBatchReaderAdapter : null);
-          if (BatchReader) {
-            const reader = new BatchReader();
-            batchData = reader.readWorkbookBatch(spreadsheetId);
-            inspectionStrategy = "ADVANCED_SHEETS_BATCH_V1";
-            apiReadCount = 1;
-          }
-        } catch (e) {}
+  constructor(storageInput: StorageAdapterInput, options: AuditWorkbookOptions) {
+    this.options = options;
+    this.resolveStorageInput(storageInput);
+  }
+
+  private resolveStorageInput(input: StorageAdapterInput): void {
+    if (!input) return;
+
+    if (typeof input === "object" && Array.isArray((input as BatchPayload).sheets)) {
+      this.batchData = input as BatchPayload;
+      this.spreadsheetId = this.batchData.spreadsheetId || "active-workbook";
+      this.inspectionStrategy = "ADVANCED_SHEETS_BATCH_V1";
+      this.apiReadCount = 1;
+    } else if (typeof input === "object") {
+      this.seam = input as SheetStorageSeam;
+      if (typeof this.seam.getId === "function") {
+        this.spreadsheetId = this.seam.getId();
+      } else {
+        this.spreadsheetId = this.seam.spreadsheetId || this.seam.id || "active-workbook";
       }
-      if (!batchData && (globalThis as any).SpreadsheetApp && typeof (globalThis as any).SpreadsheetApp.openById === "function") {
-        try {
-          ssObject = (globalThis as any).SpreadsheetApp.openById(spreadsheetId);
-          apiReadCount++;
-        } catch (e) {}
-      }
-    } else if (storageAdapter) {
-      adapter = storageAdapter;
-      spreadsheetId = (storageAdapter as any)?.spreadsheetId || "active-workbook";
+    } else if (typeof input === "string") {
+      this.spreadsheetId = input;
       if ((globalThis as any).SpreadsheetApp && typeof (globalThis as any).SpreadsheetApp.openById === "function") {
         try {
-          ssObject = (globalThis as any).SpreadsheetApp.openById(spreadsheetId);
-          apiReadCount++;
+          this.seam = (globalThis as any).SpreadsheetApp.openById(input);
         } catch (e) {}
       }
     }
+  }
 
+  public runAudit(startTime: number): TemplateDriftReport {
     const issues: TemplateDriftIssue[] = [];
-    let liveSchemaVersion: string | undefined = undefined;
+    const liveSheetNames = this.getLiveSheetNames();
 
-    const getLiveSheetNames = (): string[] => {
-      if (batchData && batchData.sheets) {
-        return batchData.sheets.map(s => s.properties?.title || "").filter(Boolean);
-      }
-      if (ssObject && typeof ssObject.getSheets === "function") {
-        return ssObject.getSheets().map((s: any) => s.getName());
-      }
-      if (adapter && typeof adapter.getTabNames === "function") {
-        return adapter.getTabNames();
-      }
-      return [];
+    const liveSchemaVersion = this.auditDimension1_SchemaVersion(issues, liveSheetNames);
+
+    const hasConfigTab = liveSheetNames.includes("_Config");
+    this.auditDimension2_TabTaxonomy(issues, liveSheetNames, hasConfigTab);
+
+    this.auditDimension3_NamedRanges(issues, liveSheetNames);
+
+    this.auditDimensions4_5_6_LogTabs(issues, liveSheetNames);
+
+    const { status, canAutoPatch } = this.classifyStatus(issues, hasConfigTab);
+
+    const auditDurationMs = Date.now() - startTime;
+    const telemetry: TemplateDriftTelemetry = {
+      auditDurationMs,
+      tabCount: liveSheetNames.length,
+      inspectionStrategy: this.inspectionStrategy,
+      apiReadCount: this.apiReadCount
     };
 
-    const liveSheetNames = getLiveSheetNames();
+    const report: TemplateDriftReport = {
+      timestamp: new Date().toISOString(),
+      spreadsheetId: this.spreadsheetId,
+      status,
+      liveSchemaVersion: liveSchemaVersion || "N/A",
+      codeSchemaVersion: TemplateDriftAuditor.CODE_SCHEMA_VERSION,
+      issues,
+      canAutoPatch,
+      summary: this.generateSummary(status, issues, liveSchemaVersion),
+      telemetry
+    };
 
-    const getSheetGrid = (tabName: string): any[][] => {
-      if (batchData && batchData.sheets) {
-        const sheet = batchData.sheets.find(s => s.properties?.title === tabName);
-        if (!sheet || !sheet.data || sheet.data.length === 0 || !sheet.data[0].rowData) {
-          return [];
-        }
-        return sheet.data[0].rowData.map(r => (r.values || []).map(v => {
-          if (!v) return "";
-          if (v.userEnteredValue?.formulaValue) return v.userEnteredValue.formulaValue;
-          if (v.userEnteredValue?.stringValue !== undefined) return v.userEnteredValue.stringValue;
-          if (v.userEnteredValue?.numberValue !== undefined) return v.userEnteredValue.numberValue;
-          if (v.userEnteredValue?.boolValue !== undefined) return v.userEnteredValue.boolValue;
-          return "";
-        }));
+    if (typeof this.options.logger === "function") {
+      this.options.logger(JSON.stringify({
+        event: "TEMPLATE_DRIFT_AUDIT_EXECUTION",
+        spreadsheetId: this.spreadsheetId,
+        status,
+        canAutoPatch,
+        issuesCount: issues.length,
+        telemetry
+      }));
+    }
+
+    return report;
+  }
+
+  private getLiveSheetNames(): string[] {
+    if (this.batchData && this.batchData.sheets) {
+      return this.batchData.sheets.map(s => s.properties?.title || "").filter(Boolean);
+    }
+    if (this.seam) {
+      if (typeof this.seam.getSheets === "function") {
+        return this.seam.getSheets().map(s => s.getName());
       }
-      if (ssObject) {
-        const s = ssObject.getSheetByName(tabName);
-        if (s) {
-          apiReadCount++;
+      if (typeof this.seam.getTabNames === "function") {
+        return this.seam.getTabNames() || [];
+      }
+    }
+    return [];
+  }
+
+  private getSheetGrid(tabName: string): any[][] {
+    if (this.batchData && this.batchData.sheets) {
+      const sheet = this.batchData.sheets.find(s => s.properties?.title === tabName);
+      if (!sheet || !sheet.data || sheet.data.length === 0 || !sheet.data[0].rowData) {
+        return [];
+      }
+      return sheet.data[0].rowData.map(r => (r.values || []).map(v => {
+        if (!v) return "";
+        if (v.userEnteredValue?.formulaValue) return v.userEnteredValue.formulaValue;
+        if (v.userEnteredValue?.stringValue !== undefined) return v.userEnteredValue.stringValue;
+        if (v.userEnteredValue?.numberValue !== undefined) return v.userEnteredValue.numberValue;
+        if (v.userEnteredValue?.boolValue !== undefined) return v.userEnteredValue.boolValue;
+        return "";
+      }));
+    }
+    if (this.seam) {
+      if (typeof this.seam.getSheetByName === "function") {
+        const s = this.seam.getSheetByName(tabName);
+        if (s && typeof s.getDataRange === "function") {
+          this.apiReadCount++;
           return s.getDataRange().getValues();
         }
       }
-      if (adapter && typeof adapter.getSheetValues === "function") {
+      if (typeof this.seam.getSheetValues === "function") {
         try {
-          apiReadCount++;
-          return adapter.getSheetValues(tabName);
+          this.apiReadCount++;
+          return this.seam.getSheetValues(tabName) || [];
         } catch (e) { return []; }
       }
-      return [];
-    };
+    }
+    return [];
+  }
 
-    const hasNamedRange = (name: string, tabName?: string): boolean => {
-      if (batchData && batchData.namedRanges) {
-        return batchData.namedRanges.some(nr => {
-          if (nr.name === name) return true;
-          if (tabName && nr.name === tabName + "_" + name) return true;
-          return false;
-        });
-      }
-      if (ssObject && typeof ssObject.getNamedRanges === "function") {
-        const nrs = ssObject.getNamedRanges();
+  private hasNamedRange(name: string, tabName?: string): boolean {
+    if (this.batchData && this.batchData.namedRanges) {
+      return this.batchData.namedRanges.some(nr => {
+        if (nr.name === name) return true;
+        if (tabName && (nr.name === tabName + "_" + name || nr.name === tabName + "!" + name)) return true;
+        return false;
+      });
+    }
+    if (this.seam) {
+      if (typeof this.seam.getNamedRanges === "function") {
+        const nrs = this.seam.getNamedRanges();
         if (Array.isArray(nrs) && nrs.length > 0) {
-          return nrs.some((nr: any) => {
-            const nrName = typeof nr.getName === "function" ? nr.getName() : nr.name;
+          return nrs.some(nr => {
+            const nrName = nr.name || (typeof nr.getName === "function" ? nr.getName() : "");
             if (nrName === name) return true;
             if (tabName && (nrName === tabName + "_" + name || nrName === tabName + "!" + name)) return true;
             return false;
           });
         }
       }
-      if (ssObject && typeof ssObject.getRangeByName === "function") {
-        if (ssObject.getRangeByName(name)) return true;
-        if (tabName && (ssObject.getRangeByName(tabName + "_" + name) || ssObject.getRangeByName(tabName + "!" + name))) return true;
+      if (typeof this.seam.getRangeByName === "function") {
+        if (this.seam.getRangeByName(name)) return true;
+        if (tabName && (this.seam.getRangeByName(tabName + "_" + name) || this.seam.getRangeByName(tabName + "!" + name))) return true;
       }
-      return false;
-    };
+    }
+    return false;
+  }
 
-    const getNamedRangeValues = (name: string): any[][] => {
-      if (ssObject && typeof ssObject.getRangeByName === "function") {
-        const r = ssObject.getRangeByName(name);
-        if (r) {
-          apiReadCount++;
-          return r.getValues();
-        }
+  private getNamedRangeValues(name: string): any[][] {
+    if (this.seam && typeof this.seam.getRangeByName === "function") {
+      const r = this.seam.getRangeByName(name);
+      if (r && typeof r.getValues === "function") {
+        this.apiReadCount++;
+        return r.getValues();
       }
-      if (adapter && typeof adapter.getRangeValues === "function") {
-        try {
-          apiReadCount++;
-          return adapter.getRangeValues("_Config", "A1:B10");
-        } catch (e) {}
-      }
-      return [];
-    };
+    }
+    if (this.seam && typeof this.seam.getRangeValues === "function") {
+      try {
+        this.apiReadCount++;
+        return this.seam.getRangeValues("_Config", "A1:B10") || [];
+      } catch (e) {}
+    }
+    return [];
+  }
 
-    // --- DIMENSION 1: Schema Version Check ---
-    const configGrid = getSheetGrid("_Config");
+  private auditDimension1_SchemaVersion(issues: TemplateDriftIssue[], liveSheetNames: string[]): string | undefined {
+    let liveSchemaVersion: string | undefined = undefined;
+    const configGrid = this.getSheetGrid("_Config");
     const hasConfigTab = liveSheetNames.includes("_Config") || configGrid.length > 0;
 
     if (hasConfigTab) {
-      const nrValues = getNamedRangeValues("MANIFEST_SCHEMA_VERSION");
+      const nrValues = this.getNamedRangeValues("MANIFEST_SCHEMA_VERSION");
       if (nrValues.length > 0 && nrValues[0].length > 0) {
         liveSchemaVersion = String(nrValues[0][1] || nrValues[0][0] || "").trim();
       }
@@ -270,7 +329,10 @@ export class TemplateDriftAuditor {
       }
     }
 
-    // --- DIMENSION 2: Tab Taxonomy Audit ---
+    return liveSchemaVersion;
+  }
+
+  private auditDimension2_TabTaxonomy(issues: TemplateDriftIssue[], liveSheetNames: string[], hasConfigTab: boolean): void {
     if (!hasConfigTab) {
       issues.push({
         category: "TAB",
@@ -279,8 +341,7 @@ export class TemplateDriftAuditor {
       });
     }
 
-    const hasAuditLogTab = liveSheetNames.includes("_AuditLog");
-    if (!hasAuditLogTab) {
+    if (!liveSheetNames.includes("_AuditLog")) {
       issues.push({
         category: "TAB",
         severity: "WARNING",
@@ -289,8 +350,7 @@ export class TemplateDriftAuditor {
     }
 
     for (const specTab of DOCUMENT_LOG_WORKBOOK_SPEC.tabs) {
-      const exists = liveSheetNames.includes(specTab.name);
-      if (!exists) {
+      if (!liveSheetNames.includes(specTab.name)) {
         if (specTab.isLogTab) {
           issues.push({
             category: "TAB",
@@ -312,13 +372,13 @@ export class TemplateDriftAuditor {
         }
       }
     }
+  }
 
-    // --- DIMENSION 3: Named Range Registry Audit ---
+  private auditDimension3_NamedRanges(issues: TemplateDriftIssue[], liveSheetNames: string[]): void {
     for (const nrSpec of DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges) {
       if (!liveSheetNames.includes(nrSpec.tabName)) continue;
 
-      const exists = hasNamedRange(nrSpec.name, nrSpec.tabName);
-
+      const exists = this.hasNamedRange(nrSpec.name, nrSpec.tabName);
       if (!exists) {
         if (nrSpec.scope === "Sheet" || nrSpec.name === "AuditLog_Events") {
           issues.push({
@@ -335,17 +395,18 @@ export class TemplateDriftAuditor {
         }
       }
     }
+  }
 
-    // --- DIMENSION 4 & 5 & 6: Header, Formula, & Data Validation Audits ---
+  private auditDimensions4_5_6_LogTabs(issues: TemplateDriftIssue[], liveSheetNames: string[]): void {
     for (const specTab of DOCUMENT_LOG_WORKBOOK_SPEC.tabs) {
       if (!specTab.isLogTab || !specTab.columns || !liveSheetNames.includes(specTab.name)) {
         continue;
       }
 
-      const grid = getSheetGrid(specTab.name);
+      const grid = this.getSheetGrid(specTab.name);
       const liveHeaders = grid.length >= 3 ? grid[2].map(h => String(h || "").trim()) : (grid.length >= 1 ? grid[0].map(h => String(h || "").trim()) : []);
 
-      // Dimension 4: Header Schema Alignment Audit
+      // Dimension 4: Headers
       for (let colIdx = 0; colIdx < specTab.columns.length; colIdx++) {
         const colSpec = specTab.columns[colIdx];
         const liveHeader = liveHeaders[colIdx] || "";
@@ -373,16 +434,15 @@ export class TemplateDriftAuditor {
         }
       }
 
-      // Dimension 5: Formula Integrity Audit (Strictly Scoped to FormulaRow)
-      // Dynamically resolve formula row index from FormulaRow named range notation or fallback
-      let formulaRowIdx = 3; // Default Row 4 (index 3) in standard view spec
-      if (batchData && batchData.namedRanges) {
-        const nr = batchData.namedRanges.find(r => r.name === "FormulaRow" || r.name === specTab.name + "_FormulaRow");
+      // Dimension 5: Formulas (FormulaRow)
+      let formulaRowIdx = 3; // Default Row 4 (index 3)
+      if (this.batchData && this.batchData.namedRanges) {
+        const nr = this.batchData.namedRanges.find(r => r.name === "FormulaRow" || r.name === specTab.name + "_FormulaRow");
         if (nr && nr.range && typeof nr.range.startRowIndex === "number") {
           formulaRowIdx = nr.range.startRowIndex;
         }
-      } else if (ssObject && typeof ssObject.getRangeByName === "function") {
-        const nr = ssObject.getRangeByName("FormulaRow") || ssObject.getRangeByName(specTab.name + "_FormulaRow");
+      } else if (this.seam && typeof this.seam.getRangeByName === "function") {
+        const nr = this.seam.getRangeByName("FormulaRow") || this.seam.getRangeByName(specTab.name + "_FormulaRow");
         if (nr && typeof nr.getRow === "function") {
           formulaRowIdx = nr.getRow() - 1;
         }
@@ -420,19 +480,22 @@ export class TemplateDriftAuditor {
         }
       }
 
-      // Dimension 6: Picklist Data Validation Audit
+      // Dimension 6: Validations
       for (let colIdx = 0; colIdx < specTab.columns.length; colIdx++) {
         const colSpec = specTab.columns[colIdx];
         if (!colSpec.validationRange) continue;
 
         let hasValidation = false;
-        if (hasNamedRange(colSpec.validationRange)) {
+        if (this.hasNamedRange(colSpec.validationRange)) {
           hasValidation = true;
-        } else if (ssObject) {
-          const sheet = ssObject.getSheetByName(specTab.name);
-          if (sheet) {
-            const rule = sheet.getRange(2, colIdx + 1).getDataValidation();
-            hasValidation = !!rule;
+        } else if (this.seam && typeof this.seam.getSheetByName === "function") {
+          const sheet = this.seam.getSheetByName(specTab.name);
+          if (sheet && typeof sheet.getRange === "function") {
+            const range = sheet.getRange(2, colIdx + 1);
+            if (range && typeof range.getDataValidation === "function") {
+              const rule = range.getDataValidation();
+              hasValidation = !!rule;
+            }
           }
         }
 
@@ -445,74 +508,41 @@ export class TemplateDriftAuditor {
         }
       }
     }
+  }
 
-    // Determine Overall Status & Auto-Patch Boundary
-    let status: SchemaDriftStatus = "MATCH";
-    let canAutoPatch = true;
-
+  private classifyStatus(issues: TemplateDriftIssue[], hasConfigTab: boolean): { status: SchemaDriftStatus; canAutoPatch: boolean } {
     const criticalCount = issues.filter(i => i.severity === "CRITICAL").length;
     const warningCount = issues.filter(i => i.severity === "WARNING").length;
 
     if (criticalCount > 0) {
-      if (!hasConfigTab) {
-        status = "INCOMPATIBLE";
-      } else {
-        status = "MAJOR_DRIFT";
-      }
-      canAutoPatch = false;
+      return {
+        status: !hasConfigTab ? "INCOMPATIBLE" : "MAJOR_DRIFT",
+        canAutoPatch: false
+      };
     } else if (warningCount > 0) {
-      status = "MINOR_DRIFT";
-      canAutoPatch = true;
-    } else {
-      status = "MATCH";
-      canAutoPatch = true;
+      return {
+        status: "MINOR_DRIFT",
+        canAutoPatch: true
+      };
     }
-
-    const auditDurationMs = Date.now() - startTime;
-    const telemetry: TemplateDriftTelemetry = {
-      auditDurationMs,
-      tabCount: liveSheetNames.length,
-      inspectionStrategy,
-      apiReadCount
-    };
-
-    const executionLogPayload = JSON.stringify({
-      event: "TEMPLATE_DRIFT_AUDIT_EXECUTION",
-      spreadsheetId,
-      status,
-      canAutoPatch,
-      issuesCount: issues.length,
-      telemetry
-    });
-
-    if (typeof options.logger === "function") {
-      options.logger(executionLogPayload);
-    } else if ((globalThis as any).Logger && typeof (globalThis as any).Logger.log === "function") {
-      (globalThis as any).Logger.log(executionLogPayload);
-    }
-
-    let summary = "";
-    if (status === "MATCH") {
-      summary = "All structural contracts, tabs, and Named Ranges validated against Schema v" + (liveSchemaVersion || TemplateDriftAuditor.CODE_SCHEMA_VERSION) + ".";
-    } else if (status === "MINOR_DRIFT") {
-      summary = "Detected " + warningCount + " non-critical drift issue(s). Auto-patching is ready.";
-    } else if (status === "MAJOR_DRIFT") {
-      summary = "Detected " + criticalCount + " critical structural discrepancy(ies). Manual migration required.";
-    } else {
-      summary = "Workbook is missing core _Config manifest. Incompatible Document Log.";
-    }
-
     return {
-      timestamp: new Date().toISOString(),
-      spreadsheetId,
-      status,
-      liveSchemaVersion: liveSchemaVersion || "N/A",
-      codeSchemaVersion: TemplateDriftAuditor.CODE_SCHEMA_VERSION,
-      issues,
-      canAutoPatch,
-      summary,
-      telemetry
+      status: "MATCH",
+      canAutoPatch: true
     };
+  }
+
+  private generateSummary(status: SchemaDriftStatus, issues: TemplateDriftIssue[], liveVersion?: string): string {
+    const criticalCount = issues.filter(i => i.severity === "CRITICAL").length;
+    const warningCount = issues.filter(i => i.severity === "WARNING").length;
+
+    if (status === "MATCH") {
+      return "All structural contracts, tabs, and Named Ranges validated against Schema v" + (liveVersion || TemplateDriftAuditor.CODE_SCHEMA_VERSION) + ".";
+    } else if (status === "MINOR_DRIFT") {
+      return "Detected " + warningCount + " non-critical drift issue(s). Auto-patching is ready.";
+    } else if (status === "MAJOR_DRIFT") {
+      return "Detected " + criticalCount + " critical structural discrepancy(ies). Manual migration required.";
+    }
+    return "Workbook is missing core _Config manifest. Incompatible Document Log.";
   }
 }
 
