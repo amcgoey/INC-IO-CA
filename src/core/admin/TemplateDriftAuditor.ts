@@ -1,4 +1,6 @@
 /// <reference path="../../types.ts" />
+declare var LogEngine: any;
+declare var PrefixCacheManager: any;
 /**
  * @file TemplateDriftAuditor.ts
  * @description Tier 1 Pure Core inspection engine auditing 6 structural dimensions of Google Sheet workbooks
@@ -36,6 +38,25 @@ export interface TemplateDriftReport {
   canAutoPatch: boolean;
   summary: string;
   telemetry?: TemplateDriftTelemetry;
+}
+
+
+export type AutoPatchStatus = "PATCHED" | "NO_OP" | "LOCK_CONTENTION" | "UNPATCHABLE" | "REPAIR_FAILED";
+
+export interface AutoPatchResult {
+  success: boolean;
+  status: AutoPatchStatus;
+  spreadsheetId: string;
+  auditReport?: TemplateDriftReport;
+  repairsApplied: string[];
+  error?: string;
+  telemetry?: TemplateDriftTelemetry;
+}
+
+export interface AutoPatchWorkbookOptions {
+  lockAdapter?: SpreadsheetLockAdapter;
+  cacheAdapter?: CacheAdapter;
+  logger?: (logPayloadJson: string) => void;
 }
 
 export interface AuditWorkbookOptions {
@@ -99,8 +120,16 @@ export class TemplateDriftAuditor {
     const inspector = new TemplateDriftInspector(storageAdapter, options);
     return inspector.runAudit(startTime);
   }
-}
 
+  public static autoPatchWorkbook(
+    storageAdapter: StorageAdapterInput,
+    options: AutoPatchWorkbookOptions = {}
+  ): AutoPatchResult {
+    const patcher = new TemplateDriftPatcher(storageAdapter, options);
+    return patcher.runAutoPatch();
+  }
+
+}
 class TemplateDriftInspector {
   private spreadsheetId: string = "active-workbook";
   private apiReadCount: number = 0;
@@ -540,6 +569,288 @@ class TemplateDriftInspector {
     return "Workbook is missing core _Config manifest. Incompatible Document Log.";
   }
 }
+
+
+class TemplateDriftPatcher {
+  private storageInput: StorageAdapterInput;
+  private options: AutoPatchWorkbookOptions;
+  private spreadsheetId: string = "active-workbook";
+
+  constructor(storageInput: StorageAdapterInput, options: AutoPatchWorkbookOptions) {
+    this.storageInput = storageInput;
+    this.options = options;
+    this.resolveSpreadsheetId(storageInput);
+  }
+
+  private resolveSpreadsheetId(input: StorageAdapterInput): void {
+    if (!input) return;
+    if (typeof input === "object" && Array.isArray((input as any).sheets)) {
+      this.spreadsheetId = (input as any).spreadsheetId || "active-workbook";
+    } else if (typeof input === "object") {
+      const seam = input as any;
+      if (typeof seam.getId === "function") {
+        this.spreadsheetId = seam.getId();
+      } else {
+        this.spreadsheetId = seam.spreadsheetId || seam.id || "active-workbook";
+      }
+    } else if (typeof input === "string") {
+      this.spreadsheetId = input;
+    }
+  }
+
+  private resolveLockAdapter(): SpreadsheetLockAdapter | null {
+    if (this.options.lockAdapter) return this.options.lockAdapter;
+    const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
+    if (g.defaultSpreadsheetLockAdapter) return g.defaultSpreadsheetLockAdapter;
+    if (g.FakeSpreadsheetLockAdapter) return new g.FakeSpreadsheetLockAdapter();
+    return null;
+  }
+
+  private resolveCacheAdapter(): CacheAdapter | null {
+    if (this.options.cacheAdapter) return this.options.cacheAdapter;
+    const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
+    if (g.defaultCacheAdapter) return g.defaultCacheAdapter;
+    if (g.FakeCacheAdapter) return new g.FakeCacheAdapter();
+    return null;
+  }
+
+  private invalidateConfigCache(): void {
+    const cacheAdapter = this.resolveCacheAdapter();
+    if (cacheAdapter) {
+      try {
+        const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
+        const PrefixManagerClass = g.PrefixCacheManager || (typeof PrefixCacheManager !== "undefined" ? PrefixCacheManager : null);
+        if (PrefixManagerClass) {
+          const manager = new PrefixManagerClass(cacheAdapter);
+          manager.invalidatePrefix("DOC_CONFIG_" + this.spreadsheetId);
+        }
+      } catch (e) {}
+    }
+  }
+
+  private hasNamedRangeInSeam(seam: any, name: string, tabName: string): boolean {
+    if (typeof seam.getNamedRanges === "function") {
+      const nrs = seam.getNamedRanges();
+      if (Array.isArray(nrs)) {
+        return nrs.some((nr: any) => {
+          const nrName = nr.name || (typeof nr.getName === "function" ? nr.getName() : "");
+          return nrName === name || nrName === tabName + "_" + name || nrName === tabName + "!" + name;
+        });
+      }
+    }
+    if (typeof seam.getRangeByName === "function") {
+      if (seam.getRangeByName(name) || seam.getRangeByName(tabName + "_" + name) || seam.getRangeByName(tabName + "!" + name)) return true;
+    }
+    return false;
+  }
+
+  public runAutoPatch(): AutoPatchResult {
+    const lockAdapter = this.resolveLockAdapter();
+    let executionId: string | null = null;
+
+    if (lockAdapter && typeof lockAdapter.acquireLock === "function") {
+      executionId = lockAdapter.acquireLock(this.spreadsheetId, 5000);
+      if (!executionId) {
+        if (typeof this.options.logger === "function") {
+          this.options.logger(JSON.stringify({
+            event: "AUTO_PATCH_LOCK_CONTENTION",
+            spreadsheetId: this.spreadsheetId,
+            status: "LOCK_CONTENTION",
+            message: "Failed to acquire workbook lock (LOCK_MIGRATION_" + this.spreadsheetId + ") within 5,000 ms timeout."
+          }));
+        }
+        return {
+          success: false,
+          status: "LOCK_CONTENTION",
+          spreadsheetId: this.spreadsheetId,
+          repairsApplied: [],
+          error: "Failed to acquire workbook lock (LOCK_MIGRATION_" + this.spreadsheetId + ") within 5,000 ms timeout."
+        };
+      }
+    }
+
+    try {
+      // 1. Double-checked audit under lock
+      const initialReport = TemplateDriftAuditor.auditWorkbook(this.storageInput, { bypassCache: true });
+
+      if (initialReport.status === "MATCH") {
+        return {
+          success: true,
+          status: "NO_OP",
+          spreadsheetId: this.spreadsheetId,
+          auditReport: initialReport,
+          repairsApplied: []
+        };
+      }
+
+      if (!initialReport.canAutoPatch || initialReport.status === "MAJOR_DRIFT" || initialReport.status === "INCOMPATIBLE") {
+        return {
+          success: false,
+          status: "UNPATCHABLE",
+          spreadsheetId: this.spreadsheetId,
+          auditReport: initialReport,
+          repairsApplied: [],
+          error: "Workbook has major structural drift or incompatible schema that cannot be auto-patched."
+        };
+      }
+
+      // 2. Perform minor non-destructive repairs
+      const repairsApplied: string[] = [];
+      const seam = this.storageInput as any;
+
+      // Repair A: Initialize missing _AuditLog tab
+      const sheetNames = typeof seam.getTabNames === "function" ? seam.getTabNames() : (
+        typeof seam.getSheets === "function" ? seam.getSheets().map((s: any) => s.getName()) : []
+      );
+
+      if (!sheetNames.includes("_AuditLog")) {
+        if (typeof seam.insertSheet === "function") {
+          const auditSheet = seam.insertSheet("_AuditLog", [
+            ["Timestamp", "Category", "EventType", "Actor", "Status", "Details"]
+          ]);
+          if (typeof seam.setNamedRange === "function") {
+            seam.setNamedRange("AuditLog_Events", "_AuditLog", "A2:F100");
+          } else if (auditSheet && typeof auditSheet.setNamedRange === "function") {
+            auditSheet.setNamedRange("AuditLog_Events", "A2:F100");
+          }
+          repairsApplied.push("Initialized missing system audit log tab '_AuditLog'");
+        }
+      }
+
+      // Repair B: Sheet-scoped Named Ranges (Headers, FormulaRow, Data) on log tabs
+      for (const specTab of DOCUMENT_LOG_WORKBOOK_SPEC.tabs) {
+        if (!specTab.isLogTab || !sheetNames.includes(specTab.name)) continue;
+
+        const tabName = specTab.name;
+
+        if (!this.hasNamedRangeInSeam(seam, "Headers", tabName) && typeof seam.setNamedRange === "function") {
+          seam.setNamedRange("Headers", tabName, "A3:Z3");
+          repairsApplied.push("Re-created sheet-scoped Named Range 'Headers' on tab '" + tabName + "'");
+        }
+
+        if (!this.hasNamedRangeInSeam(seam, "FormulaRow", tabName) && typeof seam.setNamedRange === "function") {
+          seam.setNamedRange("FormulaRow", tabName, "A2:Z2");
+          repairsApplied.push("Re-created sheet-scoped Named Range 'FormulaRow' on tab '" + tabName + "'");
+        }
+
+        if (!this.hasNamedRangeInSeam(seam, "Data", tabName) && typeof seam.setNamedRange === "function") {
+          seam.setNamedRange("Data", tabName, "A4:Z1000");
+          repairsApplied.push("Re-created sheet-scoped Named Range 'Data' on tab '" + tabName + "'");
+        }
+      }
+
+      // Repair C: Default _Config key rows if MANIFEST_SCHEMA_VERSION missing
+      if (sheetNames.includes("_Config")) {
+        const configValues = typeof seam.getSheetValues === "function" ? seam.getSheetValues("_Config") : [];
+        let hasVersionKey = false;
+        for (const row of configValues) {
+          if (row && String(row[0]).trim() === "MANIFEST_SCHEMA_VERSION") {
+            hasVersionKey = true;
+            break;
+          }
+        }
+        if (!hasVersionKey) {
+          if (typeof seam.setRangeValue === "function") {
+            seam.setRangeValue("_Config", 2, 1, "MANIFEST_SCHEMA_VERSION");
+            seam.setRangeValue("_Config", 2, 2, TemplateDriftAuditor.CODE_SCHEMA_VERSION);
+            if (typeof seam.setNamedRange === "function") {
+              seam.setNamedRange("MANIFEST_SCHEMA_VERSION", "_Config", "A2:B2");
+            }
+            repairsApplied.push("Appended missing default '_Config' key 'MANIFEST_SCHEMA_VERSION'");
+          }
+        }
+      }
+
+      // 3. Post-repair Cache Invalidation
+      this.invalidateConfigCache();
+
+      // 4. Log telemetry events to _AuditLog
+      this.writeTelemetryEvents(seam, repairsApplied);
+
+      // 5. Re-run post-repair audit
+      const finalReport = TemplateDriftAuditor.auditWorkbook(this.storageInput, { bypassCache: true });
+
+      return {
+        success: true,
+        status: "PATCHED",
+        spreadsheetId: this.spreadsheetId,
+        auditReport: finalReport,
+        repairsApplied
+      };
+
+    } catch (err: any) {
+      // Mid-Repair Exception Recovery
+      const errorMessage = String(err && err.message ? err.message : err);
+
+      this.invalidateConfigCache();
+
+      try {
+        this.writeFailureEvent(this.storageInput, errorMessage);
+      } catch (e) {}
+
+      return {
+        success: false,
+        status: "REPAIR_FAILED",
+        spreadsheetId: this.spreadsheetId,
+        repairsApplied: [],
+        error: errorMessage
+      };
+    } finally {
+      if (lockAdapter && executionId && typeof lockAdapter.releaseLock === "function") {
+        lockAdapter.releaseLock(this.spreadsheetId, executionId);
+      }
+    }
+  }
+
+  private getLogEngineClass(): any {
+    const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
+    if (g.LogEngine) return g.LogEngine;
+    if (typeof LogEngine !== "undefined") return LogEngine;
+    if (typeof require !== "undefined") {
+      try {
+        return require("../log/LogEngine").LogEngine;
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  private writeTelemetryEvents(seam: any, repairsApplied: string[]): void {
+    try {
+      const now = new Date().toISOString();
+      const auditSheet = typeof seam.getSheetByName === "function" ? seam.getSheetByName("_AuditLog") : null;
+      if (auditSheet) {
+        const row1 = [now, "SCHEMA_DRIFT", "DRIFT_REPAIR_EXECUTED", "TemplateDriftAuditor", "SUCCESS", JSON.stringify({ repairsApplied, count: repairsApplied.length })];
+        const row2 = [now, "CACHE_PURGE", "EVICT_PREFIX", "TemplateDriftAuditor", "SUCCESS", JSON.stringify({ scope: "DOC_CONFIG_" + this.spreadsheetId })];
+        if (typeof auditSheet.appendRow === "function") {
+          auditSheet.appendRow(row1);
+          auditSheet.appendRow(row2);
+        } else if (typeof auditSheet.setGridSlice === "function") {
+          const data = typeof auditSheet.getDataRange === "function" ? auditSheet.getDataRange().getValues() : [];
+          const startRow = data.length + 1;
+          auditSheet.setGridSlice(startRow, 1, [row1]);
+          auditSheet.setGridSlice(startRow + 1, 1, [row2]);
+        }
+      }
+    } catch (e) {}
+  }
+
+  private writeFailureEvent(seam: any, errorMessage: string): void {
+    try {
+      const now = new Date().toISOString();
+      const auditSheet = typeof seam.getSheetByName === "function" ? seam.getSheetByName("_AuditLog") : null;
+      if (auditSheet) {
+        const row = [now, "SCHEMA_DRIFT", "DRIFT_REPAIR_FAILED", "TemplateDriftAuditor", "ERROR", JSON.stringify({ error: errorMessage })];
+        if (typeof auditSheet.appendRow === "function") {
+          auditSheet.appendRow(row);
+        } else if (typeof auditSheet.setGridSlice === "function") {
+          const data = typeof auditSheet.getDataRange === "function" ? auditSheet.getDataRange().getValues() : [];
+          auditSheet.setGridSlice(data.length + 1, 1, [row]);
+        }
+      }
+    } catch (e) {}
+  }
+}
+
 
 declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
