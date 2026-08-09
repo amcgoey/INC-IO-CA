@@ -236,10 +236,12 @@ The dual-layer concurrency lock protocol where short-lived native `LockService.g
 _Avoid_: ScriptWideLock, MonolithicScriptLock
 
 **TwoPhaseBatchHyperlinkRepair**:
-The 2-phase execution sequence for multi-workbook batch migrations where Phase 1 completes row migration and validation across all workbooks (`MIGRATION_COMPLETE`), followed by Phase 2 (`repairCrossLogReferences`) executing cross-log hyperlink repair across all workbooks once target spreadsheet IDs, tab GIDs, and row positions are 100% finalized. Phase 2 hyperlink repairs use isolated per-workbook `TargetTabSnapshot` boundaries.
+The 2-phase execution sequence for multi-workbook batch migrations where Phase 1 completes row migration and validation across all workbooks (`MIGRATION_COMPLETE`), followed by Phase 2 (`repairCrossLogReferences`) executing cross-log hyperlink repair across all workbooks once target spreadsheet IDs, tab GIDs, and row positions are 100% finalized. Phase 2 hyperlink repairs use isolated per-workbook `TargetTabSnapshot` boundaries. If a cross-log reference targets an unmigrated or failed workbook, the scanner preserves the existing legacy URL, logs a `HYPERLINK_TARGET_UNMIGRATED` diagnostic event to `_AuditLog`, and continues repairing valid references.
+
 
 **BatchMigrationLifecyclePhases**:
-The explicit state machine governing `migration_batch_manifest.json` execution phases (`PHASE_1_ROW_MIGRATION`, `PHASE_2_HYPERLINK_REPAIR`, `PAUSED_TIMEOUT`, `COMPLETED`, `FAILED`) and per-workbook entry statuses (`PENDING`, `IN_PROGRESS`, `PAUSED_TIMEOUT`, `MIGRATION_COMPLETE`, `REPAIR_IN_PROGRESS`, `COMPLETED`, `FAILED`), supporting automated stale snapshot crash recovery upon trigger resumption.
+The explicit state machine governing `migration_batch_manifest.json` execution phases (`PHASE_1_ROW_MIGRATION`, `PHASE_2_HYPERLINK_REPAIR`, `PAUSED_TIMEOUT`, `COMPLETED`, `FAILED`) and per-workbook entry statuses (`PENDING`, `IN_PROGRESS`, `PAUSED_TIMEOUT`, `MIGRATION_COMPLETE`, `REPAIR_IN_PROGRESS`, `COMPLETED`, `FAILED`), supporting automated stale snapshot crash recovery upon trigger resumption. Individual workbook pre-flight or migration failures mark the workbook status as `FAILED`, emit an execution report to `_AuditLog`, and skip to the next workbook without aborting the broader batch run.
+
 
 **AuditLogTab (`_AuditLog`)**:
 The dedicated, system-managed administrative tab within `DocumentLogWorkbook` used to persist structured execution logs, telemetry, and event history across system features (e.g. `MIGRATION`, `SCHEMA_DRIFT`, `CACHE_PURGE`, `ADMIN_ACTION`). Includes a dedicated `Category` column alongside `Timestamp`, `EventType`, `Actor`, `Status`, and `Details` JSON for structured filtering and parsing, keeping telemetry completely separate from `_Config`.
