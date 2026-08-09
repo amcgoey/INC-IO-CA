@@ -6,14 +6,77 @@
  */
 
 const DEFAULT_SUBMITTAL_FIELDS: DocumentFieldSpec[] = [
-  { key: 'section', label: 'Section', type: 'string', required: true, description: 'CSI Section # (6 digits)', header: 'Section' },
-  { key: 'number', label: 'Number', type: 'string', required: true, description: 'Submittal #', header: 'Number' },
-  { key: 'title', label: 'Title', type: 'string', required: true, description: 'Submittal Title', header: 'Title' },
+  { key: 'date', label: 'Date', type: 'date', required: true, header: 'Date' },
+  { key: 'contact', label: 'Contact', type: 'string', required: true, header: 'Contact' },
+  { key: 'action', label: 'Action', type: 'string', required: true, header: 'Action' },
+  { key: 'incomingRouting', label: 'Incoming Routing', type: 'string', required: false, header: 'Incoming Routing' },
+  { key: 'title', label: 'Title', type: 'string', required: true, header: 'Title' },
+  { key: 'section', label: 'Section', type: 'string', required: false, description: 'CSI Section # (6 digits)', header: 'Section', keyNormalizationRule: 'code' },
+  { key: 'number', label: 'Number', type: 'string', required: false, description: 'Submittal #', header: 'Number' },
   { key: 'revision', label: 'Revision', type: 'string', required: false, description: 'Revision #', defaultValue: '0', header: 'Revision' },
-  { key: 'date', label: 'Date', type: 'date', required: true, description: 'Date (YYMMDD)', header: 'Date' },
   { key: 'notes', label: 'Notes', type: 'multiline', required: false, description: 'Notes', header: 'Notes' },
   { key: 'calcFileName', label: 'Calc File Name', type: 'string', isCalculated: true, header: 'Calc File Name', formulaOrFunction: '=CONCAT()' }
 ];
+
+const DEFAULT_FFE_SUBMITTAL_FIELDS: DocumentFieldSpec[] = [
+  { key: 'date', label: 'Date', type: 'date', required: true, header: 'Date' },
+  { key: 'contact', label: 'Contact', type: 'string', required: true, header: 'Contact' },
+  { key: 'action', label: 'Action', type: 'string', required: true, header: 'Action' },
+  { key: 'incomingRouting', label: 'Incoming Routing', type: 'string', required: false, header: 'Incoming Routing' },
+  { key: 'specTag', label: 'Spec Tag', type: 'string', required: true, header: 'Spec Tag' },
+  { key: 'specTitle', label: 'Spec Title', type: 'string', required: true, header: 'Spec Title' },
+  { key: 'vendor', label: 'Vendor', type: 'string', required: true, header: 'Vendor' },
+  { key: 'revision', label: 'Revision', type: 'string', required: false, header: 'Revision' },
+  { key: 'relatedTag', label: 'Related Tag', type: 'string', required: false, header: 'Related Tag' },
+  { key: 'notes', label: 'Notes', type: 'multiline', required: false, header: 'Notes' }
+];
+
+function ffeStrategyValidationHook(rawDoc: RawDocument, context?: ValidationContext): ValidationResult | void {
+  const specTag = (rawDoc.specTag || '').trim();
+  const vendor = (rawDoc.vendor || '').trim();
+  const relatedTag = (rawDoc.relatedTag || '').trim();
+
+  const validTags = context?.ffeTags?.tags || [];
+  const validVendors = context?.ffeTags?.vendors || [];
+
+  if (relatedTag) {
+    const inputRelatedTags = relatedTag.split(',').map(t => t.trim()).filter(Boolean);
+    const invalidRelatedTags = inputRelatedTags.filter(
+      t => !validTags.some(valid => valid.toLowerCase() === t.toLowerCase())
+    );
+    if (invalidRelatedTags.length > 0) {
+      return {
+        status: 'error',
+        errors: [`Invalid Related Tags: ${invalidRelatedTags.join(', ')}. Only valid options from the tag list are accepted.`]
+      };
+    }
+  }
+
+  const bypassTag = !!context?.bypassTagValidation;
+  const bypassVendor = !!context?.bypassVendorValidation;
+
+  if (specTag) {
+    const tagExists = validTags.some(t => t.toLowerCase() === specTag.toLowerCase());
+    if (!tagExists && !bypassTag) {
+      return {
+        status: 'interaction_required',
+        interactionType: 'ADD_TAG',
+        message: `Spec Tag "${specTag}" is not in the Tag List. Would you like to add it?`
+      };
+    }
+  }
+
+  if (vendor) {
+    const vendorExists = validVendors.some(v => v.toLowerCase() === vendor.toLowerCase());
+    if (!vendorExists && !bypassVendor) {
+      return {
+        status: 'interaction_required',
+        interactionType: 'ADD_VENDOR',
+        message: `Vendor "${vendor}" is not in the Tag List. Would you like to add it?`
+      };
+    }
+  }
+}
 
 const DEFAULT_SUBMITTAL_CONFIG: DocumentTypeConfig = {
   documentType: 'Submittal',
@@ -34,6 +97,25 @@ const DEFAULT_SUBMITTAL_CONFIG: DocumentTypeConfig = {
   pdfAdapterKey: 'PdfDocumentService',
   aiAdapterKey: 'GeminiAiAnalysisAdapter',
   fields: DEFAULT_SUBMITTAL_FIELDS
+};
+
+const DEFAULT_ARCH_CONFIG: DocumentTypeConfig = {
+  ...DEFAULT_SUBMITTAL_CONFIG,
+  documentType: 'Architecture'
+};
+
+const DEFAULT_FFE_CONFIG: DocumentTypeConfig = {
+  documentType: 'FF&E',
+  rootFolderSearchTerms: ['FF&E', 'FFE'],
+  projectSearchTerms: ['FF&E', 'FFE'],
+  closedRootFolderName: 'Closed',
+  filenamePrefix: '_',
+  logSearchTerms: ['ffe log', 'ff&e log'],
+  logSheetName: 'Submittal FFE',
+  logAdapterKey: 'GoogleSheetsLogRepository',
+  filingAdapterKey: 'GoogleDriveFilingRepository',
+  fields: DEFAULT_FFE_SUBMITTAL_FIELDS,
+  validateHook: ffeStrategyValidationHook
 };
 
 /**
@@ -96,25 +178,36 @@ class DocumentTypeConfigRegistry {
   /**
    * Retrieves a DocumentTypeConfig by document type name.
    */
-  public getConfig(documentType: string): DocumentTypeConfig {
-    const config = this.configs.get(documentType);
-    if (!config) {
-      throw new Error('DocumentTypeConfig not registered for document type: ' + documentType);
+  private findConfigKey(documentType: string): string | undefined {
+    if (!documentType) return undefined;
+    if (this.configs.has(documentType)) return documentType;
+    const lower = documentType.toLowerCase();
+    for (const key of this.configs.keys()) {
+      if (key.toLowerCase() === lower) return key;
     }
-    return config;
+    return undefined;
+  }
+
+  /**
+   * Retrieves a DocumentTypeConfig by document type name.
+   */
+  public getConfig(documentType: string): DocumentTypeConfig {
+    const key = this.findConfigKey(documentType);
+    if (key) return this.configs.get(key)!;
+    throw new Error('DocumentTypeConfig not registered for document type: ' + documentType);
   }
 
   /**
    * Checks if a DocumentTypeConfig is registered for a given document type.
    */
   public hasConfig(documentType: string): boolean {
-    return this.configs.has(documentType);
+    return this.findConfigKey(documentType) !== undefined;
   }
 
   /**
    * Parses dynamic field subtable 2D array rows from _Config (Config_<DocTypeKey>_Fields) into DocumentFieldSpec[].
    */
-  public parseFieldSpecs(rows: any[][]): DocumentFieldSpec[] {
+  public parseFieldSpecs(rows: unknown[][]): DocumentFieldSpec[] {
     if (!rows || rows.length === 0) return [];
 
     let headerRowIdx = 0;
@@ -201,11 +294,13 @@ class DocumentTypeConfigRegistry {
   }
 
   /**
-   * Resets the registry back to default state (pre-configured for Submittal).
+   * Resets the registry back to default state (pre-configured for Submittal, Architecture, FF&E).
    */
   public reset(): void {
     this.configs.clear();
     this.registerConfig({ ...DEFAULT_SUBMITTAL_CONFIG });
+    this.registerConfig({ ...DEFAULT_ARCH_CONFIG });
+    this.registerConfig({ ...DEFAULT_FFE_CONFIG });
   }
 }
 
@@ -217,7 +312,9 @@ if (typeof module !== 'undefined' && module.exports) {
     DocumentTypeConfigRegistry,
     defaultDocumentTypeConfigRegistry,
     resolve5TierFieldValue,
-    DEFAULT_SUBMITTAL_FIELDS
+    DEFAULT_SUBMITTAL_FIELDS,
+    DEFAULT_FFE_SUBMITTAL_FIELDS,
+    ffeStrategyValidationHook
   };
 }
 

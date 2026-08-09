@@ -750,6 +750,7 @@ interface DocumentTypeConfig {
   pdfAdapterKey?: string;
   aiAdapterKey?: string;
   fields?: DocumentFieldSpec[];
+  validateHook?: (rawDoc: RawDocument, context?: ValidationContext) => ValidationResult | void;
 }
 
 interface ContextAdapters {
