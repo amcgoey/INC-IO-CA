@@ -383,3 +383,31 @@ test("GoogleAppsScriptPdfDocumentService.slicePagesToBase64 loads blob, copies u
   assert.strictEqual(addedPagesCount, 5);
 });
 
+
+test("GoogleAppsScriptPdfDocumentService.mergeBlobsToPdf masks signed bytes correctly with blobToUint8Array (Fix 3)", async () => {
+  let loadedBytes: Uint8Array | null = null;
+  (globalThis as any).PDFLib = {
+    PDFDocument: {
+      create: async () => ({
+        copyPages: async () => [],
+        addPage: () => ({ drawImage: () => {} }),
+        embedPng: async (bytes: Uint8Array) => {
+          loadedBytes = bytes;
+          return { width: 100, height: 100 };
+        },
+        save: async () => new Uint8Array([1, 2, 3])
+      })
+    }
+  };
+
+  const service = new GoogleAppsScriptPdfDocumentService();
+  const mockSignedBlob = {
+    getBytes: () => [-1, -128, 127], // -1 -> 255, -128 -> 128, 127 -> 127
+    getContentType: () => "image/png"
+  } as any;
+
+  await service.mergeBlobsToPdf([mockSignedBlob], "test_png.pdf");
+
+  assert.ok(loadedBytes);
+  assert.deepStrictEqual(Array.from(loadedBytes!), [255, 128, 127]);
+});

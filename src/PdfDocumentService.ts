@@ -239,7 +239,7 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
     const mergedPdf = await pdfLib.PDFDocument.create();
 
     for (const blob of blobs) {
-      const bytes = (blob && typeof blob.getBytes === "function") ? new Uint8Array(blob.getBytes()) : new Uint8Array(0);
+      const bytes = (blob && typeof blob.getBytes === "function") ? blobToUint8Array(blob) : new Uint8Array(0);
       const contentType = (blob && typeof blob.getContentType === "function" ? (blob.getContentType() || "") : "").toLowerCase();
 
       if (contentType.includes("pdf")) {

@@ -111,7 +111,7 @@ export class FakePdfDocumentService implements PdfDocumentService {
     this.calls.push({ method: "mergeBlobsToPdf", args: [blobs, newFileName] });
     if (this.mergeBlobsResultBlob) return this.mergeBlobsResultBlob;
     const name = newFileName || "composite_merged.pdf";
-    const mockBytes = Buffer.from("%PDF-1.4 Fake Composite PDF Buffer");
+    const mockBytes = new Uint8Array(Array.from("%PDF-1.4 Fake Composite PDF Buffer").map(c => c.charCodeAt(0)));
     const bytesArray = Array.from(mockBytes);
     return (typeof Utilities !== "undefined" && Utilities.newBlob)
       ? Utilities.newBlob(bytesArray, "application/pdf", name)

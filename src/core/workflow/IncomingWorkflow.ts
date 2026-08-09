@@ -142,8 +142,8 @@ class IncomingWorkflow {
 
     const driveApp = input.driveApp;
     const spreadsheetApp = input.spreadsheetApp;
-    const driveFilingRepo = input.driveFilingRepository || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
-    const logRepo = input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
+    const driveFilingRepo = (input as any).adapters?.driveFilingRepository || input.driveFilingRepository || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
+    const logRepo = (input as any).adapters?.logRepository || input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
 
     const MoveCtor = (globalThis as any).MoveDocumentAction || (typeof MoveDocumentAction !== "undefined" ? MoveDocumentAction : null);
     const moveAction = input.moveDocumentAction || (MoveCtor ? new MoveCtor() : null);
@@ -151,8 +151,10 @@ class IncomingWorkflow {
     // 1. Resolve source document blob and title
     const blobs = this.resolveSourceBlobs(input);
     let blob: GoogleAppsScript.Base.Blob | null = blobs.length > 0 ? blobs[0] : null;
-    const pdfService = input.pdfDocumentService || (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : null);
+    const pdfService = (input as any).adapters?.pdfDocumentService || input.pdfDocumentService || (globalThis as any).defaultPdfDocumentService || (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : null);
+    let isCompositeMerged = false;
     if (blobs.length > 1 && pdfService) {
+      isCompositeMerged = true;
       blob = await pdfService.mergeBlobsToPdf(blobs, "composite_intake.pdf");
     }
     const titleFn = (globalThis as any).getDocumentTitle || (typeof getDocumentTitle !== "undefined" ? getDocumentTitle : null);
@@ -185,7 +187,7 @@ class IncomingWorkflow {
 
     const origContext: DocumentActionContext = await runner.runAction(moveAction, {
       validatedDoc: input.validatedDoc,
-      fileId: input.driveFileId,
+      fileId: isCompositeMerged ? undefined : input.driveFileId,
       blob: blob || undefined,
       targetFolderId: input.targetFolderId,
       subfolderPath: closedSubfolderPath,
@@ -233,7 +235,7 @@ class IncomingWorkflow {
           stampSubmittalNo: appendResult.targetKey,
           templateId: templateId
         },
-        pdfDocumentService: input.pdfDocumentService || (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : null)
+        pdfDocumentService: (input as any).adapters?.pdfDocumentService || input.pdfDocumentService || (typeof defaultPdfDocumentService !== "undefined" ? defaultPdfDocumentService : null)
       });
     }
 
