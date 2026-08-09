@@ -14,6 +14,24 @@ export class GasSpreadsheetLockAdapter implements SpreadsheetLockAdapter {
     return "LOCK_MIGRATION_" + spreadsheetId;
   }
 
+  private readLockRecord(props: any, key: string): LockRecord | null {
+    const val = props.getProperty(key);
+    if (!val) return null;
+    try {
+      const record: LockRecord = JSON.parse(val);
+      if (record && typeof record.expiresAt === "number") {
+        if (Date.now() >= record.expiresAt) {
+          props.deleteProperty(key);
+          return null;
+        }
+        return record;
+      }
+    } catch (_e) {
+      props.deleteProperty(key);
+    }
+    return null;
+  }
+
   public acquireLock(spreadsheetId: string, ttlMs: number = 900000): string | null {
     const scriptLock = LockService.getScriptLock();
     const hasMutex = scriptLock.tryLock(10000);
@@ -24,24 +42,13 @@ export class GasSpreadsheetLockAdapter implements SpreadsheetLockAdapter {
     try {
       const props = PropertiesService.getScriptProperties();
       const key = this.getPropertyKey(spreadsheetId);
-      const existingVal = props.getProperty(key);
-      const now = Date.now();
+      const activeRecord = this.readLockRecord(props, key);
 
-      if (existingVal) {
-        try {
-          const payload = JSON.parse(existingVal);
-          if (payload && typeof payload.expiresAt === "number") {
-            if (now >= payload.expiresAt) {
-              props.deleteProperty(key);
-            } else {
-              return null;
-            }
-          }
-        } catch (_e) {
-          props.deleteProperty(key);
-        }
+      if (activeRecord) {
+        return null;
       }
 
+      const now = Date.now();
       const executionId = "exec_" + now + "_" + Math.random().toString(36).substring(2, 9);
       const lockRecord: LockRecord = {
         executionId,
@@ -67,14 +74,14 @@ export class GasSpreadsheetLockAdapter implements SpreadsheetLockAdapter {
     try {
       const props = PropertiesService.getScriptProperties();
       const key = this.getPropertyKey(spreadsheetId);
-      const existingVal = props.getProperty(key);
+      const val = props.getProperty(key);
 
-      if (!existingVal) {
+      if (!val) {
         return false;
       }
 
       try {
-        const payload = JSON.parse(existingVal);
+        const payload = JSON.parse(val);
         if (payload && payload.executionId === executionId) {
           props.deleteProperty(key);
           return true;
@@ -92,26 +99,8 @@ export class GasSpreadsheetLockAdapter implements SpreadsheetLockAdapter {
   public isLocked(spreadsheetId: string): boolean {
     const props = PropertiesService.getScriptProperties();
     const key = this.getPropertyKey(spreadsheetId);
-    const existingVal = props.getProperty(key);
-
-    if (!existingVal) {
-      return false;
-    }
-
-    try {
-      const payload = JSON.parse(existingVal);
-      if (payload && typeof payload.expiresAt === "number") {
-        if (Date.now() >= payload.expiresAt) {
-          props.deleteProperty(key);
-          return false;
-        }
-        return true;
-      }
-    } catch (_e) {
-      props.deleteProperty(key);
-    }
-
-    return false;
+    const activeRecord = this.readLockRecord(props, key);
+    return activeRecord !== null;
   }
 }
 

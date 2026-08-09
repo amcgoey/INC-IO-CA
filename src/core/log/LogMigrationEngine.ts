@@ -9,6 +9,7 @@
  */
 
 export type TabRole = "LOG" | "SUPPORT" | "SYSTEM" | "USER" | "BACKUP";
+export type CellValue = string | number | boolean | null | undefined;
 
 export interface LegacyCalculatedFormulaDiscrepancy {
   tabName: string;
@@ -56,17 +57,24 @@ export function validateSnapshotTabName(tabName: string, timestamp: string): { v
 }
 
 /**
- * Computes deterministic fingerprint hash for idempotency checking.
+ * Computes deterministic SHA-256 fingerprint hash for idempotency checking.
  */
-export function computeMigrationHash(sourceData: any[][]): string {
+export function computeMigrationHash(sourceData: CellValue[][]): string {
   const raw = JSON.stringify(sourceData || []);
-  let hash = 0;
-  for (let i = 0; i < raw.length; i++) {
-    const char = raw.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
+  let hashStr = "";
+  try {
+    const crypto = require("crypto");
+    hashStr = crypto.createHash("sha256").update(raw).digest("hex");
+  } catch (_e) {
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+      const char = raw.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash |= 0;
+    }
+    hashStr = Math.abs(hash).toString(16);
   }
-  return "sha256_" + Math.abs(hash).toString(16);
+  return "sha256_" + hashStr;
 }
 
 /**
@@ -208,11 +216,11 @@ export class LogMigrationEngine {
   }
 
   /**
-   * Creates a pre-migration snapshot duplicate (_Backup_<TabName>_<Timestamp>) placed at tail index (far right).
+   * Creates a pre-migration snapshot duplicate (<TabName>_Snapshot_<Timestamp>) placed at tail index (far right).
    * Validates 100-character tab name length guard.
    */
   public createPreMigrationSnapshot(tabName: string, timestamp: string): string {
-    const snapshotName = "_Backup_" + tabName + "_" + timestamp;
+    const snapshotName = tabName + "_Snapshot_" + timestamp;
     
     if (snapshotName.length > 100) {
       throw new Error("Tab name '" + snapshotName + "' exceeds maximum length for snapshot cloning. Please shorten tab name before migrating.");
@@ -241,9 +249,9 @@ export class LogMigrationEngine {
   public coerceInlineFormulas(
     tabName: string,
     fieldSpecs: DocumentFieldSpec[],
-    options?: { sourceValues?: any[][]; sourceFormulas?: string[][] }
+    options?: { sourceValues?: CellValue[][]; sourceFormulas?: string[][] }
   ): {
-    coercedValues: any[][];
+    coercedValues: CellValue[][];
     discrepancies: LegacyCalculatedFormulaDiscrepancy[];
     calculatedColumnsCoercedCount: number;
     inlineFormulasDetectedCount: number;
@@ -274,7 +282,7 @@ export class LogMigrationEngine {
       colFieldMap.set(c, spec);
     }
 
-    const coercedValues: any[][] = rawValues.map(row => [...row]);
+    const coercedValues: CellValue[][] = rawValues.map(row => [...row]);
     const discrepancies: LegacyCalculatedFormulaDiscrepancy[] = [];
     let calculatedColumnsCoercedCount = 0;
     let inlineFormulasDetectedCount = 0;
@@ -373,7 +381,7 @@ export class LogMigrationEngine {
       validationErrors.push(snapshotGuard.error);
     }
 
-    const sourceValues = this.storageAdapter.getSheetValues(tabName) || [];
+    const sourceValues: CellValue[][] = this.storageAdapter.getSheetValues(tabName) || [];
     const sourceDataRowCount = Math.max(0, sourceValues.length - 2);
 
     let idempotencyStatus: "PENDING" | "ALREADY_MIGRATED" = "PENDING";

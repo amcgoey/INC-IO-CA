@@ -7,6 +7,7 @@ import test from "node:test";
 import assert from "node:assert";
 import { parseMigrateLogArgs, runMigrateLogCli } from "../scripts/migrate-log";
 import { GasMockHarness } from "./harness/GasMockHarness";
+import { InMemorySheetStorageAdapter } from "./harness/fakes/InMemorySheetStorageAdapter";
 
 test.beforeEach(() => {
   GasMockHarness.install();
@@ -39,8 +40,9 @@ test("runMigrateLogCli - executes Pass 1 dry-run audit via CLI and returns Migra
 
 test("migrateLogSpreadsheet - GAS function executes dry-run audit under GasMockHarness", () => {
   const { migrateLogSpreadsheet } = require("../src/Main");
+  const storageAdapter = new InMemorySheetStorageAdapter();
 
-  const report = migrateLogSpreadsheet("1SRC_GAS", "1TGT_GAS", { dryRun: true });
+  const report = migrateLogSpreadsheet("1SRC_GAS", "1TGT_GAS", { dryRun: true, storageAdapter });
   assert.ok(report);
   assert.strictEqual(typeof report.canProceed, "boolean");
 });

@@ -135,7 +135,7 @@ test("LogMigrationEngine - createPreMigrationSnapshot creates _Backup_<TabName>_
   const timestamp = "20260808_120000";
   const snapshotName = engine.createPreMigrationSnapshot("Submittal Arch", timestamp);
 
-  assert.strictEqual(snapshotName, "_Backup_Submittal Arch_20260808_120000");
+  assert.strictEqual(snapshotName, "Submittal Arch_Snapshot_20260808_120000");
   const tabNames = adapter.getTabNames();
   assert.strictEqual(tabNames[tabNames.length - 1], snapshotName);
   assert.strictEqual(adapter.getSheetValues(snapshotName)[0][0], "033000");

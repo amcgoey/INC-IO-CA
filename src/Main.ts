@@ -120,11 +120,6 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
  * Admin entry point function for single-workbook log migration.
  * Runs Pass 1 dry-run audit or Pass 2 execution under transaction lock safety.
  */
-
-/**
- * Admin entry point function for single-workbook log migration.
- * Runs Pass 1 dry-run audit or Pass 2 execution under transaction lock safety.
- */
 function migrateLogSpreadsheet(
   sourceSpreadsheetId: string,
   targetSpreadsheetId: string,
@@ -139,8 +134,12 @@ function migrateLogSpreadsheet(
   const storageAdapter = options?.storageAdapter || (
     (typeof GoogleSheetsStorageAdapter !== "undefined")
       ? new (GoogleSheetsStorageAdapter as any)(sourceSpreadsheetId)
-      : new ((require("../test/harness/fakes/InMemorySheetStorageAdapter").InMemorySheetStorageAdapter) as any)()
+      : undefined
   );
+
+  if (!storageAdapter) {
+    throw new Error("StorageAdapterException: GoogleSheetsStorageAdapter is unavailable in host environment.");
+  }
 
   const engine = new LogMigrationEngine(storageAdapter, lockAdapter);
   const isDryRun = options?.dryRun !== false;

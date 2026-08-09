@@ -41,22 +41,24 @@ export function parseMigrateLogArgs(argv: string[]): {
   return { source, target, dryRun, tabName };
 }
 
-export function runMigrateLogCli(argv: string[] = process.argv.slice(2)): any {
+export function runMigrateLogCli(argv: string[] = process.argv.slice(2), customStorageAdapter?: InMemorySheetStorageAdapter): any {
   const args = parseMigrateLogArgs(argv);
   console.log("=== Log Migration CLI Execution ===");
   console.log("Source Spreadsheet ID: " + (args.source || "(default-test-source)"));
   console.log("Target Spreadsheet ID: " + (args.target || "(default-test-target)"));
   console.log("Dry Run Mode: " + args.dryRun);
 
-  const storageAdapter = new InMemorySheetStorageAdapter();
+  const storageAdapter = customStorageAdapter || new InMemorySheetStorageAdapter();
   const lockAdapter = new FakeSpreadsheetLockAdapter();
   const engine = new LogMigrationEngine(storageAdapter, lockAdapter);
 
-  storageAdapter.setSheetValues(args.tabName, [
-    ["Spec Section", "Title", "Days Open"],
-    ["", "", "=MAP(Data, LAMBDA(r, ...))"],
-    ["033000", "Concrete", "10"]
-  ]);
+  if (!customStorageAdapter && storageAdapter.getSheetValues(args.tabName).length === 0) {
+    storageAdapter.setSheetValues(args.tabName, [
+      ["Spec Section", "Title", "Days Open"],
+      ["", "", "=MAP(Data, LAMBDA(r, ...))"],
+      ["033000", "Concrete", "10"]
+    ]);
+  }
 
   const fieldSpecs = [
     { key: "specSection", header: "Spec Section", label: "Spec Section", type: "string" as const, isCalculated: false },
