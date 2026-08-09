@@ -11,7 +11,7 @@
  * Zero GAS ambient API dependencies (no SpreadsheetApp, DriveApp, or Logger references).
  */
 
-import { AiClassificationResult, AiClassificationField } from '../interfaces/AiAnalysisService';
+import { AiClassificationResult } from '../interfaces/AiAnalysisService';
 
 /** Structured JSON entry payload for a manual AI field override. */
 export interface AiOverrideEntry {
