@@ -22,12 +22,12 @@
                   "selected": false
                 },
                 {
-                  "text": "PROJ ? Main St Tower",
+                  "text": "PROJ — Main St Tower",
                   "value": "PROJ",
                   "selected": true
                 },
                 {
-                  "text": "RES ? Ocean Beach House",
+                  "text": "RES — Ocean Beach House",
                   "value": "RES",
                   "selected": false
                 }
@@ -86,7 +86,7 @@
               "buttons": [
                 {
                   "type": "TextButton",
-                  "text": "?? Analyze Document with AI",
+                  "text": "🤖 Analyze Document with AI",
                   "style": "FILLED",
                   "disabled": false,
                   "onClickAction": {
@@ -162,31 +162,31 @@
           ]
         },
         {
-          "header": "?? Admin & Status",
+          "header": "⚙️ Admin & Status",
           "collapsible": true,
           "widgets": [
             {
               "type": "TextParagraph",
-              "text": "?? **Target Log Tab:** `Submittal Arch`"
+              "text": "📊 **Target Log Tab:** `Submittal Arch`"
             },
             {
               "type": "TextParagraph",
-              "text": "??? **Config Tier:** `Config_Manifest` ? `Config_SUBMITTAL_ARCH`"
+              "text": "🗂️ **Config Tier:** `Config_Manifest` ➔ `Config_SUBMITTAL_ARCH`"
             },
             {
               "type": "TextParagraph",
-              "text": "?? **Relative Offsets:** Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4"
+              "text": "📐 **Relative Offsets:** Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4"
             },
             {
               "type": "TextParagraph",
-              "text": "?? **AI Triage Status:** Project `PROJ` | Type `SUBMITTAL_ARCH` (Confidence: 94%)"
+              "text": "🤖 **AI Triage Status:** Project `PROJ` | Type `SUBMITTAL_ARCH` (Confidence: 94%)"
             },
             {
               "type": "ButtonSet",
               "buttons": [
                 {
                   "type": "TextButton",
-                  "text": "?? Refresh Cache & Reload",
+                  "text": "🔄 Refresh Cache & Reload",
                   "disabled": false,
                   "onClickAction": {
                     "functionName": "handleRefreshCache",
