@@ -48,8 +48,9 @@ function getContactAbbreviation(document: ValidatedDocument): string {
 }
 
 function safePadNumLogEngine_(val: unknown, len: number): string {
-  if (typeof (globalThis as Record<string, unknown>).padNum === "function") {
-    return ((globalThis as Record<string, unknown>).padNum as any)(val, len);
+  const g = globalThis as Record<string, unknown>;
+  if (typeof g.padNum === "function") {
+    return (g.padNum as (v: unknown, l: number) => string)(val, len);
   }
   return String(val ?? "").trim().padStart(len, '0');
 }
@@ -114,7 +115,17 @@ export class LogEngine {
   /**
    * Helper function searching bounded log data backwards for matching group or target key.
    */
-    private findAllMatchingRows(
+      private extractFallbackRowGroupKey(row: unknown[], headers: string[]): string {
+    const secIdx = headers.indexOf("Section");
+    const numIdx = headers.indexOf("Number");
+    const specTagIdx = headers.indexOf("Spec Tag");
+    const sec = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
+    const num = numIdx !== -1 ? String(row[numIdx] || "").trim() : "";
+    const specTag = specTagIdx !== -1 ? String(row[specTagIdx] || "").trim() : "";
+    return sec ? `${safePadNumLogEngine_(sec, 6)}-${safePadNumLogEngine_(num, 3)}`.toLowerCase() : (specTag ? specTag.toLowerCase() : num.toLowerCase());
+  }
+
+  private findAllMatchingRows(
     boundedData: unknown[][],
     headers: string[],
     identityData: IdentityData,
@@ -128,12 +139,12 @@ export class LogEngine {
     for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
       const row = boundedData[i];
       if (strategy) {
-        const groupKey = strategy.getGroupKeyFromRow(row as any[], headers);
-        const targetKey = strategy.getTargetKeyFromRow(row as any[], headers);
-        const revGroupKey = (strategy as any).getRevisionGroupKeyFromRow
-          ? (strategy as any).getRevisionGroupKeyFromRow(row as any[], headers)
+        const groupKey = strategy.getGroupKeyFromRow(row, headers);
+        const targetKey = strategy.getTargetKeyFromRow(row, headers);
+        const revGroupKey = strategy.getRevisionGroupKeyFromRow
+          ? strategy.getRevisionGroupKeyFromRow(row, headers)
           : targetKey;
-        const sortKey = strategy.getSortKeyFromRow ? strategy.getSortKeyFromRow(row as any[], headers) : targetKey;
+        const sortKey = strategy.getSortKeyFromRow ? strategy.getSortKeyFromRow(row, headers) : targetKey;
 
         if (sortKey === identityData.identity || targetKey === identityData.identity) {
           exactMatches.push({ rowIndex: i + 1, row });
@@ -143,14 +154,7 @@ export class LogEngine {
           groupMatches.push({ rowIndex: i + 1, row });
         }
       } else {
-        const secIdx = headers.indexOf("Section");
-        const numIdx = headers.indexOf("Number");
-        const specTagIdx = headers.indexOf("Spec Tag");
-        const sec = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
-        const num = numIdx !== -1 ? String(row[numIdx] || "").trim() : "";
-        const specTag = specTagIdx !== -1 ? String(row[specTagIdx] || "").trim() : "";
-        const rowGroup = sec ? `${safePadNumLogEngine_(sec, 6)}-${safePadNumLogEngine_(num, 3)}`.toLowerCase() : (specTag ? specTag.toLowerCase() : num.toLowerCase());
-
+        const rowGroup = this.extractFallbackRowGroupKey(row, headers);
         if (row[0] && String(row[0]).trim() === identityData.identity) {
           exactMatches.push({ rowIndex: i + 1, row });
         } else if (rowGroup === identityData.identityRevisionGroup) {
@@ -178,16 +182,10 @@ export class LogEngine {
       const row = boundedData[i];
       let matches = false;
       if (strategy) {
-        const groupKey = strategy.getGroupKeyFromRow(row as any[], headers);
+        const groupKey = strategy.getGroupKeyFromRow(row, headers);
         if (groupKey === identityData.identityGroup) matches = true;
       } else {
-        const secIdx = headers.indexOf("Section");
-        const numIdx = headers.indexOf("Number");
-        const specTagIdx = headers.indexOf("Spec Tag");
-        const sec = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
-        const num = numIdx !== -1 ? String(row[numIdx] || "").trim() : "";
-        const specTag = specTagIdx !== -1 ? String(row[specTagIdx] || "").trim() : "";
-        const rowGroup = sec ? `${safePadNumLogEngine_(sec, 6)}-${safePadNumLogEngine_(num, 3)}`.toLowerCase() : (specTag ? specTag.toLowerCase() : num.toLowerCase());
+        const rowGroup = this.extractFallbackRowGroupKey(row, headers);
         if (rowGroup === identityData.identityGroup) matches = true;
       }
       if (matches) results.push({ rowIndex: i + 1, row });

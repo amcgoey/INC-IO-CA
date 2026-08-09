@@ -23,6 +23,24 @@ function padNum(val: unknown, len: number): string {
  * @param row - Raw row array.
  * @returns `true` if all first 8 cells are empty/whitespace, `false` otherwise.
  */
+
+/**
+ * Formats a raw date value into YYMMDD string format.
+ */
+function formatRowDate(rawDate: unknown): string {
+  if (rawDate instanceof Date) {
+    if (typeof Utilities !== "undefined" && Utilities.formatDate && typeof Session !== "undefined") {
+      return Utilities.formatDate(rawDate, Session.getScriptTimeZone(), "yyMMdd");
+    } else {
+      const yy = String(rawDate.getFullYear()).slice(-2);
+      const mm = String(rawDate.getMonth() + 1).padStart(2, "0");
+      const dd = String(rawDate.getDate()).padStart(2, "0");
+      return `${yy}${mm}${dd}`;
+    }
+  }
+  return String(rawDate || "").replace(/\D/g, "").padStart(6, "0");
+}
+
 function isRowBlank(row: unknown[]): boolean {
   return row.slice(0, 8).every((cell: unknown) => String(cell || "").trim() === "");
 }
@@ -114,16 +132,8 @@ export function createRowIdentityKeyFn(fieldSpecs?: DocumentFieldSpec[]): RowKey
   return (row: unknown[], headers: string[]) => {
     const revGroupKey = createRowIdentityRevisionGroupKeyFn(fieldSpecs)(row, headers);
     const dateIdx = headers.indexOf("Date");
-    let rawDate = dateIdx !== -1 ? row[dateIdx] : "";
-    let dateStr = "";
-    if (rawDate instanceof Date) {
-      const yy = String(rawDate.getFullYear()).slice(-2);
-      const mm = String(rawDate.getMonth() + 1).padStart(2, "0");
-      const dd = String(rawDate.getDate()).padStart(2, "0");
-      dateStr = `${yy}${mm}${dd}`;
-    } else {
-      dateStr = String(rawDate || "").replace(/\D/g, "").padStart(6, "0");
-    }
+    const rawDate = dateIdx !== -1 ? row[dateIdx] : "";
+    const dateStr = formatRowDate(rawDate);
     return dateStr ? `${revGroupKey}-${dateStr}` : revGroupKey;
   };
 }
@@ -133,7 +143,7 @@ export const createRowSortKeyFn = createRowIdentityKeyFn;
 
 export function getRowGroupKey(row: unknown[], disciplineOrGroupKeyFn: string | RowKeyFn, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
   if (typeof disciplineOrGroupKeyFn === "function") return disciplineOrGroupKeyFn(row, headers);
-  if (disciplineOrGroupKeyFn === "Architecture" || (headers.includes("Section") && headers.includes("Number"))) {
+  if (headers.includes("Section") && headers.includes("Number")) {
     const secIdx = headers.indexOf("Section");
     const numIdx = headers.indexOf("Number");
     let secVal = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
