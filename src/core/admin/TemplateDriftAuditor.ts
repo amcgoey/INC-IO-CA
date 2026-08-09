@@ -1,6 +1,14 @@
 /// <reference path="../../types.ts" />
 declare var LogEngine: any;
 declare var PrefixCacheManager: any;
+declare var require: any;
+
+function getDocumentLogWorkbookSpec(): any {
+  if (typeof DOCUMENT_LOG_WORKBOOK_SPEC !== 'undefined') return DOCUMENT_LOG_WORKBOOK_SPEC;
+  if (typeof (globalThis as any).DOCUMENT_LOG_WORKBOOK_SPEC !== 'undefined') return (globalThis as any).DOCUMENT_LOG_WORKBOOK_SPEC;
+  if (typeof require !== 'undefined') return require('../config/DocumentLogWorkbookSpec').DOCUMENT_LOG_WORKBOOK_SPEC;
+  return undefined;
+}
 /**
  * @file TemplateDriftAuditor.ts
  * @description Tier 1 Pure Core inspection engine auditing 6 structural dimensions of Google Sheet workbooks
@@ -110,7 +118,9 @@ export interface BatchPayload {
 export type StorageAdapterInput = BatchPayload | SheetStorageSeam | string;
 
 export class TemplateDriftAuditor {
-  public static readonly CODE_SCHEMA_VERSION = DOCUMENT_LOG_WORKBOOK_SPEC.schemaVersion || "1.0.0";
+  public static get CODE_SCHEMA_VERSION(): string {
+    return getDocumentLogWorkbookSpec()?.schemaVersion || "1.0.0";
+  }
 
   public static auditWorkbook(
     storageAdapter: StorageAdapterInput,
@@ -327,7 +337,7 @@ class TemplateDriftInspector {
         }
       }
 
-      const expectedVersion = DOCUMENT_LOG_WORKBOOK_SPEC.schemaVersion || TemplateDriftAuditor.CODE_SCHEMA_VERSION;
+      const expectedVersion = getDocumentLogWorkbookSpec()?.schemaVersion || TemplateDriftAuditor.CODE_SCHEMA_VERSION;
       if (!liveSchemaVersion) {
         issues.push({
           category: "VERSION",
@@ -373,7 +383,8 @@ class TemplateDriftInspector {
       });
     }
 
-    for (const specTab of DOCUMENT_LOG_WORKBOOK_SPEC.tabs) {
+    const specTabs = getDocumentLogWorkbookSpec()?.tabs || [];
+    for (const specTab of specTabs) {
       if (!liveSheetNames.includes(specTab.name)) {
         if (specTab.isLogTab) {
           issues.push({
@@ -399,7 +410,8 @@ class TemplateDriftInspector {
   }
 
   private auditDimension3_NamedRanges(issues: TemplateDriftIssue[], liveSheetNames: string[]): void {
-    for (const nrSpec of DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges) {
+    const namedRanges = getDocumentLogWorkbookSpec()?.namedRanges || [];
+    for (const nrSpec of namedRanges) {
       if (!liveSheetNames.includes(nrSpec.tabName)) continue;
 
       const exists = this.hasNamedRange(nrSpec.name, nrSpec.tabName);
@@ -422,7 +434,8 @@ class TemplateDriftInspector {
   }
 
   private auditDimensions4_5_6_LogTabs(issues: TemplateDriftIssue[], liveSheetNames: string[]): void {
-    for (const specTab of DOCUMENT_LOG_WORKBOOK_SPEC.tabs) {
+    const specTabs = getDocumentLogWorkbookSpec()?.tabs || [];
+    for (const specTab of specTabs) {
       if (!specTab.isLogTab || !specTab.columns || !liveSheetNames.includes(specTab.name)) {
         continue;
       }
@@ -718,7 +731,8 @@ class TemplateDriftPatcher {
       }
 
       // Repair B: Sheet-scoped Named Ranges (Headers, FormulaRow, Data) on log tabs
-      for (const specTab of DOCUMENT_LOG_WORKBOOK_SPEC.tabs) {
+      const specTabs = getDocumentLogWorkbookSpec()?.tabs || [];
+      for (const specTab of specTabs) {
         if (!specTab.isLogTab || !sheetNames.includes(specTab.name)) continue;
 
         const tabName = specTab.name;
