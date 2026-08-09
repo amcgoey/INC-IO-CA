@@ -1,9 +1,9 @@
 /**
  * @file CardDraftStateManager.ts
- * @description Logic module for Issue #135 Prototype: Loss-Less Card State Preservation via UserCache.
+ * @description Logic module for Issue #135 & #222: Polymorphic CardDraftStateManager & Loss-Less Card State Preservation via UserCache.
  *
  * Implements a pure, portable draft state manager for Google Workspace Add-on card inputs.
- * Preserves draft user inputs in UserCache across card section re-renders and email context switches.
+ * Preserves draft user inputs in UserCache across card section re-renders, email context switches, and sheet tab context switches.
  */
 
 export interface CacheAdapterLike {
@@ -13,25 +13,33 @@ export interface CacheAdapterLike {
 }
 
 export interface CardFormDraft {
-  messageId: string;
+  contextKey: string;
+  messageId?: string;
   docTypeKey?: string;
   projectId?: string;
   csiSection?: string;
   notes?: string;
   aiAnalyzeRequested?: boolean;
   lastUpdatedMs: number;
+  exceededSizeGuard?: boolean;
+  warningMessage?: string;
 }
 
 export type FieldProvenance = "LIVE_INPUT" | "USER_CACHE_DRAFT" | "EXTRACTED_METADATA" | "DEFAULT";
 
 export interface ResolvedCardState {
-  messageId: string;
-  docTypeKey: string;
+  contextKey: string;
+  messageId?: string;
+  documentType?: string | null;
+  docTypeKey: string | null;
   projectId: string;
   csiSection: string;
   notes: string;
   aiAnalyzeRequested: boolean;
   lastUpdatedMs?: number;
+  bypassedDraftHydration?: boolean;
+  exceededSizeGuard?: boolean;
+  warningMessage?: string;
   provenance: {
     docTypeKey: FieldProvenance;
     projectId: FieldProvenance;
@@ -44,27 +52,72 @@ export interface ResolvedCardState {
 export class CardDraftStateManager {
   private static DRAFT_PREFIX = "CARD_DRAFT_V1_";
   private static DEFAULT_TTL_SECONDS = 3600; // 1 hour draft TTL
+  public static MAX_CACHE_PAYLOAD_BYTES = 100 * 1024; // 100KB UserCache quota limit
+  private static readonly SYSTEM_TAB_NAMES = [
+    "system config",
+    "system audit log",
+    "documentation",
+    "user created"
+  ];
 
   /**
-   * Generates a deterministic cache key for a given email message context.
+   * Helper to format Google Sheets contextKey as SHEETS_<SpreadsheetId>_<TabName>.
    */
-  public static getCacheKey(messageId: string): string {
-    return `${CardDraftStateManager.DRAFT_PREFIX}${messageId}`;
+  public static formatSheetsContextKey(spreadsheetId: string, tabName: string): string {
+    return `SHEETS_${spreadsheetId}_${encodeURIComponent(tabName)}`;
   }
 
   /**
-   * Retrieves the stored draft for a given messageId from UserCache.
-   * Returns null if no draft exists or if the draft has expired.
+   * Helper to format Gmail contextKey as GMAIL_<messageId>.
    */
-  public static getDraft(cache: CacheAdapterLike, messageId: string): CardFormDraft | null {
-    if (!messageId) return null;
-    const key = CardDraftStateManager.getCacheKey(messageId);
+  public static formatGmailContextKey(messageId: string): string {
+    return `GMAIL_${messageId}`;
+  }
+
+  /**
+   * Generates a deterministic cache key for a given polymorphic contextKey or messageId.
+   */
+  public static getCacheKey(contextKey: string): string {
+    if (!contextKey) return CardDraftStateManager.DRAFT_PREFIX;
+    if (contextKey.startsWith(CardDraftStateManager.DRAFT_PREFIX)) {
+      return contextKey;
+    }
+    return `${CardDraftStateManager.DRAFT_PREFIX}${contextKey}`;
+  }
+
+  /**
+   * Evaluates whether a sheet tab is a system or non-log tab (_Config, _AuditLog, Documentation, etc.)
+   */
+  public static isSystemTab(tabName: string): boolean {
+    if (!tabName) return false;
+    const trimmed = tabName.trim();
+    if (trimmed.startsWith("_")) return true;
+    return CardDraftStateManager.SYSTEM_TAB_NAMES.includes(trimmed.toLowerCase());
+  }
+
+  /**
+   * Resolves fallback messageId from contextKey or explicit messageId.
+   */
+  private static resolveMessageId(contextKey: string, explicitMessageId?: string): string {
+    if (explicitMessageId) return explicitMessageId;
+    if (contextKey.startsWith("GMAIL_")) {
+      return contextKey.replace("GMAIL_", "");
+    }
+    return contextKey;
+  }
+
+  /**
+   * Retrieves stored draft for a given polymorphic contextKey from UserCache.
+   */
+  public static getDraft(cache: CacheAdapterLike, contextKey: string): CardFormDraft | null {
+    if (!contextKey) return null;
+    const key = CardDraftStateManager.getCacheKey(contextKey);
     const rawJson = cache.get(key);
     if (!rawJson) return null;
 
     try {
       const parsed = JSON.parse(rawJson) as CardFormDraft;
-      if (parsed && typeof parsed === "object" && parsed.messageId === messageId) {
+      if (parsed && typeof parsed === "object") {
         return parsed;
       }
     } catch (e) {
@@ -74,52 +127,66 @@ export class CardDraftStateManager {
   }
 
   /**
-   * Merges updated form fields into existing UserCache draft for messageId and saves with TTL.
+   * Merges updated form fields into existing UserCache draft for contextKey and saves with TTL.
+   * Includes 100KB payload size limit guard check before cache.put().
    */
   public static saveDraft(
     cache: CacheAdapterLike,
-    messageId: string,
-    updates: Partial<Omit<CardFormDraft, "messageId" | "lastUpdatedMs">>,
+    contextKey: string,
+    updates: Partial<Omit<CardFormDraft, "contextKey" | "lastUpdatedMs">>,
     ttlSeconds: number = CardDraftStateManager.DEFAULT_TTL_SECONDS
   ): CardFormDraft {
-    const existing = CardDraftStateManager.getDraft(cache, messageId) || {
-      messageId,
+    const existing = CardDraftStateManager.getDraft(cache, contextKey) || {
+      contextKey,
+      messageId: CardDraftStateManager.resolveMessageId(contextKey),
       lastUpdatedMs: Date.now()
     };
 
     const merged: CardFormDraft = {
       ...existing,
       ...updates,
-      messageId,
+      contextKey,
+      messageId: CardDraftStateManager.resolveMessageId(contextKey, updates.messageId || existing.messageId),
       lastUpdatedMs: Date.now()
     };
 
-    const key = CardDraftStateManager.getCacheKey(messageId);
-    cache.put(key, JSON.stringify(merged), ttlSeconds);
+    const serialized = JSON.stringify(merged);
+    const byteLength = new TextEncoder().encode(serialized).length;
+
+    if (byteLength > CardDraftStateManager.MAX_CACHE_PAYLOAD_BYTES) {
+      merged.exceededSizeGuard = true;
+      merged.warningMessage = "⚠️ Form draft state exceeds cache size limits (100KB). Please reduce text input size.";
+      return merged;
+    }
+
+    const key = CardDraftStateManager.getCacheKey(contextKey);
+    cache.put(key, serialized, ttlSeconds);
     return merged;
   }
 
   /**
-   * Explicitly clears/deletes the draft state for messageId from UserCache (e.g. on document submission).
+   * Explicitly clears/deletes draft state for contextKey from UserCache.
    */
-  public static clearDraft(cache: CacheAdapterLike, messageId: string): void {
-    if (!messageId) return;
-    const key = CardDraftStateManager.getCacheKey(messageId);
+  public static clearDraft(cache: CacheAdapterLike, contextKey: string): void {
+    if (!contextKey) return;
+    const key = CardDraftStateManager.getCacheKey(contextKey);
     if (typeof cache.remove === "function") {
       cache.remove(key);
     } else {
-      // Fallback for cache adapters without remove: overwrite with null/empty and 0 TTL
       cache.put(key, "", 0);
     }
   }
 
   /**
-   * Core resolution algorithm: Blends (1) live inputs from card actions, (2) UserCache draft state,
-   * (3) extracted email metadata, and (4) system defaults to produce the target card state and provenance map.
+   * Core resolution algorithm: Blends live inputs, UserCache draft, extracted metadata, and defaults.
+   * Suppresses form state hydration for system tabs setting documentType = null.
    */
   public static resolveCardFormState(params: {
     cache: CacheAdapterLike;
-    messageId: string;
+    contextKey?: string;
+    messageId?: string;
+    tabName?: string;
+    isSystemTab?: boolean;
     extractedMetadata?: {
       docTypeKey?: string;
       projectId?: string;
@@ -134,12 +201,42 @@ export class CardDraftStateManager {
       aiAnalyzeRequested?: boolean;
     };
   }): ResolvedCardState {
-    const { cache, messageId, extractedMetadata = {}, liveFormInputs = {} } = params;
+    const contextKey = params.contextKey || params.messageId || "";
+    const { cache, messageId, tabName, extractedMetadata = {}, liveFormInputs = {} } = params;
 
-    const cachedDraft = CardDraftStateManager.getDraft(cache, messageId);
+    const systemTab = params.isSystemTab !== undefined
+      ? params.isSystemTab
+      : tabName
+        ? CardDraftStateManager.isSystemTab(tabName)
+        : false;
 
-    // Resolve docTypeKey
-    let docTypeKey = "GENERAL_CORRESPONDENCE";
+    const resolvedMsgId = CardDraftStateManager.resolveMessageId(contextKey, messageId);
+
+    if (systemTab) {
+      return {
+        contextKey,
+        messageId: resolvedMsgId,
+        documentType: null,
+        docTypeKey: null,
+        projectId: "PROJ-UNASSIGNED",
+        csiSection: "",
+        notes: "",
+        aiAnalyzeRequested: false,
+        bypassedDraftHydration: true,
+        provenance: {
+          docTypeKey: "DEFAULT",
+          projectId: "DEFAULT",
+          csiSection: "DEFAULT",
+          notes: "DEFAULT",
+          aiAnalyzeRequested: "DEFAULT"
+        }
+      };
+    }
+
+    const cachedDraft = CardDraftStateManager.getDraft(cache, contextKey);
+
+    // Resolve docTypeKey / documentType
+    let docTypeKey: string | null = "GENERAL_CORRESPONDENCE";
     let docTypeProv: FieldProvenance = "DEFAULT";
     if (liveFormInputs.docTypeKey) {
       docTypeKey = liveFormInputs.docTypeKey;
@@ -206,13 +303,17 @@ export class CardDraftStateManager {
     }
 
     return {
-      messageId,
+      contextKey,
+      messageId: resolvedMsgId,
+      documentType: docTypeKey,
       docTypeKey,
       projectId,
       csiSection,
       notes,
       aiAnalyzeRequested,
       lastUpdatedMs: cachedDraft?.lastUpdatedMs,
+      exceededSizeGuard: cachedDraft?.exceededSizeGuard,
+      warningMessage: cachedDraft?.warningMessage,
       provenance: {
         docTypeKey: docTypeProv,
         projectId: projectProv,
