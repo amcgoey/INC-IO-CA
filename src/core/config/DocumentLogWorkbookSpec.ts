@@ -4,10 +4,10 @@
  * and Dual-Tier Named Range taxonomy (Workbook-Scoped and Sheet-Scoped Headers, FormulaRow, Data).
  */
 
-export const DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION = "1.0.0";
+const DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION = "1.0.0";
 
-export const TEST_TEMPLATE_SPREADSHEET_TITLE = "INC Document Log - Test Template";
-export const PROD_TEMPLATE_SPREADSHEET_TITLE = "INC Document Log - Template";
+const TEST_TEMPLATE_SPREADSHEET_TITLE = "INC Document Log - Test Template";
+const PROD_TEMPLATE_SPREADSHEET_TITLE = "INC Document Log - Template";
 
 export interface ColumnSpec {
   id: string;
@@ -44,7 +44,7 @@ export interface DocumentLogWorkbookSpec {
   namedRanges: NamedRangeSpec[];
 }
 
-export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
+const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
   schemaVersion: DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION,
   tabs: [
     {
@@ -262,6 +262,13 @@ export const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B50", scope: "Workbook" },
     { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D50", scope: "Workbook" }
   ]
+};
+
+export {
+  DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION,
+  TEST_TEMPLATE_SPREADSHEET_TITLE,
+  PROD_TEMPLATE_SPREADSHEET_TITLE,
+  DOCUMENT_LOG_WORKBOOK_SPEC
 };
 
 declare var module: any;
