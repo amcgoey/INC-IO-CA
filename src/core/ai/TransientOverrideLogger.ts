@@ -3,11 +3,12 @@
  * @description Tier 1 pure core diagnostic logger for manual AI field overrides on intake forms.
  *
  * Compares initial AI triage values against final form submission payloads. If user overrides are detected,
- * emits non-persistent structured JSON entries ({ fieldKey, aiValue, aiConfidence, userValue }) via Logger.log()
- * or execution logs for debugging, avoiding spreadsheet tab bloat.
+ * emits non-persistent structured JSON entries ({ fieldKey, aiValue, aiConfidence, userValue }) via execution logs
+ * for debugging, avoiding spreadsheet tab bloat.
  *
  * Classified as Tier 1 (Pure Core Logic) under ADR 0013 / CODING_STANDARDS.md.
  * Dual-compatible with GAS V8 engine and Node.js test environment.
+ * Zero GAS ambient API dependencies (no SpreadsheetApp, DriveApp, or Logger references).
  */
 
 import { AiClassificationResult, AiClassificationField } from '../interfaces/AiAnalysisService';
@@ -32,38 +33,28 @@ export class TransientOverrideLogger {
   /**
    * Constructs a TransientOverrideLogger instance.
    *
-   * @param logFn - Optional custom logging delegate. Defaults to `Logger.log()` if present, else `console.log()`.
+   * @param logFn - Optional custom logging delegate. Defaults to `console.log`.
    */
   constructor(logFn?: LogFn) {
-    this.logFn = logFn || ((msg: string) => {
-      if (typeof Logger !== "undefined" && typeof (Logger as any).log === "function") {
-        (Logger as any).log(msg);
-      } else {
-        console.log(msg);
-      }
-    });
+    this.logFn = logFn || ((msg: string) => console.log(msg));
   }
 
   /**
    * Compares initial AI classification results against final form submission payload fields and logs manual user overrides.
    *
-   * @param initialAi - The initial AI classification result or raw field dictionary.
+   * @param initialAi - The initial AI classification result.
    * @param finalPayload - The final form submission payload key-value map.
    * @returns Array of detected AiOverrideEntry objects.
    */
   logOverrides(
-    initialAi: AiClassificationResult | Record<string, AiClassificationField> | undefined | null,
-    finalPayload: Record<string, any> | undefined | null
+    initialAi: AiClassificationResult | undefined | null,
+    finalPayload: Record<string, unknown> | undefined | null
   ): AiOverrideEntry[] {
-    if (!initialAi || !finalPayload) {
+    if (!initialAi || !initialAi.fields || !finalPayload) {
       return [];
     }
 
-    const fieldsMap: Record<string, AiClassificationField> =
-      ('fields' in initialAi && initialAi.fields)
-        ? initialAi.fields
-        : (initialAi as Record<string, AiClassificationField>);
-
+    const fieldsMap = initialAi.fields;
     const overrides: AiOverrideEntry[] = [];
 
     for (const fieldKey of Object.keys(fieldsMap)) {
@@ -73,19 +64,15 @@ export class TransientOverrideLogger {
       }
 
       const userRaw = finalPayload[fieldKey];
-      if (typeof userRaw === 'undefined' || userRaw === null) {
-        continue;
-      }
+      const userValue = (userRaw !== undefined && userRaw !== null) ? String(userRaw) : "";
+      const aiValue = String(aiField.value);
 
-      const aiVal = String(aiField.value).trim();
-      const userVal = String(userRaw).trim();
-
-      if (aiVal !== userVal) {
+      if (aiValue !== userValue) {
         const entry: AiOverrideEntry = {
           fieldKey,
-          aiValue: String(aiField.value),
+          aiValue,
           aiConfidence: typeof aiField.confidence === 'number' ? aiField.confidence : 0,
-          userValue: String(userRaw)
+          userValue
         };
 
         overrides.push(entry);
@@ -94,23 +81,6 @@ export class TransientOverrideLogger {
     }
 
     return overrides;
-  }
-
-  /**
-   * Static helper for logging manual AI field overrides without manually instantiating TransientOverrideLogger.
-   *
-   * @param initialAi - The initial AI classification result or raw field dictionary.
-   * @param finalPayload - The final form submission payload key-value map.
-   * @param logFn - Optional custom logging delegate.
-   * @returns Array of detected AiOverrideEntry objects.
-   */
-  static logOverrides(
-    initialAi: AiClassificationResult | Record<string, AiClassificationField> | undefined | null,
-    finalPayload: Record<string, any> | undefined | null,
-    logFn?: LogFn
-  ): AiOverrideEntry[] {
-    const logger = new TransientOverrideLogger(logFn);
-    return logger.logOverrides(initialAi, finalPayload);
   }
 }
 

@@ -1,11 +1,15 @@
 ﻿import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TransientOverrideLogger, AiOverrideEntry, LogFn } from '../../../src/core/ai/TransientOverrideLogger';
-import { AiClassificationResult, AiClassificationField } from '../../../src/core/interfaces/AiAnalysisService';
+import { AiClassificationResult } from '../../../src/core/interfaces/AiAnalysisService';
+
+function createSpyLogger(): { logs: string[]; spyLog: LogFn } {
+  const logs: string[] = [];
+  return { logs, spyLog: (msg: string) => logs.push(msg) };
+}
 
 test('TransientOverrideLogger - logs single field manual override with structured JSON', () => {
-  const logs: string[] = [];
-  const spyLog: LogFn = (msg) => logs.push(msg);
+  const { logs, spyLog } = createSpyLogger();
   const logger = new TransientOverrideLogger(spyLog);
 
   const initialAi: AiClassificationResult = {
@@ -15,7 +19,7 @@ test('TransientOverrideLogger - logs single field manual override with structure
     }
   };
 
-  const finalPayload: Record<string, string> = {
+  const finalPayload: Record<string, unknown> = {
     specSection: '08 11 16'
   };
 
@@ -40,8 +44,7 @@ test('TransientOverrideLogger - logs single field manual override with structure
 });
 
 test('TransientOverrideLogger - logs multiple field overrides and ignores matching fields', () => {
-  const logs: string[] = [];
-  const spyLog: LogFn = (msg) => logs.push(msg);
+  const { logs, spyLog } = createSpyLogger();
   const logger = new TransientOverrideLogger(spyLog);
 
   const initialAi: AiClassificationResult = {
@@ -53,7 +56,7 @@ test('TransientOverrideLogger - logs multiple field overrides and ignores matchi
     }
   };
 
-  const finalPayload: Record<string, string> = {
+  const finalPayload: Record<string, unknown> = {
     specSection: '08 11 16',
     contactAbbr: 'XYZ',
     title: 'Hollow Metal Doors'
@@ -71,9 +74,31 @@ test('TransientOverrideLogger - logs multiple field overrides and ignores matchi
   assert.equal(overrides[1].userValue, 'XYZ');
 });
 
-test('TransientOverrideLogger - suppresses logging when user value matches AI value (ignoring whitespace)', () => {
-  const logs: string[] = [];
-  const spyLog: LogFn = (msg) => logs.push(msg);
+test('TransientOverrideLogger - logs override when user manually clears an AI-predicted field', () => {
+  const { logs, spyLog } = createSpyLogger();
+  const logger = new TransientOverrideLogger(spyLog);
+
+  const initialAi: AiClassificationResult = {
+    fields: {
+      specSection: { value: '08 11 13', confidence: 0.82 }
+    }
+  };
+
+  const finalPayloadCleared: Record<string, unknown> = {
+    specSection: ''
+  };
+
+  const overrides = logger.logOverrides(initialAi, finalPayloadCleared);
+
+  assert.equal(overrides.length, 1);
+  assert.equal(overrides[0].fieldKey, 'specSection');
+  assert.equal(overrides[0].aiValue, '08 11 13');
+  assert.equal(overrides[0].userValue, '');
+  assert.equal(logs.length, 1);
+});
+
+test('TransientOverrideLogger - detects string modification differences without silent trimming', () => {
+  const { logs, spyLog } = createSpyLogger();
   const logger = new TransientOverrideLogger(spyLog);
 
   const initialAi: AiClassificationResult = {
@@ -82,19 +107,18 @@ test('TransientOverrideLogger - suppresses logging when user value matches AI va
     }
   };
 
-  const finalPayload: Record<string, string> = {
+  const finalPayload: Record<string, unknown> = {
     specSection: '08 11 13 '
   };
 
   const overrides = logger.logOverrides(initialAi, finalPayload);
 
-  assert.equal(overrides.length, 0);
-  assert.equal(logs.length, 0);
+  assert.equal(overrides.length, 1);
+  assert.equal(overrides[0].userValue, '08 11 13 ');
 });
 
 test('TransientOverrideLogger - handles null/undefined inputs gracefully', () => {
-  const logs: string[] = [];
-  const spyLog: LogFn = (msg) => logs.push(msg);
+  const { logs, spyLog } = createSpyLogger();
   const logger = new TransientOverrideLogger(spyLog);
 
   assert.deepEqual(logger.logOverrides(null, { a: '1' }), []);
@@ -104,35 +128,14 @@ test('TransientOverrideLogger - handles null/undefined inputs gracefully', () =>
   assert.equal(logs.length, 0);
 });
 
-test('TransientOverrideLogger - accepts flat field dictionary for initialAi', () => {
-  const logs: string[] = [];
-  const spyLog: LogFn = (msg) => logs.push(msg);
-
-  const initialFields: Record<string, AiClassificationField> = {
-    vendor: { value: 'Acme Corp', confidence: 0.70 }
-  };
-
-  const finalPayload = {
-    vendor: 'Global Supplies Inc'
-  };
-
-  const overrides = TransientOverrideLogger.logOverrides(initialFields, finalPayload, spyLog);
-
-  assert.equal(overrides.length, 1);
-  assert.equal(logs.length, 1);
-  assert.equal(overrides[0].fieldKey, 'vendor');
-  assert.equal(overrides[0].aiValue, 'Acme Corp');
-  assert.equal(overrides[0].userValue, 'Global Supplies Inc');
-});
-
-test('TransientOverrideLogger - default logger invocation executes without error', () => {
+test('TransientOverrideLogger - default logger instance executes console.log fallback cleanly', () => {
   const logger = new TransientOverrideLogger();
   const initialAi: AiClassificationResult = {
     fields: {
       docTypeKey: { value: 'SUBMITTAL_ARCH', confidence: 0.90 }
     }
   };
-  const finalPayload = {
+  const finalPayload: Record<string, unknown> = {
     docTypeKey: 'SUBMITTAL_FFE'
   };
 
