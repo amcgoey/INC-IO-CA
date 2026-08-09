@@ -25,25 +25,25 @@ function splitNumberAndRevisionEmail_(numRevStr: string): { submittalNum: string
   if (trimmed.includes(".")) {
     const parts = trimmed.split(".");
     return {
-      submittalNum: padSubmittalNumberEmail_(parts[0]),
+      submittalNum: padSubmittalNumberEmail_(parts[0], 3),
       revNum: parts.slice(1).join(".")
     };
   }
   if (trimmed.includes("-")) {
     const parts = trimmed.split("-");
     return {
-      submittalNum: padSubmittalNumberEmail_(parts[0]),
+      submittalNum: padSubmittalNumberEmail_(parts[0], 3),
       revNum: parts.slice(1).join("-")
     };
   }
   return {
-    submittalNum: padSubmittalNumberEmail_(trimmed),
-    revNum: "0"
+    submittalNum: padSubmittalNumberEmail_(trimmed, 2),
+    revNum: trimmed
   };
 }
 
-const STATUS_NOISE_WORDS_EMAIL = "was\\s+submitted|has\\s+been\\s+submitted|submitted|for\\s+review|for\\s+approval|for\\s+app|notification|distributed|distribute|provided\\s+for\\s+your\\s+information|for\\s+your\\s+information|fyi";
-const TRAILING_NOISE_RE_EMAIL = new RegExp(`\s+(?:${STATUS_NOISE_WORDS_EMAIL}).*`, "i");
+const STATUS_NOISE_WORDS_EMAIL = "was|is|was\\s+submitted|has\\s+been\\s+submitted|submitted|for\\s+review|for\\s+approval|for\\s+app|notification|distributed|distribute|provided\\s+for\\s+your\\s+information|for\\s+your\\s+information|fyi";
+const TRAILING_NOISE_RE_EMAIL = new RegExp(`\\s+(?:${STATUS_NOISE_WORDS_EMAIL}).*`, "i");
 const EXACT_NOISE_RE_EMAIL = new RegExp(`^(?:${STATUS_NOISE_WORDS_EMAIL})$`, "i");
 
 function parseNumberedPrefixEmail_(prefix: string, subject: string = "", body: string = ""): ParsedData {
@@ -195,6 +195,7 @@ class GenericEmailParser {
 class EmailIntakeParser {
   static parseProcoreEmail_(subject: string, body: string): Partial<ParsedData> {
     const result: Partial<ParsedData> = {
+      discipline: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture",
       action: "Received"
     };
 
@@ -243,13 +244,14 @@ class EmailIntakeParser {
 
   static parseFormaEmail_(subject: string, body: string): Partial<ParsedData> {
     const result: Partial<ParsedData> = {
+      discipline: typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture",
       action: "Received"
     };
 
     const projectMatch = subject.match(/^([^-]+)-/);
     if (projectMatch) result.driveName = projectMatch[1].trim();
 
-    const subMatch = subject.match(/(?:Submittal\s*)?#\s*([\d\s]+)-([\w.]+(?:-[w.]+)*)/i) ||
+    const subMatch = subject.match(/(?:Submittal\s*)?#\s*([\d\s]+)-([\w.]+(?:-[\w.]+)*)/i) ||
                      subject.match(/(?:Submittal\s*)?#\s*([\w\.\-]+)\s+was/i);
     if (subMatch) {
       const fullSectionStr = subMatch[1].trim();
@@ -428,22 +430,27 @@ class EmailIntakeParser {
     return EmailIntakeParser.mergeAiTriageAndRegex(aiObj, regexParsed);
   }
 
-  static parseEmail(emailData: EmailData): ParsedData {
+  static parseEmail(emailData: EmailData | any): ParsedData {
     const defaultResult: ParsedData = {
+      discipline: "Architecture",
       driveName: "",
       action: "Received"
     };
 
     if (!emailData) return defaultResult;
 
-    const regexParsed = EmailIntakeParser.dispatchParser("Submittal", emailData.subject, emailData.body, emailData.sender);
+    const subject = typeof (emailData as any).getSubject === "function" ? (emailData as any).getSubject() : (emailData.subject || "");
+    const body = typeof (emailData as any).getPlainBody === "function" ? (emailData as any).getPlainBody() : (emailData.body || "");
+    const sender = typeof (emailData as any).getFrom === "function" ? (emailData as any).getFrom() : (emailData.sender || "");
+
+    const regexParsed = EmailIntakeParser.dispatchParser("Submittal", subject, body, sender);
     const res: ParsedData = { ...defaultResult, ...regexParsed };
 
     if (res.specSection && !res.section) res.section = res.specSection;
     if (res.section && !res.specSection) res.specSection = res.section;
     if (res.submittalNum && !res.number) res.number = res.submittalNum;
     if (res.number && !res.submittalNum) res.submittalNum = res.number;
-    if (res.revNum && !res.revision) res.revNum = res.revision;
+    if (res.revNum && !res.revision) res.revision = res.revNum;
     if (res.revision && !res.revNum) res.revNum = res.revision;
 
     return res;
