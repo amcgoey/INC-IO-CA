@@ -13,6 +13,7 @@ interface SheetStorageAdapter {
   /** Retrieves all cell values from a sheet as a 2D matrix array. */
   getSheetValues(sheetName: string): any[][];
   getSheetFormulas?(sheetName: string): string[][];
+  setSheetFormulas?(sheetName: string, formulas: string[][]): void;
   /** Overwrites all contents of a sheet with a 2D matrix array. */
   setSheetValues(sheetName: string, values: any[][]): void;
   /** Gets a single cell value at 1-based row and column coordinates. */
@@ -31,6 +32,9 @@ interface SheetStorageAdapter {
   getTabNames?(): string[];
   /** Reorders physical tabs in the workbook according to ordered tab names list. */
   reorderTabs?(orderedNames: string[]): void;
+  deleteTab?(sheetName: string): void;
+  renameTab?(oldName: string, newName: string): void;
+  setSpreadsheetTitle?(title: string): void;
 }
 
 
@@ -141,4 +145,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     GoogleSheetsStorageAdapter
   };
+
+
+
 }

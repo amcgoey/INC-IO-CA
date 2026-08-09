@@ -7,6 +7,11 @@ export class InMemorySheetStorageAdapter implements SheetStorageAdapter {
   getTabNames(): string[] {
     return Array.from(this.sheets.keys());
   }
+
+  deleteTab(sheetName: string): void {
+    this.sheets.delete(sheetName);
+    this.formulas.delete(sheetName);
+  }
   private sheets: Map<string, any[][]> = new Map();
   private formulas: Map<string, string[][]> = new Map();
 
