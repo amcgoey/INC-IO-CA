@@ -541,7 +541,7 @@ interface StampOptions {
 }
 
 /** Supported execution environment context. */
-type AppContext = "GoogleDrive" | "Gmail";
+type AppContext = "GoogleDrive" | "Gmail" | "GoogleSheets";
 
 /** Input payload for PDF page extraction action. */
 interface ExtractPagesInput {
