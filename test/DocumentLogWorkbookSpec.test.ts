@@ -128,12 +128,12 @@ test('DocumentLogWorkbookSpec - defines Sections sheet-scoped and workbook-scope
   const namedRanges = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges;
   const sectionsSheet = namedRanges.find(r => r.name === 'Sections' && r.tabName === 'Submittal Arch Support');
   assert.ok(sectionsSheet, 'Sheet-Scoped Sections named range must exist on Submittal Arch Support');
-  assert.equal(sectionsSheet.rangeNotation, 'A2:B6');
+  assert.equal(sectionsSheet.rangeNotation, 'A2:B20');
   assert.equal(sectionsSheet.scope, 'Sheet');
 
   const sectionsWb = namedRanges.find(r => r.name === 'Submittal_Arch_Support_Sections');
   assert.ok(sectionsWb, 'Workbook-Scoped Submittal_Arch_Support_Sections range must exist');
-  assert.equal(sectionsWb.rangeNotation, 'A2:B6');
+  assert.equal(sectionsWb.rangeNotation, 'A2:B20');
   assert.equal(sectionsWb.scope, 'Workbook');
 });
 
@@ -167,4 +167,35 @@ test('DocumentLogWorkbookSpec - defines Contacts multi-column picklist schema in
   assert.ok(headers.includes('Contact Type'), 'Header must contain Contact Type');
   assert.ok(headers.includes('Contact Abbr.'), 'Header must contain Contact Abbr.');
   assert.ok(headers.includes('Contact Full Name'), 'Header must contain Contact Full Name');
+});
+
+test('DocumentLogWorkbookSpec - all calculated column formulas in Submittal Arch and Submittal FFE have balanced parentheses and valid syntax', () => {
+  const logTabs = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.filter(t => t.isLogTab && t.columns);
+  assert.equal(logTabs.length, 2, 'There must be 2 log tabs (Submittal Arch and Submittal FFE)');
+
+  let totalFormulas = 0;
+  for (const tab of logTabs) {
+    const calcCols = tab.columns.filter(c => c.formula);
+    assert.equal(calcCols.length, 5, `${tab.name} must have 5 calculated formula columns`);
+
+    for (const col of calcCols) {
+      totalFormulas++;
+      const formula = col.formula;
+      const openParens = (formula.match(/\(/g) || []).length;
+      const closeParens = (formula.match(/\)/g) || []).length;
+
+      assert.equal(
+        openParens,
+        closeParens,
+        `Formula for ${tab.name} -> ${col.id} has mismatched parentheses (${openParens} open vs ${closeParens} close): "${formula}"`
+      );
+
+      assert.ok(
+        !formula.includes('(('),
+        `Formula for ${tab.name} -> ${col.id} contains unexpected double opening parenthesis "((": "${formula}"`
+      );
+    }
+  }
+
+  assert.equal(totalFormulas, 10, 'Total calculated formulas verified across log tabs must be 10');
 });
