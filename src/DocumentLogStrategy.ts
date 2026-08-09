@@ -22,7 +22,7 @@ if (typeof require !== "undefined") {
 /**
  * Helper to safely extract and trim section string from ArchitectureDetails, handling null/undefined correctly.
  */
-function getSectionVal(section: any): string {
+function getSectionVal(section: unknown): string {
   return section != null ? String(section).trim() : "";
 }
 
@@ -32,7 +32,7 @@ function getSectionVal(section: any): string {
  * @param rawDate - The input date instance, date string, or number.
  * @returns 6-character formatted date string (`YYMMDD`).
  */
-function formatDateStr(rawDate: any): string {
+function formatDateStr(rawDate: unknown): string {
   if (rawDate instanceof Date) {
     if (typeof Utilities !== "undefined" && Utilities.formatDate && typeof Session !== "undefined") {
       return Utilities.formatDate(rawDate, Session.getScriptTimeZone(), "yyMMdd");
@@ -53,9 +53,10 @@ function formatDateStr(rawDate: any): string {
  * @param len - Desired minimum length.
  * @returns Zero-padded string representation of the value.
  */
-function safePadNum(val: any, len: number): string {
-  if (typeof padNum !== "undefined") return padNum(val, len);
-  if ((globalThis as any).padNum) return (globalThis as any).padNum(val, len);
+function safePadNum(val: unknown, len: number): string {
+  if (typeof (globalThis as Record<string, unknown>).padNum === "function") {
+    return ((globalThis as Record<string, unknown>).padNum as (v: unknown, l: number) => string)(val, len);
+  }
   return String(val || "").trim().padStart(len, '0');
 }
 
@@ -73,11 +74,13 @@ interface DocumentLogStrategy<T = ValidatedDocument> {
   getTargetKey(doc: T): string;
   getIdentityData(doc: T): IdentityData;
   /** Extracts the group key from an existing raw spreadsheet row array. */
-  getGroupKeyFromRow(row: any[], headers: string[]): string;
+  getGroupKeyFromRow(row: unknown[], headers: string[]): string;
   /** Extracts the sort key from an existing raw spreadsheet row array. */
-  getSortKeyFromRow(row: any[], headers: string[]): string;
+  getSortKeyFromRow(row: unknown[], headers: string[]): string;
   /** Extracts the target key from an existing raw spreadsheet row array. */
-  getTargetKeyFromRow(row: any[], headers: string[]): string;
+  getTargetKeyFromRow(row: unknown[], headers: string[]): string;
+  /** Extracts the revision group key (group + revision, excluding date) from an existing raw spreadsheet row array. */
+  getRevisionGroupKeyFromRow?(row: unknown[], headers: string[]): string;
   /** Maps validated document fields into a tabular key-value map matching log sheet headers. */
   formatRowPayload(doc: T, options: { link: string; contactHistory: string; status: string }): Record<string, string>;
   /** Formats the target destination filename for Drive filing and local G:\ drive export. */
@@ -125,17 +128,17 @@ class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocu
   }
 
   /** @override */
-  getGroupKeyFromRow(row: any[], headers: string[]): string {
+  getGroupKeyFromRow(row: unknown[], headers: string[]): string {
     return getRowGroupKey(row, "Architecture", headers);
   }
 
   /** @override */
-  getSortKeyFromRow(row: any[], headers: string[]): string {
+  getSortKeyFromRow(row: unknown[], headers: string[]): string {
     return getRowSortKey(row, "Architecture", headers);
   }
 
   /** @override */
-  getTargetKeyFromRow(row: any[], headers: string[]): string {
+  getTargetKeyFromRow(row: unknown[], headers: string[]): string {
     const secIdx = headers.indexOf("Section");
     const numIdx = headers.indexOf("Number");
     const revIdx = headers.indexOf("Revision");
@@ -225,17 +228,17 @@ class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
   }
 
   /** @override */
-  getGroupKeyFromRow(row: any[], headers: string[]): string {
+  getGroupKeyFromRow(row: unknown[], headers: string[]): string {
     return getRowGroupKey(row, "FF&E", headers);
   }
 
   /** @override */
-  getSortKeyFromRow(row: any[], headers: string[]): string {
+  getSortKeyFromRow(row: unknown[], headers: string[]): string {
     return getRowSortKey(row, "FF&E", headers);
   }
 
   /** @override */
-  getTargetKeyFromRow(row: any[], headers: string[]): string {
+  getTargetKeyFromRow(row: unknown[], headers: string[]): string {
     const tagIdx = headers.indexOf("Spec Tag");
     const revIdx = headers.indexOf("Revision");
     const tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim();

@@ -390,3 +390,65 @@ test("GasMockHarness evaluates VLOOKUP formula and FF&E calculated columns corre
   const ffeFallbackTitle = state.evaluateFfeFormula("calcTitle", { specTag: "UNKNOWN-TAG", specTitle: "Custom Description" });
   assert.strictEqual(ffeFallbackTitle, "Custom Description", "calcTitle with unknown tag should fall back to specTitle");
 });
+
+test("LogEngine handles submittal revision row placement and updates previous revision status in GasMockHarness", () => {
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById("ss-revision-test");
+  ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  const { LogEngine } = require("../../src/core/log/LogEngine");
+  const { GoogleSheetsStorageAdapter } = require("../../src/SheetStorageAdapter");
+  const { ArchitectureSubmittalStrategy } = require("../../src/DocumentLogStrategy");
+
+  const adapter = new GoogleSheetsStorageAdapter("ss-revision-test");
+  const engine = new LogEngine(adapter);
+  const strategy = new ArchitectureSubmittalStrategy();
+
+  const docRev0: any = {
+    discipline: "Architecture",
+    disciplineDetails: {
+      section: "081100",
+      number: "001",
+      title: "Door Frames",
+      revision: "0"
+    },
+    date: "260801",
+    contact: "GC",
+    action: "Submitted",
+    notes: ""
+  };
+
+  engine.appendDocument("ss-revision-test", docRev0, strategy, {
+    sheetName: "Submittal Arch",
+    status: "Under Review"
+  });
+
+  const docRev1: any = {
+    discipline: "Architecture",
+    disciplineDetails: {
+      section: "081100",
+      number: "001",
+      title: "Door Frames",
+      revision: "1"
+    },
+    date: "260808",
+    contact: "ARCH",
+    action: "Revise and Resubmit",
+    notes: ""
+  };
+
+  const appendResult = engine.appendDocument("ss-revision-test", docRev1, strategy, {
+    sheetName: "Submittal Arch",
+    status: "Open",
+    updatePreviousStatus: true,
+    previousRowStatus: "Superseded"
+  });
+
+  assert.strictEqual(appendResult.previousRowUpdated, true, "previousRowUpdated should be true");
+
+  const readResult = engine.readLog("ss-revision-test", strategy.getIdentityData(docRev0), strategy, {
+    sheetName: "Submittal Arch"
+  });
+
+  assert.strictEqual(readResult.previousStatus, "Superseded", "Previous revision status should be updated to Superseded");
+});

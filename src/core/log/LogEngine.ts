@@ -48,8 +48,10 @@ function getContactAbbreviation(document: ValidatedDocument): string {
 }
 
 function safePadNumLogEngine_(val: unknown, len: number): string {
-  if (typeof padNum !== "undefined") return padNum(val as any, len);
-  if ((globalThis as Record<string, unknown>).padNum) return ((globalThis as Record<string, unknown>).padNum as any)(val, len);
+  const g = globalThis as Record<string, unknown>;
+  if (typeof g.padNum === "function") {
+    return (g.padNum as (v: unknown, l: number) => string)(val, len);
+  }
   return String(val ?? "").trim().padStart(len, '0');
 }
 
@@ -113,6 +115,84 @@ export class LogEngine {
   /**
    * Helper function searching bounded log data backwards for matching group or target key.
    */
+  private extractFallbackRowGroupKey(row: unknown[], headers: string[]): string {
+    const secIdx = headers.indexOf("Section");
+    const numIdx = headers.indexOf("Number");
+    const specTagIdx = headers.indexOf("Spec Tag");
+    const sec = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
+    const num = numIdx !== -1 ? String(row[numIdx] || "").trim() : "";
+    const specTag = specTagIdx !== -1 ? String(row[specTagIdx] || "").trim() : "";
+    return sec ? `${safePadNumLogEngine_(sec, 6)}-${safePadNumLogEngine_(num, 3)}`.toLowerCase() : (specTag ? specTag.toLowerCase() : num.toLowerCase());
+  }
+
+  private findAllMatchingRows(
+    boundedData: unknown[][],
+    headers: string[],
+    identityData: IdentityData,
+    strategy?: DocumentLogStrategy,
+    dataStartIdx: number = 3
+  ): Array<{ rowIndex: number; row: unknown[] }> {
+    const exactMatches: Array<{ rowIndex: number; row: unknown[] }> = [];
+    const revGroupMatches: Array<{ rowIndex: number; row: unknown[] }> = [];
+    const groupMatches: Array<{ rowIndex: number; row: unknown[] }> = [];
+
+    for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
+      const row = boundedData[i];
+      if (strategy) {
+        const groupKey = strategy.getGroupKeyFromRow(row, headers);
+        const targetKey = strategy.getTargetKeyFromRow(row, headers);
+        const revGroupKey = strategy.getRevisionGroupKeyFromRow
+          ? strategy.getRevisionGroupKeyFromRow(row, headers)
+          : targetKey;
+        const sortKey = strategy.getSortKeyFromRow ? strategy.getSortKeyFromRow(row, headers) : targetKey;
+
+        if (sortKey === identityData.identity || targetKey === identityData.identity) {
+          exactMatches.push({ rowIndex: i + 1, row });
+        } else if (revGroupKey === identityData.identityRevisionGroup || targetKey === identityData.identityRevisionGroup) {
+          revGroupMatches.push({ rowIndex: i + 1, row });
+        } else if (groupKey === identityData.identityGroup) {
+          groupMatches.push({ rowIndex: i + 1, row });
+        }
+      } else {
+        const rowGroup = this.extractFallbackRowGroupKey(row, headers);
+        if (row[0] && String(row[0]).trim() === identityData.identity) {
+          exactMatches.push({ rowIndex: i + 1, row });
+        } else if (rowGroup === identityData.identityRevisionGroup) {
+          revGroupMatches.push({ rowIndex: i + 1, row });
+        } else if (rowGroup === identityData.identityGroup) {
+          groupMatches.push({ rowIndex: i + 1, row });
+        }
+      }
+    }
+
+    if (exactMatches.length > 0) return exactMatches;
+    if (revGroupMatches.length > 0) return revGroupMatches;
+    return groupMatches;
+  }
+
+  private findGroupMatchingRows(
+    boundedData: unknown[][],
+    headers: string[],
+    identityData: IdentityData,
+    strategy?: DocumentLogStrategy,
+    dataStartIdx: number = 3
+  ): Array<{ rowIndex: number; row: unknown[] }> {
+    const results: Array<{ rowIndex: number; row: unknown[] }> = [];
+    for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
+      const row = boundedData[i];
+      let matches = false;
+      if (strategy) {
+        const groupKey = strategy.getGroupKeyFromRow(row, headers);
+        if (groupKey === identityData.identityGroup) matches = true;
+      } else {
+        const rowGroup = this.extractFallbackRowGroupKey(row, headers);
+        if (rowGroup === identityData.identityGroup) matches = true;
+      }
+      if (matches) results.push({ rowIndex: i + 1, row });
+    }
+    return results;
+  }
+
   private findMatchingRowIndex(
     boundedData: unknown[][],
     headers: string[],
@@ -120,33 +200,8 @@ export class LogEngine {
     strategy?: DocumentLogStrategy,
     dataStartIdx: number = 3
   ): { rowIndex: number | null; row: unknown[] | null } {
-    for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
-      const row = boundedData[i];
-      let matches = false;
-      if (strategy) {
-        const groupKey = strategy.getGroupKeyFromRow(row as any[], headers);
-        const targetKey = strategy.getTargetKeyFromRow(row as any[], headers);
-        if (groupKey === identityData.identityGroup || targetKey === identityData.identity) {
-          matches = true;
-        }
-      } else {
-        const secIdx = headers.indexOf("Section");
-        const numIdx = headers.indexOf("Number");
-        const specTagIdx = headers.indexOf("Spec Tag");
-        const sec = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
-        const num = numIdx !== -1 ? String(row[numIdx] || "").trim() : "";
-        const specTag = specTagIdx !== -1 ? String(row[specTagIdx] || "").trim() : "";
-        const rowGroup = sec ? `${safePadNumLogEngine_(sec, 6)}-${safePadNumLogEngine_(num, 3)}`.toLowerCase() : (specTag ? specTag.toLowerCase() : num.toLowerCase());
-        if (rowGroup === identityData.identityGroup || (row[0] && String(row[0]).trim() === identityData.identity)) {
-          matches = true;
-        }
-      }
-
-      if (matches) {
-        return { rowIndex: i + 1, row };
-      }
-    }
-    return { rowIndex: null, row: null };
+    const matches = this.findAllMatchingRows(boundedData, headers, identityData, strategy, dataStartIdx);
+    return matches.length > 0 ? matches[0] : { rowIndex: null, row: null };
   }
 
   /**
