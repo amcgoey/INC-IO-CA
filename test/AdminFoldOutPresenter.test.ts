@@ -26,7 +26,7 @@ test("AdminFoldOutPresenter - renders SheetAdminFoldOut card section in GoogleSh
   }
 });
 
-test("AdminFoldOutPresenter - renders dedicated Error State Card on SpreadsheetBatchReadException", () => {
+test("AdminFoldOutPresenter - dispatches dedicated Error State Card on SpreadsheetBatchReadException", () => {
   GasMockHarness.install();
 
   try {
@@ -35,7 +35,11 @@ test("AdminFoldOutPresenter - renders dedicated Error State Card on SpreadsheetB
       "ss-123"
     );
 
-    const section = AdminFoldOutPresenter.renderAdminErrorSection("ss-123", error);
+    // Verify renderAdminSection correctly catches/dispatches error
+    const section = AdminFoldOutPresenter.renderAdminSection("GoogleSheets", {
+      spreadsheetId: "ss-123",
+      error
+    });
     assert.ok(section);
 
     const card = CardService.newCardBuilder().addSection(section).build();

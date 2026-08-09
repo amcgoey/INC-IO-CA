@@ -5,13 +5,23 @@
 
 import { SpreadsheetBatchReadException } from "./SpreadsheetBatchReaderAdapter";
 
+export type AppContextType = "GoogleSheets" | "Gmail" | "GoogleDrive";
+
+export interface TemplateDriftReportView {
+  status: string;
+  liveVersion?: string;
+  codeVersion?: string;
+  issues?: string[];
+  canAutoPatch?: boolean;
+}
+
 export interface AdminFoldOutContextData {
   spreadsheetId?: string;
   driveId?: string;
   documentType?: string;
   tabName?: string;
-  auditReport?: any;
-  error?: any;
+  auditReport?: TemplateDriftReportView;
+  error?: Error | SpreadsheetBatchReadException | unknown;
 }
 
 export class AdminFoldOutPresenter {
@@ -22,18 +32,31 @@ export class AdminFoldOutPresenter {
    * @param contextData - Context metadata and optional audit report/error state.
    * @returns CardService.CardSection instance.
    */
-  public static renderAdminSection(appContext: string, contextData: AdminFoldOutContextData = {}): GoogleAppsScript.Card_Service.CardSection {
-    if (
-      contextData.error instanceof SpreadsheetBatchReadException ||
-      (contextData.error && contextData.error.name === "SpreadsheetBatchReadException")
-    ) {
-      return AdminFoldOutPresenter.renderAdminErrorSection(contextData.spreadsheetId || "", contextData.error);
-    }
+  public static renderAdminSection(
+    appContext: AppContextType,
+    contextData: AdminFoldOutContextData = {}
+  ): GoogleAppsScript.Card_Service.CardSection {
+    try {
+      if (
+        contextData.error instanceof SpreadsheetBatchReadException ||
+        (contextData.error && typeof contextData.error === "object" && (contextData.error as any).name === "SpreadsheetBatchReadException")
+      ) {
+        return AdminFoldOutPresenter.renderAdminErrorSection(contextData.spreadsheetId || "", contextData.error);
+      }
 
-    if (appContext === "GoogleSheets") {
-      return AdminFoldOutPresenter.renderSheetAdminFoldOut(contextData);
-    } else {
-      return AdminFoldOutPresenter.renderTriageAdminFoldOut(contextData);
+      if (appContext === "GoogleSheets") {
+        return AdminFoldOutPresenter.renderSheetAdminFoldOut(contextData);
+      } else {
+        return AdminFoldOutPresenter.renderTriageAdminFoldOut(contextData);
+      }
+    } catch (err: unknown) {
+      if (
+        err instanceof SpreadsheetBatchReadException ||
+        (err && typeof err === "object" && (err as any).name === "SpreadsheetBatchReadException")
+      ) {
+        return AdminFoldOutPresenter.renderAdminErrorSection(contextData.spreadsheetId || "", err);
+      }
+      throw err;
     }
   }
 
@@ -111,12 +134,12 @@ export class AdminFoldOutPresenter {
   /**
    * Renders dedicated Error State Card when `SpreadsheetBatchReadException` occurs.
    */
-  public static renderAdminErrorSection(spreadsheetId: string, error: any): GoogleAppsScript.Card_Service.CardSection {
+  public static renderAdminErrorSection(spreadsheetId: string, error: Error | SpreadsheetBatchReadException | unknown): GoogleAppsScript.Card_Service.CardSection {
     const section = CardService.newCardSection()
       .setHeader("⚠️ Advanced Sheets API Unavailable")
       .setCollapsible(false);
 
-    const errorMessage = error && error.message ? error.message : "Advanced Sheets API batch read failed.";
+    const errorMessage = error && typeof error === "object" && "message" in error ? String((error as any).message) : "Advanced Sheets API batch read failed.";
 
     section.addWidget(
       CardService.newTextParagraph().setText(

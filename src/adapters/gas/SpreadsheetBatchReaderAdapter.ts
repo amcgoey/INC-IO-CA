@@ -16,6 +16,18 @@ export class SpreadsheetBatchReadException extends Error {
   }
 }
 
+export interface SheetDataValidationCondition {
+  type?: string;
+  values?: Array<{ userEnteredValue?: string }>;
+}
+
+export interface SheetDataValidation {
+  condition?: SheetDataValidationCondition;
+  inputOption?: string;
+  strict?: boolean;
+  showCustomUi?: boolean;
+}
+
 export interface SheetValueCell {
   userEnteredValue?: {
     stringValue?: string;
@@ -23,7 +35,7 @@ export interface SheetValueCell {
     boolValue?: boolean;
     formulaValue?: string;
   };
-  dataValidation?: any;
+  dataValidation?: SheetDataValidation;
 }
 
 export interface SheetRowData {
@@ -103,11 +115,11 @@ export class SpreadsheetBatchReaderAdapter {
         namedRanges: response.namedRanges || [],
         sheets: response.sheets || []
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof SpreadsheetBatchReadException) {
         throw err;
       }
-      const msg = err && err.message ? err.message : String(err);
+      const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
       throw new SpreadsheetBatchReadException(
         `Advanced Sheets API batch read failed for spreadsheet '${spreadsheetId}': ${msg}`,
         spreadsheetId,
