@@ -520,9 +520,10 @@ class TemplateDriftInspector {
       }
 
       // Dimension 6 / 8: Dynamic Cell Validations (VALIDATION_DRIFT)
+      const firstDataRow = 6;
       for (let colIdx = 0; colIdx < specTab.columns.length; colIdx++) {
         const colSpec = specTab.columns[colIdx];
-        const targetRange = colSpec.validationRule?.targetNamedRange || colSpec.validationRange;
+        const targetRange = colSpec.validationRule?.targetNamedRange;
         if (!targetRange) continue;
 
         let hasValidation = false;
@@ -532,7 +533,7 @@ class TemplateDriftInspector {
           if (this.seam && typeof this.seam.getSheetByName === "function") {
             const sheet = this.seam.getSheetByName(specTab.name);
             if (sheet && typeof sheet.getRange === "function") {
-              const range = sheet.getRange(6, colIdx + 1) || sheet.getRange(2, colIdx + 1);
+              const range = sheet.getRange(firstDataRow, colIdx + 1);
               if (range && typeof range.getDataValidation === "function") {
                 const rule = range.getDataValidation();
                 hasValidation = !!rule;
@@ -583,7 +584,7 @@ class TemplateDriftInspector {
         if (specTab.isLogTab && specTab.columns && specTab.columns.length > 0) {
           const rangeProts = typeof sheet.getProtections === "function" ? sheet.getProtections("RANGE") : [];
           const descriptions = Array.isArray(rangeProts)
-            ? rangeProts.map((p: any) => (typeof p.getDescription === "function" ? p.getDescription() : (p.description || "")))
+            ? rangeProts.map((p: { getDescription?(): string; description?: string }) => (typeof p.getDescription === "function" ? p.getDescription() : (p.description || "")))
             : [];
 
           // Tier 2: Header Stack Protection (LOCK_HEADERS_<TabName>)
@@ -689,17 +690,15 @@ class TemplateDriftPatcher {
     return null;
   }
 
-  private resolveValidationAndProtectionAdapter(): any {
+  private resolveValidationAndProtectionAdapter(): {
+    applyValidationRules?: (spreadsheet: any, spec?: any) => void;
+    applyRangeProtections?: (spreadsheet: any, spec?: any) => void;
+    applyNumberFormats?: (spreadsheet: any, spec?: any) => void;
+  } | null {
     if (this.options.validationAndProtectionAdapter) return this.options.validationAndProtectionAdapter;
     const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
     if (g.defaultSheetValidationAndProtectionAdapter) return g.defaultSheetValidationAndProtectionAdapter;
     if (g.SheetValidationAndProtectionAdapter) return new g.SheetValidationAndProtectionAdapter();
-    if (typeof require !== "undefined") {
-      try {
-        const mod = require("../../adapters/gas/SheetValidationAndProtectionAdapter");
-        return mod.defaultSheetValidationAndProtectionAdapter || new mod.SheetValidationAndProtectionAdapter();
-      } catch (e) {}
-    }
     return null;
   }
 
