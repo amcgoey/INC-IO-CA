@@ -21,7 +21,7 @@ test("FieldConfidenceThreshold constant - is set to 0.85 in core AI definitions"
   assert.equal(FieldConfidenceThreshold, 0.85);
 });
 
-test("UnbiasedIntakeCard - renders without low-confidence warning banner or widget warning labels when confidence >= 0.85", () => {
+test("IntakeCard - renders without low-confidence warning banner or widget warning labels when confidence >= 0.85", () => {
   const event = EventFactory.createCardSubmitEvent({
     project: "PROJ",
     documentType: "SUBMITTAL_ARCH"
@@ -47,7 +47,7 @@ test("UnbiasedIntakeCard - renders without low-confidence warning banner or widg
   assert.equal(sectionWidget.title.includes("Check Value"), false, "Section title should not have warning label");
 });
 
-test("UnbiasedIntakeCard - checks field-level confidence and appends Check Value warning labels and yellow banner when confidence < 0.85", () => {
+test("IntakeCard - checks field-level confidence and appends Check Value warning labels and yellow banner when confidence < 0.85", () => {
   const event = EventFactory.createCardSubmitEvent({
     project: "PROJ",
     documentType: "SUBMITTAL_ARCH"
@@ -81,7 +81,7 @@ test("UnbiasedIntakeCard - checks field-level confidence and appends Check Value
   assert.equal(numberWidget.title.includes("Check Value"), false, "Number widget title should not contain Check Value");
 });
 
-test("UnbiasedIntakeCard - dynamically renders form input widgets for SUBMITTAL_ARCH without hardcoded checks", () => {
+test("IntakeCard - dynamically renders form input widgets for SUBMITTAL_ARCH without hardcoded checks", () => {
   const event = EventFactory.createCardSubmitEvent({
     project: "PROJ",
     documentType: "SUBMITTAL_ARCH",
@@ -111,7 +111,7 @@ test("UnbiasedIntakeCard - dynamically renders form input widgets for SUBMITTAL_
   assert.equal(calcWidget, undefined, "Calculated fields must be excluded from UI widget generation");
 });
 
-test("UnbiasedIntakeCard - dynamically renders form input widgets for SUBMITTAL_FFE without hardcoded checks", () => {
+test("IntakeCard - dynamically renders form input widgets for SUBMITTAL_FFE without hardcoded checks", () => {
   const event = EventFactory.createCardSubmitEvent({
     project: "PROJ",
     documentType: "SUBMITTAL_FFE",
@@ -140,7 +140,7 @@ test("UnbiasedIntakeCard - dynamically renders form input widgets for SUBMITTAL_
   assert.equal(calcWidget, undefined, "Calculated fields must be excluded from UI widget generation");
 });
 
-test("UnbiasedIntakeCard - dynamically renders form input widgets for RFI without hardcoded checks", () => {
+test("IntakeCard - dynamically renders form input widgets for RFI without hardcoded checks", () => {
   const event = EventFactory.createCardSubmitEvent({
     project: "PROJ",
     documentType: "RFI",
@@ -165,7 +165,7 @@ test("UnbiasedIntakeCard - dynamically renders form input widgets for RFI withou
   assert.equal(calcWidget, undefined, "Calculated fields must be excluded from UI widget generation");
 });
 
-test("UnbiasedIntakeCard - dynamically renders form input widgets for ASI without hardcoded checks", () => {
+test("IntakeCard - dynamically renders form input widgets for ASI without hardcoded checks", () => {
   const event = EventFactory.createCardSubmitEvent({
     project: "PROJ",
     documentType: "ASI",
