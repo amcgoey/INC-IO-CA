@@ -147,7 +147,7 @@ test('SheetValidationAndProtectionAdapter.applyRangeProtections - configures sof
   assert.ok(archSheet, 'Submittal Arch sheet must exist');
   const archProtections = archSheet.getProtections('RANGE');
   
-  const headerProtection = archProtections.find((p: any) => p.getDescription() === 'LOCK_HEADERS_Submittal Arch');
+  const headerProtection = archProtections.find((p: { getDescription(): string; isWarningOnly(): boolean; getRange(): any }) => p.getDescription() === 'LOCK_HEADERS_Submittal Arch');
   assert.ok(headerProtection, 'Submittal Arch must have LOCK_HEADERS_Submittal Arch range protection');
   assert.equal(headerProtection.isWarningOnly(), true, 'Header protection must have warningOnly: true');
   const headerRange = headerProtection.getRange();
@@ -156,7 +156,7 @@ test('SheetValidationAndProtectionAdapter.applyRangeProtections - configures sof
   // 3. Tier 3: Calculated Column Protection (calcFileName, calcNumber, calcTitle, calcContactChain, calcSort)
   const calcCols = ['calcFileName', 'calcNumber', 'calcTitle', 'calcContactChain', 'calcSort'];
   for (const colId of calcCols) {
-    const calcProtection = archProtections.find((p: any) => p.getDescription() === `PROTECT_CALC_Submittal Arch_${colId}`);
+    const calcProtection = archProtections.find((p: { getDescription(): string; isWarningOnly(): boolean; getRange(): any }) => p.getDescription() === `PROTECT_CALC_Submittal Arch_${colId}`);
     assert.ok(calcProtection, `Submittal Arch must have calculated column protection for ${colId}`);
     assert.equal(calcProtection.isWarningOnly(), true, `Calculated column protection for ${colId} must have warningOnly: true`);
   }

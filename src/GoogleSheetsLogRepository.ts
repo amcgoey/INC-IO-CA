@@ -254,7 +254,7 @@ class GoogleSheetsLogRepository implements LogRepository {
         adapter.applyNumberFormats(ss);
         if (typeof adapter.applyRangeProtections === "function") adapter.applyRangeProtections(ss);
       }
-    } catch (_err) {}
+    } catch (err) { console.warn("Failed to apply range protections during repository setup:", err); }
 
     return headers;
   }

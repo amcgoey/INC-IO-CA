@@ -44,7 +44,7 @@ class SheetValidationAndProtectionAdapter {
    * Applies DataValidation rules to picklist columns linked to target single-column Named Ranges.
    */
   public applyValidationRules(
-    spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet | any,
+    spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet,
     spec: DocumentLogWorkbookSpec = DOCUMENT_LOG_WORKBOOK_SPEC
   ): void {
     const spreadsheetApp = (globalThis as any).SpreadsheetApp;
