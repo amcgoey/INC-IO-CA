@@ -1,7 +1,7 @@
 import { CONFIG, MESSAGES } from "./Config";
 import { CardDraftStateManager } from "./prototypes/CardDraftStateManager";
 import { TransientOverrideLogger } from "./core/logging/TransientOverrideLogger";
-import { buildMainCard } from "./adapters/gas/UI";
+import { buildIntakeCard } from "./adapters/gas/UI";
 import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
 import { DocumentPipeline } from "./core/intake/DocumentPipeline";
 import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "./DocumentLogStrategy";
@@ -76,9 +76,9 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
         flash.promptAddVendor = true;
         flash.warning = validationResult.message;
       }
-      const builder = (globalThis as any).buildMainCard || buildMainCard;
+      const builder = (globalThis as any).buildIntakeCard || buildIntakeCard;
       return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(builder(e, null, false, flash)))
+        .setNavigation(CardService.newNavigation().updateCard(builder(e, null, flash)))
         .build();
     }
 
@@ -139,9 +139,9 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
     const policy = policyFn(result.action);
 
     if (policy.direction === "incoming") {
-      const builder = (globalThis as any).buildMainCard || buildMainCard;
+      const builder = (globalThis as any).buildIntakeCard || buildIntakeCard;
       return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(builder(e, null, false, result)))
+        .setNavigation(CardService.newNavigation().updateCard(builder(e, null, result)))
         .build();
     }
 

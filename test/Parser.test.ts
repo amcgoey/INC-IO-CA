@@ -63,12 +63,12 @@ import { FakeAiAnalysisAdapter } from "./harness/index";
   extractFormAction: async (fileId: string) => 'Received'
 };
 
-(globalThis as any).buildMainCard = (e: any, parsedData: any, isTagChange?: boolean, flashMessage?: any) => ({
+(globalThis as any).buildIntakeCard = (e: any, parsedData: any, flashMessage?: any, aiResult?: any) => ({
   cardType: 'MainCard',
   e,
   parsedData,
-  isTagChange,
-  flashMessage
+  flashMessage,
+  aiResult
 });
 
 import { onDriveItemsSelected, buildAddOn } from '../src/Main';

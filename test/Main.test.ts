@@ -19,10 +19,9 @@ import assert from "node:assert";
   })
 };
 
-(globalThis as any).buildMainCard = (e: any, parsedData: any, isTagChange?: boolean, flashMessage?: any) => ({
+(globalThis as any).buildIntakeCard = (e: any, parsedData: any, flashMessage?: any) => ({
   cardType: "MainCard",
   parsedData,
-  isTagChange,
   flashMessage
 });
 

@@ -489,7 +489,7 @@ declare var PicklistResolver: {
 };
 
 // Global Ambient Function Declarations
-declare function buildMainCard(e: GoogleAppsScriptEvent, initialData?: ParsedData | null, isTagChange?: boolean, flashMessage?: FlashMessage | null): GoogleAppsScript.Card_Service.Card;
+declare function buildIntakeCard(e: GoogleAppsScriptEvent, initialData?: ParsedData | null, flashMessage?: any, aiResult?: AiClassificationResult | null): GoogleAppsScript.Card_Service.Card;
 declare function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled?: boolean, projectAbbr?: string, action?: string, incomingRouting?: string, draftUrl?: string | null, directRowUrl?: string | null, failedColumns?: string[], emptyFallbacks?: string[]): GoogleAppsScript.Card_Service.Card;
 declare function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData;
 declare function parseDriveFilename(filename: string): ParsedData;

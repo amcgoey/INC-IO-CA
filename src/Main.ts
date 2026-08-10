@@ -20,7 +20,7 @@ import { GasTimeoutBudget } from "./core/log/GasTimeoutBudget";
 import { CONFIG, MESSAGES } from "./Config";
 import { processSubmission, moveSubmittalToClosed } from "./Process";
 import {
-  buildMainCard,
+  buildIntakeCard,
   handleRefreshCache,
   handleDeepAnalysis,
   handleFetchUrl,
@@ -97,8 +97,8 @@ async function buildAddOn(e: GoogleAppsScriptEvent): Promise<GoogleAppsScript.Ca
     }
   }
 
-  const buildCardFn = (globalThis as any).buildMainCard || buildMainCard;
-  return buildCardFn(e, parsedData, false, flashMessage);
+  const buildCardFn = (globalThis as any).buildIntakeCard || buildIntakeCard;
+  return buildCardFn(e, parsedData, flashMessage);
 }
 
 /**
@@ -137,7 +137,7 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
   e.parameters = e.parameters || {};
   e.parameters.driveFileId = fileId;
 
-  const buildCardFn = (globalThis as any).buildMainCard || buildMainCard;
+  const buildCardFn = (globalThis as any).buildIntakeCard || buildIntakeCard;
   return buildCardFn(e, parsedData);
 }
 
@@ -392,7 +392,7 @@ g.onAutoPatchWorkbook = onAutoPatchWorkbook;
 g.onSheetsContextRefresh = onSheetsContextRefresh;
 g.checkAiModelHealth = checkAiModelHealth;
 g.DocumentPipeline = DocumentPipeline;
-g.buildMainCard = buildMainCard;
+g.buildIntakeCard = buildIntakeCard;
 g.defaultPdfDocumentService = defaultPdfDocumentService;
 g.defaultLogRepository = defaultLogRepository;
 g.defaultDriveFilingRepository = defaultDriveFilingRepository;
@@ -427,6 +427,7 @@ export {
   onFlushScriptCache,
   onAutoPatchWorkbook,
   onSheetsContextRefresh,
-  checkAiModelHealth
+  checkAiModelHealth,
+  buildIntakeCard
 };
 

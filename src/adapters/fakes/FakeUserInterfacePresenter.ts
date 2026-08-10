@@ -30,6 +30,12 @@ export class FakeUserInterfacePresenter implements UserInterfacePresenter {
     return payload;
   }
 
+  presentIntakeCard(event: GoogleAppsScriptEvent, initialData?: any, flashMessage?: any): unknown {
+    const payload = { method: "presentIntakeCard", event, initialData, flashMessage };
+    this.calls.push({ method: "presentIntakeCard", args: [event, initialData, flashMessage] });
+    return payload;
+  }
+
   presentCardReload(event: GoogleAppsScriptEvent, isTagChange?: boolean): unknown {
     const payload = { method: "presentCardReload", event, isTagChange };
     this.calls.push({ method: "presentCardReload", args: [event, isTagChange] });

@@ -47,7 +47,7 @@ const mockSheet = { getSheetId: () => 101 };
 import { defaultPdfDocumentService } from "../src/PdfDocumentService";
 import { FakePdfDocumentService, FakeDriveFilingRepository } from "./harness/index";
 
-(globalThis as any).buildMainCard = (e: any, d: any, tag: any, flashData: any) => ({ cardType: "MainCard", flashData });
+(globalThis as any).buildIntakeCard = (e: any, d: any, flashData: any) => ({ cardType: "MainCard", flashData });
 (globalThis as any).buildSuccessCard = (...args: any[]) => ({ cardType: "SuccessCard", args });
 const mockDriveFilingRepo = new FakeDriveFilingRepository();
 (globalThis as any).defaultDriveFilingRepository = mockDriveFilingRepo;

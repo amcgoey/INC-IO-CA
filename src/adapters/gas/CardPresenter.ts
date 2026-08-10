@@ -1,4 +1,4 @@
-import { buildMainCard, buildSuccessCard, buildIntakeCard } from "./UI";
+import { buildSuccessCard, buildIntakeCard } from "./UI";
 /**
  * @file CardPresenter.ts
  * @description Presenter application service responsible for assembling Google Apps Script `CardService.ActionResponse` navigation and notification responses.
@@ -89,7 +89,7 @@ class CardPresenter implements UserInterfacePresenter {
       missingFields: missingFields || []
     };
 
-    const card = buildMainCard(e, null, false, flashData);
+    const card = ((globalThis as any).buildIntakeCard || buildIntakeCard)(e, null, flashData);
 
     return this.buildUpdateCardResponse(card);
   }
@@ -113,7 +113,7 @@ class CardPresenter implements UserInterfacePresenter {
       promptAddVendor: promptType === "ADD_VENDOR"
     };
 
-    const card = buildMainCard(e, null, false, flashData);
+    const card = ((globalThis as any).buildIntakeCard || buildIntakeCard)(e, null, flashData);
 
     return this.buildUpdateCardResponse(card);
   }
@@ -129,7 +129,7 @@ class CardPresenter implements UserInterfacePresenter {
     e: GoogleAppsScriptEvent,
     result: DocumentWorkflowResult
   ): GoogleAppsScript.Card_Service.ActionResponse {
-    const card = buildMainCard(e, null, false, result);
+    const card = ((globalThis as any).buildIntakeCard || buildIntakeCard)(e, null, result);
 
     return this.buildUpdateCardResponse(card);
   }
@@ -145,8 +145,8 @@ class CardPresenter implements UserInterfacePresenter {
     e: GoogleAppsScriptEvent,
     isTagChange?: boolean
   ): GoogleAppsScript.Card_Service.ActionResponse {
-    const builder = (globalThis as any).buildMainCard || buildMainCard;
-    const card = builder(e, null, isTagChange || false);
+    const builder = (globalThis as any).buildIntakeCard || buildIntakeCard;
+    const card = builder(e, null);
 
     return this.buildUpdateCardResponse(card);
   }
@@ -157,6 +157,16 @@ class CardPresenter implements UserInterfacePresenter {
    * @param e - Google Apps Script event object.
    * @returns ActionResponse updating Card UI with unbiased intake card.
    */
+  presentIntakeCard(
+    e: GoogleAppsScriptEvent,
+    initialData: ParsedData | null = null,
+    flashMessage: any = null
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    const builder = (globalThis as any).buildIntakeCard || buildIntakeCard;
+    const card = builder(e, initialData, flashMessage);
+    return this.buildUpdateCardResponse(card);
+  }
+
   presentUnbiasedIntakeCard(
     e: GoogleAppsScriptEvent
   ): GoogleAppsScript.Card_Service.ActionResponse {
@@ -241,7 +251,7 @@ class CardPresenter implements UserInterfacePresenter {
   presentCacheRefresh(
     e: GoogleAppsScriptEvent
   ): GoogleAppsScript.Card_Service.ActionResponse {
-    const card = buildMainCard(e);
+    const card = ((globalThis as any).buildIntakeCard || buildIntakeCard)(e);
 
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(card))
@@ -262,8 +272,8 @@ class CardPresenter implements UserInterfacePresenter {
     flashMessage?: any,
     notificationText?: string
   ): GoogleAppsScript.Card_Service.ActionResponse {
-    const buildCard = (globalThis as any).buildMainCard || buildMainCard;
-    const card = buildCard(e, null, false, flashMessage);
+    const buildCard = (globalThis as any).buildIntakeCard || buildIntakeCard;
+    const card = buildCard(e, null, flashMessage);
     const builder = CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(card));
 
@@ -316,7 +326,7 @@ class CardPresenter implements UserInterfacePresenter {
       }
     }
 
-    const card = buildMainCard(e);
+    const card = ((globalThis as any).buildIntakeCard || buildIntakeCard)(e);
 
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(card))
