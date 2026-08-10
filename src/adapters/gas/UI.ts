@@ -348,7 +348,7 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
       .addButton(CardService.newTextButton().setText("Open in Drive").setOpenLink(CardService.newOpenLink().setUrl(flashMessage.url)));
     
     if (logUrl) {
-      successButtons.addButton(CardService.newTextButton().setText("Open Submittal Log").setOpenLink(CardService.newOpenLink().setUrl(logUrl)));
+      successButtons.addButton(CardService.newTextButton().setText("Open Document Log").setOpenLink(CardService.newOpenLink().setUrl(logUrl)));
     }
     successButtons.addButton(CardService.newTextButton().setText("Draft Email").setOnClickAction(CardService.newAction().setFunctionName("createDraftEmail").setParameters(draftParams)).setTextButtonStyle(CardService.TextButtonStyle.FILLED));
 
@@ -427,7 +427,7 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
         if (logSettings.logSheetId) {
           logUrl += `#gid=${logSettings.logSheetId}`;
         }
-        section1.addWidget(CardService.newTextButton().setText("Open Submittal Log").setOpenLink(CardService.newOpenLink().setUrl(logUrl)));
+        section1.addWidget(CardService.newTextButton().setText("Open Document Log").setOpenLink(CardService.newOpenLink().setUrl(logUrl)));
       }
 
       try {
@@ -719,7 +719,7 @@ function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, 
 
   sec.addWidget(CardService.newButtonSet()
     .addButton(CardService.newTextButton().setText("Open Drive").setOpenLink(CardService.newOpenLink().setUrl(fileUrl)))
-    .addButton(CardService.newTextButton().setText("Open Submittal Log").setOpenLink(CardService.newOpenLink().setUrl(logUrl)))
+    .addButton(CardService.newTextButton().setText("Open Document Log").setOpenLink(CardService.newOpenLink().setUrl(logUrl)))
   );
   sec.addWidget(CardService.newTextInput().setFieldName("localPath").setTitle("G:\\ Path").setValue(localPath));
 
