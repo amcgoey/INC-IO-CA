@@ -6,6 +6,7 @@ import { defaultLogRepository } from "../../GoogleSheetsLogRepository";
 import { defaultCardPresenter } from "./CardPresenter";
 import { defaultDriveNameProvider } from "../../GoogleDriveNameProvider";
 import { FieldConfidenceThreshold } from "../../core/interfaces/AiAnalysisService";
+import { PicklistResolver, PicklistOption } from "../../core/config/PicklistResolver";
 
 /**
  * Helper to append ⚠ Check Value label indicator when field confidence is below threshold (< 0.85).

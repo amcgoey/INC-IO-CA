@@ -8,6 +8,7 @@
 
 import { EmailIntakeParser } from './EmailIntakeParser';
 import { defaultDocumentTypeConfigRegistry } from '../../DocumentTypeConfigRegistry';
+import { PicklistResolver } from '../config/PicklistResolver';
 
 /**
  * Trims whitespace from a given string value, returning an empty string if undefined or null.
