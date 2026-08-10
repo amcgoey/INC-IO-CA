@@ -5,6 +5,7 @@ import { CardSerializer } from "../../harness/CardSerializer";
 import { FakeDriveFilingRepository } from "../../harness/fakes/FakeDriveFilingRepository";
 import { FakePdfDocumentService } from "../../harness/fakes/FakePdfDocumentService";
 import { GoogleSheetsLogRepository } from "../../../src/GoogleSheetsLogRepository";
+import { defaultDocumentTypeConfigRegistry, DEFAULT_RFI_CONFIG, DEFAULT_ASI_CONFIG } from "../../../src/DocumentTypeConfigRegistry";
 import * as UI from "../../../src/adapters/gas/UI";
 import * as Process from "../../../src/Process";
 
@@ -17,6 +18,8 @@ test.afterEach(() => {
 });
 
 test("IntakeCard - dynamic field generation across registered DocumentTypes", () => {
+  defaultDocumentTypeConfigRegistry.registerConfig(DEFAULT_RFI_CONFIG);
+  defaultDocumentTypeConfigRegistry.registerConfig(DEFAULT_ASI_CONFIG);
   const docTypes = ["SUBMITTAL_ARCH", "SUBMITTAL_FFE", "RFI", "ASI"];
 
   for (const docType of docTypes) {
@@ -435,6 +438,19 @@ test("IntakeCard - DocumentType change updates Open Submittal Log tab GID and hy
     formInput: { project: "PROJ", documentType: "RFI" },
     parameters: { project: "PROJ", documentType: "SUBMITTAL_ARCH", logFileId: "log-123" }
   };
+  defaultDocumentTypeConfigRegistry.registerConfig({
+    documentType: "RFI",
+    displayName: "RFI (Request for Information)",
+    targetTab: "RFI Log",
+    rootFolderSearchTerms: ["RFIs"],
+    closedRootFolderName: "Closed",
+    filenamePrefix: "_",
+    logSearchTerms: ["rfi log"],
+    logSheetName: "RFI Log",
+    logAdapterKey: "GoogleSheetsLogRepository",
+    filingAdapterKey: "GoogleDriveFilingRepository",
+    fields: []
+  });
   const rfiCard = UI.buildIntakeCard(rfiEvent as any);
   const rfiJson = CardSerializer.toJSON(rfiCard);
 

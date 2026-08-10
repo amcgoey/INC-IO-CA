@@ -12,6 +12,7 @@ test.afterEach(() => {
 
 import { FieldConfidenceThreshold } from "../../src/core/interfaces/AiAnalysisService";
 import { buildIntakeCard } from "../../src/adapters/gas/UI";
+import { defaultDocumentTypeConfigRegistry, DEFAULT_RFI_CONFIG, DEFAULT_ASI_CONFIG } from "../../src/DocumentTypeConfigRegistry";
 
 const findWidgetByFieldName = (cardJson: any, fieldName: string) => {
   return (cardJson.sections || []).flatMap((s: any) => s.widgets || []).find((w: any) => w.fieldName === fieldName);
@@ -141,6 +142,7 @@ test("IntakeCard - dynamically renders form input widgets for SUBMITTAL_FFE with
 });
 
 test("IntakeCard - dynamically renders form input widgets for RFI without hardcoded checks", () => {
+  defaultDocumentTypeConfigRegistry.registerConfig(DEFAULT_RFI_CONFIG);
   const event = EventFactory.createCardSubmitEvent({
     project: "PROJ",
     documentType: "RFI",
@@ -166,6 +168,24 @@ test("IntakeCard - dynamically renders form input widgets for RFI without hardco
 });
 
 test("IntakeCard - dynamically renders form input widgets for ASI without hardcoded checks", () => {
+  defaultDocumentTypeConfigRegistry.registerConfig({
+    documentType: "ASI",
+    displayName: "ASI (Architect's Supplemental Instructions)",
+    targetTab: "ASI Log",
+    rootFolderSearchTerms: ["ASIs"],
+    closedRootFolderName: "Closed",
+    filenamePrefix: "_",
+    logSearchTerms: ["asi log"],
+    logSheetName: "ASI Log",
+    logAdapterKey: "GoogleSheetsLogRepository",
+    filingAdapterKey: "GoogleDriveFilingRepository",
+    fields: [
+      { key: 'asiNumber', label: 'ASI Number', type: 'string', required: true, header: 'ASI Number' },
+      { key: 'title', label: 'Title', type: 'string', required: true, header: 'Title' },
+      { key: 'calcFileName', label: 'Calc File Name', type: 'string', isCalculated: true, header: 'Calc File Name' }
+    ]
+  });
+
   const event = EventFactory.createCardSubmitEvent({
     project: "PROJ",
     documentType: "ASI",

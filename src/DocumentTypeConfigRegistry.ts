@@ -295,8 +295,9 @@ class DocumentTypeConfigRegistry {
     for (const config of this.configs.values()) {
       const key = config.documentType;
       if (key === 'Architecture' || key === 'FF&E' || key === 'Submittal') continue;
-      if (!seen.has(key)) {
-        seen.add(key);
+      const lower = key.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
         list.push(config);
       }
     }
@@ -396,17 +397,85 @@ class DocumentTypeConfigRegistry {
   }
 
   /**
-   * Resets the registry back to default state (pre-configured for Submittal, Architecture, FF&E).
+   * Deserializes DocumentTypeConfig entries directly from a live _Config tab's DocTypes table and field subtables.
+   */
+  public loadFromSpreadsheetConfig(docTypeRows: unknown[][], fieldSpecsMap: Record<string, unknown[][]> = {}): void {
+    if (!docTypeRows || docTypeRows.length <= 1) return;
+
+    let headerRowIdx = 0;
+    const headerMap = new Map<string, number>();
+    for (let r = 0; r < Math.min(docTypeRows.length, 3); r++) {
+      const rowStr = docTypeRows[r].map(c => String(c).toLowerCase().trim());
+      if (rowStr.includes('doctypekey') || rowStr.includes('displayname')) {
+        headerRowIdx = r;
+        docTypeRows[r].forEach((col: any, idx: number) => {
+          headerMap.set(String(col).toLowerCase().trim(), idx);
+        });
+        break;
+      }
+    }
+
+    if (headerMap.size === 0) {
+      headerMap.set('doctypekey', 0);
+      headerMap.set('displayname', 1);
+      headerMap.set('prefix', 2);
+      headerMap.set('logtabname', 3);
+    }
+
+    const getVal = (row: any[], colName: string): string => {
+      const idx = headerMap.get(colName);
+      return idx !== undefined && row[idx] !== undefined ? String(row[idx]).trim() : '';
+    };
+
+    for (let r = headerRowIdx + 1; r < docTypeRows.length; r++) {
+      const row = docTypeRows[r];
+      const rawKey = getVal(row, 'doctypekey');
+      if (!rawKey) continue;
+
+      const displayName = getVal(row, 'displayname') || rawKey;
+      const prefix = getVal(row, 'prefix') || '_';
+      const logTabName = getVal(row, 'logtabname') || 'Log';
+
+      const fieldRows = fieldSpecsMap[rawKey] || fieldSpecsMap[rawKey.toUpperCase()] || [];
+      const parsedFields = this.parseFieldSpecs(fieldRows);
+      const fields = parsedFields.length > 0
+        ? parsedFields
+        : (rawKey.toLowerCase().includes('ffe') ? DEFAULT_FFE_SUBMITTAL_FIELDS : DEFAULT_SUBMITTAL_FIELDS);
+
+      const baseConfig: DocumentTypeConfig = rawKey.toLowerCase().includes('ffe')
+        ? { ...DEFAULT_FFE_CONFIG }
+        : { ...DEFAULT_SUBMITTAL_ARCH_CONFIG };
+
+      const config: DocumentTypeConfig = {
+        ...baseConfig,
+        documentType: rawKey,
+        displayName,
+        filenamePrefix: prefix,
+        logSheetName: logTabName,
+        targetTab: logTabName,
+        fields
+      };
+
+      this.registerConfig(config);
+
+      // Register uppercase alias (e.g. SUBMITTAL_ARCH for Submittal_Arch)
+      const upperKey = rawKey.toUpperCase();
+      if (upperKey !== rawKey) {
+        this.registerConfig({ ...config, documentType: upperKey });
+      }
+    }
+  }
+
+  /**
+   * Resets the registry back to default state (pre-configured for Submittal_Arch and Submittal_FFE from JSON spec).
    */
   public reset(): void {
     this.configs.clear();
     this.registerConfig({ ...DEFAULT_SUBMITTAL_CONFIG });
     this.registerConfig({ ...DEFAULT_ARCH_CONFIG });
     this.registerConfig({ ...DEFAULT_FFE_CONFIG });
-    this.registerConfig({ ...DEFAULT_SUBMITTAL_ARCH_CONFIG });
-    this.registerConfig({ ...DEFAULT_SUBMITTAL_FFE_CONFIG });
-    this.registerConfig({ ...DEFAULT_RFI_CONFIG });
-    this.registerConfig({ ...DEFAULT_ASI_CONFIG });
+    this.registerConfig({ ...DEFAULT_SUBMITTAL_ARCH_CONFIG, displayName: 'Architectural Submittals', targetTab: 'Submittal Arch' });
+    this.registerConfig({ ...DEFAULT_SUBMITTAL_FFE_CONFIG, displayName: 'FFE Submittals', targetTab: 'Submittal FFE' });
   }
 }
 
@@ -418,5 +487,7 @@ export {
   resolve5TierFieldValue,
   DEFAULT_SUBMITTAL_FIELDS,
   DEFAULT_FFE_SUBMITTAL_FIELDS,
+  DEFAULT_RFI_CONFIG,
+  DEFAULT_ASI_CONFIG,
   ffeStrategyValidationHook
 };

@@ -52,23 +52,13 @@
                   "selected": false
                 },
                 {
-                  "text": "Submittal (Architecture)",
+                  "text": "Architectural Submittals",
                   "value": "SUBMITTAL_ARCH",
                   "selected": true
                 },
                 {
-                  "text": "Submittal (FF&E)",
+                  "text": "FFE Submittals",
                   "value": "SUBMITTAL_FFE",
-                  "selected": false
-                },
-                {
-                  "text": "RFI (Request for Information)",
-                  "value": "RFI",
-                  "selected": false
-                },
-                {
-                  "text": "ASI (Architect's Supplemental Instructions)",
-                  "value": "ASI",
                   "selected": false
                 }
               ],
@@ -129,7 +119,7 @@
           ]
         },
         {
-          "header": "3. Document Attributes (Submittal (Architecture))",
+          "header": "3. Document Attributes (Architectural Submittals)",
           "collapsible": false,
           "widgets": [
             {

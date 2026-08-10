@@ -11,6 +11,7 @@ import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./core/config/DocumentLogWorkbo
 import { GoogleSheetsStorageAdapter } from "./SheetStorageAdapter";
 import { LogEngine } from "./core/log/LogEngine";
 import { defaultSheetValidationAndProtectionAdapter } from "./adapters/gas/SheetValidationAndProtectionAdapter";
+import { defaultDocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
 
 function getGoogleSheetsStorageAdapterClass(): any {
   return GoogleSheetsStorageAdapter;
@@ -105,6 +106,68 @@ class GoogleSheetsLogRepository implements LogRepository {
           result.sheetGids![s.getName()] = s.getSheetId();
         });
       } catch (e) {}
+
+      const configSheet = ss.getSheetByName("_Config");
+      if (configSheet) {
+        try {
+          const configValues = configSheet.getDataRange().getValues();
+          const docTypeRows: unknown[][] = [];
+          const fieldSpecsMap: Record<string, unknown[][]> = {};
+          
+          let currentSection: "NONE" | "DOCTYPES" | "FIELDS" = "NONE";
+          let currentFieldKey = "";
+
+          for (let r = 0; r < configValues.length; r++) {
+            const row = configValues[r];
+            const firstCell = String(row[0] || "").trim();
+            const secondCell = String(row[1] || "").trim();
+
+            if (firstCell.toLowerCase() === "doctypekey" || secondCell.toLowerCase() === "displayname") {
+              currentSection = "DOCTYPES";
+              docTypeRows.push(row);
+              continue;
+            }
+
+            if (firstCell.toLowerCase() === "key" && secondCell.toLowerCase() === "header") {
+              currentSection = "FIELDS";
+              if (docTypeRows.length > 1) {
+                const dtIdx = Object.keys(fieldSpecsMap).length;
+                if (docTypeRows[dtIdx + 1] && docTypeRows[dtIdx + 1][0]) {
+                  currentFieldKey = String(docTypeRows[dtIdx + 1][0]).trim();
+                }
+              }
+              const targetKey = currentFieldKey || "Submittal_Arch";
+              if (!fieldSpecsMap[targetKey]) {
+                fieldSpecsMap[targetKey] = [row];
+              }
+              continue;
+            }
+
+            if (currentSection === "DOCTYPES") {
+              if (firstCell === "" && secondCell === "") {
+                currentSection = "NONE";
+              } else {
+                docTypeRows.push(row);
+              }
+            } else if (currentSection === "FIELDS") {
+              if (firstCell === "" && secondCell === "") {
+                currentSection = "NONE";
+              } else {
+                const targetKey = currentFieldKey || "Submittal_Arch";
+                if (!fieldSpecsMap[targetKey]) {
+                  fieldSpecsMap[targetKey] = [["Key", "Header", "Label", "Type", "IsCalculated", "FormulaOrFunction", "OptionsRange", "Required", "Description", "DefaultValue", "KeyNormalizationRule", "NumberFormat"]];
+                }
+                fieldSpecsMap[targetKey].push(row);
+              }
+            }
+          }
+
+          const reg = (globalThis as any).defaultDocumentTypeConfigRegistry || defaultDocumentTypeConfigRegistry;
+          if (reg && typeof reg.loadFromSpreadsheetConfig === "function" && docTypeRows.length > 1) {
+            reg.loadFromSpreadsheetConfig(docTypeRows, fieldSpecsMap);
+          }
+        } catch (err) {}
+      }
 
       const logSheet = ss.getSheetByName(CONFIG.LOG_SHEET_NAME) || ss.getSheetByName("Submittal Arch") || (ss.getSheets ? ss.getSheets()[0] : null);
       if (logSheet) result.logSheetId = logSheet.getSheetId();

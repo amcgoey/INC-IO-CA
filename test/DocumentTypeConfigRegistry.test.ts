@@ -74,24 +74,45 @@ test('DocumentTypeConfigRegistry - DEFAULT_FFE_CONFIG includes standardized logS
   assert.deepEqual(config.logSearchTerms, ['document log', 'inc document log', 'submittal log', 'ffe log', 'ff&e log']);
 });
 
-test('DocumentTypeConfigRegistry - getAllConfigs returns all registered doc types with Display Names', () => {
+test('DocumentTypeConfigRegistry - getAllConfigs returns active doc types without undeveloped RFI/ASI by default', () => {
   const registry = new DocumentTypeConfigRegistry();
   const configs = registry.getAllConfigs();
-  assert.ok(configs.length >= 4, "Registry should return all primary doc type configs");
+  assert.equal(configs.length, 2, "Default active configs should only include Submittal_Arch and Submittal_FFE");
   
   const arch = configs.find(c => c.documentType === 'SUBMITTAL_ARCH');
   assert.ok(arch);
-  assert.equal(arch.displayName, 'Submittal (Architecture)');
+  assert.equal(arch.displayName, 'Architectural Submittals');
 
   const ffe = configs.find(c => c.documentType === 'SUBMITTAL_FFE');
   assert.ok(ffe);
-  assert.equal(ffe.displayName, 'Submittal (FF&E)');
+  assert.equal(ffe.displayName, 'FFE Submittals');
 
   const rfi = configs.find(c => c.documentType === 'RFI');
-  assert.ok(rfi);
-  assert.equal(rfi.displayName, 'RFI (Request for Information)');
+  assert.equal(rfi, undefined, "Undeveloped RFI document type should not be active by default");
+});
 
-  const asi = configs.find(c => c.documentType === 'ASI');
-  assert.ok(asi);
-  assert.equal(asi.displayName, "ASI (Architect's Supplemental Instructions)");
+test('DocumentTypeConfigRegistry - loadFromSpreadsheetConfig deserializes _Config tab rows', () => {
+  const registry = new DocumentTypeConfigRegistry();
+  const docTypeRows = [
+    ['DocTypeKey', 'DisplayName', 'Prefix', 'LogTabName'],
+    ['Submittal_Arch', 'Architectural Submittals Custom', 'SUB-ARCH', 'Submittal Arch'],
+    ['Submittal_FFE', 'FFE Submittals Custom', 'SUB-FFE', 'Submittal FFE']
+  ];
+  const fieldSpecsMap = {
+    Submittal_Arch: [
+      ['Key', 'Header', 'Label', 'Type', 'IsCalculated', 'FormulaOrFunction', 'OptionsRange', 'Required', 'Description', 'DefaultValue', 'KeyNormalizationRule', 'NumberFormat'],
+      ['status', 'Status', 'Status', 'list', 'FALSE', '', 'Statuses_Submittal_Labels', 'TRUE', 'Status', 'Open', 'picklist', ''],
+      ['number', 'Number', 'Number', 'string', 'FALSE', '', '', 'FALSE', 'Submittal Number', '', '', '000']
+    ]
+  };
+
+  registry.loadFromSpreadsheetConfig(docTypeRows, fieldSpecsMap);
+  const configs = registry.getAllConfigs();
+  assert.equal(configs.length, 2);
+
+  const arch = registry.getConfig('Submittal_Arch');
+  assert.equal(arch.displayName, 'Architectural Submittals Custom');
+  assert.equal(arch.logSheetName, 'Submittal Arch');
+  assert.ok(arch.fields && arch.fields.length === 2);
+  assert.equal(arch.fields[1].key, 'number');
 });

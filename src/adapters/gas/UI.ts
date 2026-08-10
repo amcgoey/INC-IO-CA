@@ -972,18 +972,11 @@ function buildIntakeCard(
   docTypeDrop.addItem("-- Select Document Type --", "", state.documentType === "");
 
   const allConfigs = (registry && typeof registry.getAllConfigs === "function") ? registry.getAllConfigs() : [];
-  if (allConfigs.length > 0) {
-    allConfigs.forEach((cfg: DocumentTypeConfig) => {
-      const isSelected = state.documentType === cfg.documentType;
-      const label = cfg.displayName || cfg.documentType;
-      docTypeDrop.addItem(label, cfg.documentType, isSelected);
-    });
-  } else {
-    docTypeDrop.addItem("Submittal (Architecture)", "SUBMITTAL_ARCH", state.documentType === "SUBMITTAL_ARCH");
-    docTypeDrop.addItem("Submittal (FF&E)", "SUBMITTAL_FFE", state.documentType === "SUBMITTAL_FFE");
-    docTypeDrop.addItem("RFI (Request for Information)", "RFI", state.documentType === "RFI");
-    docTypeDrop.addItem("ASI (Architect's Supplemental Instructions)", "ASI", state.documentType === "ASI");
-  }
+  allConfigs.forEach((cfg: DocumentTypeConfig) => {
+    const isSelected = state.documentType === cfg.documentType;
+    const label = cfg.displayName || cfg.documentType;
+    docTypeDrop.addItem(label, cfg.documentType, isSelected);
+  });
   cascadeSec.addWidget(docTypeDrop);
 
   if (discoveredLogs.length > 1) {
