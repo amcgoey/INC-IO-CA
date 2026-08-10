@@ -195,8 +195,9 @@ function renderDynamicFormFields(
         .setTitle(displayTitle)
         .setFieldName("incomingRouting");
 
-      routingDrop.addItem("To Review", "To Review", String(hydratedValue) === "To Review");
-      routingDrop.addItem("To Refer", "To Refer", String(hydratedValue) === "To Refer");
+      const isRefer = String(hydratedValue) === "To Refer";
+      routingDrop.addItem("To Review", "To Review", !isRefer);
+      routingDrop.addItem("To Refer", "To Refer", isRefer);
 
       if (onStateActionName) {
         routingDrop.setOnChangeAction(
@@ -738,6 +739,12 @@ function buildIntakeCard(
   // 2. Cascading Selectors (Project & DocumentType)
   const cascadeSec = CardService.newCardSection().setHeader("1. Project & Document Type");
 
+  const logRepo = (globalThis as any).defaultLogRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
+  const discipline = state.documentType === "SUBMITTAL_FFE" ? "FF&E" : "Architecture";
+  const logSettings = (logRepo && p.logFileId && typeof logRepo.getLogSettings === "function")
+    ? logRepo.getLogSettings(p.logFileId, discipline)
+    : { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null };
+
   const driveProvider = (globalThis as any).defaultDriveNameProvider || defaultDriveNameProvider;
   let drives: Array<{ id: string; name: string }> = [];
   if (driveProvider && typeof driveProvider.getSharedDrives === "function") {
@@ -780,10 +787,142 @@ function buildIntakeCard(
   docTypeDrop.addItem("RFI (Request for Information)", "RFI", state.documentType === "RFI");
   cascadeSec.addWidget(docTypeDrop);
 
+  const activeLogFileId = p.logFileId || logSettings.logFileId;
+  if (activeLogFileId) {
+    let logUrl = `https://docs.google.com/spreadsheets/d/${activeLogFileId}/edit`;
+    if (logSettings && logSettings.logSheetId) {
+      logUrl += `#gid=${logSettings.logSheetId}`;
+    }
+    cascadeSec.addWidget(
+      CardService.newTextButton()
+        .setText("Open Submittal Log")
+        .setOpenLink(CardService.newOpenLink().setUrl(logUrl))
+    );
+  }
+
   card.addSection(cascadeSec);
 
+  // 2. Submittal Selection / File Source Section
+  const fileSourceSec = CardService.newCardSection().setHeader("2. File Source");
+
+  const messageId = (e && e.gmail && e.gmail.messageId) || p.messageId || null;
+  const driveFileId = p.driveFileId || formInput.driveFileId || (flashMessage && flashMessage.newDriveFileId) || "";
+
+  let pdfAttachments: any[] = [];
+  let extractedUrls: Array<{ url: string; text: string }> = [];
+
+  try {
+    if (messageId && typeof GmailApp !== "undefined" && GmailApp.getMessageById) {
+      const msg = GmailApp.getMessageById(messageId);
+      pdfAttachments = msg.getAttachments().filter(a => a.getName().toLowerCase().endsWith('.pdf') || a.getContentType() === 'application/pdf');
+
+      const htmlBody = msg.getBody();
+      const linkRegex = /<a[^>]+href=["'](https?:\/\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+      let match: RegExpExecArray | null;
+      const urlMap = new Map<string, string>();
+
+      while ((match = linkRegex.exec(htmlBody)) !== null) {
+        let url = match[1];
+        let label = match[2].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+
+        if (!url.includes('schemas.') && !url.includes('w3.org') && !url.includes('google.com')) {
+          if (!label) label = "Unknown Link";
+          if (!urlMap.has(url)) urlMap.set(url, label);
+        }
+      }
+
+      const plainMatches = msg.getPlainBody().match(/https?:\/\/[^\s>"]+/g) || [];
+      plainMatches.forEach(url => {
+        if (!url.includes('schemas.') && !url.includes('w3.org') && !url.includes('google.com') && !urlMap.has(url)) {
+          urlMap.set(url, "Direct Link");
+        }
+      });
+
+      urlMap.forEach((label, url) => {
+        let cleanLabel = label.length > 40 ? label.substring(0, 37) + "..." : label;
+        extractedUrls.push({ url: url, text: `🔗 ${cleanLabel}` });
+      });
+    }
+  } catch (err) {}
+
+  let dynamicDefaultSource = "Google Drive URL";
+  if (driveFileId) {
+    dynamicDefaultSource = "Selected Drive File";
+  } else if (pdfAttachments.length > 0) {
+    dynamicDefaultSource = "Email Attachment";
+  }
+
+  const selectedFileSource = formInput.fileSource || (initialData && (initialData as any).fileSource) || p.fileSource || dynamicDefaultSource;
+  const driveFileUrlVal = formInput.driveFileUrl || (initialData && (initialData as any).driveFileUrl) || p.driveFileUrl || "";
+
+  if (driveFileId) {
+    let driveFileName = "Selected Drive File";
+    try {
+      if (typeof DriveApp !== "undefined" && DriveApp.getFileById) {
+        driveFileName = DriveApp.getFileById(driveFileId).getName();
+      }
+    } catch (err) {}
+    fileSourceSec.addWidget(CardService.newTextParagraph().setText(`📄 ${driveFileName}`));
+  } else {
+    const srcDrop = CardService.newSelectionInput()
+      .setType(CardService.SelectionInputType.DROPDOWN)
+      .setTitle("Source")
+      .setFieldName("fileSource")
+      .setOnChangeAction(CardService.newAction().setFunctionName("onStateChange").setParameters(getActionParams()));
+
+    ['Email Attachment', 'Google Drive URL', 'Log Data Only'].forEach(o => {
+      srcDrop.addItem(o, o, selectedFileSource === o);
+    });
+
+    extractedUrls.forEach(item => {
+      srcDrop.addItem(item.text, item.url, selectedFileSource === item.url);
+    });
+
+    fileSourceSec.addWidget(srcDrop);
+
+    if (selectedFileSource === 'Email Attachment') {
+      if (pdfAttachments.length > 0) {
+        const attDrop = CardService.newSelectionInput()
+          .setType(CardService.SelectionInputType.DROPDOWN)
+          .setTitle("Select PDF")
+          .setFieldName("attachmentName");
+        const selectedAttName = formInput.attachmentName || pdfAttachments[0].getName();
+        pdfAttachments.forEach(a => attDrop.addItem(a.getName(), a.getName(), selectedAttName === a.getName()));
+        fileSourceSec.addWidget(attDrop);
+      } else {
+        const warningMsg = (typeof MESSAGES !== "undefined" && MESSAGES.WARNING_NO_PDF_ATTACHMENTS) ? MESSAGES.WARNING_NO_PDF_ATTACHMENTS : "⚠️ No PDF attachments found in this email.";
+        fileSourceSec.addWidget(CardService.newTextParagraph().setText(warningMsg));
+      }
+    } else if (selectedFileSource === 'Google Drive URL') {
+      fileSourceSec.addWidget(
+        CardService.newTextInput()
+          .setFieldName("driveFileUrl")
+          .setTitle("Google Drive URL")
+          .setValue(driveFileUrlVal)
+      );
+    } else if (selectedFileSource.startsWith('http')) {
+      fileSourceSec.addWidget(
+        CardService.newTextInput()
+          .setFieldName("fetchUrl")
+          .setTitle("Selected URL")
+          .setValue(selectedFileSource)
+      );
+      const fetchAction = CardService.newAction()
+        .setFunctionName("handleFetchUrl")
+        .setParameters({ ...getActionParams(), targetFolderId: logSettings.targetFolderId || "", url: selectedFileSource });
+      fileSourceSec.addWidget(
+        CardService.newTextButton()
+          .setText("Fetch & Save to Drive")
+          .setOnClickAction(fetchAction)
+          .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+      );
+    }
+  }
+
+  card.addSection(fileSourceSec);
+
   // 3. Dynamic Document Attributes Section
-  const attrSec = CardService.newCardSection().setHeader("2. Document Attributes");
+  const attrSec = CardService.newCardSection().setHeader("3. Document Attributes");
 
   // Heavy AI Analysis Button at top of Document Attributes
   const aiBtn = CardService.newTextButton()
@@ -804,12 +943,6 @@ function buildIntakeCard(
                         ((initialData && !(initialData as any).displayPath) ? initialData : {}) || {};
   const parserResult = (flashMessage && flashMessage.parserResult) ||
                    (initialData && (initialData as any).parserResult) || {};
-
-  const logRepo = (globalThis as any).defaultLogRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
-  const discipline = state.documentType === "SUBMITTAL_FFE" ? "FF&E" : "Architecture";
-  const logSettings = (logRepo && p.logFileId && typeof logRepo.getLogSettings === "function")
-    ? logRepo.getLogSettings(p.logFileId, discipline)
-    : { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null };
 
   const hydrationContext: HydrationContext = {
     formInput: (e && e.formInput) ? { ...e.formInput } : {},

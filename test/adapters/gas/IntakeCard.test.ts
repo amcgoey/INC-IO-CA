@@ -38,7 +38,7 @@ test("IntakeCard - dynamic field generation across registered DocumentTypes", ()
     assert.ok(json.header, "Card header should exist");
     assert.strictEqual(json.header.title, "File Document");
 
-    const attrSec = json.sections.find(s => s.header === "2. Document Attributes");
+    const attrSec = json.sections.find(s => s.header && s.header.includes("Document Attributes"));
     assert.ok(attrSec, "Document Attributes section should exist for " + docType);
 
     const widgetNames = attrSec.widgets
@@ -116,7 +116,7 @@ test("IntakeCard - low-confidence warning badges and non-blocking banner", () =>
   );
   assert.strictEqual(hasWarningText, true, "Top yellow warning banner should render when low confidence exists");
 
-  const attrSec = json.sections.find(s => s.header === "2. Document Attributes");
+  const attrSec = json.sections.find(s => s.header && s.header.includes("Document Attributes"));
   assert.ok(attrSec);
 
   const sectionWidget = attrSec.widgets.find(w => w.fieldName === "section");
@@ -156,7 +156,7 @@ test("IntakeCard - interactive prompt buttons display (promptAddTag)", () => {
   const card = UI.buildIntakeCard(event, null, flashMessage);
   const json = CardSerializer.toJSON(card);
 
-  const attrSec = json.sections.find(s => s.header === "2. Document Attributes");
+  const attrSec = json.sections.find(s => s.header && s.header.includes("Document Attributes"));
   assert.ok(attrSec, "Document Attributes section should exist");
 
   const buttonSets = attrSec.widgets.filter(w => w.type === "ButtonSet");
@@ -191,7 +191,7 @@ test("IntakeCard - interactive prompt buttons display (promptAddVendor)", () => 
   const card = UI.buildIntakeCard(event, null, flashMessage);
   const json = CardSerializer.toJSON(card);
 
-  const attrSec = json.sections.find(s => s.header === "2. Document Attributes");
+  const attrSec = json.sections.find(s => s.header && s.header.includes("Document Attributes"));
   assert.ok(attrSec, "Document Attributes section should exist");
 
   const buttonSets = attrSec.widgets.filter(w => w.type === "ButtonSet");

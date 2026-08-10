@@ -8,8 +8,8 @@
 const DEFAULT_SUBMITTAL_FIELDS: DocumentFieldSpec[] = [
   { key: 'section', label: 'Section', type: 'string', required: false, description: 'CSI Section # (6 digits)', header: 'Section', keyNormalizationRule: 'code' },
   { key: 'number', label: 'Number', type: 'string', required: false, description: 'Submittal #', header: 'Number' },
-  { key: 'title', label: 'Title', type: 'string', required: true, header: 'Title' },
   { key: 'revision', label: 'Revision', type: 'string', required: false, description: 'Revision #', defaultValue: '0', header: 'Revision' },
+  { key: 'title', label: 'Title', type: 'string', required: true, header: 'Title' },
   { key: 'date', label: 'Date', type: 'date', required: true, description: 'Date (YYMMDD)', header: 'Date' },
   { key: 'contact', label: 'Contact', type: 'enum', required: true, header: 'Contact' },
   { key: 'action', label: 'Action', type: 'enum', required: true, header: 'Action' },

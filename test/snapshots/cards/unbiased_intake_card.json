@@ -73,7 +73,50 @@
           ]
         },
         {
-          "header": "2. Document Attributes",
+          "header": "2. File Source",
+          "collapsible": false,
+          "widgets": [
+            {
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "fileSource",
+              "title": "Source",
+              "items": [
+                {
+                  "text": "Email Attachment",
+                  "value": "Email Attachment",
+                  "selected": false
+                },
+                {
+                  "text": "Google Drive URL",
+                  "value": "Google Drive URL",
+                  "selected": true
+                },
+                {
+                  "text": "Log Data Only",
+                  "value": "Log Data Only",
+                  "selected": false
+                }
+              ],
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "driveFileUrl",
+              "title": "Google Drive URL",
+              "value": "",
+              "multiline": false
+            }
+          ]
+        },
+        {
+          "header": "3. Document Attributes",
           "collapsible": false,
           "widgets": [
             {
@@ -126,9 +169,10 @@
             },
             {
               "type": "TextInput",
-              "fieldName": "title",
-              "title": "Title",
-              "value": "",
+              "fieldName": "revision",
+              "title": "Revision",
+              "value": "0",
+              "hint": "Revision #",
               "multiline": false,
               "onChangeAction": {
                 "functionName": "onStateChange",
@@ -140,10 +184,9 @@
             },
             {
               "type": "TextInput",
-              "fieldName": "revision",
-              "title": "Revision",
-              "value": "0",
-              "hint": "Revision #",
+              "fieldName": "title",
+              "title": "Title",
+              "value": "",
               "multiline": false,
               "onChangeAction": {
                 "functionName": "onStateChange",
