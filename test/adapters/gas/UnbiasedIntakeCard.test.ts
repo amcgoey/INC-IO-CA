@@ -39,7 +39,7 @@ test("UnbiasedIntakeCard - dynamic field generation across registered DocumentTy
       }
     };
 
-    const card = UI.buildUnbiasedIntakeCard(event);
+    const card = UI.buildIntakeCard(event);
     assert.ok(card, `Card for ${docType} should be constructed`);
 
     const json = CardSerializer.toJSON(card);
@@ -81,7 +81,7 @@ test("UnbiasedIntakeCard - cascading selection response cards (onStateChange)", 
     }
   };
 
-  const card = UI.buildUnbiasedIntakeCard(event);
+  const card = UI.buildIntakeCard(event);
   const json = CardSerializer.toJSON(card);
 
   const cascadeSec = json.sections.find(s => s.header === "1. Project & Document Type");
@@ -120,7 +120,7 @@ test("UnbiasedIntakeCard - low-confidence warning badges and non-blocking banner
     }
   };
 
-  const card = UI.buildUnbiasedIntakeCard(event, null, null, aiResult as any);
+  const card = UI.buildIntakeCard(event, null, null, aiResult as any);
   const json = CardSerializer.toJSON(card);
 
   // Top warning banner should be rendered

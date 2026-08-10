@@ -849,7 +849,7 @@ function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
 }
 
 /**
- * Constructs the Unbiased Multi-Document Contextual Intake Card.
+ * Constructs the Multi-Document Contextual Intake Card (IntakeCard).
  *
  * Card Title: "File Document"
  * Demonstrates the cascading selection flow (Project -> DocumentType -> Dynamic Attributes -> Admin & Status foldout).
@@ -859,7 +859,7 @@ function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
  * @param flashMessage - Optional notification payload containing warnings or errors.
  * @returns Fully constructed `GoogleAppsScript.Card_Service.Card` instance.
  */
-function buildUnbiasedIntakeCard(
+function buildIntakeCard(
   e: GoogleAppsScriptEvent,
   initialData: ParsedData | null = null,
   flashMessage: any = null,
@@ -927,12 +927,40 @@ function buildUnbiasedIntakeCard(
   }
 
   if (flashMessage && (flashMessage.error || flashMessage.warning)) {
-    const msgText = flashMessage.error ? `?? ${flashMessage.error}` : `?? ${flashMessage.warning}`;
+    const msgText = flashMessage.error ? `⚠️ ${flashMessage.error}` : `⚠️ ${flashMessage.warning}`;
     card.addSection(
       CardService.newCardSection().addWidget(
         CardService.newTextParagraph().setText(msgText)
       )
     );
+  }
+
+  if (flashMessage && flashMessage.targetKey) {
+    const flashSec = CardService.newCardSection()
+      .addWidget(CardService.newTextParagraph().setText(MESSAGES.SUCCESS_INCOMING(flashMessage.targetKey)));
+
+    if (flashMessage.failedColumns && flashMessage.failedColumns.length > 0) {
+      flashSec.addWidget(CardService.newTextParagraph().setText(`⚠️ **Warning:** Some columns failed to log due to data validation rules: **${flashMessage.failedColumns.join(", ")}**. Please check the spreadsheet.`));
+    }
+    if (flashMessage.emptyFallbacks && flashMessage.emptyFallbacks.length > 0) {
+      flashSec.addWidget(CardService.newTextParagraph().setText(`⚠️ **Note:** The following fields were left empty and fell back to empty strings: **${flashMessage.emptyFallbacks.join(", ")}**.`));
+    }
+
+    const logUrl = flashMessage.directRowUrl || (p.logFileId ? `https://docs.google.com/spreadsheets/d/${p.logFileId}/edit` : "");
+
+    const successButtons = CardService.newButtonSet();
+    if (flashMessage.url) {
+      successButtons.addButton(CardService.newTextButton().setText("Open in Drive").setOpenLink(CardService.newOpenLink().setUrl(flashMessage.url)));
+    }
+    if (logUrl) {
+      successButtons.addButton(CardService.newTextButton().setText("Open Document Log").setOpenLink(CardService.newOpenLink().setUrl(logUrl)));
+    }
+
+    flashSec.addWidget(successButtons);
+    if (flashMessage.localPath) {
+      flashSec.addWidget(CardService.newTextInput().setFieldName("flashPath").setTitle("Local G:\\ Path").setValue(flashMessage.localPath));
+    }
+    card.addSection(flashSec);
   }
 
   // 2. Cascading Selectors (Project & DocumentType)
@@ -966,13 +994,13 @@ function buildUnbiasedIntakeCard(
 
   // Heavy AI Analysis Button at top of Document Attributes
   const aiBtn = CardService.newTextButton()
-    .setText("?? Analyze Document with AI")
+    .setText("🔍 Analyze Document with AI")
     .setOnClickAction(CardService.newAction().setFunctionName("handleDeepAnalysis").setParameters(getActionParams()))
     .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
   attrSec.addWidget(CardService.newButtonSet().addButton(aiBtn));
 
   const docTypeKey = state.documentType || "SUBMITTAL_ARCH";
-  let registry = defaultDocumentTypeConfigRegistry;
+  const registry = defaultDocumentTypeConfigRegistry;
   let fields: DocumentFieldSpec[] = [];
   if (registry && registry.hasConfig(docTypeKey)) {
     fields = registry.getConfig(docTypeKey).fields || [];
@@ -1011,7 +1039,28 @@ function buildUnbiasedIntakeCard(
     subBtn.setDisabled(true);
   }
 
-  attrSec.addWidget(CardService.newButtonSet().addButton(subBtn));
+  const buttonSet = CardService.newButtonSet().addButton(subBtn);
+  const subParams: Record<string, string> = { ...getActionParams(), logFileId: p.logFileId || "", targetFolderId: p.targetFolderId || "", projectAbbr: state.project || "" };
+
+  if (flashMessage && flashMessage.promptAddTag) {
+    const tagParams: Record<string, string> = { ...subParams, newTag: state.specTag, newTitle: state.title };
+    buttonSet.addButton(
+      CardService.newTextButton()
+        .setText("Add New Tag, File & Log")
+        .setOnClickAction(CardService.newAction().setFunctionName("processSubmissionWithNewTag").setParameters(tagParams))
+        .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+    );
+  } else if (flashMessage && flashMessage.promptAddVendor) {
+    const vendorParams: Record<string, string> = { ...subParams, newVendor: state.vendor };
+    buttonSet.addButton(
+      CardService.newTextButton()
+        .setText("Add New Vendor, File & Log")
+        .setOnClickAction(CardService.newAction().setFunctionName("processSubmissionWithNewVendor").setParameters(vendorParams))
+        .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+    );
+  }
+
+  attrSec.addWidget(buttonSet);
   card.addSection(attrSec);
 
   // 4. Admin & Status Foldout Section
@@ -1040,7 +1089,7 @@ function buildUnbiasedIntakeCard(
 
 export {
   renderDynamicFormFields,
-  buildUnbiasedIntakeCard,
+  buildIntakeCard,
   buildMainCard,
   buildSuccessCard,
   onStateChange,

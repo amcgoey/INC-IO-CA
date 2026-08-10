@@ -1,6 +1,6 @@
 # 0018-unbiased-multi-document-ui-intake-and-generalized-log-disambiguation.md
 
-Establish the AI-first triage pipeline, targeted document email parsers (`SubmittalEmailParser`, `RfiEmailParser`), UserCache persistence, 3-tier confidence threshold guards, and unbiased card reload procedures.
+Establish the AI-first triage pipeline, targeted document email parsers (`SubmittalEmailParser`, `RfiEmailParser`), UserCache persistence, 3-tier confidence threshold guards, and IntakeCard reload procedures.
 
 ## Context & Decision
 

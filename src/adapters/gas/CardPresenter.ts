@@ -1,4 +1,4 @@
-import { buildMainCard, buildSuccessCard, buildUnbiasedIntakeCard } from "./UI";
+import { buildMainCard, buildSuccessCard, buildIntakeCard } from "./UI";
 /**
  * @file CardPresenter.ts
  * @description Presenter application service responsible for assembling Google Apps Script `CardService.ActionResponse` navigation and notification responses.
@@ -160,7 +160,7 @@ class CardPresenter implements UserInterfacePresenter {
   presentUnbiasedIntakeCard(
     e: GoogleAppsScriptEvent
   ): GoogleAppsScript.Card_Service.ActionResponse {
-    const card = buildUnbiasedIntakeCard(e);
+    const card = buildIntakeCard(e);
     return this.buildUpdateCardResponse(card);
   }
 
@@ -357,9 +357,9 @@ class CardPresenter implements UserInterfacePresenter {
 }
 
 /** Global default instance seam for CardPresenter. */
-var defaultCardPresenter: CardPresenter = new CardPresenter();
+const defaultCardPresenter: CardPresenter = new CardPresenter();
 
-declare var module: any;
+declare const module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   (globalThis as any).defaultCardPresenter = defaultCardPresenter;

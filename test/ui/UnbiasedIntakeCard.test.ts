@@ -11,7 +11,7 @@ test.afterEach(() => {
 });
 
 import { FieldConfidenceThreshold } from "../../src/core/interfaces/AiAnalysisService";
-import { buildUnbiasedIntakeCard } from "../../src/adapters/gas/UI";
+import { buildIntakeCard } from "../../src/adapters/gas/UI";
 
 const findWidgetByFieldName = (cardJson: any, fieldName: string) => {
   return (cardJson.sections || []).flatMap((s: any) => s.widgets || []).find((w: any) => w.fieldName === fieldName);
@@ -36,7 +36,7 @@ test("UnbiasedIntakeCard - renders without low-confidence warning banner or widg
     }
   };
 
-  const card = buildUnbiasedIntakeCard(event, null, null, aiResult);
+  const card = buildIntakeCard(event, null, null, aiResult);
   const cardJson = CardSerializer.toJSON(card);
 
   const hasLowConfBanner = CardSerializer.hasWidgetText(cardJson, "Low AI Confidence (<85%)");
@@ -62,7 +62,7 @@ test("UnbiasedIntakeCard - checks field-level confidence and appends Check Value
     }
   };
 
-  const card = buildUnbiasedIntakeCard(event, null, null, aiResult);
+  const card = buildIntakeCard(event, null, null, aiResult);
   const cardJson = CardSerializer.toJSON(card);
 
   const hasLowConfBanner = CardSerializer.hasWidgetText(cardJson, "Low AI Confidence (<85%)");
@@ -91,7 +91,7 @@ test("UnbiasedIntakeCard - dynamically renders form input widgets for SUBMITTAL_
     title: "Cast-in-Place Concrete"
   });
 
-  const card = buildUnbiasedIntakeCard(event);
+  const card = buildIntakeCard(event);
   const cardJson = CardSerializer.toJSON(card);
 
   const sectionWidget = findWidgetByFieldName(cardJson, "section");
@@ -120,7 +120,7 @@ test("UnbiasedIntakeCard - dynamically renders form input widgets for SUBMITTAL_
     vendor: "Acme Furniture"
   });
 
-  const card = buildUnbiasedIntakeCard(event);
+  const card = buildIntakeCard(event);
   const cardJson = CardSerializer.toJSON(card);
 
   const specTagWidget = findWidgetByFieldName(cardJson, "specTag");
@@ -148,7 +148,7 @@ test("UnbiasedIntakeCard - dynamically renders form input widgets for RFI withou
     title: "Foundation Footing Detail Clarification"
   });
 
-  const card = buildUnbiasedIntakeCard(event);
+  const card = buildIntakeCard(event);
   const cardJson = CardSerializer.toJSON(card);
 
   const rfiNumberWidget = findWidgetByFieldName(cardJson, "rfiNumber");
@@ -173,7 +173,7 @@ test("UnbiasedIntakeCard - dynamically renders form input widgets for ASI withou
     title: "Updated Window Glazing Specification"
   });
 
-  const card = buildUnbiasedIntakeCard(event);
+  const card = buildIntakeCard(event);
   const cardJson = CardSerializer.toJSON(card);
 
   const asiNumberWidget = findWidgetByFieldName(cardJson, "asiNumber");

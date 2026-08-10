@@ -11,7 +11,7 @@ test.afterEach(() => {
 });
 
 import { DocumentTypeConfigRegistry, resolve5TierFieldValue } from "../src/DocumentTypeConfigRegistry";
-import { renderDynamicFormFields, buildMainCard, buildUnbiasedIntakeCard } from "../src/adapters/gas/UI";
+import { renderDynamicFormFields, buildMainCard, buildIntakeCard } from "../src/adapters/gas/UI";
 
 test("DocumentTypeConfigRegistry - parseFieldSpecs converts _Config subtables into DocumentFieldSpec[]", () => {
   const registry = new DocumentTypeConfigRegistry();
