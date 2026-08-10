@@ -668,27 +668,68 @@ function buildIntakeCard(
 
   const formInput = (e && e.formInput) || {};
   const p = (e && e.parameters) || {};
+  const messageId = (e && e.gmail && e.gmail.messageId) || p.messageId || null;
+  const driveFileId = p.driveFileId || formInput.driveFileId || (flashMessage && flashMessage.newDriveFileId) || "";
 
   // Resolved Cascading State
   const state = {
-    project: formInput.project || (initialData && initialData.driveName) || p.project || "PROJ",
+    project: formInput.project || (initialData && initialData.driveName) || p.project || "",
     documentType: formInput.documentType || (initialData && initialData.discipline === "FF&E" ? "SUBMITTAL_FFE" : "SUBMITTAL_ARCH"),
-    section: formInput.section || (initialData && initialData.section) || "033000",
-    number: formInput.number || (initialData && initialData.number) || "001",
-    revision: formInput.revision || "0",
-    title: formInput.title || (initialData && initialData.title) || "Cast-in-Place Concrete",
-    specTag: formInput.specTag || "CH-01",
-    relatedTag: formInput.relatedTag || "CH-02",
-    vendor: formInput.vendor || "Acme Supplies",
-    rfiNumber: formInput.rfiNumber || "RFI-042",
-    date: formInput.date || formatGasDate(new Date()),
+    section: formInput.section || (initialData && initialData.section) || "",
+    number: formInput.number || (initialData && initialData.number) || "",
+    revision: formInput.revision || (initialData && initialData.revision) || "0",
+    title: formInput.title || (initialData && initialData.title) || "",
+    specTag: formInput.specTag || (initialData && initialData.specTag) || "",
+    relatedTag: formInput.relatedTag || (initialData && initialData.relatedTag) || "",
+    specTitle: formInput.specTitle || (initialData && initialData.specTitle) || "",
+    vendor: formInput.vendor || (initialData && initialData.vendor) || "",
+    rfiNumber: formInput.rfiNumber || (initialData && initialData.rfiNumber) || "",
+    asiNumber: formInput.asiNumber || (initialData && initialData.asiNumber) || "",
+    date: formInput.date || (initialData && initialData.date) || formatGasDate(new Date()),
     notes: formInput.notes || ""
   };
 
-  const getActionParams = (): Record<string, string> => ({
-    project: state.project,
-    documentType: state.documentType
-  });
+  const discipline = state.documentType === "SUBMITTAL_FFE" ? "FF&E" : "Architecture";
+  const logRepo = (globalThis as any).defaultLogRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
+  const logSettings = (logRepo && p.logFileId && typeof logRepo.getLogSettings === "function")
+    ? logRepo.getLogSettings(p.logFileId, discipline)
+    : { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null, targetFolderId: p.targetFolderId || "", logFileId: p.logFileId || "" };
+
+  const activeLogFileId = p.logFileId || logSettings.logFileId || "";
+  let targetFolderId = p.targetFolderId || logSettings.targetFolderId || "";
+
+  if (activeLogFileId && !targetFolderId) {
+    try {
+      if (typeof DriveApp !== "undefined" && DriveApp.getFileById) {
+        const logFile = DriveApp.getFileById(activeLogFileId);
+        const parents = logFile.getParents();
+        if (parents.hasNext()) {
+          const parent = parents.next();
+          const targetFolderName = (typeof CONFIG !== "undefined" && CONFIG.TARGET_FOLDER_NAME) ? CONFIG.TARGET_FOLDER_NAME : "Submittals";
+          const sub = parent.getFoldersByName(targetFolderName);
+          targetFolderId = sub.hasNext() ? sub.next().getId() : parent.getId();
+        }
+      }
+    } catch (err) {}
+  }
+
+  const projectAbbr = logSettings.projectAbbr || state.project || "";
+  let selectedFileSource = formInput.fileSource || (initialData && (initialData as any).fileSource) || p.fileSource || "";
+
+  const getActionParams = (): Record<string, string> => {
+    const params: Record<string, string> = {
+      project: state.project,
+      documentType: state.documentType,
+      discipline: discipline
+    };
+    if (activeLogFileId) params.logFileId = activeLogFileId;
+    if (targetFolderId) params.targetFolderId = targetFolderId;
+    if (projectAbbr) params.projectAbbr = projectAbbr;
+    if (messageId) params.messageId = messageId;
+    if (driveFileId) params.driveFileId = driveFileId;
+    if (selectedFileSource) params.fileSource = selectedFileSource;
+    return params;
+  };
 
   // 1. Status Message Box (Conditional ? only added if a message is displayed or low AI confidence detected)
   if (hasLowConfidence) {
@@ -739,12 +780,6 @@ function buildIntakeCard(
   // 2. Cascading Selectors (Project & DocumentType)
   const cascadeSec = CardService.newCardSection().setHeader("1. Project & Document Type");
 
-  const logRepo = (globalThis as any).defaultLogRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
-  const discipline = state.documentType === "SUBMITTAL_FFE" ? "FF&E" : "Architecture";
-  const logSettings = (logRepo && p.logFileId && typeof logRepo.getLogSettings === "function")
-    ? logRepo.getLogSettings(p.logFileId, discipline)
-    : { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null };
-
   const driveProvider = (globalThis as any).defaultDriveNameProvider || defaultDriveNameProvider;
   let drives: Array<{ id: string; name: string }> = [];
   if (driveProvider && typeof driveProvider.getSharedDrives === "function") {
@@ -787,7 +822,6 @@ function buildIntakeCard(
   docTypeDrop.addItem("RFI (Request for Information)", "RFI", state.documentType === "RFI");
   cascadeSec.addWidget(docTypeDrop);
 
-  const activeLogFileId = p.logFileId || logSettings.logFileId;
   if (activeLogFileId) {
     let logUrl = `https://docs.google.com/spreadsheets/d/${activeLogFileId}/edit`;
     if (logSettings && logSettings.logSheetId) {
@@ -804,9 +838,6 @@ function buildIntakeCard(
 
   // 2. Submittal Selection / File Source Section
   const fileSourceSec = CardService.newCardSection().setHeader("2. File Source");
-
-  const messageId = (e && e.gmail && e.gmail.messageId) || p.messageId || null;
-  const driveFileId = p.driveFileId || formInput.driveFileId || (flashMessage && flashMessage.newDriveFileId) || "";
 
   let pdfAttachments: any[] = [];
   let extractedUrls: Array<{ url: string; text: string }> = [];
@@ -852,7 +883,9 @@ function buildIntakeCard(
     dynamicDefaultSource = "Email Attachment";
   }
 
-  const selectedFileSource = formInput.fileSource || (initialData && (initialData as any).fileSource) || p.fileSource || dynamicDefaultSource;
+  if (!selectedFileSource) {
+    selectedFileSource = formInput.fileSource || (initialData && (initialData as any).fileSource) || p.fileSource || dynamicDefaultSource;
+  }
   const driveFileUrlVal = formInput.driveFileUrl || (initialData && (initialData as any).driveFileUrl) || p.driveFileUrl || "";
 
   if (driveFileId) {
@@ -974,10 +1007,9 @@ function buildIntakeCard(
   }
 
   const buttonSet = CardService.newButtonSet().addButton(subBtn);
-  const subParams: Record<string, string> = { ...getActionParams(), logFileId: p.logFileId || "", targetFolderId: p.targetFolderId || "", projectAbbr: state.project || "" };
 
   if (flashMessage && flashMessage.promptAddTag) {
-    const tagParams: Record<string, string> = { ...subParams, newTag: state.specTag, newTitle: state.title };
+    const tagParams: Record<string, string> = { ...getActionParams(), newTag: formInput.specTag || state.specTag, newTitle: formInput.title || formInput.specTitle || state.specTitle };
     buttonSet.addButton(
       CardService.newTextButton()
         .setText("Add New Tag, File & Log")
@@ -985,7 +1017,7 @@ function buildIntakeCard(
         .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
     );
   } else if (flashMessage && flashMessage.promptAddVendor) {
-    const vendorParams: Record<string, string> = { ...subParams, newVendor: state.vendor };
+    const vendorParams: Record<string, string> = { ...getActionParams(), newVendor: formInput.vendor || state.vendor };
     buttonSet.addButton(
       CardService.newTextButton()
         .setText("Add New Vendor, File & Log")

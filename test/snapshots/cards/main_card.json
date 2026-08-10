@@ -19,19 +19,16 @@
                 {
                   "text": "-- Select Project --",
                   "value": "",
-                  "selected": false
-                },
-                {
-                  "text": "PROJ",
-                  "value": "PROJ",
                   "selected": true
                 }
               ],
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123"
                 }
               }
             },
@@ -65,8 +62,10 @@
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123"
                 }
               }
             }
@@ -101,8 +100,11 @@
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123",
+                  "fileSource": "Google Drive URL"
                 }
               }
             },
@@ -130,8 +132,11 @@
                   "onClickAction": {
                     "functionName": "handleDeepAnalysis",
                     "parameters": {
-                      "project": "PROJ",
-                      "documentType": "SUBMITTAL_ARCH"
+                      "project": "",
+                      "documentType": "SUBMITTAL_ARCH",
+                      "discipline": "Architecture",
+                      "messageId": "msg-test-123",
+                      "fileSource": "Google Drive URL"
                     }
                   }
                 }
@@ -147,8 +152,11 @@
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123",
+                  "fileSource": "Google Drive URL"
                 }
               }
             },
@@ -162,8 +170,11 @@
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123",
+                  "fileSource": "Google Drive URL"
                 }
               }
             },
@@ -177,8 +188,11 @@
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123",
+                  "fileSource": "Google Drive URL"
                 }
               }
             },
@@ -191,8 +205,11 @@
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123",
+                  "fileSource": "Google Drive URL"
                 }
               }
             },
@@ -206,8 +223,11 @@
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123",
+                  "fileSource": "Google Drive URL"
                 }
               }
             },
@@ -246,8 +266,11 @@
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123",
+                  "fileSource": "Google Drive URL"
                 }
               }
             },
@@ -286,8 +309,11 @@
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123",
+                  "fileSource": "Google Drive URL"
                 }
               }
             },
@@ -301,8 +327,11 @@
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123",
+                  "fileSource": "Google Drive URL"
                 }
               }
             },
@@ -313,12 +342,15 @@
                   "type": "TextButton",
                   "text": "Process Document",
                   "style": "FILLED",
-                  "disabled": false,
+                  "disabled": true,
                   "onClickAction": {
                     "functionName": "processSubmission",
                     "parameters": {
-                      "project": "PROJ",
-                      "documentType": "SUBMITTAL_ARCH"
+                      "project": "",
+                      "documentType": "SUBMITTAL_ARCH",
+                      "discipline": "Architecture",
+                      "messageId": "msg-test-123",
+                      "fileSource": "Google Drive URL"
                     }
                   }
                 }
@@ -344,7 +376,7 @@
             },
             {
               "type": "TextParagraph",
-              "text": "?? **AI Triage Status:** Project `PROJ` | Type `SUBMITTAL_ARCH` (Confidence: 94%)"
+              "text": "?? **AI Triage Status:** Project `Unselected` | Type `SUBMITTAL_ARCH` (Confidence: 94%)"
             },
             {
               "type": "ButtonSet",
@@ -356,8 +388,11 @@
                   "onClickAction": {
                     "functionName": "handleRefreshCache",
                     "parameters": {
-                      "project": "PROJ",
-                      "documentType": "SUBMITTAL_ARCH"
+                      "project": "",
+                      "documentType": "SUBMITTAL_ARCH",
+                      "discipline": "Architecture",
+                      "messageId": "msg-test-123",
+                      "fileSource": "Google Drive URL"
                     }
                   }
                 }
