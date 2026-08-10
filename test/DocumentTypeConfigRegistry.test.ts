@@ -47,19 +47,19 @@ test('DocumentTypeConfigRegistry - throws error for unregistered document types'
 test('DocumentTypeConfigRegistry - reset restores default Submittal config', () => {
   const registry = new DocumentTypeConfigRegistry();
   registry.registerConfig({
-    documentType: 'RFI',
-    rootFolderSearchTerms: ['RFIs'],
+    documentType: 'CUSTOM_TEMP_TYPE',
+    rootFolderSearchTerms: ['Temp'],
     closedRootFolderName: 'Closed',
-    filenamePrefix: 'RFI_',
-    logSearchTerms: ['rfi log'],
-    logSheetName: 'RFI',
+    filenamePrefix: 'TEMP_',
+    logSearchTerms: ['temp log'],
+    logSheetName: 'TEMP',
     logAdapterKey: 'GoogleSheetsLogRepository',
     filingAdapterKey: 'GoogleDriveFilingRepository'
   });
   
-  assert.equal(registry.hasConfig('RFI'), true);
+  assert.equal(registry.hasConfig('CUSTOM_TEMP_TYPE'), true);
   registry.reset();
-  assert.equal(registry.hasConfig('RFI'), false);
+  assert.equal(registry.hasConfig('CUSTOM_TEMP_TYPE'), false);
   assert.equal(registry.hasConfig('Submittal'), true);
 });
 

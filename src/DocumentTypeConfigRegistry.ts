@@ -104,6 +104,11 @@ const DEFAULT_ARCH_CONFIG: DocumentTypeConfig = {
   documentType: 'Architecture'
 };
 
+const DEFAULT_SUBMITTAL_ARCH_CONFIG: DocumentTypeConfig = {
+  ...DEFAULT_ARCH_CONFIG,
+  documentType: 'SUBMITTAL_ARCH'
+};
+
 const DEFAULT_FFE_CONFIG: DocumentTypeConfig = {
   documentType: 'FF&E',
   rootFolderSearchTerms: ['FF&E', 'FFE'],
@@ -116,6 +121,59 @@ const DEFAULT_FFE_CONFIG: DocumentTypeConfig = {
   filingAdapterKey: 'GoogleDriveFilingRepository',
   fields: DEFAULT_FFE_SUBMITTAL_FIELDS,
   validateHook: ffeStrategyValidationHook
+};
+
+const DEFAULT_SUBMITTAL_FFE_CONFIG: DocumentTypeConfig = {
+  ...DEFAULT_FFE_CONFIG,
+  documentType: 'SUBMITTAL_FFE'
+};
+
+const DEFAULT_RFI_FIELDS: DocumentFieldSpec[] = [
+  { key: 'date', label: 'Date', type: 'date', required: true, header: 'Date' },
+  { key: 'contact', label: 'Contact', type: 'string', required: true, header: 'Contact' },
+  { key: 'action', label: 'Action', type: 'string', required: true, header: 'Action' },
+  { key: 'incomingRouting', label: 'Incoming Routing', type: 'string', required: false, header: 'Incoming Routing' },
+  { key: 'rfiNumber', label: 'RFI Number', type: 'string', required: true, description: 'RFI Number', header: 'RFI Number' },
+  { key: 'title', label: 'Title', type: 'string', required: true, description: 'RFI Subject / Title', header: 'Title' },
+  { key: 'notes', label: 'Notes', type: 'multiline', required: false, description: 'Notes', header: 'Notes' },
+  { key: 'calcFileName', label: 'Calc File Name', type: 'string', isCalculated: true, header: 'Calc File Name', formulaOrFunction: '=CONCAT()' }
+];
+
+const DEFAULT_RFI_CONFIG: DocumentTypeConfig = {
+  documentType: 'RFI',
+  rootFolderSearchTerms: ['RFIs', 'RFI'],
+  projectSearchTerms: ['RFIs', 'RFI'],
+  closedRootFolderName: 'Closed',
+  filenamePrefix: '_',
+  logSearchTerms: ['document log', 'rfi log'],
+  logSheetName: 'RFI Log',
+  logAdapterKey: 'GoogleSheetsLogRepository',
+  filingAdapterKey: 'GoogleDriveFilingRepository',
+  fields: DEFAULT_RFI_FIELDS
+};
+
+const DEFAULT_ASI_FIELDS: DocumentFieldSpec[] = [
+  { key: 'date', label: 'Date', type: 'date', required: true, header: 'Date' },
+  { key: 'contact', label: 'Contact', type: 'string', required: true, header: 'Contact' },
+  { key: 'action', label: 'Action', type: 'string', required: true, header: 'Action' },
+  { key: 'incomingRouting', label: 'Incoming Routing', type: 'string', required: false, header: 'Incoming Routing' },
+  { key: 'asiNumber', label: 'ASI Number', type: 'string', required: true, description: 'ASI Number', header: 'ASI Number' },
+  { key: 'title', label: 'Title', type: 'string', required: true, description: 'ASI Title', header: 'Title' },
+  { key: 'notes', label: 'Notes', type: 'multiline', required: false, description: 'Notes', header: 'Notes' },
+  { key: 'calcFileName', label: 'Calc File Name', type: 'string', isCalculated: true, header: 'Calc File Name', formulaOrFunction: '=CONCAT()' }
+];
+
+const DEFAULT_ASI_CONFIG: DocumentTypeConfig = {
+  documentType: 'ASI',
+  rootFolderSearchTerms: ['ASIs', 'ASI'],
+  projectSearchTerms: ['ASIs', 'ASI'],
+  closedRootFolderName: 'Closed',
+  filenamePrefix: '_',
+  logSearchTerms: ['document log', 'asi log'],
+  logSheetName: 'ASI Log',
+  logAdapterKey: 'GoogleSheetsLogRepository',
+  filingAdapterKey: 'GoogleDriveFilingRepository',
+  fields: DEFAULT_ASI_FIELDS
 };
 
 /**
@@ -184,6 +242,14 @@ class DocumentTypeConfigRegistry {
     const lower = documentType.toLowerCase();
     for (const key of this.configs.keys()) {
       if (key.toLowerCase() === lower) return key;
+    }
+    if (lower === 'submittal_arch' || lower === 'submittal arch') {
+      if (this.configs.has('SUBMITTAL_ARCH')) return 'SUBMITTAL_ARCH';
+      if (this.configs.has('Architecture')) return 'Architecture';
+    }
+    if (lower === 'submittal_ffe' || lower === 'submittal ffe') {
+      if (this.configs.has('SUBMITTAL_FFE')) return 'SUBMITTAL_FFE';
+      if (this.configs.has('FF&E')) return 'FF&E';
     }
     return undefined;
   }
@@ -304,6 +370,10 @@ class DocumentTypeConfigRegistry {
     this.registerConfig({ ...DEFAULT_SUBMITTAL_CONFIG });
     this.registerConfig({ ...DEFAULT_ARCH_CONFIG });
     this.registerConfig({ ...DEFAULT_FFE_CONFIG });
+    this.registerConfig({ ...DEFAULT_SUBMITTAL_ARCH_CONFIG });
+    this.registerConfig({ ...DEFAULT_SUBMITTAL_FFE_CONFIG });
+    this.registerConfig({ ...DEFAULT_RFI_CONFIG });
+    this.registerConfig({ ...DEFAULT_ASI_CONFIG });
   }
 }
 

@@ -100,46 +100,133 @@
               ]
             },
             {
-              "type": "TextInput",
-              "fieldName": "section",
-              "title": "CSI Section # (6 digits)",
-              "value": "033000",
-              "multiline": false
+              "type": "DatePicker",
+              "fieldName": "date",
+              "title": "Date",
+              "valueInMsSinceEpoch": 1786334400000,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
             },
             {
               "type": "TextInput",
-              "fieldName": "number",
-              "title": "Submittal #",
-              "value": "001",
-              "multiline": false
+              "fieldName": "contact",
+              "title": "Contact",
+              "value": "",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
             },
             {
               "type": "TextInput",
-              "fieldName": "revision",
-              "title": "Revision #",
-              "value": "0",
-              "multiline": false
+              "fieldName": "action",
+              "title": "Action",
+              "value": "",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "incomingRouting",
+              "title": "Incoming Routing",
+              "value": "",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
             },
             {
               "type": "TextInput",
               "fieldName": "title",
-              "title": "Submittal Title",
+              "title": "Title",
               "value": "Cast-in-Place Concrete",
-              "multiline": false
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
             },
             {
               "type": "TextInput",
-              "fieldName": "date",
-              "title": "Date (YYMMDD)",
-              "value": "260810",
-              "multiline": false
+              "fieldName": "section",
+              "title": "Section",
+              "value": "033000",
+              "hint": "CSI Section # (6 digits)",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "number",
+              "title": "Number",
+              "value": "001",
+              "hint": "Submittal #",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "revision",
+              "title": "Revision",
+              "value": "0",
+              "hint": "Revision #",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
             },
             {
               "type": "TextInput",
               "fieldName": "notes",
               "title": "Notes",
               "value": "",
-              "multiline": true
+              "hint": "Notes",
+              "multiline": true,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
             },
             {
               "type": "ButtonSet",

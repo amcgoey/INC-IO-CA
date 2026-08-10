@@ -80,3 +80,112 @@ test("UnbiasedIntakeCard - checks field-level confidence and appends Check Value
   assert.ok(numberWidget, "Number widget should exist");
   assert.equal(numberWidget.title.includes("Check Value"), false, "Number widget title should not contain Check Value");
 });
+
+test("UnbiasedIntakeCard - dynamically renders form input widgets for SUBMITTAL_ARCH without hardcoded checks", () => {
+  const event = EventFactory.createCardSubmitEvent({
+    project: "PROJ",
+    documentType: "SUBMITTAL_ARCH",
+    section: "033000",
+    number: "001",
+    revision: "0",
+    title: "Cast-in-Place Concrete"
+  });
+
+  const card = buildUnbiasedIntakeCard(event);
+  const cardJson = CardSerializer.toJSON(card);
+
+  const sectionWidget = findWidgetByFieldName(cardJson, "section");
+  assert.ok(sectionWidget, "Section widget should exist for SUBMITTAL_ARCH");
+  assert.equal(sectionWidget.value, "033000");
+
+  const numberWidget = findWidgetByFieldName(cardJson, "number");
+  assert.ok(numberWidget, "Number widget should exist for SUBMITTAL_ARCH");
+
+  const revisionWidget = findWidgetByFieldName(cardJson, "revision");
+  assert.ok(revisionWidget, "Revision widget should exist for SUBMITTAL_ARCH");
+
+  const titleWidget = findWidgetByFieldName(cardJson, "title");
+  assert.ok(titleWidget, "Title widget should exist for SUBMITTAL_ARCH");
+
+  const calcWidget = findWidgetByFieldName(cardJson, "calcFileName");
+  assert.equal(calcWidget, undefined, "Calculated fields must be excluded from UI widget generation");
+});
+
+test("UnbiasedIntakeCard - dynamically renders form input widgets for SUBMITTAL_FFE without hardcoded checks", () => {
+  const event = EventFactory.createCardSubmitEvent({
+    project: "PROJ",
+    documentType: "SUBMITTAL_FFE",
+    specTag: "CH-01",
+    specTitle: "Lounge Chair",
+    vendor: "Acme Furniture"
+  });
+
+  const card = buildUnbiasedIntakeCard(event);
+  const cardJson = CardSerializer.toJSON(card);
+
+  const specTagWidget = findWidgetByFieldName(cardJson, "specTag");
+  assert.ok(specTagWidget, "Spec Tag widget should exist for SUBMITTAL_FFE");
+  assert.equal(specTagWidget.value, "CH-01");
+
+  const specTitleWidget = findWidgetByFieldName(cardJson, "specTitle");
+  assert.ok(specTitleWidget, "Spec Title widget should exist for SUBMITTAL_FFE");
+
+  const vendorWidget = findWidgetByFieldName(cardJson, "vendor");
+  assert.ok(vendorWidget, "Vendor widget should exist for SUBMITTAL_FFE");
+
+  const sectionWidget = findWidgetByFieldName(cardJson, "section");
+  assert.equal(sectionWidget, undefined, "Architectural section widget should not exist for SUBMITTAL_FFE");
+
+  const calcWidget = findWidgetByFieldName(cardJson, "calcFileName");
+  assert.equal(calcWidget, undefined, "Calculated fields must be excluded from UI widget generation");
+});
+
+test("UnbiasedIntakeCard - dynamically renders form input widgets for RFI without hardcoded checks", () => {
+  const event = EventFactory.createCardSubmitEvent({
+    project: "PROJ",
+    documentType: "RFI",
+    rfiNumber: "RFI-042",
+    title: "Foundation Footing Detail Clarification"
+  });
+
+  const card = buildUnbiasedIntakeCard(event);
+  const cardJson = CardSerializer.toJSON(card);
+
+  const rfiNumberWidget = findWidgetByFieldName(cardJson, "rfiNumber");
+  assert.ok(rfiNumberWidget, "RFI Number widget should exist for RFI");
+  assert.equal(rfiNumberWidget.value, "RFI-042");
+
+  const titleWidget = findWidgetByFieldName(cardJson, "title");
+  assert.ok(titleWidget, "Title widget should exist for RFI");
+
+  const sectionWidget = findWidgetByFieldName(cardJson, "section");
+  assert.equal(sectionWidget, undefined, "Architectural section widget should not exist for RFI");
+
+  const calcWidget = findWidgetByFieldName(cardJson, "calcFileName");
+  assert.equal(calcWidget, undefined, "Calculated fields must be excluded from UI widget generation");
+});
+
+test("UnbiasedIntakeCard - dynamically renders form input widgets for ASI without hardcoded checks", () => {
+  const event = EventFactory.createCardSubmitEvent({
+    project: "PROJ",
+    documentType: "ASI",
+    asiNumber: "ASI-012",
+    title: "Updated Window Glazing Specification"
+  });
+
+  const card = buildUnbiasedIntakeCard(event);
+  const cardJson = CardSerializer.toJSON(card);
+
+  const asiNumberWidget = findWidgetByFieldName(cardJson, "asiNumber");
+  assert.ok(asiNumberWidget, "ASI Number widget should exist for ASI");
+  assert.equal(asiNumberWidget.value, "ASI-012");
+
+  const titleWidget = findWidgetByFieldName(cardJson, "title");
+  assert.ok(titleWidget, "Title widget should exist for ASI");
+
+  const rfiNumberWidget = findWidgetByFieldName(cardJson, "rfiNumber");
+  assert.equal(rfiNumberWidget, undefined, "RFI Number widget should not exist for ASI");
+
+  const calcWidget = findWidgetByFieldName(cardJson, "calcFileName");
+  assert.equal(calcWidget, undefined, "Calculated fields must be excluded from UI widget generation");
+});
