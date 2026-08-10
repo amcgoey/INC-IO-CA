@@ -252,6 +252,8 @@ class GoogleSheetsLogRepository implements LogRepository {
       const adapter = getDefaultSheetValidationAndProtectionAdapter();
       if (adapter && typeof adapter.applyNumberFormats === "function") {
         adapter.applyNumberFormats(ss);
+        if (typeof adapter.applyValidationRules === "function") adapter.applyValidationRules(ss);
+        if (typeof adapter.applyRangeProtections === "function") adapter.applyRangeProtections(ss);
       }
     } catch (_err) {}
 

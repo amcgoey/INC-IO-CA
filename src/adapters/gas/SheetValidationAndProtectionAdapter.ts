@@ -82,6 +82,78 @@ class SheetValidationAndProtectionAdapter {
   /**
    * Applies declarative numberFormat strings to data columns across log tabs.
    */
+
+  /**
+   * Configures soft warning-based range and sheet protections across all 3 tiers with warningOnly: true.
+   * Tier 1: SYSTEM_TAB_PROTECTION on system tabs (_Config, _AuditLog, etc.).
+   * Tier 2: HEADER_AND_FORMULA_PROTECTION on header stack (Rows 1..firstDataRow-1) named LOCK_HEADERS_<TabName>.
+   * Tier 3: CALCULATED_COLUMN_PROTECTION on calculated column ranges across data rows.
+   * Data entry cells remain strictly unprotected.
+   */
+  public applyRangeProtections(
+    spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet | any,
+    spec: DocumentLogWorkbookSpec = DOCUMENT_LOG_WORKBOOK_SPEC
+  ): void {
+    if (!spreadsheet || !spec || !spec.tabs) return;
+
+    const firstDataRow = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC?.offsets?.FIRST_DATA_ROW_INDEX || 6;
+
+    for (const tab of spec.tabs) {
+      const sheet = typeof spreadsheet.getSheetByName === "function" ? spreadsheet.getSheetByName(tab.name) : null;
+      if (!sheet) continue;
+
+      // Tier 1: System Tab Protection
+      if (tab.isConfigTab || tab.isAuditLogTab || tab.isSupportTab || tab.name.startsWith("_")) {
+        if (typeof sheet.protect === "function") {
+          const sheetProtection = sheet.protect();
+          if (sheetProtection && typeof sheetProtection.setWarningOnly === "function") {
+            sheetProtection.setDescription(`SYSTEM_TAB_PROTECTION_${tab.name}`);
+            sheetProtection.setWarningOnly(true);
+          }
+        }
+        continue;
+      }
+
+      // Log Tabs
+      if (tab.isLogTab && tab.columns && tab.columns.length > 0) {
+        const headerRowCount = Math.max(1, firstDataRow - 1);
+        const colCount = tab.columns.length;
+
+        // Tier 2: Header Stack & Formula Protection
+        if (typeof sheet.getRange === "function") {
+          const headerRange = sheet.getRange(1, 1, headerRowCount, colCount);
+          if (headerRange && typeof headerRange.protect === "function") {
+            const headerProtection = headerRange.protect();
+            if (headerProtection && typeof headerProtection.setWarningOnly === "function") {
+              headerProtection.setDescription(`LOCK_HEADERS_${tab.name}`);
+              headerProtection.setWarningOnly(true);
+            }
+          }
+        }
+
+        // Tier 3: Calculated Column Protection
+        const maxRows = typeof sheet.getMaxRows === "function" ? sheet.getMaxRows() : (tab.rowCount || 25);
+        const numRows = Math.max(1, maxRows - firstDataRow + 1);
+
+        tab.columns.forEach((colSpec: any, idx: number) => {
+          if (colSpec.formula || (colSpec.id && colSpec.id.startsWith("calc"))) {
+            const colIdx = idx + 1;
+            if (typeof sheet.getRange === "function") {
+              const calcRange = sheet.getRange(firstDataRow, colIdx, numRows, 1);
+              if (calcRange && typeof calcRange.protect === "function") {
+                const calcProtection = calcRange.protect();
+                if (calcProtection && typeof calcProtection.setWarningOnly === "function") {
+                  calcProtection.setDescription(`PROTECT_CALC_${tab.name}_${colSpec.id}`);
+                  calcProtection.setWarningOnly(true);
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+
   public applyNumberFormats(
     spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet | any,
     spec: DocumentLogWorkbookSpec = DOCUMENT_LOG_WORKBOOK_SPEC

@@ -119,3 +119,49 @@ test('SheetValidationAndProtectionAdapter.applyValidationRules - throws error wh
     adapter.applyValidationRules(ss, customSpec);
   }, /Target Named Range 'MISSING_NAMED_RANGE' for validation rule on column 'status' could not be found/);
 });
+
+test('SheetValidationAndProtectionAdapter.applyRangeProtections - configures soft warning protections across all 3 tiers with warningOnly: true while leaving data entry cells unprotected', () => {
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById('ss-adapter-protection-test');
+  ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  const adapter = new SheetValidationAndProtectionAdapter();
+  adapter.applyRangeProtections(ss, DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  // 1. Tier 1: System Tab Protection (_Config, _AuditLog)
+  const configSheet = ss.getSheetByName('_Config');
+  assert.ok(configSheet, '_Config sheet must exist');
+  const configProtections = configSheet.getProtections('SHEET');
+  assert.ok(configProtections.length >= 1, '_Config must have sheet-level protection');
+  assert.equal(configProtections[0].isWarningOnly(), true, '_Config protection must have warningOnly: true');
+  assert.ok(configProtections[0].getDescription().includes('SYSTEM_TAB_PROTECTION'), '_Config description must reflect SYSTEM_TAB_PROTECTION');
+
+  const auditLogSheet = ss.getSheetByName('_AuditLog');
+  assert.ok(auditLogSheet, '_AuditLog sheet must exist');
+  const auditProtections = auditLogSheet.getProtections('SHEET');
+  assert.ok(auditProtections.length >= 1, '_AuditLog must have sheet-level protection');
+  assert.equal(auditProtections[0].isWarningOnly(), true, '_AuditLog protection must have warningOnly: true');
+
+  // 2. Tier 2: Header Stack & Formula Protection (LOCK_HEADERS_<TabName>)
+  const archSheet = ss.getSheetByName('Submittal Arch');
+  assert.ok(archSheet, 'Submittal Arch sheet must exist');
+  const archProtections = archSheet.getProtections('RANGE');
+  
+  const headerProtection = archProtections.find((p: any) => p.getDescription() === 'LOCK_HEADERS_Submittal Arch');
+  assert.ok(headerProtection, 'Submittal Arch must have LOCK_HEADERS_Submittal Arch range protection');
+  assert.equal(headerProtection.isWarningOnly(), true, 'Header protection must have warningOnly: true');
+  const headerRange = headerProtection.getRange();
+  assert.equal(headerRange.getValues().length, 5, 'Header protection range must cover rows 1 through 5');
+
+  // 3. Tier 3: Calculated Column Protection (calcFileName, calcNumber, calcTitle, calcContactChain, calcSort)
+  const calcCols = ['calcFileName', 'calcNumber', 'calcTitle', 'calcContactChain', 'calcSort'];
+  for (const colId of calcCols) {
+    const calcProtection = archProtections.find((p: any) => p.getDescription() === `PROTECT_CALC_Submittal Arch_${colId}`);
+    assert.ok(calcProtection, `Submittal Arch must have calculated column protection for ${colId}`);
+    assert.equal(calcProtection.isWarningOnly(), true, `Calculated column protection for ${colId} must have warningOnly: true`);
+  }
+
+  // 4. Data Entry Cells Unprotected
+  // Total range protections on Submittal Arch = 1 (Header Stack) + 5 (Calculated Columns) = 6
+  assert.equal(archProtections.length, 6, 'Submittal Arch must have exactly 6 range protections');
+});

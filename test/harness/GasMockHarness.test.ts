@@ -512,3 +512,47 @@ test('GasMockHarness - supports DataValidationBuilder, requireValueInRange, setA
   assert.ok(appliedRule, 'Data validation rule must be attached to range');
   assert.strictEqual(appliedRule.getAllowInvalid(), false);
 });
+
+test('GasMockHarness - mocks protect(), setWarningOnly(true), getProtections(), and ProtectionType', () => {
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById('ss-protection-test');
+  const sheet = ss.getSheetByName('Sheet1');
+
+  assert.ok((globalThis as any).SpreadsheetApp.ProtectionType, 'SpreadsheetApp.ProtectionType must exist');
+  assert.equal((globalThis as any).SpreadsheetApp.ProtectionType.RANGE, 'RANGE');
+  assert.equal((globalThis as any).SpreadsheetApp.ProtectionType.SHEET, 'SHEET');
+
+  const sheetProtection = sheet.protect();
+  assert.ok(sheetProtection, 'sheet.protect() must return protection object');
+  assert.equal(sheetProtection.getProtectionType(), 'SHEET');
+  assert.equal(sheetProtection.isWarningOnly(), false);
+
+  sheetProtection.setDescription('System Tab Protection');
+  sheetProtection.setWarningOnly(true);
+  assert.equal(sheetProtection.getDescription(), 'System Tab Protection');
+  assert.equal(sheetProtection.isWarningOnly(), true);
+
+  const range = sheet.getRange('A1:B3');
+  const rangeProtection = range.protect();
+  assert.ok(rangeProtection, 'range.protect() must return protection object');
+  assert.equal(rangeProtection.getProtectionType(), 'RANGE');
+
+  rangeProtection.setDescription('Header Stack Protection');
+  rangeProtection.setWarningOnly(true);
+  assert.equal(rangeProtection.getDescription(), 'Header Stack Protection');
+  assert.equal(rangeProtection.isWarningOnly(), true);
+
+  const allProtections = sheet.getProtections();
+  assert.equal(allProtections.length, 2);
+
+  const sheetOnly = sheet.getProtections('SHEET');
+  assert.equal(sheetOnly.length, 1);
+  assert.equal(sheetOnly[0].getDescription(), 'System Tab Protection');
+
+  const rangeOnly = sheet.getProtections('RANGE');
+  assert.equal(rangeOnly.length, 1);
+  assert.equal(rangeOnly[0].getDescription(), 'Header Stack Protection');
+
+  const ssProtections = ss.getProtections();
+  assert.equal(ssProtections.length, 2);
+});

@@ -285,3 +285,14 @@ test('DocumentLogWorkbookSpec - defines declarative validationRule specs on pick
     allowInvalid: false
   });
 });
+
+test('DocumentLogWorkbookSpec - defines ProtectionTierSpec taxonomy with 3 warning-only tiers', () => {
+  const { PROTECTION_TIER_SPECS } = require('../src/core/config/DocumentLogWorkbookSpec');
+  assert.ok(PROTECTION_TIER_SPECS, 'PROTECTION_TIER_SPECS must be exported');
+  assert.equal(PROTECTION_TIER_SPECS.SYSTEM_TAB_PROTECTION.tier, 'SYSTEM_TAB_PROTECTION');
+  assert.equal(PROTECTION_TIER_SPECS.SYSTEM_TAB_PROTECTION.warningOnly, true);
+  assert.equal(PROTECTION_TIER_SPECS.HEADER_AND_FORMULA_PROTECTION.tier, 'HEADER_AND_FORMULA_PROTECTION');
+  assert.equal(PROTECTION_TIER_SPECS.HEADER_AND_FORMULA_PROTECTION.warningOnly, true);
+  assert.equal(PROTECTION_TIER_SPECS.CALCULATED_COLUMN_PROTECTION.tier, 'CALCULATED_COLUMN_PROTECTION');
+  assert.equal(PROTECTION_TIER_SPECS.CALCULATED_COLUMN_PROTECTION.warningOnly, true);
+});

@@ -1,4 +1,62 @@
 
+export class MockProtection {
+  private description: string = "";
+  private warningOnly: boolean = false;
+  private unprotectedRanges: MockRange[] = [];
+
+  constructor(
+    private target: MockSheet | MockRange,
+    private protectionType: "SHEET" | "RANGE"
+  ) {}
+
+  public getDescription(): string {
+    return this.description;
+  }
+
+  public setDescription(description: string): this {
+    this.description = description;
+    return this;
+  }
+
+  public isWarningOnly(): boolean {
+    return this.warningOnly;
+  }
+
+  public setWarningOnly(warningOnly: boolean): this {
+    this.warningOnly = warningOnly;
+    return this;
+  }
+
+  public getProtectionType(): "SHEET" | "RANGE" {
+    return this.protectionType;
+  }
+
+  public getRange(): MockRange {
+    if (this.target instanceof MockRange) {
+      return this.target;
+    }
+    return (this.target as MockSheet).getRange(1, 1, (this.target as MockSheet).getGrid().length || 100, 26);
+  }
+
+  public getUnprotectedRanges(): MockRange[] {
+    return [...this.unprotectedRanges];
+  }
+
+  public setUnprotectedRanges(ranges: MockRange[]): this {
+    this.unprotectedRanges = [...ranges];
+    return this;
+  }
+
+  public remove(): void {
+    if (this.target instanceof MockSheet) {
+      this.target.removeProtection(this);
+    } else if (this.target instanceof MockRange) {
+      this.target.getSheet().removeProtection(this);
+    }
+  }
+}
+
+
 export class MockDataValidation {
   constructor(
     private criteriaType: string,
@@ -413,6 +471,21 @@ export class MockRange {
     return this;
   }
 
+  
+  public getSheet(): MockSheet {
+    return this.sheet;
+  }
+
+  public protect(): MockProtection {
+    const p = new MockProtection(this, "RANGE");
+    this.sheet.addProtection(p);
+    return p;
+  }
+
+  public getProtections(): MockProtection[] {
+    return this.sheet.getProtections("RANGE");
+  }
+
   public setNumberFormats(numberFormats: string[][]): this {
     for (let r = 0; r < Math.min(this.numRows, numberFormats.length); r++) {
       for (let c = 0; c < Math.min(this.numCols, numberFormats[r].length); c++) {
@@ -427,6 +500,7 @@ export class MockSheet {
   private grid: any[][] = [];
   private validations: Map<string, any> = new Map();
   private numberFormats: Map<string, string> = new Map();
+  private protections: MockProtection[] = [];
   public calls: CallLog[] = [];
 
   constructor(public name: string, initialData: any[][] = [], public sheetId: number = 101) {
@@ -435,6 +509,26 @@ export class MockSheet {
 
   private recordCall(method: string, args: unknown[]): void {
     this.calls.push({ method, args, timestamp: Date.now() });
+  }
+
+  
+  public protect(): MockProtection {
+    const p = new MockProtection(this, "SHEET");
+    this.protections.push(p);
+    return p;
+  }
+
+  public addProtection(protection: MockProtection): void {
+    this.protections.push(protection);
+  }
+
+  public removeProtection(protection: MockProtection): void {
+    this.protections = this.protections.filter(p => p !== protection);
+  }
+
+  public getProtections(type?: string): MockProtection[] {
+    if (!type) return [...this.protections];
+    return this.protections.filter(p => p.getProtectionType() === type);
   }
 
   public getName(): string {
@@ -694,6 +788,16 @@ export class MockSpreadsheet {
     return "#N/A";
   }
 
+
+  public getProtections(type?: string): MockProtection[] {
+    this.recordCall("getProtections", [type]);
+    const result: MockProtection[] = [];
+    for (const sheet of this.getSheets()) {
+      result.push(...sheet.getProtections(type));
+    }
+    return result;
+  }
+
   public getSheets(): MockSheet[] {
     this.recordCall("getSheets", []);
     return Array.from(this.sheets.values());
@@ -714,6 +818,7 @@ export class MockSpreadsheet {
 }
 
 export class MockSheetsService {
+  public ProtectionType = { RANGE: "RANGE", SHEET: "SHEET" };
   private spreadsheets: Map<string, MockSpreadsheet> = new Map();
   public calls: CallLog[] = [];
 

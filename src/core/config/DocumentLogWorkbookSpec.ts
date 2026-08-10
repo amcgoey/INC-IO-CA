@@ -53,6 +53,36 @@ export interface NamedRangeSpec {
   scope?: "Workbook" | "Sheet";
 }
 
+
+export type ProtectionTierType =
+  | "SYSTEM_TAB_PROTECTION"
+  | "HEADER_AND_FORMULA_PROTECTION"
+  | "CALCULATED_COLUMN_PROTECTION";
+
+export interface ProtectionTierSpec {
+  tier: ProtectionTierType;
+  description: string;
+  warningOnly: boolean;
+}
+
+export const PROTECTION_TIER_SPECS: Record<ProtectionTierType, ProtectionTierSpec> = {
+  SYSTEM_TAB_PROTECTION: {
+    tier: "SYSTEM_TAB_PROTECTION",
+    description: "System tab protection with warning prompt for configuration and audit logs",
+    warningOnly: true
+  },
+  HEADER_AND_FORMULA_PROTECTION: {
+    tier: "HEADER_AND_FORMULA_PROTECTION",
+    description: "Header stack and formula row protection with warning prompt",
+    warningOnly: true
+  },
+  CALCULATED_COLUMN_PROTECTION: {
+    tier: "CALCULATED_COLUMN_PROTECTION",
+    description: "Calculated column protection with warning prompt across data rows",
+    warningOnly: true
+  }
+};
+
 export interface DocumentLogWorkbookSpec {
   schemaVersion: string;
   tabs: TabSpec[];
@@ -325,6 +355,7 @@ declare var module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION,
+    PROTECTION_TIER_SPECS,
     TEST_TEMPLATE_SPREADSHEET_TITLE,
     PROD_TEMPLATE_SPREADSHEET_TITLE,
     DOCUMENT_LOG_WORKBOOK_SPEC
@@ -335,4 +366,5 @@ if (typeof module !== "undefined" && module.exports) {
 (globalThis as any).TEST_TEMPLATE_SPREADSHEET_TITLE = TEST_TEMPLATE_SPREADSHEET_TITLE;
 (globalThis as any).PROD_TEMPLATE_SPREADSHEET_TITLE = PROD_TEMPLATE_SPREADSHEET_TITLE;
 (globalThis as any).DOCUMENT_LOG_WORKBOOK_SPEC = DOCUMENT_LOG_WORKBOOK_SPEC;
+(globalThis as any).PROTECTION_TIER_SPECS = PROTECTION_TIER_SPECS;
 
