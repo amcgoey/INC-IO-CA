@@ -52,7 +52,7 @@ class CardPresenter implements UserInterfacePresenter {
     return { displayTitle, hintText };
   }
 
-  private buildUpdateCardResponse(card: any): GoogleAppsScript.Card_Service.ActionResponse {
+  buildUpdateCardResponse(card: GoogleAppsScript.Card_Service.Card | any): GoogleAppsScript.Card_Service.ActionResponse {
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(card))
       .build();
