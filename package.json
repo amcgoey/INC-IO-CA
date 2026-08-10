@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@google/clasp": "^2.4.2",
+    "@google/clasp": "^3.2.0",
     "@types/google-apps-script": "^2.0.11",
     "@types/node": "^22.10.0",
     "eslint": "^10.8.1",
