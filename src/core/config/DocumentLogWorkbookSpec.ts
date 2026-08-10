@@ -311,6 +311,8 @@ const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
   namedRanges: [
     { name: "MANIFEST_SCHEMA_VERSION", tabName: "_Config", rangeNotation: "B2", scope: "Workbook" },
     { name: "Config_Manifest", tabName: "_Config", rangeNotation: "A1:B5", scope: "Workbook" },
+    { name: "Config_DocTypes", tabName: "_Config", rangeNotation: "A7:D11", scope: "Workbook" },
+    { name: "_Config_Doc_Types", tabName: "_Config", rangeNotation: "A7:D11", scope: "Workbook" },
     { name: "Config_Submittal_Arch", tabName: "_Config", rangeNotation: "A7:D8", scope: "Workbook" },
     { name: "Config_Submittal_FFE", tabName: "_Config", rangeNotation: "A7:D9", scope: "Workbook" },
     { name: "Config_Submittal_Arch_Fields", tabName: "_Config", rangeNotation: "A11:L22", scope: "Workbook" },

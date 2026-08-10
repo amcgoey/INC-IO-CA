@@ -80,6 +80,8 @@ function ffeStrategyValidationHook(rawDoc: RawDocument, context?: ValidationCont
 
 const DEFAULT_SUBMITTAL_CONFIG: DocumentTypeConfig = {
   documentType: 'Submittal',
+  displayName: 'Submittal (Architecture)',
+  targetTab: 'Submittal Arch',
   rootFolderSearchTerms: ['Submittals', 'Submittal'],
   projectSearchTerms: ['Submittals', 'Submittal'],
   closedRootFolderName: 'Closed',
@@ -101,16 +103,22 @@ const DEFAULT_SUBMITTAL_CONFIG: DocumentTypeConfig = {
 
 const DEFAULT_ARCH_CONFIG: DocumentTypeConfig = {
   ...DEFAULT_SUBMITTAL_CONFIG,
-  documentType: 'Architecture'
+  documentType: 'Architecture',
+  displayName: 'Submittal (Architecture)',
+  targetTab: 'Submittal Arch'
 };
 
 const DEFAULT_SUBMITTAL_ARCH_CONFIG: DocumentTypeConfig = {
   ...DEFAULT_ARCH_CONFIG,
-  documentType: 'SUBMITTAL_ARCH'
+  documentType: 'SUBMITTAL_ARCH',
+  displayName: 'Submittal (Architecture)',
+  targetTab: 'Submittal Arch'
 };
 
 const DEFAULT_FFE_CONFIG: DocumentTypeConfig = {
   documentType: 'FF&E',
+  displayName: 'Submittal (FF&E)',
+  targetTab: 'Submittal FFE',
   rootFolderSearchTerms: ['FF&E', 'FFE'],
   projectSearchTerms: ['FF&E', 'FFE'],
   closedRootFolderName: 'Closed',
@@ -125,7 +133,9 @@ const DEFAULT_FFE_CONFIG: DocumentTypeConfig = {
 
 const DEFAULT_SUBMITTAL_FFE_CONFIG: DocumentTypeConfig = {
   ...DEFAULT_FFE_CONFIG,
-  documentType: 'SUBMITTAL_FFE'
+  documentType: 'SUBMITTAL_FFE',
+  displayName: 'Submittal (FF&E)',
+  targetTab: 'Submittal FFE'
 };
 
 const DEFAULT_RFI_FIELDS: DocumentFieldSpec[] = [
@@ -142,6 +152,8 @@ const DEFAULT_RFI_FIELDS: DocumentFieldSpec[] = [
 
 const DEFAULT_RFI_CONFIG: DocumentTypeConfig = {
   documentType: 'RFI',
+  displayName: 'RFI (Request for Information)',
+  targetTab: 'RFI Log',
   rootFolderSearchTerms: ['RFIs', 'RFI'],
   projectSearchTerms: ['RFIs', 'RFI'],
   closedRootFolderName: 'Closed',
@@ -167,6 +179,8 @@ const DEFAULT_ASI_FIELDS: DocumentFieldSpec[] = [
 
 const DEFAULT_ASI_CONFIG: DocumentTypeConfig = {
   documentType: 'ASI',
+  displayName: "ASI (Architect's Supplemental Instructions)",
+  targetTab: 'ASI Log',
   rootFolderSearchTerms: ['ASIs', 'ASI'],
   projectSearchTerms: ['ASIs', 'ASI'],
   closedRootFolderName: 'Closed',
@@ -270,6 +284,23 @@ class DocumentTypeConfigRegistry {
    */
   public hasConfig(documentType: string): boolean {
     return this.findConfigKey(documentType) !== undefined;
+  }
+
+  /**
+   * Returns all primary registered DocumentTypeConfigs.
+   */
+  public getAllConfigs(): DocumentTypeConfig[] {
+    const list: DocumentTypeConfig[] = [];
+    const seen = new Set<string>();
+    for (const config of this.configs.values()) {
+      const key = config.documentType;
+      if (key === 'Architecture' || key === 'FF&E' || key === 'Submittal') continue;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push(config);
+      }
+    }
+    return list;
   }
 
   /**

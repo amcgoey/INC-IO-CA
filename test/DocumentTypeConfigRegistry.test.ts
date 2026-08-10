@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DocumentTypeConfigRegistry, defaultDocumentTypeConfigRegistry } from '../src/DocumentTypeConfigRegistry';
 
@@ -72,4 +72,26 @@ test('DocumentTypeConfigRegistry - DEFAULT_FFE_CONFIG includes standardized logS
   const registry = new DocumentTypeConfigRegistry();
   const config = registry.getConfig('FF&E');
   assert.deepEqual(config.logSearchTerms, ['document log', 'inc document log', 'submittal log', 'ffe log', 'ff&e log']);
+});
+
+test('DocumentTypeConfigRegistry - getAllConfigs returns all registered doc types with Display Names', () => {
+  const registry = new DocumentTypeConfigRegistry();
+  const configs = registry.getAllConfigs();
+  assert.ok(configs.length >= 4, "Registry should return all primary doc type configs");
+  
+  const arch = configs.find(c => c.documentType === 'SUBMITTAL_ARCH');
+  assert.ok(arch);
+  assert.equal(arch.displayName, 'Submittal (Architecture)');
+
+  const ffe = configs.find(c => c.documentType === 'SUBMITTAL_FFE');
+  assert.ok(ffe);
+  assert.equal(ffe.displayName, 'Submittal (FF&E)');
+
+  const rfi = configs.find(c => c.documentType === 'RFI');
+  assert.ok(rfi);
+  assert.equal(rfi.displayName, 'RFI (Request for Information)');
+
+  const asi = configs.find(c => c.documentType === 'ASI');
+  assert.ok(asi);
+  assert.equal(asi.displayName, "ASI (Architect's Supplemental Instructions)");
 });

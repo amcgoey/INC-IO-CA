@@ -57,6 +57,11 @@
                   "text": "RFI (Request for Information)",
                   "value": "RFI",
                   "selected": false
+                },
+                {
+                  "text": "ASI (Architect's Supplemental Instructions)",
+                  "value": "ASI",
+                  "selected": false
                 }
               ],
               "onChangeAction": {
@@ -118,7 +123,7 @@
           ]
         },
         {
-          "header": "3. Document Attributes (undefined)",
+          "header": "3. Document Attributes (Submittal (Architecture))",
           "collapsible": false,
           "widgets": [
             {

@@ -760,6 +760,8 @@ interface DocumentFieldSpec {
 
 interface DocumentTypeConfig {
   documentType: 'Submittal' | 'RFI' | string;
+  displayName?: string;
+  targetTab?: string;
   rootFolderSearchTerms: string[];
   projectSearchTerms?: string[];
   closedRootFolderName: string;

@@ -776,6 +776,7 @@ function buildIntakeCard(
   const messageId = (e && e.gmail && e.gmail.messageId) || p.messageId || null;
   const driveFileId = p.driveFileId || formInput.driveFileId || (flashMessage && flashMessage.newDriveFileId) || "";
 
+  const registry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== "undefined" ? defaultDocumentTypeConfigRegistry : null);
   const resolvedDocType = formInput.documentType || p.documentType || (initialData && ((initialData as any).documentType || (initialData.discipline === "FF&E" ? "SUBMITTAL_FFE" : "SUBMITTAL_ARCH"))) || "SUBMITTAL_ARCH";
 
   // Resolved Cascading State
@@ -969,9 +970,20 @@ function buildIntakeCard(
     .setFieldName("documentType")
     .setOnChangeAction(CardService.newAction().setFunctionName("onStateChange").setParameters(getActionParams()));
   docTypeDrop.addItem("-- Select Document Type --", "", state.documentType === "");
-  docTypeDrop.addItem("Submittal (Architecture)", "SUBMITTAL_ARCH", state.documentType === "SUBMITTAL_ARCH");
-  docTypeDrop.addItem("Submittal (FF&E)", "SUBMITTAL_FFE", state.documentType === "SUBMITTAL_FFE");
-  docTypeDrop.addItem("RFI (Request for Information)", "RFI", state.documentType === "RFI");
+
+  const allConfigs = (registry && typeof registry.getAllConfigs === "function") ? registry.getAllConfigs() : [];
+  if (allConfigs.length > 0) {
+    allConfigs.forEach((cfg: DocumentTypeConfig) => {
+      const isSelected = state.documentType === cfg.documentType;
+      const label = cfg.displayName || cfg.documentType;
+      docTypeDrop.addItem(label, cfg.documentType, isSelected);
+    });
+  } else {
+    docTypeDrop.addItem("Submittal (Architecture)", "SUBMITTAL_ARCH", state.documentType === "SUBMITTAL_ARCH");
+    docTypeDrop.addItem("Submittal (FF&E)", "SUBMITTAL_FFE", state.documentType === "SUBMITTAL_FFE");
+    docTypeDrop.addItem("RFI (Request for Information)", "RFI", state.documentType === "RFI");
+    docTypeDrop.addItem("ASI (Architect's Supplemental Instructions)", "ASI", state.documentType === "ASI");
+  }
   cascadeSec.addWidget(docTypeDrop);
 
   if (discoveredLogs.length > 1) {
@@ -1138,9 +1150,8 @@ function buildIntakeCard(
   card.addSection(fileSourceSec);
 
   // 3. Document Attributes Section
-  const registry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== "undefined" ? defaultDocumentTypeConfigRegistry : DocumentTypeConfigRegistry);
-  const config = registry.getConfig(state.documentType || "SUBMITTAL_ARCH");
-  const attrSecHeader = `3. Document Attributes (${config.displayName})`;
+  const config = registry ? registry.getConfig(state.documentType || "SUBMITTAL_ARCH") : { displayName: state.documentType, fields: [] };
+  const attrSecHeader = `3. Document Attributes (${config.displayName || state.documentType})`;
   const attrSec = CardService.newCardSection().setHeader(attrSecHeader);
 
   const showAiBtn = selectedFileSource === "Email Attachment" || selectedFileSource === "Google Drive URL" || selectedFileSource === "Selected Drive File" || driveFileId !== "";

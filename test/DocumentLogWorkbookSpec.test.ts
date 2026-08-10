@@ -49,6 +49,16 @@ test('DocumentLogWorkbookSpec - defines all 15 columns for Submittal Arch with f
   assert.ok(calcSortCol?.formula?.includes('MAP('), 'calcSort must contain MAP formula');
 });
 
+test('DocumentLogWorkbookSpec - includes Config_DocTypes and _Config_Doc_Types named ranges for _Config tab DocTypes table', () => {
+  const docTypesRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(r => r.name === 'Config_DocTypes');
+  assert.ok(docTypesRange, 'Config_DocTypes named range must exist');
+  assert.equal(docTypesRange.tabName, '_Config');
+
+  const underscoreRange = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.find(r => r.name === '_Config_Doc_Types');
+  assert.ok(underscoreRange, '_Config_Doc_Types named range alias must exist');
+  assert.equal(underscoreRange.tabName, '_Config');
+});
+
 test('DocumentLogWorkbookSpec - defines Sheet-Scoped and Workbook-Scoped Dual-Tier Named Ranges for Submittal Arch', () => {
   const namedRanges = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges;
 
