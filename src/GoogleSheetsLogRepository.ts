@@ -22,6 +22,18 @@ function getLogEngineClass(): any {
     (typeof LogEngine !== "undefined" ? LogEngine : (typeof require !== "undefined" ? require("./core/log/LogEngine").LogEngine : undefined));
 }
 
+function getDefaultSheetValidationAndProtectionAdapter(): any {
+  if (typeof (globalThis as any).defaultSheetValidationAndProtectionAdapter !== "undefined") {
+    return (globalThis as any).defaultSheetValidationAndProtectionAdapter;
+  }
+  try {
+    const req = require("./adapters/gas/SheetValidationAndProtectionAdapter");
+    return req.defaultSheetValidationAndProtectionAdapter || req.SheetValidationAndProtectionAdapter;
+  } catch (_e) {
+    return null;
+  }
+}
+
 class GoogleSheetsLogRepository implements LogRepository {
   /**
    * Invalidates the cached user settings payload for a specific spreadsheet and discipline.
@@ -237,7 +249,7 @@ class GoogleSheetsLogRepository implements LogRepository {
     }
 
     try {
-      const adapter = (globalThis as any).defaultSheetValidationAndProtectionAdapter;
+      const adapter = getDefaultSheetValidationAndProtectionAdapter();
       if (adapter && typeof adapter.applyNumberFormats === "function") {
         adapter.applyNumberFormats(ss);
       }

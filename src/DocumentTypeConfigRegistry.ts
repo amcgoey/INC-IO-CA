@@ -274,6 +274,7 @@ class DocumentTypeConfigRegistry {
         ? (normRuleRaw as 'picklist' | 'code' | 'exact')
         : undefined;
 
+      const numberFormat = getVal(row, 'numberformat');
       const spec: DocumentFieldSpec = {
         key,
         label,
@@ -285,7 +286,8 @@ class DocumentTypeConfigRegistry {
         ...(isCalculated ? { isCalculated: true } : {}),
         ...(formulaOrFunction ? { formulaOrFunction } : {}),
         ...(optionsRange ? { optionsRange } : {}),
-        ...(keyNormalizationRule ? { keyNormalizationRule } : {})
+        ...(keyNormalizationRule ? { keyNormalizationRule } : {}),
+        ...(numberFormat ? { numberFormat } : {})
       };
 
       fieldSpecs.push(spec);
