@@ -1354,13 +1354,13 @@
     {
       "name": "Config_DocTypes",
       "tabName": "_Config",
-      "rangeNotation": "A7:D11",
+      "rangeNotation": "A7:D9",
       "scope": "Workbook"
     },
     {
       "name": "_Config_Doc_Types",
       "tabName": "_Config",
-      "rangeNotation": "A7:D11",
+      "rangeNotation": "A7:D9",
       "scope": "Workbook"
     },
     {
