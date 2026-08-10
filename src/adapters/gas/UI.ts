@@ -6,7 +6,7 @@ function getWidgetTitle(key: string, baseTitle: string, fieldConfidence: Record<
   const threshold = typeof FieldConfidenceThreshold !== "undefined" ? FieldConfidenceThreshold : 0.85;
   const conf = fieldConfidence ? fieldConfidence[key] : undefined;
   if (conf !== undefined && conf < threshold) {
-    return baseTitle.includes("⚠") ? baseTitle : baseTitle + " ⚠ Check Value";
+    return baseTitle.includes("Check Value") ? baseTitle : baseTitle + " ⚠ Check Value";
   }
   return baseTitle;
 }
@@ -77,7 +77,7 @@ function renderDynamicFormFields(
       if (isMissing) {
         displayTitle = `❌ ${displayTitle}`;
       } else if (isLowConfidence) {
-        displayTitle = `⚠️ ${displayTitle}`;
+        displayTitle = getWidgetTitle(field.key, `⚠️ ${displayTitle}`, fieldConfidence);
       }
 
       if (isLowConfidence && !isMissing) {
@@ -112,10 +112,14 @@ function renderDynamicFormFields(
         }
       }
 
-      optionsList.forEach(opt => {
-        const isSelected = String(opt.value) === String(hydratedValue) || String(opt.label) === String(hydratedValue);
-        dropdownWidget.addItem(opt.label || opt.value, opt.value, isSelected);
-      });
+      if (optionsList.length === 0) {
+        dropdownWidget.addItem("-- None --", "", true);
+      } else {
+        optionsList.forEach(opt => {
+          const isSelected = String(opt.value) === String(hydratedValue) || String(opt.label) === String(hydratedValue);
+          dropdownWidget.addItem(opt.label || opt.value, opt.value, isSelected);
+        });
+      }
 
       if (onStateActionName) {
         dropdownWidget.setOnChangeAction(
@@ -959,23 +963,34 @@ function buildUnbiasedIntakeCard(
     .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
   attrSec.addWidget(CardService.newButtonSet().addButton(aiBtn));
 
-  if (state.documentType === "SUBMITTAL_ARCH") {
-    attrSec.addWidget(CardService.newTextInput().setFieldName("section").setTitle(getWidgetTitle("section", "CSI Section # (6 digits)", fieldConfidence)).setValue(state.section));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("number").setTitle(getWidgetTitle("number", "Submittal #", fieldConfidence)).setValue(state.number));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("revision").setTitle(getWidgetTitle("revision", "Revision #", fieldConfidence)).setValue(state.revision));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle(getWidgetTitle("title", "Submittal Title", fieldConfidence)).setValue(state.title));
-  } else if (state.documentType === "SUBMITTAL_FFE") {
-    attrSec.addWidget(CardService.newTextInput().setFieldName("specTag").setTitle(getWidgetTitle("specTag", "Spec Tag", fieldConfidence)).setValue(state.specTag));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("relatedTag").setTitle(getWidgetTitle("relatedTag", "Related Tags", fieldConfidence)).setValue(state.relatedTag));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle(getWidgetTitle("title", "Spec Title", fieldConfidence)).setValue(state.title));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("vendor").setTitle(getWidgetTitle("vendor", "Vendor / Supplier", fieldConfidence)).setValue(state.vendor));
-  } else if (state.documentType === "RFI") {
-    attrSec.addWidget(CardService.newTextInput().setFieldName("rfiNumber").setTitle(getWidgetTitle("rfiNumber", "RFI Number", fieldConfidence)).setValue(state.rfiNumber));
-    attrSec.addWidget(CardService.newTextInput().setFieldName("title").setTitle(getWidgetTitle("title", "RFI Subject / Title", fieldConfidence)).setValue(state.title));
+  const docTypeKey = state.documentType || "SUBMITTAL_ARCH";
+  let registry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== "undefined" ? defaultDocumentTypeConfigRegistry : null);
+  if (!registry && typeof require !== "undefined") {
+    try {
+      registry = require("../../DocumentTypeConfigRegistry").defaultDocumentTypeConfigRegistry;
+    } catch (e) {}
+  }
+  let fields: DocumentFieldSpec[] = [];
+  if (registry && registry.hasConfig(docTypeKey)) {
+    fields = registry.getConfig(docTypeKey).fields || [];
   }
 
-  attrSec.addWidget(CardService.newTextInput().setFieldName("date").setTitle(getWidgetTitle("date", "Date (YYMMDD)", fieldConfidence)).setValue(state.date));
-  attrSec.addWidget(CardService.newTextInput().setFieldName("notes").setTitle(getWidgetTitle("notes", "Notes", fieldConfidence)).setMultiline(true).setValue(state.notes));
+  const hydrationContext: HydrationContext = {
+    formInput: { ...state, ...formInput },
+    userCacheDraft: (initialData as any) || {},
+    parserResult: (initialData as any) || {},
+    aiMetadata: aiResult ? (aiResult.fields ? Object.fromEntries(Object.entries(aiResult.fields).map(([k, v]) => [k, v.value])) : {}) : {},
+    docTypeKey: docTypeKey
+  };
+
+  const validationContext: ValidationUIContext = {
+    missingFields: (flashMessage && flashMessage.missingFields) || [],
+    fieldConfidence: fieldConfidence,
+    onStateActionName: "onStateChange",
+    actionParams: getActionParams()
+  };
+
+  renderDynamicFormFields(attrSec, fields, hydrationContext, validationContext);
 
   const isFormValid = state.project !== "" && state.documentType !== "";
   const subBtn = CardService.newTextButton()
