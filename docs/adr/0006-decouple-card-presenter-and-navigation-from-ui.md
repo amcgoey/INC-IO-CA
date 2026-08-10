@@ -8,7 +8,7 @@ Previously, `UI.ts` mixed visual widget layout generation with navigation respon
 
 We decided to decouple presentational response mechanics using the following architectural design:
 
-1. **Pure View Layer (`UI.ts`)**: `UI.ts` is restricted to pure card layout rendering (`buildMainCard`, `buildSuccessCard`), taking state and flash models and returning `CardService.Card` instances without side-effects.
+1. **Pure View Layer (`UI.ts`)**: `UI.ts` is restricted to pure card layout rendering (`buildIntakeCard`, `buildSuccessCard`), taking state and flash models and returning `CardService.Card` instances without side-effects.
 2. **Dedicated Presenter (`CardPresenter`)**: `CardPresenter` encapsulates all `CardService.ActionResponse` building. It exposes domain-semantic methods (`presentValidationError`, `presentInteractionPrompt`, `presentWorkflowSuccess`, `presentMainCardUpdate`, `presentNotification`) that map validation and workflow outcomes into card navigation updates (`updateCard`, `pushCard`) and notifications.
 3. **Dual-Mode Module (`src/CardPresenter.ts`)**: Implements `CardPresenter` with dual CommonJS / Gas global mode support and a `defaultCardPresenter` instance for dependency injection in unit tests and orchestrator calls.
 

@@ -86,7 +86,7 @@
               "buttons": [
                 {
                   "type": "TextButton",
-                  "text": "?? Analyze Document with AI",
+                  "text": "🔍 Analyze Document with AI",
                   "style": "FILLED",
                   "disabled": false,
                   "onClickAction": {

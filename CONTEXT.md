@@ -310,8 +310,8 @@ The in-memory test implementation of AiAnalysisService that returns deterministi
 The application presenter module responsible for assembling Google Apps Script CardService action responses, navigation updates (card refreshes and pushes), and notification toasts.
 _Avoid_: UIHelper, CardNavigator, CardResponseBuilder
 
-**UnbiasedIntakeCard**:
-The contextual Google Workspace add-on card rendered upon email or file selection, featuring dynamic Project, DocumentType, and LogFile dropdown controls with loss-less state preservation during re-bind re-renders.
+**IntakeCard (`buildIntakeCard`)**:
+The dynamic multi-document contextual Google Workspace Add-on form intake card (`buildIntakeCard`) rendered upon email or file selection, featuring dynamic Project, DocumentType, and LogFile dropdown controls with loss-less state preservation during re-bind re-renders. Supersedes `UnbiasedIntakeCard` (`buildUnbiasedIntakeCard`) and `buildMainCard`.
 _Avoid_: SubmittalFormCard, IntakeFormView
 
 **TemplateDriftAuditor**:
