@@ -975,10 +975,16 @@ function buildUnbiasedIntakeCard(
     fields = registry.getConfig(docTypeKey).fields || [];
   }
 
+  const userCacheDraft = (flashMessage && flashMessage.userCacheDraft) ||
+                        (initialData && (initialData as any).userCacheDraft) ||
+                        ((initialData && !(initialData as any).displayPath) ? initialData : {}) || {};
+  const parserResult = (flashMessage && flashMessage.parserResult) ||
+                   (initialData && (initialData as any).parserResult) || {};
+
   const hydrationContext: HydrationContext = {
-    formInput: { ...state, ...formInput },
-    userCacheDraft: (initialData as any) || {},
-    parserResult: (initialData as any) || {},
+    formInput: (e && e.formInput) ? { ...e.formInput } : {},
+    userCacheDraft: userCacheDraft,
+    parserResult: parserResult,
     aiMetadata: aiResult ? (aiResult.fields ? Object.fromEntries(Object.entries(aiResult.fields).map(([k, v]) => [k, v.value])) : {}) : {},
     docTypeKey: docTypeKey
   };
