@@ -169,7 +169,7 @@ test("renderDynamicFormFields - applies missing required field ❌ and low AI co
   assert.equal(widgets[0].title, "❌ Section");
 
   // Low AI confidence field (< 0.85): ⚠️ Title with confidence hint
-  assert.equal(widgets[1].title, "⚠️ Title");
+  assert.equal(widgets[1].title, "⚠️ Title ⚠ Check Value");
   assert.equal(widgets[1].hint, "Low AI confidence (65%) — please verify");
 });
 
