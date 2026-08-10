@@ -223,6 +223,7 @@ interface LogSettings {
   };
   projectAbbr: string;
   logSheetId: number | null;
+  sheetGids?: Record<string, number>;
 }
 
 /** Context object for legacy process submission handlers. */

@@ -95,11 +95,18 @@ class GoogleSheetsLogRepository implements LogRepository {
       }
     }
 
-    const result: LogSettings = { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null };
+    const result: LogSettings = { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null, sheetGids: {} };
 
     try {
       const ss = SpreadsheetApp.openById(spreadsheetId);
-      const logSheet = ss.getSheetByName(CONFIG.LOG_SHEET_NAME);
+      try {
+        const sheets = ss.getSheets();
+        sheets.forEach(s => {
+          result.sheetGids![s.getName()] = s.getSheetId();
+        });
+      } catch (e) {}
+
+      const logSheet = ss.getSheetByName(CONFIG.LOG_SHEET_NAME) || ss.getSheetByName("Submittal Arch") || (ss.getSheets ? ss.getSheets()[0] : null);
       if (logSheet) result.logSheetId = logSheet.getSheetId();
       const settingsSheet = ss.getSheetByName(CONFIG.SETTINGS_SHEET_NAME);
 

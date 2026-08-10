@@ -374,3 +374,78 @@ test("IntakeCard - AI auto-triage flash message banner rendering", () => {
   );
   assert.strictEqual(hasFlashWarningText, true, "AI auto-triage warning message should render in status section");
 });
+
+test("IntakeCard - DocumentType change updates Open Submittal Log tab GID and hydrates target fields", () => {
+  const fakeRepo = new FakeDriveFilingRepository() as any;
+  const mockSettings = {
+    contacts: [{ abbr: "ARCH", name: "Architect" }],
+    actions: [{ action: "Received", abbr: "REC", status: "Incoming" }],
+    ffeTags: { tags: ["CH-01"], vendors: ["Acme"], tagMap: { "CH-01": "Lounge Chair" } },
+    projectAbbr: "PROJ",
+    logSheetId: 0,
+    sheetGids: {
+      "Submittal Arch": 0,
+      "Submittal FFE": 101,
+      "RFI Log": 202,
+      "ASI Log": 303
+    }
+  };
+  const mockLogRepo = {
+    getLogSettings: (_spreadsheetId: string, _discipline: string) => mockSettings
+  };
+  (globalThis as any).defaultLogRepository = mockLogRepo;
+
+  const archEvent = {
+    formInput: { project: "PROJ", documentType: "SUBMITTAL_ARCH" },
+    parameters: { project: "PROJ", documentType: "SUBMITTAL_ARCH", logFileId: "log-123" }
+  };
+  const archCard = UI.buildIntakeCard(archEvent as any);
+  const archJson = CardSerializer.toJSON(archCard);
+
+  const cascadeSecArch = archJson.sections.find(s => s.header === "1. Project & Document Type");
+  assert.ok(cascadeSecArch);
+  const buttonSetsArch = cascadeSecArch.widgets.filter(w => w.type === "ButtonSet");
+  let archBtn: any = null;
+  for (const bs of buttonSetsArch) {
+    archBtn = bs.buttons?.find((b: any) => b.text === "Open Submittal Log");
+    if (archBtn) break;
+  }
+  assert.ok(archBtn);
+  assert.ok(archBtn.openLink?.url.includes("#gid=0"), "Submittal Arch log link should point to #gid=0");
+
+  const ffeEvent = {
+    formInput: { project: "PROJ", documentType: "SUBMITTAL_FFE" },
+    parameters: { project: "PROJ", documentType: "SUBMITTAL_ARCH", logFileId: "log-123" }
+  };
+  const ffeCard = UI.buildIntakeCard(ffeEvent as any);
+  const ffeJson = CardSerializer.toJSON(ffeCard);
+
+  const cascadeSecFfe = ffeJson.sections.find(s => s.header === "1. Project & Document Type");
+  assert.ok(cascadeSecFfe);
+  const buttonSetsFfe = cascadeSecFfe.widgets.filter(w => w.type === "ButtonSet");
+  let ffeBtn: any = null;
+  for (const bs of buttonSetsFfe) {
+    ffeBtn = bs.buttons?.find((b: any) => b.text === "Open Submittal Log");
+    if (ffeBtn) break;
+  }
+  assert.ok(ffeBtn);
+  assert.ok(ffeBtn.openLink?.url.includes("#gid=101"), "Submittal FF&E log link should point to #gid=101");
+
+  const rfiEvent = {
+    formInput: { project: "PROJ", documentType: "RFI" },
+    parameters: { project: "PROJ", documentType: "SUBMITTAL_ARCH", logFileId: "log-123" }
+  };
+  const rfiCard = UI.buildIntakeCard(rfiEvent as any);
+  const rfiJson = CardSerializer.toJSON(rfiCard);
+
+  const cascadeSecRfi = rfiJson.sections.find(s => s.header === "1. Project & Document Type");
+  assert.ok(cascadeSecRfi);
+  const buttonSetsRfi = cascadeSecRfi.widgets.filter(w => w.type === "ButtonSet");
+  let rfiBtn: any = null;
+  for (const bs of buttonSetsRfi) {
+    rfiBtn = bs.buttons?.find((b: any) => b.text === "Open Submittal Log");
+    if (rfiBtn) break;
+  }
+  assert.ok(rfiBtn);
+  assert.ok(rfiBtn.openLink?.url.includes("#gid=202"), "RFI log link should point to #gid=202");
+});

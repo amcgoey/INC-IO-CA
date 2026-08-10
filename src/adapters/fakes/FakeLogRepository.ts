@@ -52,7 +52,13 @@ export class FakeLogRepository implements LogRepository {
       actions: [],
       ffeTags: { tags: [], vendors: [], tagMap: {} },
       projectAbbr: "DEFAULT",
-      logSheetId: null
+      logSheetId: 0,
+      sheetGids: {
+        "Submittal Arch": 0,
+        "Submittal FFE": 101,
+        "RFI Log": 202,
+        "ASI Log": 303
+      }
     };
   }
 

@@ -776,20 +776,22 @@ function buildIntakeCard(
   const messageId = (e && e.gmail && e.gmail.messageId) || p.messageId || null;
   const driveFileId = p.driveFileId || formInput.driveFileId || (flashMessage && flashMessage.newDriveFileId) || "";
 
+  const resolvedDocType = formInput.documentType || p.documentType || (initialData && ((initialData as any).documentType || (initialData.discipline === "FF&E" ? "SUBMITTAL_FFE" : "SUBMITTAL_ARCH"))) || "SUBMITTAL_ARCH";
+
   // Resolved Cascading State
   const state = {
     project: formInput.project || (initialData && initialData.driveName) || p.project || "",
-    documentType: formInput.documentType || (initialData && initialData.discipline === "FF&E" ? "SUBMITTAL_FFE" : "SUBMITTAL_ARCH"),
+    documentType: resolvedDocType,
     section: formInput.section || (initialData && initialData.section) || "",
-    number: formInput.number || (initialData && initialData.number) || "",
+    number: formInput.number || (initialData && (initialData.number || (initialData as any).rfiNumber || (initialData as any).asiNumber)) || "",
     revision: formInput.revision || (initialData && initialData.revision) || "0",
     title: formInput.title || (initialData && initialData.title) || "",
     specTag: formInput.specTag || (initialData && initialData.specTag) || "",
     relatedTag: formInput.relatedTag || (initialData && initialData.relatedTag) || "",
     specTitle: formInput.specTitle || (initialData && initialData.specTitle) || "",
     vendor: formInput.vendor || (initialData && initialData.vendor) || "",
-    rfiNumber: formInput.rfiNumber || (initialData && initialData.rfiNumber) || "",
-    asiNumber: formInput.asiNumber || (initialData && initialData.asiNumber) || "",
+    rfiNumber: formInput.rfiNumber || (initialData && ((initialData as any).rfiNumber || initialData.number)) || "",
+    asiNumber: formInput.asiNumber || (initialData && ((initialData as any).asiNumber || initialData.number)) || "",
     date: formInput.date || (initialData && initialData.date) || formatGasDate(new Date()),
     notes: formInput.notes || ""
   };
@@ -848,7 +850,7 @@ function buildIntakeCard(
   const logRepo = (globalThis as any).defaultLogRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
   let logSettings = (logRepo && candidateLogFileId && typeof logRepo.getLogSettings === "function")
     ? logRepo.getLogSettings(candidateLogFileId, discipline)
-    : { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null, targetFolderId: p.targetFolderId || "", logFileId: candidateLogFileId };
+    : { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null, targetFolderId: p.targetFolderId || "", logFileId: candidateLogFileId, sheetGids: {} };
 
   if (!logSettings.logFileId && candidateLogFileId) {
     logSettings.logFileId = candidateLogFileId;
@@ -986,14 +988,33 @@ function buildIntakeCard(
   }
 
   if (activeLogFileId) {
-    let logUrl = `https://docs.google.com/spreadsheets/d/${activeLogFileId}/edit`;
-    if (logSettings && logSettings.logSheetId) {
-      logUrl += `#gid=${logSettings.logSheetId}`;
+    let targetTabName = "Submittal Arch";
+    if (state.documentType === "SUBMITTAL_FFE") {
+      targetTabName = "Submittal FFE";
+    } else if (state.documentType === "RFI") {
+      targetTabName = "RFI Log";
+    } else if (state.documentType === "ASI") {
+      targetTabName = "ASI Log";
     }
+
+    let activeSheetGid: number | null = null;
+    if (logSettings && logSettings.sheetGids && logSettings.sheetGids[targetTabName] !== undefined) {
+      activeSheetGid = logSettings.sheetGids[targetTabName];
+    } else if (logSettings && logSettings.logSheetId !== null) {
+      activeSheetGid = logSettings.logSheetId;
+    }
+
+    let logUrl = `https://docs.google.com/spreadsheets/d/${activeLogFileId}/edit`;
+    if (activeSheetGid !== null && activeSheetGid !== undefined) {
+      logUrl += `#gid=${activeSheetGid}`;
+    }
+
     cascadeSec.addWidget(
-      CardService.newTextButton()
-        .setText("Open Submittal Log")
-        .setOpenLink(CardService.newOpenLink().setUrl(logUrl))
+      CardService.newButtonSet().addButton(
+        CardService.newTextButton()
+          .setText("Open Submittal Log")
+          .setOpenLink(CardService.newOpenLink().setUrl(logUrl))
+      )
     );
   }
 
