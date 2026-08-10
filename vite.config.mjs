@@ -15,6 +15,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    target: 'es2019',
+    minify: false,
     lib: {
       entry: path.resolve(__dirname, 'src/Main.ts'),
       name: 'App',

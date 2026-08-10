@@ -6,9 +6,9 @@
 import test from "node:test";
 import assert from "node:assert";
 
-const { FakeAiAnalysisAdapter } = require("./harness/index");
-const { AnalyzeDocumentAction, defaultAnalyzeDocumentAction } = require("../src/AnalyzeDocumentAction");
-const { createTestContext } = require("../src/core/workflow/WorkflowContextFactory");
+import { FakeAiAnalysisAdapter } from "./harness";
+import { AnalyzeDocumentAction, defaultAnalyzeDocumentAction } from "../src/AnalyzeDocumentAction";
+import { createTestContext } from "../src/core/workflow/WorkflowContextFactory";
 
 function createMockBlob(name: string = "test.pdf", content: string = "dummy pdf content"): GoogleAppsScript.Base.Blob {
   return {

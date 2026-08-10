@@ -651,7 +651,7 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
   const analyzeAction = defaultAnalyzeDocumentAction;
   const result = await analyzeAction.execute({ sourceBlob, emailText, contextObj });
   
-  return defaultCardPresenter.presentDeepAnalysisResult(e, result);
+  return defaultCardPresenter.presentDeepAnalysisResult(e, result.analysisResult || result);
 }
 
 /**

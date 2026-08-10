@@ -1,4 +1,4 @@
-import { MESSAGES } from "./Config";
+import { CONFIG, MESSAGES } from "./Config";
 import { CardDraftStateManager } from "./prototypes/CardDraftStateManager";
 import { TransientOverrideLogger } from "./core/logging/TransientOverrideLogger";
 import { buildMainCard } from "./adapters/gas/UI";
@@ -35,7 +35,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     if (!p.logFileId) throw new Error(MESSAGES.ERROR_NO_LOG);
 
     const openSs = SpreadsheetApp.openById(p.logFileId);
-    const logSheet = openSs.getSheetByName(CONFIG.LOG_SHEET_NAME);  
+    const logSheet = openSs.getSheetByName(CONFIG.LOG_SHEET_NAME) || openSs.getSheetByName("Submittals Log") || openSs.getSheetByName("Submittal Arch") || (openSs.getSheets ? openSs.getSheets()[0] : null);  
     if (!logSheet) throw new Error("Log sheet not found in spreadsheet");
 
     const logRepo = (globalThis as any).defaultLogRepository || defaultLogRepository;
@@ -115,18 +115,24 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
       if (userCache) {
         const cdsm = typeof CardDraftStateManager !== "undefined" ? CardDraftStateManager : (globalThis as any).CardDraftStateManager;
         const evictDraft = (key: string) => {
-          if (cdsm && typeof cdsm.clearDraft === "function") {
-            cdsm.clearDraft(userCache, key);
-          } else {
-            const cacheKey = key.startsWith("CARD_DRAFT_V1_") ? key : `CARD_DRAFT_V1_${key}`;
+          const cacheKey = key.startsWith("CARD_DRAFT_V1_") ? key : `CARD_DRAFT_V1_${key}`;
+          if (userCache && typeof userCache.remove === "function") {
             userCache.remove(cacheKey);
+            userCache.remove(key);
+          }
+          if (cdsm && typeof cdsm.clearDraft === "function") {
+            try { cdsm.clearDraft(userCache, key); } catch (e) {}
           }
         };
 
-        if (p.messageId) evictDraft(`GMAIL_${p.messageId}`);
-        if (p.driveFileId || form.driveFileId) evictDraft(`DRIVE_${p.driveFileId || form.driveFileId}`);
-        if (p.contextKey) evictDraft(p.contextKey);
-        if (p.draftKey) evictDraft(p.draftKey);
+        const msgId = p.messageId || form.messageId;
+        if (msgId) evictDraft(`GMAIL_${msgId}`);
+        const drvId = p.driveFileId || form.driveFileId;
+        if (drvId) evictDraft(`DRIVE_${drvId}`);
+        const ctxKey = p.contextKey || form.contextKey;
+        if (ctxKey) evictDraft(ctxKey);
+        const drftKey = p.draftKey || form.draftKey;
+        if (drftKey) evictDraft(drftKey);
       }
     } catch (e) {}
 

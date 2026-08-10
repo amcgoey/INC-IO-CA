@@ -9,11 +9,8 @@ import assert from "node:assert";
   GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
 };
 
-const { InMemoryCacheAdapter } = require("./harness/index");
-const { FakeDriveNameProvider } = require("./harness/index");
-const { FakePdfDocumentService } = require("./harness/index");
-const { GeminiAiAnalysisAdapter } = require("../src/AiAnalysisService");
-const { FakeAiAnalysisAdapter } = require("./harness/index");
+import { InMemoryCacheAdapter, FakeDriveNameProvider, FakePdfDocumentService, FakeAiAnalysisAdapter } from "./harness";
+import { GeminiAiAnalysisAdapter, checkAiModelHealth } from "../src/AiAnalysisService";
 
 function setupPropertiesService(apiKey: string | null = "test-gemini-api-key") {
   (globalThis as any).PropertiesService = {
@@ -243,7 +240,6 @@ test("FakeAiAnalysisAdapter stubs triage and deep analysis calls", async () => {
 });
 
 test("checkAiModelHealth reports missing key or status when executed", () => {
-  const { checkAiModelHealth } = require("../src/AiAnalysisService");
   const health = checkAiModelHealth();
   assert.ok(health.triage);
   assert.ok(health.analysis);

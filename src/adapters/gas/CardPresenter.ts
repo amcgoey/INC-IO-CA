@@ -262,7 +262,8 @@ class CardPresenter implements UserInterfacePresenter {
     flashMessage?: any,
     notificationText?: string
   ): GoogleAppsScript.Card_Service.ActionResponse {
-    const card = buildMainCard(e, null, false, flashMessage);
+    const buildCard = (globalThis as any).buildMainCard || buildMainCard;
+    const card = buildCard(e, null, false, flashMessage);
     const builder = CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(card));
 
@@ -272,6 +273,7 @@ class CardPresenter implements UserInterfacePresenter {
 
     return builder.build();
   }
+
 
   /**
    * Populates predicted AI analysis results into card form fields, reloads the main card, and displays an outcome toast.

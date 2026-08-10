@@ -1,6 +1,4 @@
 declare var GasSpreadsheetLockAdapter: any;
-declare var LogMigrationEngine: any;
-declare var BatchMigrationEngine: any;
 declare var GasTimeoutBudget: any;
 
 /**
@@ -10,8 +8,31 @@ declare var GasTimeoutBudget: any;
  * delegating intake parsing to DocumentPipeline and rendering the main user interface.
  */
 
-import { defaultTriageDocumentAction, TriageDocumentAction } from "./TriageDocumentAction";
+import { defaultTriageDocumentAction } from "./TriageDocumentAction";
 import { BatchMigrationEngine } from "./core/log/BatchMigrationEngine";
+import { LogMigrationEngine } from "./core/log/LogMigrationEngine";
+import { DocumentPipeline } from "./core/intake/DocumentPipeline";
+import { defaultPdfDocumentService } from "./PdfDocumentService";
+import { CONFIG, MESSAGES } from "./Config";
+import { processSubmission, moveSubmittalToClosed } from "./Process";
+import {
+  buildMainCard,
+  handleRefreshCache,
+  handleDeepAnalysis,
+  handleFetchUrl,
+  createDraftEmail,
+  onStateChange,
+  onSpecTagChange,
+  processSubmissionWithNewTag,
+  processSubmissionWithNewVendor
+} from "./adapters/gas/UI";
+import {
+  onRunSchemaDriftAudit,
+  onFlushScriptCache,
+  onAutoPatchWorkbook
+} from "./adapters/gas/AdminFoldOutPresenter";
+import { onSheetsContextRefresh } from "./adapters/gas/SheetsRootCard";
+import { checkAiModelHealth } from "./AiAnalysisService";
 
 declare var defaultAiAnalysisService: AiAnalysisService;
 
@@ -75,7 +96,8 @@ async function buildAddOn(e: GoogleAppsScriptEvent): Promise<GoogleAppsScript.Ca
     }
   }
 
-  return buildMainCard(e, parsedData, false, flashMessage);
+  const buildCardFn = (globalThis as any).buildMainCard || buildMainCard;
+  return buildCardFn(e, parsedData, false, flashMessage);
 }
 
 /**
@@ -107,13 +129,15 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
     if (fileMeta.driveId) parsedData.driveId = fileMeta.driveId;
   } catch (err) { }
 
-  const actionFromPdf = await defaultPdfDocumentService.extractFormAction(fileId);
+  const pdfService = (globalThis as any).defaultPdfDocumentService || defaultPdfDocumentService;
+  const actionFromPdf = await pdfService.extractFormAction(fileId);
   if (actionFromPdf) parsedData.action = actionFromPdf;
 
   e.parameters = e.parameters || {};
   e.parameters.driveFileId = fileId;
 
-  return buildMainCard(e, parsedData);
+  const buildCardFn = (globalThis as any).buildMainCard || buildMainCard;
+  return buildCardFn(e, parsedData);
 }
 
 /**
@@ -145,7 +169,7 @@ function migrateLogSpreadsheet(
       : undefined
   );
 
-  const sourceStorage = options?.sourceStorageAdapter || (
+  const sourceStorage = options?.sourceStorageAdapter || options?.storageAdapter || (
     sourceSpreadsheetId === targetId
       ? targetStorage
       : ((typeof GoogleSheetsStorageAdapter !== "undefined")
@@ -342,12 +366,57 @@ function repairCrossLogReferences(batchId?: string): any {
 }
 
 
+const globalScope = typeof globalThis !== "undefined" ? globalThis : this;
+const g = globalScope as any;
+
+g.buildAddOn = buildAddOn;
+g.onDriveItemsSelected = onDriveItemsSelected;
+g.migrateLogSpreadsheet = migrateLogSpreadsheet;
+g.migrateBatchLogSpreadsheets = migrateBatchLogSpreadsheets;
+g.onBatchMigrationContinuationTrigger = onBatchMigrationContinuationTrigger;
+g.repairCrossLogReferences = repairCrossLogReferences;
+g.processSubmission = processSubmission;
+g.moveSubmittalToClosed = moveSubmittalToClosed;
+g.handleRefreshCache = handleRefreshCache;
+g.handleDeepAnalysis = handleDeepAnalysis;
+g.handleFetchUrl = handleFetchUrl;
+g.createDraftEmail = createDraftEmail;
+g.onStateChange = onStateChange;
+g.onSpecTagChange = onSpecTagChange;
+g.processSubmissionWithNewTag = processSubmissionWithNewTag;
+g.processSubmissionWithNewVendor = processSubmissionWithNewVendor;
+g.onRunSchemaDriftAudit = onRunSchemaDriftAudit;
+g.onFlushScriptCache = onFlushScriptCache;
+g.onAutoPatchWorkbook = onAutoPatchWorkbook;
+g.onSheetsContextRefresh = onSheetsContextRefresh;
+g.checkAiModelHealth = checkAiModelHealth;
+g.DocumentPipeline = DocumentPipeline;
+g.buildMainCard = buildMainCard;
+g.defaultPdfDocumentService = defaultPdfDocumentService;
+g.LogMigrationEngine = LogMigrationEngine;
+g.GoogleSheetsStorageAdapter = GoogleSheetsStorageAdapter;
+
 export {
   onDriveItemsSelected,
   buildAddOn,
   migrateLogSpreadsheet,
   migrateBatchLogSpreadsheets,
   onBatchMigrationContinuationTrigger,
-  repairCrossLogReferences
+  repairCrossLogReferences,
+  processSubmission,
+  moveSubmittalToClosed,
+  handleRefreshCache,
+  handleDeepAnalysis,
+  handleFetchUrl,
+  createDraftEmail,
+  onStateChange,
+  onSpecTagChange,
+  processSubmissionWithNewTag,
+  processSubmissionWithNewVendor,
+  onRunSchemaDriftAudit,
+  onFlushScriptCache,
+  onAutoPatchWorkbook,
+  onSheetsContextRefresh,
+  checkAiModelHealth
 };
 

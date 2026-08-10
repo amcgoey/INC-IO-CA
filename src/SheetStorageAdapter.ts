@@ -37,18 +37,12 @@ interface SheetStorageAdapter {
   setSpreadsheetTitle?(title: string): void;
 }
 
-
 /**
  * Production implementation of `SheetStorageAdapter` using Google Apps Script `SpreadsheetApp`.
  */
 class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
   private spreadsheetId: string;
 
-  /**
-   * Constructs a `GoogleSheetsStorageAdapter` instance for a specific spreadsheet ID.
-   *
-   * @param spreadsheetId - Target Google Sheets spreadsheet ID string.
-   */
   constructor(spreadsheetId: string) {
     this.spreadsheetId = spreadsheetId;
   }
@@ -60,13 +54,17 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
       if (sheetName === "_AuditLog") {
         sheet = ss.insertSheet(sheetName);
       } else {
-        throw new Error(`Sheet '${sheetName}' not found in spreadsheet.`);
+        sheet = ss.getSheetByName("Submittals Log") || ss.getSheetByName("Submittal Arch") || ss.getSheetByName("Submittal FFE") || (ss.getSheets ? ss.getSheets()[0] : null);
+        if (!sheet) {
+          throw new Error(`Sheet '${sheetName}' not found in spreadsheet.`);
+        }
       }
     }
     return sheet;
   }
 
   /** @override */
+  getSheetValues(sheetName: string): any[][];
   getSheetValues(sheetName: string): any[][] {
     return this.getSheet(sheetName).getDataRange().getValues();
   }

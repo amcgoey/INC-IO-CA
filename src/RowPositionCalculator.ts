@@ -231,7 +231,7 @@ export function computeRowInsertionPlan(
   const headerRowIdx = typeof CONFIG !== "undefined" && CONFIG.LOG_HEADER_ROW ? CONFIG.LOG_HEADER_ROW : 3;
   for (let i = headerRowIdx; i < boundedData.length; i++) {
     const row = boundedData[i];
-    if (String(row[0] || "").toLowerCase().includes("formula row")) continue;
+    if (String(row[0] || "").toLowerCase().includes("formula row") || row.some(cell => String(cell || "").includes("=MAP("))) continue;
     if (isRowBlank(row)) {
       if (currentGroup) {
         groups.push(currentGroup);
@@ -275,7 +275,8 @@ export function computeRowInsertionPlan(
   } else {
     const firstDataRow1Based = firstDataRowIdx !== -1 ? firstDataRowIdx + 1 : -1;
     const headerRowConfig = typeof CONFIG !== "undefined" && CONFIG.LOG_HEADER_ROW ? CONFIG.LOG_HEADER_ROW : 3;
-    let insertAfterRow1Based = firstDataRow1Based !== -1 ? firstDataRow1Based - 1 : headerRowConfig;
+    const isRow4FormulaRow = boundedData.length > 3 && boundedData[3].some(cell => String(cell || "").includes("=MAP("));
+    let insertAfterRow1Based = firstDataRow1Based !== -1 ? firstDataRow1Based - 1 : (isRow4FormulaRow ? 4 : headerRowConfig);
     for (const g of groups) {
       if (normalizedTargetGroupKey.localeCompare(g.val) > 0) insertAfterRow1Based = g.end + 1;
     }

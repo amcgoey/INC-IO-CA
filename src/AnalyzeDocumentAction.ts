@@ -45,7 +45,7 @@ class AnalyzeDocumentAction implements DocumentAction<DocumentActionContext> {
       context.adapters?.aiAnalysisService ||
       context.aiService ||
       context.aiAnalysisService ||
-      (typeof defaultAiAnalysisService !== "undefined" ? defaultAiAnalysisService : (globalThis as any).defaultAiAnalysisService);
+      (globalThis as any).defaultAiAnalysisService;
 
     if (!aiService) {
       throw new Error("AnalyzeDocumentAction requires 'aiService' adapter in context.adapters");

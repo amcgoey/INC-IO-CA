@@ -408,14 +408,24 @@ export class MockCardBuilder {
 }
 
 export class MockNavigation {
-  public actionResponse?: { action: string; card?: MockCard };
+  public actionResponse?: { action: string; card?: any };
 
-  public updateCard(card: MockCard): this {
+  /** Direct accessor so tests can read `navigation.card` without CardSerializer. */
+  public get card(): any {
+    return this.actionResponse?.card;
+  }
+
+  /** Direct accessor so tests can read `navigation.action`. */
+  public get action(): string | undefined {
+    return this.actionResponse?.action;
+  }
+
+  public updateCard(card: any): this {
     this.actionResponse = { action: "updateCard", card };
     return this;
   }
 
-  public pushCard(card: MockCard): this {
+  public pushCard(card: any): this {
     this.actionResponse = { action: "pushCard", card };
     return this;
   }

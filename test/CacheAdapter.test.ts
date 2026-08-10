@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert";
-const { GoogleScriptCacheAdapter, defaultCacheAdapter } = require("../src/adapters/gas/GoogleScriptCacheAdapter");
-const { InMemoryCacheAdapter } = require("../src/adapters/fakes/FakeCacheAdapter");
-const { FakeSpreadsheetLockAdapter: LockAdapter } = require("../src/adapters/fakes/FakeSpreadsheetLockAdapter");
-const { FakeUserInterfacePresenter: UIPresenter } = require("../src/adapters/fakes/FakeUserInterfacePresenter");
+import { GoogleScriptCacheAdapter, defaultCacheAdapter } from "../src/adapters/gas/GoogleScriptCacheAdapter";
+import { InMemoryCacheAdapter } from "../src/adapters/fakes/FakeCacheAdapter";
+import { FakeSpreadsheetLockAdapter as LockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
+import { FakeUserInterfacePresenter as UIPresenter } from "../src/adapters/fakes/FakeUserInterfacePresenter";
 
 test("InMemoryCacheAdapter returns null for non-existent key", () => {
   const cache = new InMemoryCacheAdapter();

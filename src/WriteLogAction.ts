@@ -6,7 +6,7 @@
  * Operates on DocumentActionContext and wraps LogRepository.appendDocument() into a primitive DocumentAction handler.
  */
 
-import { getDocumentLogStrategy } from './DocumentLogStrategy';
+import { getDocumentLogStrategy } from './core/workflow/WorkflowPolicy';
 
 class WriteLogAction
   implements DocumentAction<DocumentActionContext, DocumentActionContext> {
