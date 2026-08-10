@@ -3,7 +3,7 @@
     "action": "updateCard",
     "card": {
       "header": {
-        "title": "File Submittal"
+        "title": "File Document"
       },
       "sections": [
         {
@@ -16,91 +16,78 @@
           ]
         },
         {
+          "header": "1. Project & Document Type",
           "collapsible": false,
           "widgets": [
             {
               "type": "SelectionInput",
               "inputType": "DROPDOWN",
-              "fieldName": "discipline",
-              "title": "Discipline",
+              "fieldName": "project",
+              "title": "Target Project",
               "items": [
                 {
-                  "text": "Architecture",
-                  "value": "Architecture",
+                  "text": "-- Select Project --",
+                  "value": "",
+                  "selected": false
+                },
+                {
+                  "text": "PROJ ? Main St Tower",
+                  "value": "PROJ",
                   "selected": true
                 },
                 {
-                  "text": "FF&E",
-                  "value": "FF&E",
+                  "text": "RES ? Ocean Beach House",
+                  "value": "RES",
                   "selected": false
                 }
               ],
               "onChangeAction": {
                 "functionName": "onStateChange",
-                "parameters": {}
-              }
-            }
-          ]
-        },
-        {
-          "header": "1. Project Location",
-          "collapsible": false,
-          "widgets": [
-            {
-              "type": "TextInput",
-              "fieldName": "driveName",
-              "title": "Project Shared Drive",
-              "value": "",
-              "multiline": false,
-              "onChangeAction": {
-                "functionName": "onStateChange",
-                "parameters": {}
-              }
-            }
-          ]
-        },
-        {
-          "header": "2. File Source",
-          "collapsible": false,
-          "widgets": [
-            {
-              "type": "SelectionInput",
-              "inputType": "DROPDOWN",
-              "fieldName": "fileSource",
-              "title": "Source",
-              "items": [
-                {
-                  "text": "Email Attachment",
-                  "value": "Email Attachment",
-                  "selected": false
-                },
-                {
-                  "text": "Google Drive URL",
-                  "value": "Google Drive URL",
-                  "selected": true
-                },
-                {
-                  "text": "Log Data Only",
-                  "value": "Log Data Only",
-                  "selected": false
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
                 }
-              ],
-              "onChangeAction": {
-                "functionName": "onStateChange",
-                "parameters": {}
               }
             },
             {
-              "type": "TextInput",
-              "fieldName": "driveFileUrl",
-              "title": "Google Drive URL",
-              "value": "",
-              "multiline": false
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "documentType",
+              "title": "Document Type",
+              "items": [
+                {
+                  "text": "-- Select Document Type --",
+                  "value": "",
+                  "selected": false
+                },
+                {
+                  "text": "Submittal (Architecture)",
+                  "value": "SUBMITTAL_ARCH",
+                  "selected": true
+                },
+                {
+                  "text": "Submittal (FF&E)",
+                  "value": "SUBMITTAL_FFE",
+                  "selected": false
+                },
+                {
+                  "text": "RFI (Request for Information)",
+                  "value": "RFI",
+                  "selected": false
+                }
+              ],
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
             }
           ]
         },
         {
-          "header": "3. Metadata",
+          "header": "2. Document Attributes",
           "collapsible": false,
           "widgets": [
             {
@@ -108,111 +95,160 @@
               "buttons": [
                 {
                   "type": "TextButton",
-                  "text": "✨ Analyze Submittal with AI",
+                  "text": "🔍 Analyze Document with AI",
                   "style": "FILLED",
                   "disabled": false,
                   "onClickAction": {
                     "functionName": "handleDeepAnalysis",
                     "parameters": {
-                      "logFileId": "",
-                      "discipline": "Architecture"
+                      "project": "PROJ",
+                      "documentType": "SUBMITTAL_ARCH"
                     }
                   }
                 }
               ]
             },
             {
-              "type": "TextInput",
-              "fieldName": "section",
-              "title": "Section",
-              "value": "",
-              "multiline": false
+              "type": "DatePicker",
+              "fieldName": "date",
+              "title": "Date",
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
             },
             {
               "type": "TextInput",
-              "fieldName": "number",
-              "title": "Number",
+              "fieldName": "contact",
+              "title": "Contact",
               "value": "",
-              "multiline": false
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "action",
+              "title": "Action",
+              "value": "",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "incomingRouting",
+              "title": "Incoming Routing",
+              "value": "",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
             },
             {
               "type": "TextInput",
               "fieldName": "title",
               "title": "Title",
               "value": "",
-              "multiline": false
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "section",
+              "title": "Section",
+              "value": "",
+              "hint": "CSI Section # (6 digits)",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "number",
+              "title": "Number",
+              "value": "",
+              "hint": "Submittal #",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
             },
             {
               "type": "TextInput",
               "fieldName": "revision",
               "title": "Revision",
               "value": "0",
-              "multiline": false
-            },
-            {
-              "type": "TextInput",
-              "fieldName": "date",
-              "title": "Date (YYMMDD)",
-              "value": "260810",
-              "multiline": false
-            },
-            {
-              "type": "SelectionInput",
-              "inputType": "DROPDOWN",
-              "fieldName": "contact",
-              "title": "Contact",
-              "items": []
-            },
-            {
-              "type": "SelectionInput",
-              "inputType": "DROPDOWN",
-              "fieldName": "action",
-              "title": "Action",
-              "items": [],
+              "hint": "Revision #",
+              "multiline": false,
               "onChangeAction": {
                 "functionName": "onStateChange",
-                "parameters": {}
-              }
-            },
-            {
-              "type": "SelectionInput",
-              "inputType": "DROPDOWN",
-              "fieldName": "incomingRouting",
-              "title": "Incoming Routing",
-              "items": [
-                {
-                  "text": "To Review",
-                  "value": "To Review",
-                  "selected": true
-                },
-                {
-                  "text": "To Refer",
-                  "value": "To Refer",
-                  "selected": false
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
                 }
-              ]
+              }
             },
             {
               "type": "TextInput",
               "fieldName": "notes",
               "title": "Notes",
               "value": "",
-              "multiline": true
+              "hint": "Notes",
+              "multiline": true,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
             },
             {
               "type": "ButtonSet",
               "buttons": [
                 {
                   "type": "TextButton",
-                  "text": "File & Log",
+                  "text": "Process Document",
                   "style": "FILLED",
                   "disabled": false,
                   "onClickAction": {
                     "functionName": "processSubmission",
                     "parameters": {
-                      "logFileId": "",
-                      "targetFolderId": "",
-                      "projectAbbr": ""
+                      "project": "PROJ",
+                      "documentType": "SUBMITTAL_ARCH"
                     }
                   }
                 },
@@ -224,11 +260,13 @@
                   "onClickAction": {
                     "functionName": "processSubmissionWithNewTag",
                     "parameters": {
+                      "project": "PROJ",
+                      "documentType": "SUBMITTAL_ARCH",
                       "logFileId": "",
                       "targetFolderId": "",
-                      "projectAbbr": "",
-                      "newTag": "",
-                      "newTitle": ""
+                      "projectAbbr": "PROJ",
+                      "newTag": "CH-01",
+                      "newTitle": "Cast-in-Place Concrete"
                     }
                   }
                 }
@@ -237,19 +275,38 @@
           ]
         },
         {
-          "header": "⚙️ Advanced Options",
+          "header": "?? Admin & Status",
           "collapsible": true,
           "widgets": [
+            {
+              "type": "TextParagraph",
+              "text": "?? **Target Log Tab:** `Submittal Arch`"
+            },
+            {
+              "type": "TextParagraph",
+              "text": "??? **Config Tier:** `Config_Manifest` ? `Config_SUBMITTAL_ARCH`"
+            },
+            {
+              "type": "TextParagraph",
+              "text": "?? **Relative Offsets:** Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4"
+            },
+            {
+              "type": "TextParagraph",
+              "text": "?? **AI Triage Status:** Project `PROJ` | Type `SUBMITTAL_ARCH` (Confidence: 94%)"
+            },
             {
               "type": "ButtonSet",
               "buttons": [
                 {
                   "type": "TextButton",
-                  "text": "🔄 Refresh Cache & Reload",
+                  "text": "?? Refresh Cache & Reload",
                   "disabled": false,
                   "onClickAction": {
                     "functionName": "handleRefreshCache",
-                    "parameters": {}
+                    "parameters": {
+                      "project": "PROJ",
+                      "documentType": "SUBMITTAL_ARCH"
+                    }
                   }
                 }
               ]

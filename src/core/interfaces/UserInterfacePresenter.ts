@@ -14,6 +14,7 @@ interface UserInterfacePresenter {
   presentIncomingSuccess(event: any, result: any): unknown;
   presentOutgoingSuccess(event: any, result: any, eventParams: Record<string, string>): unknown;
   presentCardReload(event: any, isTagChange?: boolean): unknown;
+  presentIntakeCard(event: any, initialData?: any, flashMessage?: any): unknown;
   presentNotification(notificationText: string): unknown;
 }
 

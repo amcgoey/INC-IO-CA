@@ -41,7 +41,7 @@ test.afterEach(() => {
   return card.build();
 };
 
-(globalThis as any).buildMainCard = (e: any, initialData: any, isTagChange: any, flashData: any) => {
+(globalThis as any).buildIntakeCard = (e: any, initialData: any, flashData: any) => {
   const harness = GasMockHarness.install();
   const CardService = harness.cardService;
   const header = CardService.newCardHeader().setTitle("MainCard");

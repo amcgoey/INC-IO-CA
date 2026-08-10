@@ -11,7 +11,7 @@ test.afterEach(() => {
 });
 
 import { DocumentTypeConfigRegistry, resolve5TierFieldValue } from "../src/DocumentTypeConfigRegistry";
-import { renderDynamicFormFields, buildMainCard, buildIntakeCard } from "../src/adapters/gas/UI";
+import { renderDynamicFormFields, buildIntakeCard } from "../src/adapters/gas/UI";
 
 test("DocumentTypeConfigRegistry - parseFieldSpecs converts _Config subtables into DocumentFieldSpec[]", () => {
   const registry = new DocumentTypeConfigRegistry();
@@ -173,7 +173,7 @@ test("renderDynamicFormFields - applies missing required field ❌ and low AI co
   assert.equal(widgets[1].hint, "Low AI confidence (65%) — please verify");
 });
 
-test("Card rendering end-to-end integration - buildMainCard renders form input binding correctly", () => {
+test("Card rendering end-to-end integration - buildIntakeCard renders form input binding correctly", () => {
   const event = EventFactory.createCardSubmitEvent({
     discipline: "Architecture",
     section: "033000",
@@ -181,7 +181,7 @@ test("Card rendering end-to-end integration - buildMainCard renders form input b
     title: "Cast-in-Place Concrete"
   });
 
-  const card = buildMainCard(event);
+  const card = buildIntakeCard(event);
   const cardJson = CardSerializer.toJSON(card);
 
   assert.ok(card);

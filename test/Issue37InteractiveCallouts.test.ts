@@ -40,7 +40,7 @@ test.beforeEach(() => {
   })
 };
 
-(globalThis as any).buildMainCard = (e: any, d: any, tag: any, flashData: any) => ({ cardType: "MainCard", flashData });
+(globalThis as any).buildIntakeCard = (e: any, d: any, flashData: any) => ({ cardType: "MainCard", flashData });
 
 test("DocumentPipeline.processFormIntake - returns interaction_required ADD_TAG when specTag does not exist in validTags", () => {
   const formInput = {
