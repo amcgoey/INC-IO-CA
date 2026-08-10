@@ -188,3 +188,24 @@ test("Card rendering end-to-end integration - buildMainCard renders form input b
   assert.ok(CardSerializer.hasWidgetText(cardJson, "Section"));
   assert.ok(CardSerializer.hasWidgetText(cardJson, "033000"));
 });
+
+test("renderDynamicFormFields - handles dropdown fields with empty options cleanly using fallback item", () => {
+  const harness = GasMockHarness.install();
+  const CardService = harness.cardService;
+  const section = CardService.newCardSection();
+
+  const fields: any[] = [
+    { key: "category", label: "Category", type: "enum", options: [] }
+  ];
+
+  renderDynamicFormFields(section, fields, {});
+
+  const card = CardService.newCardBuilder().addSection(section).build();
+  const cardJson = CardSerializer.toJSON(card);
+  const widgets: any[] = cardJson.sections[0].widgets;
+
+  assert.equal(widgets.length, 1);
+  assert.equal(widgets[0].fieldName, "category");
+  assert.equal(widgets[0].items.length, 1);
+  assert.equal(widgets[0].items[0].text, "-- None --");
+});

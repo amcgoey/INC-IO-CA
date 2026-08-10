@@ -112,10 +112,14 @@ function renderDynamicFormFields(
         }
       }
 
-      optionsList.forEach(opt => {
-        const isSelected = String(opt.value) === String(hydratedValue) || String(opt.label) === String(hydratedValue);
-        dropdownWidget.addItem(opt.label || opt.value, opt.value, isSelected);
-      });
+      if (optionsList.length === 0) {
+        dropdownWidget.addItem("-- None --", "", true);
+      } else {
+        optionsList.forEach(opt => {
+          const isSelected = String(opt.value) === String(hydratedValue) || String(opt.label) === String(hydratedValue);
+          dropdownWidget.addItem(opt.label || opt.value, opt.value, isSelected);
+        });
+      }
 
       if (onStateActionName) {
         dropdownWidget.setOnChangeAction(
