@@ -24,7 +24,7 @@ export type SchemaDriftStatus = "MATCH" | "MINOR_DRIFT" | "MAJOR_DRIFT" | "INCOM
 export type IssueSeverity = "CRITICAL" | "WARNING" | "INFO";
 
 export interface TemplateDriftIssue {
-  category: string; // "VERSION" | "TAB" | "NAMED_RANGE" | "HEADER" | "FORMULA" | "VALIDATION"
+  category: string; // "VERSION" | "TAB" | "NAMED_RANGE" | "HEADER" | "FORMULA" | "VALIDATION" | "PROTECTION_DRIFT" | "VALIDATION_DRIFT"
   severity: IssueSeverity;
   description: string;
 }
@@ -64,6 +64,7 @@ export interface AutoPatchResult {
 export interface AutoPatchWorkbookOptions {
   lockAdapter?: SpreadsheetLockAdapter;
   cacheAdapter?: CacheAdapter;
+  validationAndProtectionAdapter?: any;
   logger?: (logPayloadJson: string) => void;
 }
 
@@ -185,6 +186,7 @@ class TemplateDriftInspector {
     this.auditDimension3_NamedRanges(issues, liveSheetNames);
 
     this.auditDimensions4_5_6_LogTabs(issues, liveSheetNames);
+    this.auditDimension7_Protections(issues, liveSheetNames);
 
     const { status, canAutoPatch } = this.classifyStatus(issues, hasConfigTab);
 
@@ -517,32 +519,99 @@ class TemplateDriftInspector {
         }
       }
 
-      // Dimension 6: Validations
+      // Dimension 6 / 8: Dynamic Cell Validations (VALIDATION_DRIFT)
       for (let colIdx = 0; colIdx < specTab.columns.length; colIdx++) {
         const colSpec = specTab.columns[colIdx];
         const targetRange = colSpec.validationRule?.targetNamedRange || colSpec.validationRange;
         if (!targetRange) continue;
 
         let hasValidation = false;
-        if (this.hasNamedRange(targetRange)) {
-          hasValidation = true;
-        } else if (this.seam && typeof this.seam.getSheetByName === "function") {
-          const sheet = this.seam.getSheetByName(specTab.name);
-          if (sheet && typeof sheet.getRange === "function") {
-            const range = sheet.getRange(2, colIdx + 1);
-            if (range && typeof range.getDataValidation === "function") {
-              const rule = range.getDataValidation();
-              hasValidation = !!rule;
+        const targetNRExists = this.hasNamedRange(targetRange);
+
+        if (targetNRExists) {
+          if (this.seam && typeof this.seam.getSheetByName === "function") {
+            const sheet = this.seam.getSheetByName(specTab.name);
+            if (sheet && typeof sheet.getRange === "function") {
+              const range = sheet.getRange(6, colIdx + 1) || sheet.getRange(2, colIdx + 1);
+              if (range && typeof range.getDataValidation === "function") {
+                const rule = range.getDataValidation();
+                hasValidation = !!rule;
+              }
             }
+          } else if (this.batchData) {
+            hasValidation = true;
           }
         }
 
         if (!hasValidation) {
           issues.push({
-            category: "VALIDATION",
+            category: "VALIDATION_DRIFT",
             severity: "WARNING",
             description: "Missing data validation rule for column '" + colSpec.id + "' on tab '" + specTab.name + "' (expected range '" + targetRange + "')."
           });
+        }
+      }
+    }
+  }
+
+
+
+  private auditDimension7_Protections(issues: TemplateDriftIssue[], liveSheetNames: string[]): void {
+    const specTabs = getDocumentLogWorkbookSpec()?.tabs || [];
+    for (const specTab of specTabs) {
+      if (!liveSheetNames.includes(specTab.name)) continue;
+
+      if (this.seam && typeof this.seam.getSheetByName === "function") {
+        const sheet = this.seam.getSheetByName(specTab.name);
+        if (!sheet) continue;
+
+        // Tier 1: System Tab Protection
+        if (specTab.isConfigTab || specTab.isAuditLogTab || specTab.isSupportTab || specTab.name.startsWith("_")) {
+          const sheetProts = typeof sheet.getProtections === "function" ? sheet.getProtections("SHEET") : [];
+          const hasProt = Array.isArray(sheetProts) && sheetProts.length > 0;
+          if (!hasProt) {
+            issues.push({
+              category: "PROTECTION_DRIFT",
+              severity: "WARNING",
+              description: "Missing system tab protection on tab '" + specTab.name + "'."
+            });
+          }
+          continue;
+        }
+
+        // Log Tabs: Tier 2 Header Stack & Tier 3 Calculated Columns
+        if (specTab.isLogTab && specTab.columns && specTab.columns.length > 0) {
+          const rangeProts = typeof sheet.getProtections === "function" ? sheet.getProtections("RANGE") : [];
+          const descriptions = Array.isArray(rangeProts)
+            ? rangeProts.map((p: any) => (typeof p.getDescription === "function" ? p.getDescription() : (p.description || "")))
+            : [];
+
+          // Tier 2: Header Stack Protection (LOCK_HEADERS_<TabName>)
+          const expectedHeaderDesc = "LOCK_HEADERS_" + specTab.name;
+          const hasHeaderProt = descriptions.includes(expectedHeaderDesc) || descriptions.some((d: string) => d.startsWith("LOCK_HEADERS"));
+          if (!hasHeaderProt) {
+            issues.push({
+              category: "PROTECTION_DRIFT",
+              severity: "WARNING",
+              description: "Missing header and formula range protection ('" + expectedHeaderDesc + "') on tab '" + specTab.name + "'."
+            });
+          }
+
+          // Tier 3: Calculated Column Protection (PROTECT_CALC_<TabName>_<colId>)
+          for (const colSpec of specTab.columns) {
+            const isCalculated = colSpec.formula !== undefined || (colSpec.id && colSpec.id.startsWith("calc"));
+            if (!isCalculated) continue;
+
+            const expectedCalcDesc = "PROTECT_CALC_" + specTab.name + "_" + colSpec.id;
+            const hasCalcProt = descriptions.includes(expectedCalcDesc);
+            if (!hasCalcProt) {
+              issues.push({
+                category: "PROTECTION_DRIFT",
+                severity: "WARNING",
+                description: "Missing calculated column range protection ('" + expectedCalcDesc + "') for column '" + colSpec.id + "' on tab '" + specTab.name + "'."
+              });
+            }
+          }
         }
       }
     }
@@ -617,6 +686,20 @@ class TemplateDriftPatcher {
     const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
     if (g.defaultSpreadsheetLockAdapter) return g.defaultSpreadsheetLockAdapter;
     if (g.FakeSpreadsheetLockAdapter) return new g.FakeSpreadsheetLockAdapter();
+    return null;
+  }
+
+  private resolveValidationAndProtectionAdapter(): any {
+    if (this.options.validationAndProtectionAdapter) return this.options.validationAndProtectionAdapter;
+    const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
+    if (g.defaultSheetValidationAndProtectionAdapter) return g.defaultSheetValidationAndProtectionAdapter;
+    if (g.SheetValidationAndProtectionAdapter) return new g.SheetValidationAndProtectionAdapter();
+    if (typeof require !== "undefined") {
+      try {
+        const mod = require("../../adapters/gas/SheetValidationAndProtectionAdapter");
+        return mod.defaultSheetValidationAndProtectionAdapter || new mod.SheetValidationAndProtectionAdapter();
+      } catch (e) {}
+    }
     return null;
   }
 
@@ -773,6 +856,30 @@ class TemplateDriftPatcher {
             }
             repairsApplied.push("Appended missing default '_Config' key 'MANIFEST_SCHEMA_VERSION'");
           }
+        }
+      }
+
+      // Repair D: Restore missing validation rules, range protections, and number formats via SheetValidationAndProtectionAdapter
+      const valProtAdapter = this.resolveValidationAndProtectionAdapter();
+      if (valProtAdapter) {
+        const spec = getDocumentLogWorkbookSpec();
+        if (typeof valProtAdapter.applyValidationRules === "function") {
+          try {
+            valProtAdapter.applyValidationRules(seam, spec);
+            repairsApplied.push("Restored missing cell validation rules across log tabs");
+          } catch (e) {}
+        }
+        if (typeof valProtAdapter.applyRangeProtections === "function") {
+          try {
+            valProtAdapter.applyRangeProtections(seam, spec);
+            repairsApplied.push("Restored soft warning range protections across system tabs, headers, and calculated columns");
+          } catch (e) {}
+        }
+        if (typeof valProtAdapter.applyNumberFormats === "function") {
+          try {
+            valProtAdapter.applyNumberFormats(seam, spec);
+            repairsApplied.push("Applied cell number formats across log tabs");
+          } catch (e) {}
         }
       }
 

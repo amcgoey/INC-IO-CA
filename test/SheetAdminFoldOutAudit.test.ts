@@ -10,6 +10,7 @@ import { GasMockHarness } from "./harness/GasMockHarness";
 import { CardSerializer } from "./harness/CardSerializer";
 import { TemplateDriftAuditor } from "../src/core/admin/TemplateDriftAuditor";
 import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../src/core/config/DocumentLogWorkbookSpec";
+import { SheetValidationAndProtectionAdapter } from "../src/adapters/gas/SheetValidationAndProtectionAdapter";
 import { onRunSchemaDriftAudit, onAutoPatchWorkbook } from "../src/adapters/gas/AdminFoldOutPresenter";
 import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
 import { FakeCacheAdapter } from "../src/adapters/fakes/FakeCacheAdapter";
@@ -28,6 +29,9 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
   it("executes TemplateDriftAuditor.auditWorkbook in read-only mode without modifying sheet structure", () => {
     const ss = harness.sheetsService.openById("wb-audit-clean");
     ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
+    const valProtAdapter = new SheetValidationAndProtectionAdapter();
+    valProtAdapter.applyValidationRules(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
+    valProtAdapter.applyRangeProtections(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
 
     const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
 
@@ -264,6 +268,9 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     it("returns status NO_OP under lock when double-checked audit confirms zero structural drift", () => {
       const ss = harness.sheetsService.openById("wb-autopatch-clean");
       ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
+      const valProtAdapter = new SheetValidationAndProtectionAdapter();
+      valProtAdapter.applyValidationRules(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
+      valProtAdapter.applyRangeProtections(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
 
       const lockAdapter = new FakeSpreadsheetLockAdapter();
       const cacheAdapter = new FakeCacheAdapter();
