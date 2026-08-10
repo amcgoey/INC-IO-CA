@@ -11,6 +11,15 @@ import {
 
 describe('GoogleDriveLogSearchAdapter (Tier 2 GAS Adapter)', () => {
   describe('formatDisjunctiveLogSearchQuery', () => {
+    it('formats standardized document log search terms into disjunctive query', () => {
+      const terms = ['document log', 'inc document log', 'submittal log'];
+      const query = formatDisjunctiveLogSearchQuery(terms);
+      assert.equal(
+        query,
+        "(title contains 'document log' or title contains 'inc document log' or title contains 'submittal log') and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+      );
+    });
+
     it('formats multiple search terms into disjunctive OR clause query', () => {
       const terms = ['submittal log', 'submittal master log'];
       const query = formatDisjunctiveLogSearchQuery(terms);
@@ -48,7 +57,7 @@ describe('GoogleDriveLogSearchAdapter (Tier 2 GAS Adapter)', () => {
   });
 
   describe('getDocumentTypeSearchCacheKey & invalidateLogSearchCache', () => {
-    it('formats cache key with DriveId and DocTypeKey per ADR 0030 §2', () => {
+    it('formats cache key with DriveId and DocTypeKey per ADR 0030 ï¿½2', () => {
       const key1 = getDocumentTypeSearchCacheKey('0A123', 'Submittal');
       const key2 = getDocumentTypeSearchCacheKey(undefined, 'Submittal');
       assert.equal(key1, 'log_search_0A123_Submittal');
@@ -67,6 +76,36 @@ describe('GoogleDriveLogSearchAdapter (Tier 2 GAS Adapter)', () => {
   });
 
   describe('GoogleDriveLogSearchAdapter execution & capping', () => {
+    it('correctly ranks candidate workbooks matching standardized document log search terms', () => {
+      const mockDriveFiles = [
+        {
+          id: 'file-doc-log',
+          title: 'PROJ Document Log',
+          manifestDocTypes: ['Submittal'],
+          lastModifiedDate: new Date(2026, 0, 10)
+        },
+        {
+          id: 'file-other',
+          title: 'Unrelated File',
+          manifestDocTypes: []
+        }
+      ];
+
+      const adapter = new GoogleDriveLogSearchAdapter({
+        fetchDriveFiles: () => mockDriveFiles
+      });
+
+      const config = {
+        documentType: 'Submittal',
+        logSearchTerms: ['document log', 'inc document log', 'submittal log']
+      } as any;
+
+      const ranked = adapter.searchAndScoreCandidates(config, undefined, 10);
+      assert.equal(ranked.length, 2);
+      assert.equal(ranked[0].candidate.id, 'file-doc-log');
+      assert.ok(ranked[0].score > 0, 'Document log candidate should score positively');
+    });
+
     it('scores pool of candidate files and limits discovery to top 10 ranked candidates', () => {
       const mockDriveFiles = Array.from({ length: 15 }, (_, i) => ({
         id: `file-${i + 1}`,
