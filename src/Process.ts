@@ -1,3 +1,22 @@
+if (typeof require !== "undefined") {
+  try {
+    const cdsmModule = eval('require("./prototypes/CardDraftStateManager")');
+    if (cdsmModule && cdsmModule.CardDraftStateManager && typeof (globalThis as any).CardDraftStateManager === "undefined") {
+      (globalThis as any).CardDraftStateManager = cdsmModule.CardDraftStateManager;
+    }
+  } catch (e: any) {
+      if (typeof console !== "undefined" && console.warn) console.warn("Draft eviction warning:", e);
+    }
+}
+declare const TransientOverrideLogger: any;
+if (typeof require !== "undefined") {
+  try {
+      const overrideLoggerModule = eval('require("./core/logging/TransientOverrideLogger")');
+      if (overrideLoggerModule && overrideLoggerModule.TransientOverrideLogger && typeof (globalThis as any).TransientOverrideLogger === "undefined") {
+        (globalThis as any).TransientOverrideLogger = overrideLoggerModule.TransientOverrideLogger;
+      }
+  } catch (e) {}
+}
 /**
  * @file Process.ts
  * @description Application event handlers for processing submittal form submissions and file movement actions.
@@ -100,7 +119,15 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
       bypassVendorValidation: p.bypassVendorValidation === "true"
     };
 
-    const validationResult = DocumentPipeline.processFormIntake(form, validationContext);
+    const initialAi = (e as any).aiResult || (p && p.aiResult ? JSON.parse(p.aiResult) : null) || null;
+if (initialAi) {
+    const LoggerClass = typeof (globalThis as any).TransientOverrideLogger !== "undefined" ? (globalThis as any).TransientOverrideLogger : (typeof TransientOverrideLogger !== "undefined" ? TransientOverrideLogger : null);
+    if (LoggerClass) {
+      new LoggerClass().logOverrides(initialAi, form);
+    }
+}
+
+const validationResult = DocumentPipeline.processFormIntake(form, validationContext);
 
     if (validationResult.status === "error") {
       return defaultCardPresenter.presentValidationError(
@@ -147,6 +174,26 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const dwm = typeof DocumentWorkflowModule !== "undefined" ? DocumentWorkflowModule : (globalThis as any).DocumentWorkflowModule;
     const policyFn = typeof getActionPolicy !== "undefined" ? getActionPolicy : (globalThis as any).getActionPolicy;
     const result: DocumentWorkflowResult = await dwm.executeWorkflow(input);
+    try {
+      const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
+      if (userCache) {
+        const cdsm = typeof CardDraftStateManager !== "undefined" ? CardDraftStateManager : (globalThis as any).CardDraftStateManager;
+        const evictDraft = (key: string) => {
+          if (cdsm && typeof cdsm.clearDraft === "function") {
+            cdsm.clearDraft(userCache, key);
+          } else {
+            const cacheKey = key.startsWith("CARD_DRAFT_V1_") ? key : `CARD_DRAFT_V1_${key}`;
+            userCache.remove(cacheKey);
+          }
+        };
+
+        if (p.messageId) evictDraft(`GMAIL_${p.messageId}`);
+        if (p.driveFileId || form.driveFileId) evictDraft(`DRIVE_${p.driveFileId || form.driveFileId}`);
+        if (p.contextKey) evictDraft(p.contextKey);
+        if (p.draftKey) evictDraft(p.draftKey);
+      }
+    } catch (e) {}
+
     const policy = policyFn(result.action);
 
     if (policy.direction === "incoming") {
