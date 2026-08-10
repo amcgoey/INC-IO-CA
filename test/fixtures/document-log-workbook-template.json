@@ -1120,6 +1120,42 @@
       "tabName": "Submittal FFE Support",
       "rangeNotation": "C2:D50",
       "scope": "Workbook"
+    },
+    {
+      "name": "Shared_Contacts_Arch_Keys",
+      "tabName": "_Shared",
+      "rangeNotation": "A2:A20",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Shared_Contacts_FFE_Keys",
+      "tabName": "_Shared",
+      "rangeNotation": "C2:C20",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Actions_Submittal_Labels",
+      "tabName": "_Shared",
+      "rangeNotation": "F2:F20",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Statuses_Submittal_Labels",
+      "tabName": "_Shared",
+      "rangeNotation": "I2:I20",
+      "scope": "Workbook"
+    },
+    {
+      "name": "Vendors_Keys",
+      "tabName": "Submittal FFE Support",
+      "rangeNotation": "A2:A50",
+      "scope": "Workbook"
+    },
+    {
+      "name": "SpecTags_Keys",
+      "tabName": "Submittal FFE Support",
+      "rangeNotation": "C2:C50",
+      "scope": "Workbook"
     }
   ]
 }

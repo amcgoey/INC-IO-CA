@@ -452,3 +452,31 @@ test("LogEngine handles submittal revision row placement and updates previous re
 
   assert.strictEqual(readResult.previousStatus, "Superseded", "Previous revision status should be updated to Superseded");
 });
+
+test('GasMockHarness - mocks setNumberFormat and getNumberFormat on range objects', () => {
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById('ss-num-fmt-test');
+  const sheet = ss.getSheetByName('Sheet1');
+  const range = sheet.getRange('A1:B2');
+
+  assert.strictEqual(typeof range.setNumberFormat, 'function', 'setNumberFormat should be a function');
+  assert.strictEqual(typeof range.getNumberFormat, 'function', 'getNumberFormat should be a function');
+  assert.strictEqual(range.getNumberFormat(), '', 'Initial format should be empty string');
+
+  range.setNumberFormat('000000');
+  assert.strictEqual(range.getNumberFormat(), '000000', 'Top-left cell format should be 000000');
+
+  const formats = range.getNumberFormats();
+  assert.deepStrictEqual(formats, [
+    ['000000', '000000'],
+    ['000000', '000000']
+  ], '2D grid format should match setNumberFormat');
+
+  range.setNumberFormats([
+    ['000000', '000'],
+    ['yyMMdd', '0']
+  ]);
+  assert.strictEqual(sheet.getRange('B1').getNumberFormat(), '000');
+  assert.strictEqual(sheet.getRange('A2').getNumberFormat(), 'yyMMdd');
+  assert.strictEqual(sheet.getRange('B2').getNumberFormat(), '0');
+});

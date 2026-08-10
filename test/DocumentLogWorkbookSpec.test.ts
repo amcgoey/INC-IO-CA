@@ -197,3 +197,50 @@ test('DocumentLogWorkbookSpec - Submittal Arch and Submittal FFE MAP/LAMBDA form
   verifyRow4Formulas('Submittal Arch', archTab.columns);
   verifyRow4Formulas('Submittal FFE', ffeTab.columns);
 });
+
+test('DocumentLogWorkbookSpec - defines optional numberFormat on ColumnSpec for non-picklist columns', () => {
+  const archTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal Arch');
+  assert.ok(archTab?.columns, 'Submittal Arch columns must exist');
+
+  const sectionCol = archTab.columns.find(c => c.id === 'section');
+  assert.equal(sectionCol?.numberFormat, '000000', 'Section column numberFormat must be 000000');
+
+  const numberCol = archTab.columns.find(c => c.id === 'number');
+  assert.equal(numberCol?.numberFormat, '000', 'Number column numberFormat must be 000');
+
+  const revisionCol = archTab.columns.find(c => c.id === 'revision');
+  assert.equal(revisionCol?.numberFormat, '0', 'Revision column numberFormat must be 0');
+
+  const dateCol = archTab.columns.find(c => c.id === 'date');
+  assert.equal(dateCol?.numberFormat, 'yyMMdd', 'Date column numberFormat must be yyMMdd');
+
+  const ffeTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal FFE');
+  assert.ok(ffeTab?.columns, 'Submittal FFE columns must exist');
+
+  const ffeRevisionCol = ffeTab.columns.find(c => c.id === 'revision');
+  assert.equal(ffeRevisionCol?.numberFormat, '0', 'FFE Revision column numberFormat must be 0');
+
+  const ffeDateCol = ffeTab.columns.find(c => c.id === 'date');
+  assert.equal(ffeDateCol?.numberFormat, 'yyMMdd', 'FFE Date column numberFormat must be yyMMdd');
+});
+
+test('DocumentLogWorkbookSpec - registers 6 dedicated single-column Named Ranges across _Shared and Submittal FFE Support', () => {
+  const namedRanges = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges;
+
+  const expectedSingleColRanges = [
+    { name: 'Shared_Contacts_Arch_Keys', tabName: '_Shared', rangeNotation: 'A2:A20' },
+    { name: 'Shared_Contacts_FFE_Keys', tabName: '_Shared', rangeNotation: 'C2:C20' },
+    { name: 'Actions_Submittal_Labels', tabName: '_Shared', rangeNotation: 'F2:F20' },
+    { name: 'Statuses_Submittal_Labels', tabName: '_Shared', rangeNotation: 'I2:I20' },
+    { name: 'Vendors_Keys', tabName: 'Submittal FFE Support', rangeNotation: 'A2:A50' },
+    { name: 'SpecTags_Keys', tabName: 'Submittal FFE Support', rangeNotation: 'C2:C50' }
+  ];
+
+  expectedSingleColRanges.forEach(exp => {
+    const nr = namedRanges.find(r => r.name === exp.name);
+    assert.ok(nr, `Named range ${exp.name} must be registered`);
+    assert.equal(nr.tabName, exp.tabName, `${exp.name} tabName must be ${exp.tabName}`);
+    assert.equal(nr.rangeNotation, exp.rangeNotation, `${exp.name} rangeNotation must be ${exp.rangeNotation}`);
+    assert.equal(nr.scope, 'Workbook', `${exp.name} scope must be Workbook`);
+  });
+});

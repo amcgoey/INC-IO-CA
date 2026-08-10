@@ -237,6 +237,7 @@ class DocumentTypeConfigRegistry {
       headerMap.set('description', 8);
       headerMap.set('defaultvalue', 9);
       headerMap.set('keynormalizationrule', 10);
+      headerMap.set('numberformat', 11);
     }
 
     const fieldSpecs: DocumentFieldSpec[] = [];

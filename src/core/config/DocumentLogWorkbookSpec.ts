@@ -15,6 +15,7 @@ export interface ColumnSpec {
   width?: number;
   formula?: string;
   validationRange?: string;
+  numberFormat?: string;
 }
 
 export interface TabSpec {
@@ -54,11 +55,11 @@ const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       isLogTab: true,
       columns: [
         { id: "status", header: "Status", validationRange: "Statuses_Submittal" },
-        { id: "section", header: "Section" },
-        { id: "number", header: "Number" },
-        { id: "revision", header: "Revision" },
+        { id: "section", header: "Section", numberFormat: "000000" },
+        { id: "number", header: "Number", numberFormat: "000" },
+        { id: "revision", header: "Revision", numberFormat: "0" },
         { id: "title", header: "Title" },
-        { id: "date", header: "Date" },
+        { id: "date", header: "Date", numberFormat: "yyMMdd" },
         { id: "contact", header: "Contact", validationRange: "Shared_Contacts_Arch" },
         { id: "action", header: "Action", validationRange: "Actions_Submittal" },
         { id: "notes", header: "Notes" },
@@ -100,10 +101,10 @@ const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
         { id: "status", header: "Status", validationRange: "Statuses_Submittal" },
         { id: "specTag", header: "Spec Tag", validationRange: "SpecTags" },
         { id: "relatedTag", header: "Related Tag", validationRange: "SpecTags" },
-        { id: "revision", header: "Revision" },
+        { id: "revision", header: "Revision", numberFormat: "0" },
         { id: "specTitle", header: "Spec Title", formula: '=MAP(B4:B, LAMBDA(tag, IF(ISBLANK(tag), "", IFERROR(VLOOKUP(tag, \'Submittal FFE Support\'!SpecTags, 2, FALSE), ""))))' },
         { id: "vendor", header: "Vendor", validationRange: "Vendors" },
-        { id: "date", header: "Date" },
+        { id: "date", header: "Date", numberFormat: "yyMMdd" },
         { id: "contact", header: "Contact", validationRange: "Shared_Contacts_FFE" },
         { id: "action", header: "Action", validationRange: "Actions_Submittal" },
         { id: "notes", header: "Notes" },
@@ -259,6 +260,12 @@ const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
     { name: "Submittal_FFE_Headers", tabName: "Submittal FFE", rangeNotation: "A3:P4", scope: "Workbook" },
     { name: "Submittal_FFE_FormulaRow", tabName: "Submittal FFE", rangeNotation: "A4:P4", scope: "Workbook" },
     { name: "Submittal_FFE_Data", tabName: "Submittal FFE", rangeNotation: "A6:P20", scope: "Workbook" },
+    { name: "Shared_Contacts_Arch_Keys", tabName: "_Shared", rangeNotation: "A2:A20", scope: "Workbook" },
+    { name: "Shared_Contacts_FFE_Keys", tabName: "_Shared", rangeNotation: "C2:C20", scope: "Workbook" },
+    { name: "Actions_Submittal_Labels", tabName: "_Shared", rangeNotation: "F2:F20", scope: "Workbook" },
+    { name: "Statuses_Submittal_Labels", tabName: "_Shared", rangeNotation: "I2:I20", scope: "Workbook" },
+    { name: "Vendors_Keys", tabName: "Submittal FFE Support", rangeNotation: "A2:A50", scope: "Workbook" },
+    { name: "SpecTags_Keys", tabName: "Submittal FFE Support", rangeNotation: "C2:C50", scope: "Workbook" },
     { name: "Vendors", tabName: "Submittal FFE Support", rangeNotation: "A2:B50", scope: "Workbook" },
     { name: "SpecTags", tabName: "Submittal FFE Support", rangeNotation: "C2:D50", scope: "Workbook" }
   ]

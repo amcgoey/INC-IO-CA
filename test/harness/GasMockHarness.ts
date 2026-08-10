@@ -329,11 +329,46 @@ export class MockRange {
     }
     return this;
   }
+
+  public getNumberFormat(): string {
+    return this.sheet.getNumberFormat(this.startRow, this.startCol);
+  }
+
+  public getNumberFormats(): string[][] {
+    const result: string[][] = [];
+    for (let r = 0; r < this.numRows; r++) {
+      const row: string[] = [];
+      for (let c = 0; c < this.numCols; c++) {
+        row.push(this.sheet.getNumberFormat(this.startRow + r, this.startCol + c));
+      }
+      result.push(row);
+    }
+    return result;
+  }
+
+  public setNumberFormat(numberFormat: string): this {
+    for (let r = 0; r < this.numRows; r++) {
+      for (let c = 0; c < this.numCols; c++) {
+        this.sheet.setNumberFormat(this.startRow + r, this.startCol + c, numberFormat);
+      }
+    }
+    return this;
+  }
+
+  public setNumberFormats(numberFormats: string[][]): this {
+    for (let r = 0; r < Math.min(this.numRows, numberFormats.length); r++) {
+      for (let c = 0; c < Math.min(this.numCols, numberFormats[r].length); c++) {
+        this.sheet.setNumberFormat(this.startRow + r, this.startCol + c, numberFormats[r][c]);
+      }
+    }
+    return this;
+  }
 }
 
 export class MockSheet {
   private grid: any[][] = [];
   private validations: Map<string, any> = new Map();
+  private numberFormats: Map<string, string> = new Map();
   public calls: CallLog[] = [];
 
   constructor(public name: string, initialData: any[][] = [], public sheetId: number = 101) {
@@ -425,6 +460,18 @@ export class MockSheet {
       this.validations.delete(`${row},${col}`);
     } else {
       this.validations.set(`${row},${col}`, rule);
+    }
+  }
+
+  public getNumberFormat(row: number, col: number): string {
+    return this.numberFormats.get(`${row},${col}`) || "";
+  }
+
+  public setNumberFormat(row: number, col: number, format: string): void {
+    if (!format) {
+      this.numberFormats.delete(`${row},${col}`);
+    } else {
+      this.numberFormats.set(`${row},${col}`, format);
     }
   }
 
