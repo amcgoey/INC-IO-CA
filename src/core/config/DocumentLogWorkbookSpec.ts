@@ -65,7 +65,7 @@ export interface ProtectionTierSpec {
   warningOnly: boolean;
 }
 
-export const PROTECTION_TIER_SPECS: Record<ProtectionTierType, ProtectionTierSpec> = {
+const PROTECTION_TIER_SPECS: Record<ProtectionTierType, ProtectionTierSpec> = {
   SYSTEM_TAB_PROTECTION: {
     tier: "SYSTEM_TAB_PROTECTION",
     description: "System tab protection with warning prompt for configuration and audit logs",
@@ -367,4 +367,3 @@ if (typeof module !== "undefined" && module.exports) {
 (globalThis as any).PROD_TEMPLATE_SPREADSHEET_TITLE = PROD_TEMPLATE_SPREADSHEET_TITLE;
 (globalThis as any).DOCUMENT_LOG_WORKBOOK_SPEC = DOCUMENT_LOG_WORKBOOK_SPEC;
 (globalThis as any).PROTECTION_TIER_SPECS = PROTECTION_TIER_SPECS;
-

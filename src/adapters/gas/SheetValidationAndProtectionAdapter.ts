@@ -4,7 +4,7 @@
  * Implements declarative cell formatting (applyNumberFormats) and data validation rules (applyValidationRules) across data columns during workbook provisioning and patching.
  */
 
-import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC } from "../../core/config/DocumentLogWorkbookSpec";
+import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC, PROTECTION_TIER_SPECS, ColumnSpec } from "../../core/config/DocumentLogWorkbookSpec";
 import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../core/config/DocumentLogWorkbookViewSpec";
 
 export interface LogTabContext {
@@ -84,7 +84,7 @@ class SheetValidationAndProtectionAdapter {
    */
 
   /**
-   * Configures soft warning-based range and sheet protections across all 3 tiers with warningOnly: true.
+   * Configures soft warning-based range and sheet protections across all 3 tiers using PROTECTION_TIER_SPECS.
    * Tier 1: SYSTEM_TAB_PROTECTION on system tabs (_Config, _AuditLog, etc.).
    * Tier 2: HEADER_AND_FORMULA_PROTECTION on header stack (Rows 1..firstDataRow-1) named LOCK_HEADERS_<TabName>.
    * Tier 3: CALCULATED_COLUMN_PROTECTION on calculated column ranges across data rows.
@@ -97,6 +97,9 @@ class SheetValidationAndProtectionAdapter {
     if (!spreadsheet || !spec || !spec.tabs) return;
 
     const firstDataRow = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC?.offsets?.FIRST_DATA_ROW_INDEX || 6;
+    const sysTier = PROTECTION_TIER_SPECS?.SYSTEM_TAB_PROTECTION || { warningOnly: true };
+    const headerTier = PROTECTION_TIER_SPECS?.HEADER_AND_FORMULA_PROTECTION || { warningOnly: true };
+    const calcTier = PROTECTION_TIER_SPECS?.CALCULATED_COLUMN_PROTECTION || { warningOnly: true };
 
     for (const tab of spec.tabs) {
       const sheet = typeof spreadsheet.getSheetByName === "function" ? spreadsheet.getSheetByName(tab.name) : null;
@@ -108,7 +111,7 @@ class SheetValidationAndProtectionAdapter {
           const sheetProtection = sheet.protect();
           if (sheetProtection && typeof sheetProtection.setWarningOnly === "function") {
             sheetProtection.setDescription(`SYSTEM_TAB_PROTECTION_${tab.name}`);
-            sheetProtection.setWarningOnly(true);
+            sheetProtection.setWarningOnly(sysTier.warningOnly);
           }
         }
         continue;
@@ -126,7 +129,7 @@ class SheetValidationAndProtectionAdapter {
             const headerProtection = headerRange.protect();
             if (headerProtection && typeof headerProtection.setWarningOnly === "function") {
               headerProtection.setDescription(`LOCK_HEADERS_${tab.name}`);
-              headerProtection.setWarningOnly(true);
+              headerProtection.setWarningOnly(headerTier.warningOnly);
             }
           }
         }
@@ -135,8 +138,9 @@ class SheetValidationAndProtectionAdapter {
         const maxRows = typeof sheet.getMaxRows === "function" ? sheet.getMaxRows() : (tab.rowCount || 25);
         const numRows = Math.max(1, maxRows - firstDataRow + 1);
 
-        tab.columns.forEach((colSpec: any, idx: number) => {
-          if (colSpec.formula || (colSpec.id && colSpec.id.startsWith("calc"))) {
+        tab.columns.forEach((colSpec: ColumnSpec, idx: number) => {
+          const isCalculated = colSpec.formula !== undefined || (colSpec.id && colSpec.id.startsWith("calc"));
+          if (isCalculated) {
             const colIdx = idx + 1;
             if (typeof sheet.getRange === "function") {
               const calcRange = sheet.getRange(firstDataRow, colIdx, numRows, 1);
@@ -144,7 +148,7 @@ class SheetValidationAndProtectionAdapter {
                 const calcProtection = calcRange.protect();
                 if (calcProtection && typeof calcProtection.setWarningOnly === "function") {
                   calcProtection.setDescription(`PROTECT_CALC_${tab.name}_${colSpec.id}`);
-                  calcProtection.setWarningOnly(true);
+                  calcProtection.setWarningOnly(calcTier.warningOnly);
                 }
               }
             }
