@@ -67,3 +67,9 @@ test('defaultDocumentTypeConfigRegistry is exported and pre-configured', () => {
   assert.ok(defaultDocumentTypeConfigRegistry);
   assert.equal(defaultDocumentTypeConfigRegistry.hasConfig('Submittal'), true);
 });
+
+test('DocumentTypeConfigRegistry - DEFAULT_FFE_CONFIG includes standardized logSearchTerms', () => {
+  const registry = new DocumentTypeConfigRegistry();
+  const config = registry.getConfig('FF&E');
+  assert.deepEqual(config.logSearchTerms, ['document log', 'inc document log', 'submittal log', 'ffe log', 'ff&e log']);
+});

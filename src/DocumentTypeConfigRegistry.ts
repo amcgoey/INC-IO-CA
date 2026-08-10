@@ -110,7 +110,7 @@ const DEFAULT_FFE_CONFIG: DocumentTypeConfig = {
   projectSearchTerms: ['FF&E', 'FFE'],
   closedRootFolderName: 'Closed',
   filenamePrefix: '_',
-  logSearchTerms: ['document log', 'inc document log', 'ffe log', 'ff&e log'],
+  logSearchTerms: ['document log', 'inc document log', 'submittal log', 'ffe log', 'ff&e log'],
   logSheetName: 'Submittal FFE',
   logAdapterKey: 'GoogleSheetsLogRepository',
   filingAdapterKey: 'GoogleDriveFilingRepository',
