@@ -229,6 +229,111 @@ function renderDynamicFormFields(
       return;
     }
 
+    // Special Field Handling for FF&E Spec Tag
+    if (field.key === 'specTag' && field.type !== 'list' && field.type !== 'enum' && (!field.options || field.options.length === 0)) {
+      const logSettings = hydrationContext.logSettings || {};
+      const ffeTags = (logSettings.ffeTags && logSettings.ffeTags.tags) ? logSettings.ffeTags.tags : [];
+
+      const tagIn = CardService.newTextInput()
+        .setFieldName("specTag")
+        .setTitle(displayTitle)
+        .setValue(String(hydratedValue || ""));
+
+      if (ffeTags.length > 0) {
+        tagIn.setSuggestions(CardService.newSuggestions().addSuggestions(ffeTags));
+      }
+
+      tagIn.setOnChangeAction(
+        CardService.newAction().setFunctionName("onSpecTagChange").setParameters(actionParams)
+      );
+
+      if (hintText && typeof (tagIn as any).setHint === "function") {
+        (tagIn as any).setHint(hintText);
+      }
+      section.addWidget(tagIn);
+      return;
+    }
+
+    // Special Field Handling for FF&E Related Tags
+    if (field.key === 'relatedTag' && field.type !== 'list' && field.type !== 'enum' && (!field.options || field.options.length === 0)) {
+      const logSettings = hydrationContext.logSettings || {};
+      const ffeTags = (logSettings.ffeTags && logSettings.ffeTags.tags) ? logSettings.ffeTags.tags : [];
+
+      if (ffeTags.length > 0) {
+        const relatedTagDrop = CardService.newSelectionInput()
+          .setType(CardService.SelectionInputType.MULTI_SELECT)
+          .setTitle(displayTitle)
+          .setFieldName("relatedTag");
+
+        const selectedStr = String(hydratedValue || "");
+        ffeTags.forEach((tag: string) => {
+          const isSelected = selectedStr.includes(tag);
+          relatedTagDrop.addItem(tag, tag, isSelected);
+        });
+
+        if (onStateActionName) {
+          relatedTagDrop.setOnChangeAction(
+            CardService.newAction().setFunctionName(onStateActionName).setParameters(actionParams)
+          );
+        }
+        section.addWidget(relatedTagDrop);
+      } else {
+        const relatedIn = CardService.newTextInput()
+          .setFieldName("relatedTag")
+          .setTitle(displayTitle)
+          .setValue(String(hydratedValue || ""));
+        if (hintText && typeof (relatedIn as any).setHint === "function") {
+          (relatedIn as any).setHint(hintText);
+        }
+        section.addWidget(relatedIn);
+      }
+      return;
+    }
+
+    // Special Field Handling for FF&E Spec Title
+    if (field.key === 'specTitle' && field.type !== 'list' && field.type !== 'enum' && (!field.options || field.options.length === 0)) {
+      const logSettings = hydrationContext.logSettings || {};
+      const currentSpecTag = hydrationContext.formInput?.specTag || hydrationContext.state?.specTag || hydrationContext.userCacheDraft?.specTag || hydrationContext.parserResult?.specTag || hydrationContext.aiMetadata?.specTag || "";
+      const tagMap = (logSettings.ffeTags && logSettings.ffeTags.tagMap) ? logSettings.ffeTags.tagMap : {};
+
+      let titleVal = String(hydratedValue || "");
+      if (!titleVal && currentSpecTag && tagMap[currentSpecTag]) {
+        titleVal = tagMap[currentSpecTag];
+      }
+
+      const specTitleIn = CardService.newTextInput()
+        .setFieldName("specTitle")
+        .setTitle(displayTitle)
+        .setValue(titleVal);
+
+      if (hintText && typeof (specTitleIn as any).setHint === "function") {
+        (specTitleIn as any).setHint(hintText);
+      }
+      section.addWidget(specTitleIn);
+      return;
+    }
+
+    // Special Field Handling for FF&E Vendor
+    if (field.key === 'vendor' && field.type !== 'list' && field.type !== 'enum' && (!field.options || field.options.length === 0)) {
+      const logSettings = hydrationContext.logSettings || {};
+      const ffeVendors = (logSettings.ffeTags && logSettings.ffeTags.vendors) ? logSettings.ffeTags.vendors : [];
+
+      const vendorIn = CardService.newTextInput()
+        .setFieldName("vendor")
+        .setTitle(displayTitle)
+        .setValue(String(hydratedValue || ""));
+
+      if (ffeVendors.length > 0) {
+        vendorIn.setSuggestions(CardService.newSuggestions().addSuggestions(ffeVendors));
+      }
+
+      if (hintText && typeof (vendorIn as any).setHint === "function") {
+        (vendorIn as any).setHint(hintText);
+      }
+      section.addWidget(vendorIn);
+      return;
+    }
+
     // Widget Generation based on Field Type
     if (field.type === 'list' || field.type === 'enum') {
       const dropdownWidget = CardService.newSelectionInput()
