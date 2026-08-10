@@ -4,7 +4,9 @@ if (typeof require !== "undefined") {
     if (cdsmModule && cdsmModule.CardDraftStateManager && typeof (globalThis as any).CardDraftStateManager === "undefined") {
       (globalThis as any).CardDraftStateManager = cdsmModule.CardDraftStateManager;
     }
-  } catch (e) {}
+  } catch (e: any) {
+      if (typeof console !== "undefined" && console.warn) console.warn("Draft eviction warning:", e);
+    }
 }
 declare const TransientOverrideLogger: any;
 if (typeof require !== "undefined") {
