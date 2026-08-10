@@ -1,8 +1,8 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert";
 import { GasMockHarness } from "./GasMockHarness";
 import { MockBlob } from "./MockDrive";
-const { GoogleDriveFilingRepository } = require("../../src/DriveFilingRepository");
+import { GoogleDriveFilingRepository } from "../../src/DriveFilingRepository";
 
 test("GasMockHarness DriveApp - attaches DriveApp to globalThis on install", () => {
   const harness = GasMockHarness.install();

@@ -10,8 +10,8 @@ test.afterEach(() => {
   GasMockHarness.uninstall();
 });
 
-const { DocumentTypeConfigRegistry, resolve5TierFieldValue } = require("../src/DocumentTypeConfigRegistry");
-const { renderDynamicFormFields, buildMainCard, buildUnbiasedIntakeCard } = require("../src/adapters/gas/UI");
+import { DocumentTypeConfigRegistry, resolve5TierFieldValue } from "../src/DocumentTypeConfigRegistry";
+import { renderDynamicFormFields, buildMainCard, buildUnbiasedIntakeCard } from "../src/adapters/gas/UI";
 
 test("DocumentTypeConfigRegistry - parseFieldSpecs converts _Config subtables into DocumentFieldSpec[]", () => {
   const registry = new DocumentTypeConfigRegistry();

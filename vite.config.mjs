@@ -7,6 +7,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      'node:test': path.resolve(__dirname, 'test/setup.ts'),
+    },
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -21,6 +26,11 @@ export default defineConfig({
         extend: true,
       },
     },
+  },
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['test/**/*.test.ts'],
   },
   plugins: [
     {

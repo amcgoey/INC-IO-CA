@@ -4,55 +4,13 @@
  * @description Incoming submittal dual-path workflow execution service ("Received" action).
  */
 
-declare var require: any;
-declare var defaultDriveFilingRepository: DriveFilingRepository;
-declare var defaultLogRepository: LogRepository;
-declare var defaultPdfDocumentService: PdfDocumentService;
-declare var defaultDuplicateDocumentAction: DuplicateDocumentAction;
-
-if (typeof require !== "undefined") {
-  try {
-    const _mda = eval('require("./MoveDocumentAction")');
-    if (_mda && _mda.MoveDocumentAction) (globalThis as any).MoveDocumentAction = _mda.MoveDocumentAction;
-  } catch (e) {}
-
-  try {
-    const _wp = eval('require("./WorkflowPolicy")');
-    if (_wp) {
-      if (_wp.getActionPolicy) (globalThis as any).getActionPolicy = _wp.getActionPolicy;
-      if (_wp.getDocumentLogStrategy) (globalThis as any).getDocumentLogStrategy = _wp.getDocumentLogStrategy;
-      if (_wp.getDocumentTitle) (globalThis as any).getDocumentTitle = _wp.getDocumentTitle;
-      if (_wp.buildDirectRowUrl) (globalThis as any).buildDirectRowUrl = _wp.buildDirectRowUrl;
-    }
-  } catch (e) {}
-  try {
-    const _wla = eval('require("../../WriteLogAction")');
-    if (_wla && _wla.WriteLogAction) (globalThis as any).WriteLogAction = _wla.WriteLogAction;
-  } catch (e) {}
-  try {
-    const _dda = eval('require("./DuplicateDocumentAction")');
-    if (_dda && _dda.DuplicateDocumentAction) (globalThis as any).DuplicateDocumentAction = _dda.DuplicateDocumentAction;
-  } catch (e) {}
-  try {
-    const _ipa = eval('require("../../InsertPagesAction")');
-    if (_ipa && _ipa.InsertPagesAction) (globalThis as any).InsertPagesAction = _ipa.InsertPagesAction;
-  } catch (e) {}
-  try {
-    const _wfr = eval('require("./WorkflowRunner")');
-    if (_wfr) {
-      if (_wfr.WorkflowRunner) (globalThis as any).WorkflowRunner = _wfr.WorkflowRunner;
-      if (_wfr.MoveDocumentAction) (globalThis as any).MoveDocumentAction = _wfr.MoveDocumentAction;
-      if (_wfr.RenameDocumentAction) (globalThis as any).RenameDocumentAction = _wfr.RenameDocumentAction;
-    }
-  } catch (e) {}
-  try {
-    const _dls = eval('require("../../DocumentLogStrategy")');
-    if (_dls) {
-      if (_dls.ArchitectureSubmittalStrategy) (globalThis as any).ArchitectureSubmittalStrategy = _dls.ArchitectureSubmittalStrategy;
-      if (_dls.FFESubmittalStrategy) (globalThis as any).FFESubmittalStrategy = _dls.FFESubmittalStrategy;
-    }
-  } catch (e) {}
-}
+import { getActionPolicy, getDocumentLogStrategy, getDocumentTitle, buildDirectRowUrl } from './WorkflowPolicy';
+import { MoveDocumentAction } from './MoveDocumentAction';
+import { DuplicateDocumentAction } from './DuplicateDocumentAction';
+import { WriteLogAction } from '../../WriteLogAction';
+import { InsertPagesAction } from '../../InsertPagesAction';
+import { WorkflowRunner } from './WorkflowRunner';
+import { ArchitectureSubmittalStrategy } from '../../DocumentLogStrategy';
 
 class IncomingWorkflow {
   /**
@@ -142,8 +100,8 @@ class IncomingWorkflow {
 
     const driveApp = input.driveApp;
     const spreadsheetApp = input.spreadsheetApp;
-    const driveFilingRepo = (input as any).adapters?.driveFilingRepository || input.driveFilingRepository || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
-    const logRepo = (input as any).adapters?.logRepository || input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
+    const driveFilingRepo = (input as any).adapters?.driveFilingRepository || input.driveFilingRepository || (globalThis as any).defaultDriveFilingRepository || defaultDriveFilingRepository;
+    const logRepo = (input as any).adapters?.logRepository || input.logRepository || (globalThis as any).defaultLogRepository || defaultLogRepository;
 
     const MoveCtor = (globalThis as any).MoveDocumentAction || (typeof MoveDocumentAction !== "undefined" ? MoveDocumentAction : null);
     const moveAction = input.moveDocumentAction || (MoveCtor ? new MoveCtor() : null);
@@ -283,12 +241,6 @@ class IncomingWorkflow {
   }
 }
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    IncomingWorkflow
-  };
-}
-
-(globalThis as any).IncomingWorkflow = IncomingWorkflow;
+export {
+  IncomingWorkflow
+};

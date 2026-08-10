@@ -5,27 +5,11 @@
  * Evaluates email header/body context using `AiAnalysisService.triageEmail` to predict project name and discipline.
  */
 
-declare var require: any;
+import { defaultAiAnalysisService } from './AiAnalysisService';
 
 function resolveAiAnalysisService(): AiAnalysisService {
-  if (typeof defaultAiAnalysisService !== "undefined" && defaultAiAnalysisService) {
-    return defaultAiAnalysisService;
-  }
-  if ((globalThis as any).defaultAiAnalysisService) {
-    return (globalThis as any).defaultAiAnalysisService;
-  }
-  if (typeof require !== "undefined") {
-    try {
-      const analyzeMod = require("./AnalyzeDocumentAction");
-      if (analyzeMod && analyzeMod.resolveAiAnalysisServiceHelper) {
-        return analyzeMod.resolveAiAnalysisServiceHelper();
-      }
-      return require("./AiAnalysisService").defaultAiAnalysisService;
-    } catch (e) {
-      throw new Error("AiAnalysisService is not available: " + String(e));
-    }
-  }
-  throw new Error("AiAnalysisService is not available");
+  if ((globalThis as any).defaultAiAnalysisService) return (globalThis as any).defaultAiAnalysisService;
+  return defaultAiAnalysisService;
 }
 
 /**
@@ -77,19 +61,9 @@ class TriageDocumentAction implements DocumentAction<TriageDocumentInput, AiPred
 }
 
 /** Global default instance seam for TriageDocumentAction. */
-var defaultTriageDocumentAction: TriageDocumentAction = new TriageDocumentAction();
+const defaultTriageDocumentAction: TriageDocumentAction = new TriageDocumentAction();
 
-if (typeof (globalThis as any).defaultTriageDocumentAction === "undefined") {
-  (globalThis as any).defaultTriageDocumentAction = defaultTriageDocumentAction;
-}
-
-declare var module: any;
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    TriageDocumentAction,
-    defaultTriageDocumentAction
-  };
-}
-
-(globalThis as any).TriageDocumentAction = TriageDocumentAction;
-(globalThis as any).defaultTriageDocumentAction = defaultTriageDocumentAction;
+export {
+  TriageDocumentAction,
+  defaultTriageDocumentAction
+};

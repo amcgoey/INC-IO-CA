@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2020",
+    "module": "ESNext",
     "moduleResolution": "bundler",
-    "moduleDetection": "legacy",
+    "moduleDetection": "force",
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
@@ -14,6 +15,6 @@
   },
   "include": [
     "src/**/*",
-    "test/harness/**/*"
+    "test/**/*"
   ]
 }

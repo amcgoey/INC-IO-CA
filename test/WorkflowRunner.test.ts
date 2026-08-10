@@ -7,8 +7,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { GasMockHarness, FakeDriveFilingRepository } = require('./harness');
-const { WorkflowRunner, MoveDocumentAction, RenameDocumentAction } = require('../src/core/workflow/WorkflowRunner');
+import { GasMockHarness, FakeDriveFilingRepository } from './harness';
+import { WorkflowRunner, MoveDocumentAction, RenameDocumentAction } from '../src/core/workflow/WorkflowRunner';
 
 test('WorkflowRunner - executes actions sequentially passing modified context', async () => {
   const log: string[] = [];

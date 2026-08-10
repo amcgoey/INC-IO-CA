@@ -1,3 +1,4 @@
+import { buildMainCard, buildSuccessCard, buildUnbiasedIntakeCard } from "./UI";
 /**
  * @file CardPresenter.ts
  * @description Presenter application service responsible for assembling Google Apps Script `CardService.ActionResponse` navigation and notification responses.
@@ -144,7 +145,8 @@ class CardPresenter implements UserInterfacePresenter {
     e: GoogleAppsScriptEvent,
     isTagChange?: boolean
   ): GoogleAppsScript.Card_Service.ActionResponse {
-    const card = buildMainCard(e, null, isTagChange || false);
+    const builder = (globalThis as any).buildMainCard || buildMainCard;
+    const card = builder(e, null, isTagChange || false);
 
     return this.buildUpdateCardResponse(card);
   }
@@ -185,7 +187,8 @@ class CardPresenter implements UserInterfacePresenter {
     const specTagVal = isFFE ? (form.specTag || eventParams.specTag || "") : "";
     const itemTitle = result.title || form.title || (isFFE ? form.specTitle : "") || eventParams.itemTitle || eventParams.title || "";
 
-    const card = buildSuccessCard(
+    const builder = (globalThis as any).buildSuccessCard || buildSuccessCard;
+    const card = builder(
       result.fileId,
       result.newFileName,
       result.url,

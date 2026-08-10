@@ -7,22 +7,15 @@
 
 import type { LogCandidateMetadata, ScoredLogCandidate } from '../../core/log/LogDisambiguationScorer';
 
-declare var LogDisambiguationScorer: any;
-declare var PrefixCacheManager: any;
-declare var require: any;
+import { LogDisambiguationScorer } from '../../core/log/LogDisambiguationScorer';
+import { PrefixCacheManager } from '../../core/admin/PrefixCacheManager';
 
 function getLogDisambiguationScorerClass(): any {
-  if (typeof LogDisambiguationScorer !== 'undefined') return LogDisambiguationScorer;
-  if (typeof (globalThis as any).LogDisambiguationScorer !== 'undefined') return (globalThis as any).LogDisambiguationScorer;
-  if (typeof require !== 'undefined') return require('../../core/log/LogDisambiguationScorer').LogDisambiguationScorer;
-  return undefined;
+  return LogDisambiguationScorer;
 }
 
 function getPrefixCacheManagerClass(): any {
-  if (typeof PrefixCacheManager !== 'undefined') return PrefixCacheManager;
-  if (typeof (globalThis as any).PrefixCacheManager !== 'undefined') return (globalThis as any).PrefixCacheManager;
-  if (typeof require !== 'undefined') return require('../../core/admin/PrefixCacheManager').PrefixCacheManager;
-  return undefined;
+  return PrefixCacheManager;
 }
 
 /**

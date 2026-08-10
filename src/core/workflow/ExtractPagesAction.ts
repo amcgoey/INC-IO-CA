@@ -7,17 +7,10 @@
  * using PdfDocumentService. Returns both the sliced PDF Blob and its base64 string representation.
  */
 
-declare var require: any;
+import { defaultPdfDocumentService } from '../../PdfDocumentService';
 
 function resolvePdfDocumentServiceHelper(): PdfDocumentService {
-  if (typeof defaultPdfDocumentService !== "undefined" && defaultPdfDocumentService) {
-    return defaultPdfDocumentService;
-  }
-  try {
-    return eval("require('../../PdfDocumentService')").defaultPdfDocumentService;
-  } catch (e) {
-    throw new Error("PdfDocumentService is not available: " + String(e));
-  }
+  return (globalThis as any).defaultPdfDocumentService || defaultPdfDocumentService;
 }
 
 /**
@@ -78,20 +71,9 @@ class ExtractPagesAction implements DocumentAction<ExtractPagesInput | GoogleApp
   }
 }
 
-/** Global default instance seam for ExtractPagesAction. */
-var defaultExtractPagesAction: ExtractPagesAction = new ExtractPagesAction();
+const defaultExtractPagesAction = new ExtractPagesAction();
 
-if (typeof (globalThis as any).defaultExtractPagesAction === "undefined") {
-  (globalThis as any).defaultExtractPagesAction = defaultExtractPagesAction;
-}
-
-declare var module: any;
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    ExtractPagesAction,
-    defaultExtractPagesAction
-  };
-}
-
-(globalThis as any).ExtractPagesAction = ExtractPagesAction;
-(globalThis as any).defaultExtractPagesAction = defaultExtractPagesAction;
+export {
+  ExtractPagesAction,
+  defaultExtractPagesAction
+};

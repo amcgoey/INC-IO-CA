@@ -7,18 +7,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ReadLogAction } = require('../src/ReadLogAction');
-const { MoveDocumentAction } = require('../src/core/workflow/MoveDocumentAction');
-const { WriteLogAction } = require('../src/WriteLogAction');
-const { AnalyzeDocumentAction } = require('../src/AnalyzeDocumentAction');
-const { InsertPagesAction } = require('../src/InsertPagesAction');
-const { WorkflowRunner } = require('../src/core/workflow/WorkflowRunner');
-const { WorkflowActionRouter } = require('../src/core/workflow/WorkflowActionRouter');
-const { createTestContext } = require('../src/core/workflow/WorkflowContextFactory');
-const { ArchitectureSubmittalStrategy } = require('../src/DocumentLogStrategy');
-const { createValidatedArchitectureSubmittal } = require('./harness/factories/DocumentFactory');
-const { FakeAiAnalysisAdapter } = require('./harness/fakes/FakeAiAnalysisAdapter');
-const { FakePdfDocumentService } = require('./harness/fakes/FakePdfDocumentService');
+import { ReadLogAction } from '../src/ReadLogAction';
+import { MoveDocumentAction } from '../src/core/workflow/MoveDocumentAction';
+import { WriteLogAction } from '../src/WriteLogAction';
+import { AnalyzeDocumentAction } from '../src/AnalyzeDocumentAction';
+import { InsertPagesAction } from '../src/InsertPagesAction';
+import { WorkflowRunner } from '../src/core/workflow/WorkflowRunner';
+import { WorkflowActionRouter } from '../src/core/workflow/WorkflowActionRouter';
+import { createTestContext } from '../src/core/workflow/WorkflowContextFactory';
+import { ArchitectureSubmittalStrategy } from '../src/DocumentLogStrategy';
+import { createValidatedArchitectureSubmittal } from './harness/factories/DocumentFactory';
+import { FakeAiAnalysisAdapter } from './harness/fakes/FakeAiAnalysisAdapter';
+import { FakePdfDocumentService } from './harness/fakes/FakePdfDocumentService';
 
 function createMockBlob(name: string = "test_submittal.pdf", content: string = "dummy submittal pdf content"): GoogleAppsScript.Base.Blob {
   return {

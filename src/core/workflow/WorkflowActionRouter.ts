@@ -4,36 +4,11 @@
  * @description Central application router resolving ordered sequences of DocumentAction instances for document types and workflow directions.
  */
 
-declare var require: any;
-
-let _ReadLogActionClass: any = null;
-let _MoveDocumentActionRouter: any = null;
-let _AnalyzeDocumentActionClass: any = null;
-let _InsertPagesActionClass: any = null;
-let _WriteLogActionClass: any = null;
-
-if (typeof require !== 'undefined') {
-  try {
-    const _rla = eval("require('../../ReadLogAction')");
-    if (_rla && _rla.ReadLogAction) _ReadLogActionClass = _rla.ReadLogAction;
-  } catch (e) {}
-  try {
-    const _mda = eval("require('./MoveDocumentAction')");
-    if (_mda && _mda.MoveDocumentAction) _MoveDocumentActionRouter = _mda.MoveDocumentAction;
-  } catch (e) {}
-  try {
-    const _ada = eval("require('../../AnalyzeDocumentAction')");
-    if (_ada && _ada.AnalyzeDocumentAction) _AnalyzeDocumentActionClass = _ada.AnalyzeDocumentAction;
-  } catch (e) {}
-  try {
-    const _ipa = eval("require('../../InsertPagesAction')");
-    if (_ipa && _ipa.InsertPagesAction) _InsertPagesActionClass = _ipa.InsertPagesAction;
-  } catch (e) {}
-  try {
-    const _wla = eval("require('../../WriteLogAction')");
-    if (_wla && _wla.WriteLogAction) _WriteLogActionClass = _wla.WriteLogAction;
-  } catch (e) {}
-}
+import { ReadLogAction } from '../../ReadLogAction';
+import { MoveDocumentAction } from './MoveDocumentAction';
+import { AnalyzeDocumentAction } from '../../AnalyzeDocumentAction';
+import { InsertPagesAction } from '../../InsertPagesAction';
+import { WriteLogAction } from '../../WriteLogAction';
 
 class WorkflowActionRouter {
   private static sequenceRegistry: Record<string, DocumentAction[]> = {};
@@ -54,42 +29,15 @@ class WorkflowActionRouter {
 
     if (documentType === 'Submittal') {
       if (directionOrAction === 'Incoming_Filing' || directionOrAction === 'Incoming') {
-        const RLA = _ReadLogActionClass || (globalThis as any).ReadLogAction;
-        const MDA = _MoveDocumentActionRouter || (globalThis as any).MoveDocumentAction;
-
-        const readLog = RLA ? new RLA() : null;
-        const moveDoc = MDA ? new MDA() : null;
-
-        const sequence: DocumentAction[] = [];
-        if (readLog) sequence.push(readLog);
-        if (moveDoc) sequence.push(moveDoc);
-        return sequence;
+        return [new ReadLogAction(), new MoveDocumentAction()];
       }
 
       if (directionOrAction === 'Incoming_Analysis') {
-        const AnalyzeCtor = _AnalyzeDocumentActionClass || (globalThis as any).AnalyzeDocumentAction;
-        const InsertCtor = _InsertPagesActionClass || (globalThis as any).InsertPagesAction;
-
-        const analyzeAction = AnalyzeCtor ? new AnalyzeCtor() : (globalThis as any).defaultAnalyzeDocumentAction;
-        const insertAction = InsertCtor ? new InsertCtor() : (globalThis as any).defaultInsertPagesAction;
-
-        const sequence: DocumentAction[] = [];
-        if (analyzeAction) sequence.push(analyzeAction);
-        if (insertAction) sequence.push(insertAction);
-        return sequence;
+        return [new AnalyzeDocumentAction(), new InsertPagesAction()];
       }
 
       if (directionOrAction === 'Outgoing') {
-        const WLA = _WriteLogActionClass || (globalThis as any).WriteLogAction;
-        const MDA = _MoveDocumentActionRouter || (globalThis as any).MoveDocumentAction;
-
-        const writeLog = WLA ? new WLA() : null;
-        const moveDoc = MDA ? new MDA() : null;
-
-        const sequence: DocumentAction[] = [];
-        if (writeLog) sequence.push(writeLog);
-        if (moveDoc) sequence.push(moveDoc);
-        return sequence;
+        return [new WriteLogAction(), new MoveDocumentAction()];
       }
     }
 
@@ -112,12 +60,6 @@ class WorkflowActionRouter {
   }
 }
 
-declare var module: any;
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    WorkflowActionRouter
-  };
-}
-
-(globalThis as any).WorkflowActionRouter = WorkflowActionRouter;
+export {
+  WorkflowActionRouter
+};

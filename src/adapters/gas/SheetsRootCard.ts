@@ -117,9 +117,7 @@ export function buildSheetsRootCard(params?: SheetsContextParams): GoogleAppsScr
  * Action handler: Re-inspects active spreadsheet context and updates the card.
  */
 export function onSheetsContextRefresh(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
-  const BinderClass = (globalThis as any).SheetsContextBinder ||
-    (typeof SheetsContextBinder !== "undefined" ? SheetsContextBinder : (typeof require !== "undefined" ? require("./SheetsContextBinder").SheetsContextBinder : undefined));
-  const spreadsheetId = BinderClass.extractSpreadsheetId(e);
+  const spreadsheetId = SheetsContextBinder.extractSpreadsheetId(e);
 
   const params: SheetsContextParams = {
     spreadsheetId,
@@ -132,16 +130,4 @@ export function onSheetsContextRefresh(e?: any): GoogleAppsScript.Card_Service.A
     .setNavigation(CardService.newNavigation().updateCard(updatedCard))
     .setNotification(CardService.newNotification().setText("Card context refreshed."))
     .build();
-}
-
-declare var module: any;
-if (typeof module !== "undefined" && module.exports) {
-  (globalThis as any).SheetsRootCard = SheetsRootCard;
-  (globalThis as any).buildSheetsRootCard = buildSheetsRootCard;
-  (globalThis as any).onSheetsContextRefresh = onSheetsContextRefresh;
-  module.exports = {
-    SheetsRootCard,
-    buildSheetsRootCard,
-    onSheetsContextRefresh
-  };
 }

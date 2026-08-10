@@ -13,6 +13,6 @@ We decided to classify all codebase modules into three explicit tiers:
 
 ## Consequences
 
-- Core business logic remains 100% testable in pure Node.js (`npx tsx --test`) without GAS mocks or runtime stubs.
+- Core business logic remains 100% testable in pure Node.js (`vitest run`) without GAS mocks or runtime stubs.
 - Migrating off Google Apps Script in the future only requires replacing Tier 2 adapters with Web/Node adapters without modifying Tier 1 core logic.
 - Code reviews automatically flag any GAS global leakage into Tier 1 or Node.js API imports in Tier 1/2.

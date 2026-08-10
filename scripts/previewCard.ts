@@ -12,13 +12,12 @@ import { GasMockHarness } from "../test/harness/GasMockHarness";
 // Install harness mocks
 GasMockHarness.install();
 
-require("../src/Config");
-require("../src/AIUtils");
-require("../src/adapters/gas/UI");
-const { CardPresenter } = require("../src/adapters/gas/CardPresenter");
+import "../src/Config";
+import "../src/AIUtils";
+import "../src/adapters/gas/UI";
+import { defaultCardPresenter as presenter } from "../src/adapters/gas/CardPresenter";
 
 export function generateCardSnapshots() {
-  const presenter = new CardPresenter();
 
   // 1. Main Card (default state)
   const mainEvent = EventFactory.createGmailContextEvent({ discipline: "Architecture" });

@@ -1,24 +1,11 @@
 /// <reference path="../../types.ts" />
-declare var LogEngine: any;
-declare var PrefixCacheManager: any;
-declare var require: any;
-
-function getDocumentLogWorkbookSpec(): any {
-  if (typeof DOCUMENT_LOG_WORKBOOK_SPEC !== 'undefined') return DOCUMENT_LOG_WORKBOOK_SPEC;
-  if (typeof (globalThis as any).DOCUMENT_LOG_WORKBOOK_SPEC !== 'undefined') return (globalThis as any).DOCUMENT_LOG_WORKBOOK_SPEC;
-  if (typeof require !== 'undefined') return require('../config/DocumentLogWorkbookSpec').DOCUMENT_LOG_WORKBOOK_SPEC;
-  return undefined;
-}
-/**
- * @file TemplateDriftAuditor.ts
- * @description Tier 1 Pure Core inspection engine auditing 6 structural dimensions of Google Sheet workbooks
- * against DocumentLogWorkbookSpec to detect version, tab, named range, header, formula, or validation discrepancies
- * (Issue #221, Issue #225, ADR 0019, ADR 0029, ADR 0037, ADR 0041, ADR 0043).
- *
- * Adheres strictly to Tier 1 Pure Core guidelines: zero GAS globals, zero Node built-ins, zero Tier 2 imports.
- */
 
 import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../config/DocumentLogWorkbookSpec";
+import { LogEngine } from "../log/LogEngine";
+
+function getDocumentLogWorkbookSpec(): any {
+  return DOCUMENT_LOG_WORKBOOK_SPEC;
+}
 
 export type SchemaDriftStatus = "MATCH" | "MINOR_DRIFT" | "MAJOR_DRIFT" | "INCOMPATIBLE";
 export type IssueSeverity = "CRITICAL" | "WARNING" | "INFO";
@@ -924,15 +911,7 @@ class TemplateDriftPatcher {
   }
 
   private getLogEngineClass(): any {
-    const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
-    if (g.LogEngine) return g.LogEngine;
-    if (typeof LogEngine !== "undefined") return LogEngine;
-    if (typeof require !== "undefined") {
-      try {
-        return require("../log/LogEngine").LogEngine;
-      } catch (e) {}
-    }
-    return null;
+    return LogEngine;
   }
 
   private writeTelemetryEvents(seam: any, repairsApplied: string[]): void {

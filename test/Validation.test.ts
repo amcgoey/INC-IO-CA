@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateDocument, FormIntakeParser, DocumentPipeline } from '../src/core/intake/DocumentPipeline';
+import { PicklistResolver } from '../src/core/config/PicklistResolver';
 
 test('validateDocument - Architecture success path with all fields', () => {
   const raw = {
@@ -485,7 +486,6 @@ test('DocumentPipeline.processFormIntake - returns error status when relatedTag 
 });
 
 test('validateDocument - Picklist normalization maps display labels to canonical values using PicklistResolver', () => {
-  const { PicklistResolver } = require('../src/core/config/PicklistResolver');
   const fieldSpec = {
     key: 'discipline',
     label: 'Discipline',
@@ -508,7 +508,6 @@ test('validateDocument - Picklist normalization maps display labels to canonical
 });
 
 test('validateDocument - Picklist normalization handles code rule for CSI sections', () => {
-  const { PicklistResolver } = require('../src/core/config/PicklistResolver');
   const specCode = {
     key: 'section',
     label: 'Section',
@@ -521,7 +520,6 @@ test('validateDocument - Picklist normalization handles code rule for CSI sectio
 });
 
 test('validateDocument - Picklist normalization handles exact rule preserving full text', () => {
-  const { PicklistResolver } = require('../src/core/config/PicklistResolver');
   const specExact = {
     key: 'notes',
     label: 'Notes',
@@ -558,7 +556,6 @@ test('validateDocument - end-to-end picklist value display label to canonical ke
 });
 
 test('normalizePicklistValue resolves option display labels case-insensitively', () => {
-  const { PicklistResolver } = require('../src/core/config/PicklistResolver');
   const options = [
     { label: 'To Refer', value: 'REFER' },
     { label: 'To File', value: 'FILE' }

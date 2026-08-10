@@ -26,8 +26,8 @@ import assert from "node:assert";
   flashMessage
 });
 
-const { FakeAiAnalysisAdapter } = require("./harness/index");
-const { buildAddOn } = require("../src/Main");
+import { FakeAiAnalysisAdapter } from "./harness/index";
+import { buildAddOn } from "../src/Main";
 
 function setupGmailAppMock(messageId: string = "msg-main-001") {
   (globalThis as any).GmailApp = {

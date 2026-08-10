@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert";
-const { GoogleDriveFilingRepository, defaultDriveFilingRepository } = require("../src/adapters/gas/GoogleDriveFilingRepository");
-const { FakeDriveFilingRepository } = require("../src/adapters/fakes/FakeDriveFilingRepository");
-const { GasMockHarness, createTestContext } = require("./harness");
+import { GoogleDriveFilingRepository, defaultDriveFilingRepository } from "../src/DriveFilingRepository";
+import { FakeDriveFilingRepository } from "./harness/fakes/FakeDriveFilingRepository";
+import { GasMockHarness, createTestContext } from "./harness";
 
 // --- Pure Node.js Unit Tests (No GAS Runtime Stubs Required) ---
 

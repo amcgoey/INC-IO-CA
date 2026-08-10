@@ -1,4 +1,6 @@
 
+import { CONFIG as ConfigConst } from "../../src/Config";
+
 export class MockProtection {
   private description: string = "";
   private warningOnly: boolean = false;
@@ -128,15 +130,7 @@ import { CardSerializer, ButtonJson } from "./CardSerializer";
 /// <reference path="../../src/Config.ts" />
 declare var CONFIG: any;
 
-let DEFAULT_CONFIG: Record<string, unknown> = {};
-try {
-  const req = require("../../src/Config");
-  DEFAULT_CONFIG = req.CONFIG || {};
-} catch (e) {
-  if (typeof CONFIG !== "undefined") {
-    DEFAULT_CONFIG = CONFIG as Record<string, unknown>;
-  }
-}
+const DEFAULT_CONFIG: Record<string, unknown> = { ...(ConfigConst as Record<string, unknown>) };
 
 
 const DEFAULT_CSI_DIVISIONS: Record<string, string> = { "03": "03-Concrete" };
@@ -939,17 +933,8 @@ let cachedDefaultConfig: Record<string, unknown> | null = null;
 
 function getDefaultConfig(): Record<string, unknown> {
   if (cachedDefaultConfig) return cachedDefaultConfig;
-  try {
-    const loaded = require("../../src/Config");
-    cachedDefaultConfig = loaded.CONFIG || {};
-  } catch (_err) {
-    if (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG) {
-      cachedDefaultConfig = { ...(globalThis as any).CONFIG };
-    } else {
-      cachedDefaultConfig = {};
-    }
-  }
-  return cachedDefaultConfig!;
+  cachedDefaultConfig = (ConfigConst || (globalThis as any).CONFIG || {}) as Record<string, unknown>;
+  return cachedDefaultConfig;
 }
 
 

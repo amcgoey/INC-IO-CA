@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file SheetAdminFoldOutAudit.test.ts
  * @description Unit tests for Issue #221: Dry-Run Schema Drift Audit & Inline Schema Health Report Tracer Bullet.
  * Verifies TemplateDriftAuditor execution, inline report card rendering, toast notifications, and _AuditLog logging under GasMockHarness.
@@ -11,7 +11,7 @@ import { CardSerializer } from "./harness/CardSerializer";
 import { TemplateDriftAuditor } from "../src/core/admin/TemplateDriftAuditor";
 import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../src/core/config/DocumentLogWorkbookSpec";
 import { SheetValidationAndProtectionAdapter } from "../src/adapters/gas/SheetValidationAndProtectionAdapter";
-import { onRunSchemaDriftAudit, onAutoPatchWorkbook } from "../src/adapters/gas/AdminFoldOutPresenter";
+import { AdminFoldOutPresenter, onRunSchemaDriftAudit, onAutoPatchWorkbook } from "../src/adapters/gas/AdminFoldOutPresenter";
 import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
 import { FakeCacheAdapter } from "../src/adapters/fakes/FakeCacheAdapter";
 

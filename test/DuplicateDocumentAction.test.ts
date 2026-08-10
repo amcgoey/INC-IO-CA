@@ -3,11 +3,11 @@
  * @description Unit tests for DuplicateDocumentAction.
  */
 
-const assert = require('assert');
-const test = require('node:test');
-const { DuplicateDocumentAction, defaultDuplicateDocumentAction } = require('../src/core/workflow/DuplicateDocumentAction');
-const { WorkflowRunner } = require('../src/core/workflow/WorkflowRunner');
-const { FakeDriveFilingRepository } = require('./harness/fakes/FakeDriveFilingRepository');
+import assert from 'assert';
+import test from 'node:test';
+import { DuplicateDocumentAction, defaultDuplicateDocumentAction } from '../src/core/workflow/DuplicateDocumentAction';
+import { WorkflowRunner } from '../src/core/workflow/WorkflowRunner';
+import { FakeDriveFilingRepository } from './harness/fakes/FakeDriveFilingRepository';
 
 test('DuplicateDocumentAction - duplicates Drive document via DriveFilingRepository resolving distinct fileId', async () => {
   const fakeRepo = new FakeDriveFilingRepository();

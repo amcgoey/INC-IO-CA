@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert";
 import { DocumentPipeline } from "../src/core/intake/DocumentPipeline";
+import { processSubmission } from "../src/Process";
+import { GasMockHarness } from "./harness/GasMockHarness";
+
+test.beforeEach(() => {
+  GasMockHarness.install();
+});
 
 (globalThis as any).CONFIG = {
   LOG_HEADER_ROW: 3,
@@ -166,7 +172,6 @@ test("processSubmission handles interaction_required ADD_TAG by updating main ca
     parameters: { logFileId: "log-1" }
   };
 
-  const { processSubmission } = require("../src/Process");
   const res = await processSubmission(event as any);
   assert.strictEqual(res.navigation.card.flashData.promptAddTag, true);
   assert.match(res.navigation.card.flashData.warning, /Spec Tag "NEW-TAG" is not in the Tag List/);
@@ -200,7 +205,6 @@ test("processSubmission handles interaction_required ADD_VENDOR by updating main
     parameters: { logFileId: "log-1" }
   };
 
-  const { processSubmission } = require("../src/Process");
   const res = await processSubmission(event as any);
   assert.strictEqual(res.navigation.card.flashData.promptAddVendor, true);
   assert.match(res.navigation.card.flashData.warning, /Vendor "New Vendor" is not in the Tag List/);

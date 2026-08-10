@@ -6,8 +6,8 @@
 import test from "node:test";
 import assert from "node:assert";
 
-const { FakeAiAnalysisAdapter } = require("./harness/index");
-const { TriageDocumentAction, defaultTriageDocumentAction } = require("../src/TriageDocumentAction");
+import { FakeAiAnalysisAdapter } from "./harness/index";
+import { TriageDocumentAction, defaultTriageDocumentAction } from "../src/TriageDocumentAction";
 
 const sampleEmailData: EmailData = {
   subject: "Submittal #033000-01 Concrete Mix",

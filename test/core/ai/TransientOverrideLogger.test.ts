@@ -1,4 +1,4 @@
-﻿import { test } from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TransientOverrideLogger, LogFn } from '../../../src/core/ai/TransientOverrideLogger';
 import { AiClassificationResult } from '../../../src/core/interfaces/AiAnalysisService';
@@ -144,7 +144,7 @@ test('TransientOverrideLogger - default logger instance executes console.log fal
 });
 
 test('TransientOverrideLogger - re-export module from src/core/logging/TransientOverrideLogger works correctly', () => {
-  const { TransientOverrideLogger: Logger } = require('../../../src/core/logging/TransientOverrideLogger');
+  const Logger = TransientOverrideLogger;
   assert.ok(Logger, 'TransientOverrideLogger should be exported from core/logging');
   const logger = new Logger();
   assert.ok(logger instanceof TransientOverrideLogger, 'Should be an instance of TransientOverrideLogger');

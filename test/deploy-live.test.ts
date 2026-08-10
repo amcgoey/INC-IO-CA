@@ -15,6 +15,7 @@ import {
 } from "../scripts/template/deploy-live";
 import { TEST_TEMPLATE_SPREADSHEET_TITLE, PROD_TEMPLATE_SPREADSHEET_TITLE } from "../src/core/config/DocumentLogWorkbookSpec";
 import { WorkbookTemplateViewModel } from "../src/core/config/WorkbookTemplateViewModel";
+import { GasMockHarness } from "./harness/GasMockHarness";
 
 test("parseDeployArgs - parses --spreadsheet-id, --target, and --dry-run flags", () => {
   const args = ["--spreadsheet-id=1ABC_xyz123", "--target=prod", "--dry-run"];
@@ -272,13 +273,13 @@ test("parseDeployArgs - resolves PROD_TEMPLATE_SPREADSHEET_ID for target=prod", 
 });
 
 test("parseDeployArgs - resolves spreadsheet ID from ScriptProperties when omitted in env", () => {
-  const harness = require("./harness/GasMockHarness").GasMockHarness.install();
+  const harness = GasMockHarness.install();
   try {
     harness.scriptProperties.setProperty("TEST_TEMPLATE_SPREADSHEET_ID", "script_prop_test_id");
     const options = parseDeployArgs(["--target=test"], {});
     assert.strictEqual(options.spreadsheetId, "script_prop_test_id");
   } finally {
-    require("./harness/GasMockHarness").GasMockHarness.uninstall();
+    GasMockHarness.uninstall();
   }
 });
 

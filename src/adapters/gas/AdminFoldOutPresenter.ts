@@ -10,49 +10,40 @@
 import { TemplateDriftReport, TemplateDriftIssue, AutoPatchResult } from "../../core/admin/TemplateDriftAuditor";
 import { SpreadsheetBatchReadException } from "./SpreadsheetBatchReaderAdapter";
 
-declare var PrefixCacheManager: any;
-declare var GoogleScriptCacheAdapter: any;
-declare var GoogleSheetsStorageAdapter: any;
-declare var LogEngine: any;
-declare var TemplateDriftAuditor: any;
-declare var SheetsRootCard: any;
-declare var SheetsContextBinder: any;
-declare var FakeSpreadsheetLockAdapter: any;
-declare var require: any;
+import { SheetsContextBinder } from "./SheetsContextBinder";
+import { GoogleSheetsStorageAdapter } from "../../SheetStorageAdapter";
+import { TemplateDriftAuditor } from "../../core/admin/TemplateDriftAuditor";
+import { LogEngine } from "../../core/log/LogEngine";
+import { SheetsRootCard } from "./SheetsRootCard";
+import { GoogleScriptCacheAdapter } from "./GoogleScriptCacheAdapter";
+import { PrefixCacheManager } from "../../core/admin/PrefixCacheManager";
 
 function getSheetsContextBinderClass(): any {
-  return (globalThis as any).SheetsContextBinder ||
-    (typeof SheetsContextBinder !== "undefined" ? SheetsContextBinder : (typeof require !== "undefined" ? require("./SheetsContextBinder").SheetsContextBinder : undefined));
+  return SheetsContextBinder;
 }
 
 function getGoogleSheetsStorageAdapterClass(): any {
-  return (globalThis as any).GoogleSheetsStorageAdapter ||
-    (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : (typeof require !== "undefined" ? require("../../SheetStorageAdapter").GoogleSheetsStorageAdapter : undefined));
+  return GoogleSheetsStorageAdapter;
 }
 
 function getTemplateDriftAuditorClass(): any {
-  return (globalThis as any).TemplateDriftAuditor ||
-    (typeof TemplateDriftAuditor !== "undefined" ? TemplateDriftAuditor : (typeof require !== "undefined" ? require("../../core/admin/TemplateDriftAuditor").TemplateDriftAuditor : undefined));
+  return TemplateDriftAuditor;
 }
 
 function getLogEngineClass(): any {
-  return (globalThis as any).LogEngine ||
-    (typeof LogEngine !== "undefined" ? LogEngine : (typeof require !== "undefined" ? require("../../core/log/LogEngine").LogEngine : undefined));
+  return LogEngine;
 }
 
 function getSheetsRootCardClass(): any {
-  return (globalThis as any).SheetsRootCard ||
-    (typeof SheetsRootCard !== "undefined" ? SheetsRootCard : (typeof require !== "undefined" ? require("./SheetsRootCard").SheetsRootCard : undefined));
+  return SheetsRootCard;
 }
 
 function getGoogleScriptCacheAdapterClass(): any {
-  return (globalThis as any).GoogleScriptCacheAdapter ||
-    (typeof GoogleScriptCacheAdapter !== "undefined" ? GoogleScriptCacheAdapter : (typeof require !== "undefined" ? require("./GoogleScriptCacheAdapter").GoogleScriptCacheAdapter : undefined));
+  return GoogleScriptCacheAdapter;
 }
 
 function getPrefixCacheManagerClass(): any {
-  return (globalThis as any).PrefixCacheManager ||
-    (typeof PrefixCacheManager !== "undefined" ? PrefixCacheManager : (typeof require !== "undefined" ? require("../../core/admin/PrefixCacheManager").PrefixCacheManager : undefined));
+  return PrefixCacheManager;
 }
 
 export type AppContextType = "GoogleSheets" | "Gmail" | "GoogleDrive";
@@ -526,16 +517,4 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
 }
 
 
-declare var module: any;
-if (typeof module !== "undefined" && module.exports) {
-  (globalThis as any).AdminFoldOutPresenter = AdminFoldOutPresenter;
-  (globalThis as any).onRunSchemaDriftAudit = onRunSchemaDriftAudit;
-  (globalThis as any).onFlushScriptCache = onFlushScriptCache;
-  (globalThis as any).onAutoPatchWorkbook = onAutoPatchWorkbook;
-  module.exports = {
-    AdminFoldOutPresenter,
-    onRunSchemaDriftAudit,
-    onFlushScriptCache,
-    onAutoPatchWorkbook
-  };
-}
+

@@ -6,18 +6,8 @@
  * `FFESubmittalStrategy` for Furniture, Fixtures & Equipment (FF&E) submittals.
  */
 
-declare var require: any;
-
-if (typeof require !== "undefined") {
-  try {
-    const _rpc = eval('require("./RowPositionCalculator")');
-    if (_rpc) {
-      if (typeof getRowGroupKey === "undefined" && _rpc.getRowGroupKey) (globalThis as any).getRowGroupKey = _rpc.getRowGroupKey;
-      if (typeof getRowSortKey === "undefined" && _rpc.getRowSortKey) (globalThis as any).getRowSortKey = _rpc.getRowSortKey;
-      if (_rpc.padNum) (globalThis as any).padNum = _rpc.padNum;
-    }
-  } catch (e) {}
-}
+import { getRowGroupKey, getRowSortKey } from "./RowPositionCalculator";
+import { CSI_DIVISIONS, CONFIG } from "./Config";
 
 /**
  * Helper to safely extract and trim section string from ArchitectureDetails, handling null/undefined correctly.
@@ -94,6 +84,7 @@ interface DocumentLogStrategy<T = ValidatedDocument> {
  * Groups by CSI section and submittal number, orders by revision and date, and resolves CSI division subfolders.
  */
 class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
+  readonly logSheetName: string = "Submittal Arch";
   /** @override */
   getGroupKey(doc: ValidatedDocument): string {
     const details = doc.disciplineDetails as ArchitectureDetails;
@@ -183,7 +174,7 @@ class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocu
       return [closedFolder];
     }
     const secPrefix = secStr.substring(0, 2);
-    const csiDivs = typeof CSI_DIVISIONS !== "undefined" ? CSI_DIVISIONS : null;
+    const csiDivs = (globalThis as any).CSI_DIVISIONS || CSI_DIVISIONS;
     const divName = (csiDivs && csiDivs[secPrefix]) ? csiDivs[secPrefix] : null;
     if (divName) {
       return [closedFolder, divName];
@@ -197,6 +188,7 @@ class ArchitectureSubmittalStrategy implements DocumentLogStrategy<ValidatedDocu
  * Groups by Spec Tag, orders by revision and date, and formats FF&E specific spreadsheet columns.
  */
 class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
+  readonly logSheetName: string = "Submittal FFE";
   /** @override */
   getGroupKey(doc: ValidatedDocument): string {
     const details = doc.disciplineDetails as FFEDetails;
@@ -288,12 +280,8 @@ class FFESubmittalStrategy implements DocumentLogStrategy<ValidatedDocument> {
   }
 }
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    ArchitectureSubmittalStrategy,
-    FFESubmittalStrategy,
-    formatDateStr
-  };
-}
+export {
+  ArchitectureSubmittalStrategy,
+  FFESubmittalStrategy,
+  formatDateStr
+};

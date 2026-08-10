@@ -1,4 +1,8 @@
 
+import { defaultAnalyzeDocumentAction } from "../../AnalyzeDocumentAction";
+import { defaultDocumentTypeConfigRegistry, resolve5TierFieldValue } from "../../DocumentTypeConfigRegistry";
+import { MESSAGES, CONFIG } from "../../Config";
+
 /**
  * Helper to append ⚠ Check Value label indicator when field confidence is below threshold (< 0.85).
  */
@@ -48,7 +52,7 @@ function renderDynamicFormFields(
 
   const { missingFields = [], fieldConfidence = {}, onStateActionName = "onStateChange", actionParams = {} } = validationContext;
 
-  const resolveValue = (globalThis as any).resolve5TierFieldValue;
+  const resolveValue = (globalThis as any).resolve5TierFieldValue || resolve5TierFieldValue;
 
   fields.forEach(field => {
     // Rule 1: Exclude calculated fields
@@ -644,15 +648,7 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
 
   const logSettings = defaultLogRepository.getLogSettings(p.logFileId, p.discipline);
   const contextObj = { contacts: logSettings.contacts, actions: logSettings.actions };
-  const analyzeAction = (typeof defaultAnalyzeDocumentAction !== "undefined" && defaultAnalyzeDocumentAction)
-    ? defaultAnalyzeDocumentAction
-    : ((globalThis as any).defaultAnalyzeDocumentAction || (function() {
-        if (typeof require !== "undefined") {
-          try { return require("../../AnalyzeDocumentAction").defaultAnalyzeDocumentAction; }
-          catch(e) { return typeof AnalyzeDocumentAction !== "undefined" ? new AnalyzeDocumentAction() : null; }
-        }
-        return typeof AnalyzeDocumentAction !== "undefined" ? new AnalyzeDocumentAction() : null;
-      })());
+  const analyzeAction = defaultAnalyzeDocumentAction;
   const result = await analyzeAction.execute({ sourceBlob, emailText, contextObj });
   
   return defaultCardPresenter.presentDeepAnalysisResult(e, result);
@@ -964,12 +960,7 @@ function buildUnbiasedIntakeCard(
   attrSec.addWidget(CardService.newButtonSet().addButton(aiBtn));
 
   const docTypeKey = state.documentType || "SUBMITTAL_ARCH";
-  let registry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== "undefined" ? defaultDocumentTypeConfigRegistry : null);
-  if (!registry && typeof require !== "undefined") {
-    try {
-      registry = require("../../DocumentTypeConfigRegistry").defaultDocumentTypeConfigRegistry;
-    } catch (e) {}
-  }
+  let registry = defaultDocumentTypeConfigRegistry;
   let fields: DocumentFieldSpec[] = [];
   if (registry && registry.hasConfig(docTypeKey)) {
     fields = registry.getConfig(docTypeKey).fields || [];
@@ -1035,26 +1026,18 @@ function buildUnbiasedIntakeCard(
   return card.build();
 }
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  (globalThis as any).renderDynamicFormFields = (globalThis as any).renderDynamicFormFields || renderDynamicFormFields;
-  (globalThis as any).buildMainCard = (globalThis as any).buildMainCard || buildMainCard;
-  (globalThis as any).buildSuccessCard = (globalThis as any).buildSuccessCard || buildSuccessCard;
-  (globalThis as any).buildUnbiasedIntakeCard = (globalThis as any).buildUnbiasedIntakeCard || buildUnbiasedIntakeCard;
-  module.exports = {
-    renderDynamicFormFields,
-    buildMainCard,
-    buildSuccessCard,
-    buildUnbiasedIntakeCard,
-    onStateChange,
-    onSpecTagChange,
-    processSubmissionWithNewTag,
-    processSubmissionWithNewVendor,
-    handleRefreshCache,
-    handleFetchUrl,
-    handleDeepAnalysis,
-    createDraftEmail
-  };
-}
+export {
+  renderDynamicFormFields,
+  buildUnbiasedIntakeCard,
+  buildMainCard,
+  buildSuccessCard,
+  onStateChange,
+  onSpecTagChange,
+  handleRefreshCache,
+  handleFetchUrl,
+  handleDeepAnalysis,
+  createDraftEmail,
+  processSubmissionWithNewTag,
+  processSubmissionWithNewVendor
+};
 

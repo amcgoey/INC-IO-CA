@@ -7,37 +7,10 @@
  * Consumes Tier 1 SheetStorageAdapter seam without GAS globals or Node built-in imports.
  */
 
-declare var require: any;
-
-let getBoundedDataFn: ((logData: unknown[][]) => unknown[][]) | null = null;
-let computeRowInsertionPlanFn: (
-  boundedData: unknown[][],
-  headers: string[],
-  rowData: unknown[],
-  disciplineOrGroupKeyFn: string | RowKeyFn,
-  sortKeyFn?: RowKeyFn
-) => RowInsertionPlan = (globalThis as Record<string, unknown>).computeRowInsertionPlan as any;
-
-if (typeof (globalThis as Record<string, unknown>).getBoundedData === "function") {
-  getBoundedDataFn = (globalThis as Record<string, unknown>).getBoundedData as any;
-}
-
-if (typeof require !== "undefined") {
-  try {
-    const rpc = require("../../RowPositionCalculator");
-    if (rpc) {
-      if (rpc.getBoundedData) getBoundedDataFn = rpc.getBoundedData;
-      if (rpc.computeRowInsertionPlan) computeRowInsertionPlanFn = rpc.computeRowInsertionPlan;
-    }
-  } catch (e) {}
-}
+import { computeRowInsertionPlan, getBoundedData as getBoundedDataRpc } from "../../RowPositionCalculator";
 
 export function getBoundedData(logData: unknown[][]): unknown[][] {
-  if (getBoundedDataFn) return getBoundedDataFn(logData);
-  if (typeof (globalThis as Record<string, unknown>).getBoundedData === "function") {
-    return ((globalThis as Record<string, unknown>).getBoundedData as any)(logData);
-  }
-  return logData;
+  return getBoundedDataRpc(logData);
 }
 
 /**
@@ -226,7 +199,7 @@ export class LogEngine {
         : []
     );
 
-    const boundedData = getBoundedDataFn ? getBoundedDataFn(logData) : logData;
+    const boundedData = getBoundedData(logData);
     const historyColIdx = headers.indexOf("Contact History");
     const calcChainColIdx = headers.indexOf("Calc Contact Chain");
     const statusColIdx = headers.indexOf("Status");
@@ -293,7 +266,7 @@ export class LogEngine {
         : []
     );
 
-    const boundedData = getBoundedDataFn ? getBoundedDataFn(logData) : logData;
+    const boundedData = getBoundedData(logData);
     const identityData: IdentityData = options.identityData || (strategy.getIdentityData ? strategy.getIdentityData(document) : {
       identityGroup: strategy.getGroupKey(document),
       identityRevisionGroup: strategy.getSortKey(document),
@@ -341,7 +314,7 @@ export class LogEngine {
       }
     }
 
-    const plan = computeRowInsertionPlanFn(
+    const plan = computeRowInsertionPlan(
       boundedData,
       headers,
       rowData,
@@ -379,13 +352,4 @@ export class LogEngine {
   }
 }
 
-declare var module: Record<string, unknown>;
 
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    LogEngine,
-    getBoundedData
-  };
-}
-
-(globalThis as Record<string, unknown>).LogEngine = LogEngine;

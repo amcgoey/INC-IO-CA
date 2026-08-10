@@ -1,9 +1,9 @@
 import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 
-const { DocumentFactory, createTestContext } = require("./harness");
-const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
-const { IncomingWorkflow } = require("../src/core/workflow/IncomingWorkflow");
+import { DocumentFactory, createTestContext } from "./harness";
+import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "../src/DocumentLogStrategy";
+import { IncomingWorkflow } from "../src/core/workflow/IncomingWorkflow";
 
 
 

@@ -4,45 +4,10 @@
  * @description Outgoing submittal workflow execution service.
  */
 
-declare var require: any;
-declare var defaultDriveFilingRepository: DriveFilingRepository;
-declare var defaultLogRepository: LogRepository;
-
-if (typeof require !== "undefined") {
-  try {
-    const _mda = eval('require("./MoveDocumentAction")');
-    if (_mda && _mda.MoveDocumentAction) (globalThis as any).MoveDocumentAction = _mda.MoveDocumentAction;
-  } catch (e) {}
-
-  try {
-    const _wp = eval('require("./WorkflowPolicy")');
-    if (_wp) {
-      if (_wp.getActionPolicy) (globalThis as any).getActionPolicy = _wp.getActionPolicy;
-      if (_wp.getDocumentLogStrategy) (globalThis as any).getDocumentLogStrategy = _wp.getDocumentLogStrategy;
-      if (_wp.getDocumentTitle) (globalThis as any).getDocumentTitle = _wp.getDocumentTitle;
-      if (_wp.buildDirectRowUrl) (globalThis as any).buildDirectRowUrl = _wp.buildDirectRowUrl;
-    }
-  } catch (e) {}
-  try {
-    const _wla = eval('require("../../WriteLogAction")');
-    if (_wla && _wla.WriteLogAction) (globalThis as any).WriteLogAction = _wla.WriteLogAction;
-  } catch (e) {}
-  try {
-    const _wfr = eval('require("./WorkflowRunner")');
-    if (_wfr) {
-      if (_wfr.WorkflowRunner) (globalThis as any).WorkflowRunner = _wfr.WorkflowRunner;
-      if (_wfr.MoveDocumentAction) (globalThis as any).MoveDocumentAction = _wfr.MoveDocumentAction;
-      if (_wfr.RenameDocumentAction) (globalThis as any).RenameDocumentAction = _wfr.RenameDocumentAction;
-    }
-  } catch (e) {}
-  try {
-    const _dls = eval('require("../../DocumentLogStrategy")');
-    if (_dls) {
-      if (_dls.ArchitectureSubmittalStrategy) (globalThis as any).ArchitectureSubmittalStrategy = _dls.ArchitectureSubmittalStrategy;
-      if (_dls.FFESubmittalStrategy) (globalThis as any).FFESubmittalStrategy = _dls.FFESubmittalStrategy;
-    }
-  } catch (e) {}
-}
+import { getActionPolicy, getDocumentLogStrategy, getDocumentTitle, buildDirectRowUrl } from './WorkflowPolicy';
+import { WriteLogAction } from '../../WriteLogAction';
+import { WorkflowRunner, RenameDocumentAction } from './WorkflowRunner';
+import { ArchitectureSubmittalStrategy } from '../../DocumentLogStrategy';
 
 class OutgoingWorkflow {
   /**
@@ -85,7 +50,7 @@ class OutgoingWorkflow {
         updatePreviousStatus: policy.updatePreviousStatus,
         previousRowStatus: policy.previousRowStatus
       },
-      logRepository: input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null)
+      logRepository: input.logRepository || (globalThis as any).defaultLogRepository || defaultLogRepository
     });
 
     // Step 2: Resolve AppContext
@@ -132,7 +97,7 @@ class OutgoingWorkflow {
       );
     }
 
-    const logRepo = input.logRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
+    const logRepo = input.logRepository || (globalThis as any).defaultLogRepository || defaultLogRepository;
     const finalPdfUrl = finalFilingResult.url || (finalFilingResult.fileId ? `https://drive.google.com/file/d/${finalFilingResult.fileId}/view` : "");
 
     if (finalPdfUrl && input.logFileId && appendResult.rowIndex > 0 && logRepo && typeof (logRepo as any).updateDocumentLink === "function") {
@@ -166,12 +131,6 @@ class OutgoingWorkflow {
   }
 }
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    OutgoingWorkflow
-  };
-}
-
-(globalThis as any).OutgoingWorkflow = OutgoingWorkflow;
+export {
+  OutgoingWorkflow
+};

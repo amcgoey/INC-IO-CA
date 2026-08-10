@@ -85,8 +85,8 @@ test.afterEach(() => {
   ERROR_AI_BUSY: "⚠️ AI Busy."
 };
 
-const { CardPresenter, defaultCardPresenter } = require("../src/adapters/gas/CardPresenter");
-const {
+import { CardPresenter, defaultCardPresenter } from "../src/adapters/gas/CardPresenter";
+import {
   onStateChange,
   onSpecTagChange,
   handleRefreshCache,
@@ -95,7 +95,7 @@ const {
   createDraftEmail,
   processSubmissionWithNewTag,
   processSubmissionWithNewVendor
-} = require("../src/adapters/gas/UI");
+} from "../src/adapters/gas/UI";
 
 test("CardPresenter - presentValidationError formats error flash and returns ActionResponse updateCard", () => {
   const presenter = new CardPresenter();

@@ -4,20 +4,7 @@
  * @description Action pipeline engine and primitive document actions (MoveDocumentAction & RenameDocumentAction).
  */
 
-declare var require: any;
-
-let _MoveDocumentActionRunner: any = null;
-if (typeof require !== 'undefined') {
-  try {
-    const _mda = eval("require('./MoveDocumentAction')");
-    if (_mda && _mda.MoveDocumentAction) {
-      _MoveDocumentActionRunner = _mda.MoveDocumentAction;
-      if (typeof (globalThis as any).MoveDocumentAction === 'undefined') {
-        (globalThis as any).MoveDocumentAction = _mda.MoveDocumentAction;
-      }
-    }
-  } catch (e) {}
-}
+import { MoveDocumentAction } from './MoveDocumentAction';
 
 /**
  * Pipeline engine executing an ordered sequence of DocumentAction instances.
@@ -122,15 +109,8 @@ class RenameDocumentAction implements DocumentAction<DocumentActionContext, Docu
   }
 }
 
-declare var module: any;
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    WorkflowRunner,
-    RenameDocumentAction,
-    MoveDocumentAction: (globalThis as any).MoveDocumentAction || _MoveDocumentActionRunner
-  };
-}
-
-(globalThis as any).WorkflowRunner = WorkflowRunner;
-(globalThis as any).RenameDocumentAction = RenameDocumentAction;
+export {
+  WorkflowRunner,
+  RenameDocumentAction,
+  MoveDocumentAction
+};

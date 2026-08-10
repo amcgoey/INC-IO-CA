@@ -1,4 +1,7 @@
 import { AiAnalysisService, EmailData, AiPredictionResult, DeepAnalysisContext, DeepAnalysisResult, DeepAnalysisPrediction, AIPrediction, DocumentBlob } from './core/interfaces/AiAnalysisService';
+import { defaultDriveNameProvider } from './GoogleDriveNameProvider';
+import { ExtractPagesAction, defaultExtractPagesAction } from './core/workflow/ExtractPagesAction';
+import { defaultPdfDocumentService } from './PdfDocumentService';
 /**
  * @file AiAnalysisService.ts
  * @description Service interface and implementations for Gemini AI email triage and submittal document deep analysis.
@@ -128,6 +131,9 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     }
     if (options && options.pdfDocumentService) {
       this.pdfDocumentService = options.pdfDocumentService;
+      if (!options.extractPagesAction) {
+        this.extractPagesAction = new ExtractPagesAction({ pdfDocumentService: options.pdfDocumentService });
+      }
     }
     if (options && options.extractPagesAction) {
       this.extractPagesAction = options.extractPagesAction;
@@ -136,15 +142,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
 
   private getDriveNameProvider(): DriveNameProvider | null {
     if (this.driveNameProvider) return this.driveNameProvider;
-    if (typeof defaultDriveNameProvider !== "undefined") return defaultDriveNameProvider;
-    if (typeof require !== "undefined") {
-      try {
-        return require("./GoogleDriveNameProvider").defaultDriveNameProvider;
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
+    return (globalThis as any).defaultDriveNameProvider || defaultDriveNameProvider;
   }
 
   private getCacheAdapter(): CacheAdapter | null {
@@ -159,37 +157,12 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
 
   private getExtractPagesAction(): ExtractPagesAction | null {
     if (this.extractPagesAction) return this.extractPagesAction;
-    const pdfService = this.getPdfDocumentService();
-    if (pdfService) {
-      const ExtractActionClass = typeof ExtractPagesAction !== "undefined"
-        ? ExtractPagesAction
-        : (typeof require !== "undefined" ? require("./core/workflow/ExtractPagesAction").ExtractPagesAction : (globalThis as any).ExtractPagesAction);
-      if (ExtractActionClass) {
-        return new ExtractActionClass({ pdfDocumentService: pdfService });
-      }
-    }
-    if (typeof defaultExtractPagesAction !== "undefined") return defaultExtractPagesAction;
-    if (typeof require !== "undefined") {
-      try {
-        return require("./core/workflow/ExtractPagesAction").defaultExtractPagesAction;
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
+    return (globalThis as any).defaultExtractPagesAction || defaultExtractPagesAction;
   }
 
   private getPdfDocumentService(): PdfDocumentService | null {
     if (this.pdfDocumentService) return this.pdfDocumentService;
-    if (typeof defaultPdfDocumentService !== "undefined") return defaultPdfDocumentService;
-    if (typeof require !== "undefined") {
-      try {
-        return require("./PdfDocumentService").defaultPdfDocumentService;
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
+    return (globalThis as any).defaultPdfDocumentService || defaultPdfDocumentService;
   }
 
   /**
@@ -526,15 +499,10 @@ function checkAiModelHealth(): {
 }
 
 
-/** Global default instance seam for AI analysis service. */
-var defaultAiAnalysisService: AiAnalysisService = new GeminiAiAnalysisAdapter();
+const defaultAiAnalysisService: AiAnalysisService = new GeminiAiAnalysisAdapter();
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    GeminiAiAnalysisAdapter,
-    defaultAiAnalysisService,
-    checkAiModelHealth
-  };
-}
+export {
+  GeminiAiAnalysisAdapter,
+  defaultAiAnalysisService,
+  checkAiModelHealth
+};

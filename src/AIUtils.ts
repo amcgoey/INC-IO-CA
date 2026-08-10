@@ -105,16 +105,9 @@ function fetchAndSaveFile(url: string, folderId: string): { success: boolean; er
   }
 }
 
-declare var module: any;
-if (typeof module !== "undefined" && module.exports) {
-  (globalThis as any).sanitizeErrorString = (globalThis as any).sanitizeErrorString || sanitizeErrorString;
-  (globalThis as any).getGeminiApiKey = (globalThis as any).getGeminiApiKey || getGeminiApiKey;
-  (globalThis as any).fetchGeminiWithRetry = (globalThis as any).fetchGeminiWithRetry || fetchGeminiWithRetry;
-  (globalThis as any).fetchAndSaveFile = (globalThis as any).fetchAndSaveFile || fetchAndSaveFile;
-  module.exports = {
-    sanitizeErrorString,
-    getGeminiApiKey,
-    fetchGeminiWithRetry,
-    fetchAndSaveFile
-  };
-}
+export {
+  sanitizeErrorString,
+  getGeminiApiKey,
+  fetchGeminiWithRetry,
+  fetchAndSaveFile
+};

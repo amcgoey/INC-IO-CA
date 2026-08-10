@@ -9,9 +9,9 @@ import assert from "node:assert";
   GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
 };
 
-const { FakePdfDocumentService } = require("./harness/index");
-const { ExtractPagesAction, defaultExtractPagesAction } = require("../src/core/workflow/ExtractPagesAction");
-const { GeminiAiAnalysisAdapter } = require("../src/AiAnalysisService");
+import { FakePdfDocumentService } from "./harness/index";
+import { ExtractPagesAction, defaultExtractPagesAction } from "../src/core/workflow/ExtractPagesAction";
+import { GeminiAiAnalysisAdapter } from "../src/AiAnalysisService";
 
 function createMockBlob(size: number = 100, name: string = "test.pdf"): GoogleAppsScript.Base.Blob {
   const bytes = new Uint8Array(size);

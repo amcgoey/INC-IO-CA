@@ -4,7 +4,7 @@ import assert from "node:assert";
 // Global ambient CONFIG mock matching production Config.ts (LOG_HEADER_ROW: 3, 1-based index 3 = array index 3)
 (global as any).CONFIG = { LOG_HEADER_ROW: 3 };
 
-const { getBoundedData, getRowGroupKey, getRowSortKey, computeRowInsertionPlan } = require("../src/RowPositionCalculator");
+import { getBoundedData, getRowGroupKey, getRowSortKey, computeRowInsertionPlan } from "../src/RowPositionCalculator";
 
 const FF_E_HEADERS = ["Spec Tag", "Spec Title", "Vendor", "Revision", "Date"];
 

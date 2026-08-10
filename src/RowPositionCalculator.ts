@@ -142,28 +142,7 @@ export {
   createRowSortKeyFn
 };
 
-declare var module: any;
 
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    getBoundedData,
-    getRowGroupKey,
-    getRowSortKey,
-    computeRowInsertionPlan,
-    createRowGroupKeyFn,
-    createRowSortKeyFn,
-    createRowIdentityGroupKeyFn,
-    createRowIdentityRevisionGroupKeyFn,
-    createRowIdentityKeyFn
-  };
-}
-
-(globalThis as any).getBoundedData = getBoundedData;
-(globalThis as any).getRowGroupKey = getRowGroupKey;
-(globalThis as any).getRowSortKey = getRowSortKey;
-(globalThis as any).computeRowInsertionPlan = computeRowInsertionPlan;
-(globalThis as any).createRowGroupKeyFn = createRowGroupKeyFn;
-(globalThis as any).createRowSortKeyFn = createRowSortKeyFn;
 
 export function getRowGroupKey(row: unknown[], disciplineOrGroupKeyFn: string | RowKeyFn, headers: string[], fieldSpecs?: DocumentFieldSpec[]): string {
   if (typeof disciplineOrGroupKeyFn === "function") return disciplineOrGroupKeyFn(row, headers);

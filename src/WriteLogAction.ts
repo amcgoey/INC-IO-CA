@@ -6,6 +6,8 @@
  * Operates on DocumentActionContext and wraps LogRepository.appendDocument() into a primitive DocumentAction handler.
  */
 
+import { getDocumentLogStrategy } from './DocumentLogStrategy';
+
 class WriteLogAction
   implements DocumentAction<DocumentActionContext, DocumentActionContext> {
   name: string = 'WriteLog';
@@ -51,7 +53,7 @@ class WriteLogAction
       actionAbbr: actionObj.abbr || context.actionAbbr || '',
       updatePreviousStatus: context.updatePreviousStatus ?? true,
       previousRowStatus: context.previousRowStatus ?? 'Closed',
-      sheetName: context.config?.logSheetName || context.sheetName,
+      sheetName: context.config?.logSheetName || context.sheetName || (strategy as any).logSheetName,
       identityData,
       ...context.options
     };
@@ -76,12 +78,6 @@ class WriteLogAction
   }
 }
 
-declare var module: any;
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    WriteLogAction
-  };
-}
+export { WriteLogAction };
 
 (globalThis as any).WriteLogAction = WriteLogAction;

@@ -10,6 +10,9 @@ declare var GasTimeoutBudget: any;
  * delegating intake parsing to DocumentPipeline and rendering the main user interface.
  */
 
+import { defaultTriageDocumentAction, TriageDocumentAction } from "./TriageDocumentAction";
+import { BatchMigrationEngine } from "./core/log/BatchMigrationEngine";
+
 declare var defaultAiAnalysisService: AiAnalysisService;
 
 /**
@@ -47,12 +50,7 @@ async function buildAddOn(e: GoogleAppsScriptEvent): Promise<GoogleAppsScript.Ca
       body: message.getPlainBody ? message.getPlainBody() : ""
     };
 
-    const triageAction = (typeof defaultTriageDocumentAction !== "undefined" && defaultTriageDocumentAction)
-      ? defaultTriageDocumentAction
-      : ((globalThis as any).defaultTriageDocumentAction || (function() {
-          try { return require("./TriageDocumentAction").defaultTriageDocumentAction; }
-          catch(e) { return new TriageDocumentAction(); }
-        })());
+    const triageAction = (globalThis as any).defaultTriageDocumentAction || defaultTriageDocumentAction;
 
     if (triageAction && typeof triageAction.execute === "function") {
       const triageResult = await triageAction.execute({ emailData, messageId });
@@ -295,8 +293,10 @@ function onBatchMigrationContinuationTrigger(e: any): void {
 /**
  * Global GAS entry point to execute Phase 2 cross-log reference scanning and cell hyperlink repair.
  */
+import { GoogleSheetsStorageAdapter } from "./SheetStorageAdapter";
+
 function repairCrossLogReferences(batchId?: string): any {
-  const StorageClass = (globalThis as any).GoogleSheetsStorageAdapter || (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : eval("require")("./SheetStorageAdapter").GoogleSheetsStorageAdapter);
+  const StorageClass = GoogleSheetsStorageAdapter;
   const storageMap = new Map<string, any>();
   const getStorage = (id: string) => {
     if (!storageMap.has(id)) {
@@ -325,7 +325,7 @@ function repairCrossLogReferences(batchId?: string): any {
     }
   };
 
-  const BatchEngineClass = (globalThis as any).BatchMigrationEngine || (typeof BatchMigrationEngine !== "undefined" ? BatchMigrationEngine : eval("require")("./core/log/BatchMigrationEngine").BatchMigrationEngine);
+  const BatchEngineClass = (globalThis as any).BatchMigrationEngine || BatchMigrationEngine;
   const engine = new BatchEngineClass(getStorage, manifestRepo);
 
   const existingManifest = manifestRepo.getManifest();
@@ -342,23 +342,12 @@ function repairCrossLogReferences(batchId?: string): any {
 }
 
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    onDriveItemsSelected,
-    buildAddOn,
-    migrateLogSpreadsheet,
-    migrateBatchLogSpreadsheets,
-    onBatchMigrationContinuationTrigger,
-    repairCrossLogReferences
-  };
-}
-
-(globalThis as any).onDriveItemsSelected = onDriveItemsSelected;
-(globalThis as any).buildAddOn = buildAddOn;
-(globalThis as any).migrateLogSpreadsheet = migrateLogSpreadsheet;
-(globalThis as any).migrateBatchLogSpreadsheets = migrateBatchLogSpreadsheets;
-(globalThis as any).onBatchMigrationContinuationTrigger = onBatchMigrationContinuationTrigger;
-(globalThis as any).repairCrossLogReferences = repairCrossLogReferences;
+export {
+  onDriveItemsSelected,
+  buildAddOn,
+  migrateLogSpreadsheet,
+  migrateBatchLogSpreadsheets,
+  onBatchMigrationContinuationTrigger,
+  repairCrossLogReferences
+};
 

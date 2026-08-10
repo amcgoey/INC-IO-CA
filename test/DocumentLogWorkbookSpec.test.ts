@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION } from '../src/core/config/DocumentLogWorkbookSpec';
+import { DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, PROTECTION_TIER_SPECS } from '../src/core/config/DocumentLogWorkbookSpec';
 import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, ThemeColors, VisualStyleSpec } from '../src/core/config/DocumentLogWorkbookViewSpec';
 import { WorkbookTemplateViewModel } from '../src/core/config/WorkbookTemplateViewModel';
 
@@ -287,7 +287,6 @@ test('DocumentLogWorkbookSpec - defines declarative validationRule specs on pick
 });
 
 test('DocumentLogWorkbookSpec - defines ProtectionTierSpec taxonomy with 3 warning-only tiers', () => {
-  const { PROTECTION_TIER_SPECS } = require('../src/core/config/DocumentLogWorkbookSpec');
   assert.ok(PROTECTION_TIER_SPECS, 'PROTECTION_TIER_SPECS must be exported');
   assert.equal(PROTECTION_TIER_SPECS.SYSTEM_TAB_PROTECTION.tier, 'SYSTEM_TAB_PROTECTION');
   assert.equal(PROTECTION_TIER_SPECS.SYSTEM_TAB_PROTECTION.warningOnly, true);

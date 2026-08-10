@@ -6,6 +6,9 @@
  * converts them into normalized `RawDocument` payloads, and enforces domain validation rules to produce `ValidationResult`.
  */
 
+import { EmailIntakeParser } from './EmailIntakeParser';
+import { defaultDocumentTypeConfigRegistry } from '../../DocumentTypeConfigRegistry';
+
 /**
  * Trims whitespace from a given string value, returning an empty string if undefined or null.
  *
@@ -268,17 +271,7 @@ class DriveFilenameIntakeParser {
 
 function validateDocFn(raw: RawDocument, context?: ValidationContext): ValidationResult {
   const rawDoc = FormIntakeParser.parse(raw, context);
-  const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
-  let registry: DocumentTypeConfigRegistry | undefined = g.defaultDocumentTypeConfigRegistry;
-  if (!registry && typeof defaultDocumentTypeConfigRegistry !== "undefined") {
-    registry = defaultDocumentTypeConfigRegistry;
-  }
-  if (!registry && typeof require !== "undefined") {
-    try {
-      const regMod = require('../../DocumentTypeConfigRegistry');
-      registry = g.defaultDocumentTypeConfigRegistry || regMod.defaultDocumentTypeConfigRegistry;
-    } catch (e) {}
-  }
+  let registry: DocumentTypeConfigRegistry | undefined = defaultDocumentTypeConfigRegistry;
 
   let config: DocumentTypeConfig | undefined;
   if (registry) {
@@ -419,8 +412,7 @@ class DocumentPipeline {
   }
 
   static parseEmail(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData {
-    const ep = typeof EmailIntakeParser !== "undefined" ? EmailIntakeParser : (globalThis as Record<string, unknown>).EmailIntakeParser as { parseEmail: (msg?: any) => ParsedData } | undefined;
-    return ep ? ep.parseEmail(message as any) : { driveName: "", action: "Received" };
+    return EmailIntakeParser.parseEmail(message as any);
   }
 
   static parseFilename(filename: string): RawDocument {
@@ -428,8 +420,7 @@ class DocumentPipeline {
   }
 
   static validate(rawDoc: RawDocument, context?: ValidationContext): ValidationResult {
-    const fn = typeof validateDocument !== "undefined" ? validateDocument : validateDocFn;
-    return fn(rawDoc, context);
+    return validateDocFn(rawDoc, context);
   }
 
   static processFormIntake(formInput: Record<string, string>, context?: ValidationContext): ValidationResult {
@@ -438,15 +429,10 @@ class DocumentPipeline {
   }
 }
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    FormIntakeParser,
-    EmailIntakeParser: typeof EmailIntakeParser !== "undefined" ? EmailIntakeParser : (typeof require !== "undefined" ? require("./EmailIntakeParser").EmailIntakeParser : (globalThis as Record<string, unknown>).EmailIntakeParser),
-    DriveFilenameIntakeParser,
-    DocumentPipeline,
-    ListDocumentField,
-    validateDocument: typeof validateDocument !== "undefined" ? validateDocument : validateDocFn
-  };
-}
+export {
+  FormIntakeParser,
+  DriveFilenameIntakeParser,
+  DocumentPipeline,
+  ListDocumentField,
+  validateDocFn as validateDocument
+};

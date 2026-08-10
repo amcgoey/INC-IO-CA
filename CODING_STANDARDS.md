@@ -30,14 +30,15 @@ All code in this project must belong to one of three compatibility tiers (see [A
 
 ---
 
-## 2. TypeScript & GAS Constraints
+## 2. TypeScript & GAS Module Standards (Vite + Vitest)
 
 1. **Strict Interface Seams**: Always depend on abstract interfaces (e.g. `LogRepository`), not concrete classes or global GAS singletons.
-2. **Clasp & Dual-Environment Compatibility (GAS + Node)**:
-   - **Guard `require()` Calls**: Never call `require(...)` directly in `src/`. Always check `typeof require !== 'undefined'` first to avoid `ReferenceError: require is not defined` in Google Apps Script V8 runtime.
-   - **Local Declarations Before Exporting**: Do not use inline `export const FOO = ...` or `export var BAR = ...` when symbols are referenced within the file or bound to `globalThis`. CommonJS transpilation emits `exports.FOO = ...` without declaring a local `FOO` in scope. Declare symbols locally (`const FOO = ...`), export at the bottom (`export { FOO };`), and assign to `globalThis` (`(globalThis as any).FOO = FOO;`).
+2. **Modern ES Modules & Vite Bundling**:
+   - **Use Standard ES Modules**: All files in `src/` must use standard TypeScript `import` and `export` statements (`import { ... } from '...'`, `export class ...`).
+   - **No `require()` Guards or Manual `globalThis` Boilerplate**: Do NOT use `typeof require !== 'undefined'` checks or assign internal domain classes/types to `globalThis` in internal files. Vite bundles `src/` into `dist/Code.js`.
+   - **Expose GAS Entry Points cleanly**: Top-level GAS trigger functions (`onOpen`, `doGet`, card actions) intended for execution by the GAS runtime are declared and exposed cleanly at the entry point (`src/Main.ts`).
 3. **Type Safety**: Maintain strict TypeScript typing (`"strict": true`). Avoid `any` types; prefer discriminated unions and strongly-typed payload interfaces.
-4. **Pure Testing**: Write pure unit tests in `test/` for Tier 1 core logic using `Fake` in-memory repository adapters (e.g. `FakeDriveFilingRepository`) instead of mocking GAS globals.
+4. **Pure Vitest Testing**: Write pure unit tests in `test/` for Tier 1 core logic using `vitest` and `Fake` in-memory repository adapters (e.g. `FakeDriveFilingRepository`) instead of mocking GAS globals.
 
 ---
 

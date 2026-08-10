@@ -487,20 +487,10 @@ class EmailIntakeParser {
   }
 }
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    SubmittalEmailParser,
-    RfiEmailParser,
-    AsiEmailParser,
-    GenericEmailParser,
-    EmailIntakeParser
-  };
-}
-
-(globalThis as Record<string, unknown>).SubmittalEmailParser = SubmittalEmailParser;
-(globalThis as Record<string, unknown>).RfiEmailParser = RfiEmailParser;
-(globalThis as Record<string, unknown>).AsiEmailParser = AsiEmailParser;
-(globalThis as Record<string, unknown>).GenericEmailParser = GenericEmailParser;
-(globalThis as Record<string, unknown>).EmailIntakeParser = EmailIntakeParser;
+export {
+  SubmittalEmailParser,
+  RfiEmailParser,
+  AsiEmailParser,
+  GenericEmailParser,
+  EmailIntakeParser
+};

@@ -8,30 +8,20 @@
 import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./core/config/DocumentLogWorkbookViewSpec";
 
 
-declare var GoogleSheetsStorageAdapter: any;
-declare var LogEngine: any;
-declare var require: any;
+import { GoogleSheetsStorageAdapter } from "./SheetStorageAdapter";
+import { LogEngine } from "./core/log/LogEngine";
+import { defaultSheetValidationAndProtectionAdapter } from "./adapters/gas/SheetValidationAndProtectionAdapter";
 
 function getGoogleSheetsStorageAdapterClass(): any {
-  return (globalThis as any).GoogleSheetsStorageAdapter ||
-    (typeof GoogleSheetsStorageAdapter !== "undefined" ? GoogleSheetsStorageAdapter : (typeof require !== "undefined" ? require("./SheetStorageAdapter").GoogleSheetsStorageAdapter : undefined));
+  return GoogleSheetsStorageAdapter;
 }
 
 function getLogEngineClass(): any {
-  return (globalThis as any).LogEngine ||
-    (typeof LogEngine !== "undefined" ? LogEngine : (typeof require !== "undefined" ? require("./core/log/LogEngine").LogEngine : undefined));
+  return LogEngine;
 }
 
 function getDefaultSheetValidationAndProtectionAdapter(): any {
-  if (typeof (globalThis as any).defaultSheetValidationAndProtectionAdapter !== "undefined") {
-    return (globalThis as any).defaultSheetValidationAndProtectionAdapter;
-  }
-  try {
-    const req = require("./adapters/gas/SheetValidationAndProtectionAdapter");
-    return req.defaultSheetValidationAndProtectionAdapter || req.SheetValidationAndProtectionAdapter;
-  } catch (_e) {
-    return null;
-  }
+  return defaultSheetValidationAndProtectionAdapter;
 }
 
 class GoogleSheetsLogRepository implements LogRepository {
@@ -442,15 +432,9 @@ class GoogleSheetsLogRepository implements LogRepository {
   }
 }
 
-/** Global default repository seam for Google Sheets storage operations. */
-var defaultLogRepository: LogRepository = new GoogleSheetsLogRepository();
+const defaultLogRepository: LogRepository = new GoogleSheetsLogRepository();
 
-declare var module: any;
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    GoogleSheetsLogRepository,
-    defaultLogRepository
-  };
-}
-(globalThis as any).GoogleSheetsLogRepository = GoogleSheetsLogRepository;
-(globalThis as any).defaultLogRepository = defaultLogRepository;
+export {
+  GoogleSheetsLogRepository,
+  defaultLogRepository
+};

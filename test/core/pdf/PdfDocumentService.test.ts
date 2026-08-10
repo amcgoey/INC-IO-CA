@@ -1,8 +1,8 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert";
 
-const { GoogleAppsScriptPdfDocumentService } = require("../../../src/PdfDocumentService");
-const { FakePdfDocumentService } = require("../../harness/index");
+import { GoogleAppsScriptPdfDocumentService } from "../../../src/PdfDocumentService";
+import { FakePdfDocumentService } from "../../harness/index";
 
 test("Tier 1 PDF Unit Tests: FakePdfDocumentService mergeBlobsToPdf records calls and merges blobs", async () => {
   const fakePdfService = new FakePdfDocumentService();

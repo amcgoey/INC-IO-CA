@@ -17,6 +17,7 @@ import {
   VerifyLiveOptions,
   StructuralDimensionCheck
 } from "../scripts/template/verify-live";
+import { GasMockHarness } from "./harness/GasMockHarness";
 
 test("parseVerifyArgs - parses --spreadsheet-id, --target, and --dry-run flags", () => {
   const args = ["--spreadsheet-id=1ABC_verify123", "--target=prod", "--dry-run"];
@@ -83,13 +84,13 @@ test("parseVerifyArgs - resolves PROD_TEMPLATE_SPREADSHEET_ID for target=prod", 
 });
 
 test("parseVerifyArgs - resolves spreadsheet ID from ScriptProperties when omitted in env", () => {
-  const harness = require("./harness/GasMockHarness").GasMockHarness.install();
+  const harness = GasMockHarness.install();
   try {
     harness.scriptProperties.setProperty("TEST_TEMPLATE_SPREADSHEET_ID", "script_prop_verify_test_id");
     const options = parseVerifyArgs(["--target=test"], {});
     assert.strictEqual(options.spreadsheetId, "script_prop_verify_test_id");
   } finally {
-    require("./harness/GasMockHarness").GasMockHarness.uninstall();
+    GasMockHarness.uninstall();
   }
 });
 

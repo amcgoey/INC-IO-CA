@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert";
 import { GasMockHarness } from "./GasMockHarness";
 import { DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, DOCUMENT_LOG_WORKBOOK_SPEC, TabSpec, NamedRangeSpec } from "../../src/core/config/DocumentLogWorkbookSpec";
+import { LogEngine } from "../../src/core/log/LogEngine";
+import { GoogleSheetsStorageAdapter } from "../../src/SheetStorageAdapter";
+import { ArchitectureSubmittalStrategy } from "../../src/DocumentLogStrategy";
 
 test.afterEach(() => {
   GasMockHarness.uninstall();
@@ -345,8 +348,6 @@ test("LogEngine executes audit event logging end-to-end with GasMockHarness Goog
   const ss = (globalThis as any).SpreadsheetApp.openById("ss-gasmock-audit");
   ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
 
-  const { LogEngine } = require("../../src/core/log/LogEngine");
-  const { GoogleSheetsStorageAdapter } = require("../../src/SheetStorageAdapter");
   const adapter = new GoogleSheetsStorageAdapter("ss-gasmock-audit");
   const engine = new LogEngine(adapter);
 
@@ -395,10 +396,6 @@ test("LogEngine handles submittal revision row placement and updates previous re
   GasMockHarness.install();
   const ss = (globalThis as any).SpreadsheetApp.openById("ss-revision-test");
   ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
-
-  const { LogEngine } = require("../../src/core/log/LogEngine");
-  const { GoogleSheetsStorageAdapter } = require("../../src/SheetStorageAdapter");
-  const { ArchitectureSubmittalStrategy } = require("../../src/DocumentLogStrategy");
 
   const adapter = new GoogleSheetsStorageAdapter("ss-revision-test");
   const engine = new LogEngine(adapter);

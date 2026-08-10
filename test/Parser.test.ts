@@ -8,11 +8,14 @@ import assert from "node:assert/strict";
   SUPPORTED_DISCIPLINES: ["Architecture", "FF&E"]
 };
 
-const { EmailIntakeParser, DriveFilenameIntakeParser, DocumentPipeline } = require("../src/core/intake/DocumentPipeline");
-require("../src/AiAnalysisService");
+import { DriveFilenameIntakeParser, DocumentPipeline } from "../src/core/intake/DocumentPipeline";
+import { EmailIntakeParser } from "../src/core/intake/EmailIntakeParser";
+import "../src/AiAnalysisService";
+import { FakeAiAnalysisAdapter } from "./harness/index";
 
 (globalThis as any).DocumentPipeline = DocumentPipeline;
 (globalThis as any).DriveFilenameIntakeParser = DriveFilenameIntakeParser;
+(globalThis as any).EmailIntakeParser = EmailIntakeParser;
 
 (globalThis as any).CardService = {
   newCardBuilder: () => {
@@ -68,7 +71,7 @@ require("../src/AiAnalysisService");
   flashMessage
 });
 
-const { onDriveItemsSelected, buildAddOn } = require('../src/Main');
+import { onDriveItemsSelected, buildAddOn } from '../src/Main';
 
 test("EmailIntakeParser.parseProcoreEmail_ extracts project driveName, spec section, revision, discipline, and action from subject", () => {
   const subject = "[Project Alpha] Submittal # 033000-001 has been submitted";
@@ -310,7 +313,6 @@ test('Main.ts onDriveItemsSelected - handles invalid selection when non-PDF or m
 });
 
 test('Main.ts buildAddOn - populates parsedData with Forma submittal notification email details', async () => {
-  const { FakeAiAnalysisAdapter } = require("./harness/index");
   const fakeAi = new FakeAiAnalysisAdapter();
   fakeAi.setTriageResult({ success: true, prediction: { predictedProjectName: "Project Gamma", predictedDiscipline: "Architecture" } });
   (globalThis as any).defaultAiAnalysisService = fakeAi;

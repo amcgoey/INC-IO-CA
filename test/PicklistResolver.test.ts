@@ -4,10 +4,10 @@ import { GasMockHarness } from "./harness/GasMockHarness";
 import { CardSerializer } from "./harness/CardSerializer";
 
 // Register globals and load modules
-require("../src/DocumentTypeConfigRegistry");
-const { PicklistResolver } = require("../src/core/config/PicklistResolver");
-const { DOCUMENT_LOG_WORKBOOK_SPEC } = require("../src/core/config/DocumentLogWorkbookSpec");
-const { renderDynamicFormFields } = require("../src/adapters/gas/UI");
+import "../src/DocumentTypeConfigRegistry";
+import { PicklistResolver } from "../src/core/config/PicklistResolver";
+import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../src/core/config/DocumentLogWorkbookSpec";
+import { renderDynamicFormFields } from "../src/adapters/gas/UI";
 
 describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
   let harness: GasMockHarness;

@@ -10,6 +10,7 @@ import { GasMockHarness } from "./harness/GasMockHarness";
 import { InMemorySheetStorageAdapter } from "./harness/fakes/InMemorySheetStorageAdapter";
 
 import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
+import { migrateLogSpreadsheet } from "../src/Main";
 
 test.beforeEach(() => {
   GasMockHarness.install();
@@ -41,8 +42,12 @@ test("runMigrateLogCli - executes Pass 1 dry-run audit via CLI and returns Migra
 });
 
 test("migrateLogSpreadsheet - GAS function executes dry-run audit under GasMockHarness", () => {
-  const { migrateLogSpreadsheet } = require("../src/Main");
   const storageAdapter = new InMemorySheetStorageAdapter();
+  storageAdapter.setSheetValues("Submittal Arch", [
+    ["Spec Section", "Title"],
+    ["", ""],
+    ["081100", "Doors"]
+  ]);
 
   const report = migrateLogSpreadsheet("1SRC_GAS", "1TGT_GAS", { dryRun: true, storageAdapter });
   assert.ok(report);

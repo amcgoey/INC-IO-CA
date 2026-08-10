@@ -145,13 +145,4 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
   }
 }
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    GoogleSheetsStorageAdapter
-  };
-
-
-
-}
+export { GoogleSheetsStorageAdapter };

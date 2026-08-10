@@ -10,8 +10,8 @@ test.afterEach(() => {
   GasMockHarness.uninstall();
 });
 
-const { FieldConfidenceThreshold } = require("../../src/core/interfaces/AiAnalysisService");
-const { buildUnbiasedIntakeCard } = require("../../src/adapters/gas/UI");
+import { FieldConfidenceThreshold } from "../../src/core/interfaces/AiAnalysisService";
+import { buildUnbiasedIntakeCard } from "../../src/adapters/gas/UI";
 
 const findWidgetByFieldName = (cardJson: any, fieldName: string) => {
   return (cardJson.sections || []).flatMap((s: any) => s.widgets || []).find((w: any) => w.fieldName === fieldName);

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
 
-const { InMemorySheetStorageAdapter } = require("./harness/index");
+import { InMemorySheetStorageAdapter } from "./harness/fakes/InMemorySheetStorageAdapter";
 
 test("InMemorySheetStorageAdapter initializes with initial sheets data", () => {
   const initialData = {
@@ -132,7 +132,7 @@ test("InMemorySheetStorageAdapter insertLogRow with insertBlankBefore: true inse
   assert.deepStrictEqual(values[6], ["030000", "001", "001", "Submittal 3"]);
 });
 
-const { GoogleSheetsStorageAdapter } = require('../src/SheetStorageAdapter');
+import { GoogleSheetsStorageAdapter } from '../src/SheetStorageAdapter';
 
 test('GoogleSheetsStorageAdapter insertLogRow executes physical sheet operations directly without calling defaultLogRepository', () => {
   const calls: string[] = [];

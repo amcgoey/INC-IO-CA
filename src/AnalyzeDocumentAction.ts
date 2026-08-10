@@ -7,8 +7,8 @@
  * to extract candidate submittal form fields. Adheres to execute(context: DocumentActionContext): Promise<DocumentActionContext>.
  */
 
-declare var defaultAiAnalysisService: AiAnalysisService;
-declare var defaultExtractPagesAction: ExtractPagesAction;
+import { defaultAiAnalysisService } from './AiAnalysisService';
+import { defaultExtractPagesAction, ExtractPagesAction } from './core/workflow/ExtractPagesAction';
 
 /**
  * Primitive workflow action that executes AI submittal document analysis.
@@ -56,8 +56,7 @@ class AnalyzeDocumentAction implements DocumentAction<DocumentActionContext> {
 
     let targetBlob = blob;
     const extractAction =
-      this.extractPagesAction ||
-      (typeof defaultExtractPagesAction !== "undefined" ? defaultExtractPagesAction : ((globalThis as any).defaultExtractPagesAction || (typeof require !== "undefined" ? require("./core/workflow/ExtractPagesAction").defaultExtractPagesAction : undefined)));
+      this.extractPagesAction || defaultExtractPagesAction;
 
     if (extractAction) {
       try {
@@ -79,20 +78,9 @@ class AnalyzeDocumentAction implements DocumentAction<DocumentActionContext> {
   }
 }
 
-/** Global default instance seam for AnalyzeDocumentAction. */
-var defaultAnalyzeDocumentAction: AnalyzeDocumentAction = new AnalyzeDocumentAction();
+const defaultAnalyzeDocumentAction: AnalyzeDocumentAction = new AnalyzeDocumentAction();
 
-if (typeof (globalThis as any).defaultAnalyzeDocumentAction === "undefined") {
-  (globalThis as any).defaultAnalyzeDocumentAction = defaultAnalyzeDocumentAction;
-}
-
-declare var module: any;
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    AnalyzeDocumentAction,
-    defaultAnalyzeDocumentAction
-  };
-}
-
-(globalThis as any).AnalyzeDocumentAction = AnalyzeDocumentAction;
-(globalThis as any).defaultAnalyzeDocumentAction = defaultAnalyzeDocumentAction;
+export {
+  AnalyzeDocumentAction,
+  defaultAnalyzeDocumentAction
+};

@@ -1,84 +1,13 @@
-if (typeof require !== "undefined") {
-  try {
-    const cdsmModule = eval('require("./prototypes/CardDraftStateManager")');
-    if (cdsmModule && cdsmModule.CardDraftStateManager && typeof (globalThis as any).CardDraftStateManager === "undefined") {
-      (globalThis as any).CardDraftStateManager = cdsmModule.CardDraftStateManager;
-    }
-  } catch (e: any) {
-      if (typeof console !== "undefined" && console.warn) console.warn("Draft eviction warning:", e);
-    }
-}
-declare const TransientOverrideLogger: any;
-if (typeof require !== "undefined") {
-  try {
-      const overrideLoggerModule = eval('require("./core/logging/TransientOverrideLogger")');
-      if (overrideLoggerModule && overrideLoggerModule.TransientOverrideLogger && typeof (globalThis as any).TransientOverrideLogger === "undefined") {
-        (globalThis as any).TransientOverrideLogger = overrideLoggerModule.TransientOverrideLogger;
-      }
-  } catch (e) {}
-}
-/**
- * @file Process.ts
- * @description Application event handlers for processing submittal form submissions and file movement actions.
- *
- * Coordinates validation via `DocumentPipeline`, delegates submittal filing, stamping, and spreadsheet logging
- * to `DocumentWorkflowModule`, and returns formatted UI card responses via `CardPresenter`.
- */
-
-if (typeof require !== "undefined") {
-  try {
-    const cardPresenterModule = eval('require("./adapters/gas/CardPresenter")');
-    if (cardPresenterModule) {
-      if (cardPresenterModule.defaultCardPresenter && typeof defaultCardPresenter === "undefined") {
-        (globalThis as any).defaultCardPresenter = cardPresenterModule.defaultCardPresenter;
-      }
-    }
-  } catch (e) {}
-}
-
-declare var require: any;
-
-if (typeof require !== "undefined") {
-  try {
-    const documentPipelineModule = eval('require("./core/intake/DocumentPipeline")');
-    if (documentPipelineModule) {
-      if (documentPipelineModule.FormIntakeParser && typeof FormIntakeParser === "undefined") {
-        (globalThis as any).FormIntakeParser = documentPipelineModule.FormIntakeParser;
-      }
-      if (documentPipelineModule.DocumentPipeline && typeof DocumentPipeline === "undefined") {
-        (globalThis as any).DocumentPipeline = documentPipelineModule.DocumentPipeline;
-      }
-    }
-  } catch (e) {}
-}
-
-if (typeof require !== "undefined") {
-  try {
-    const documentLogStrategyModule = eval('require("./DocumentLogStrategy")');
-    if (documentLogStrategyModule) {
-      if (documentLogStrategyModule.ArchitectureSubmittalStrategy && typeof ArchitectureSubmittalStrategy === "undefined") {
-        (globalThis as any).ArchitectureSubmittalStrategy = documentLogStrategyModule.ArchitectureSubmittalStrategy;
-      }
-      if (documentLogStrategyModule.FFESubmittalStrategy && typeof FFESubmittalStrategy === "undefined") {
-        (globalThis as any).FFESubmittalStrategy = documentLogStrategyModule.FFESubmittalStrategy;
-      }
-    }
-  } catch (e) {}
-}
-
-if (typeof require !== "undefined") {
-  try {
-    const documentWorkflowModule = eval('require("./core/workflow/DocumentWorkflowModule")');
-    if (documentWorkflowModule) {
-      if (documentWorkflowModule.DocumentWorkflowModule && typeof (globalThis as any).DocumentWorkflowModule === "undefined") {
-        (globalThis as any).DocumentWorkflowModule = documentWorkflowModule.DocumentWorkflowModule;
-      }
-      if (documentWorkflowModule.getActionPolicy && typeof (globalThis as any).getActionPolicy === "undefined") {
-        (globalThis as any).getActionPolicy = documentWorkflowModule.getActionPolicy;
-      }
-    }
-  } catch (e) {}
-}
+import { MESSAGES } from "./Config";
+import { CardDraftStateManager } from "./prototypes/CardDraftStateManager";
+import { TransientOverrideLogger } from "./core/logging/TransientOverrideLogger";
+import { buildMainCard } from "./adapters/gas/UI";
+import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
+import { DocumentPipeline } from "./core/intake/DocumentPipeline";
+import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "./DocumentLogStrategy";
+import { DocumentWorkflowModule, getActionPolicy } from "./core/workflow/DocumentWorkflowModule";
+import { defaultLogRepository } from "./GoogleSheetsLogRepository";
+import { defaultDriveFilingRepository } from "./DriveFilingRepository";
 
 /**
  * Primary action handler executed when the user clicks "File & Log" in the add-on interface.
@@ -109,7 +38,8 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const logSheet = openSs.getSheetByName(CONFIG.LOG_SHEET_NAME);  
     if (!logSheet) throw new Error("Log sheet not found in spreadsheet");
 
-    const settings = defaultLogRepository.getLogSettings(p.logFileId, disc);  
+    const logRepo = (globalThis as any).defaultLogRepository || defaultLogRepository;
+    const settings = logRepo.getLogSettings(p.logFileId, disc);  
     const selectedAction = settings.actions.find(a => a.action === form.action) || { action: "", abbr: "", status: "" };
 
     // Validate form inputs using pure validation module
@@ -146,14 +76,18 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
         flash.promptAddVendor = true;
         flash.warning = validationResult.message;
       }
+      const builder = (globalThis as any).buildMainCard || buildMainCard;
       return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, flash)))
+        .setNavigation(CardService.newNavigation().updateCard(builder(e, null, false, flash)))
         .build();
     }
 
     const validatedDoc = validationResult.data;
     const emptyFallbacks = validationResult.warnings;
     const logSheetId = logSheet && typeof logSheet.getSheetId === "function" ? logSheet.getSheetId() : undefined;
+
+    const logRepository = (globalThis as any).defaultLogRepository || defaultLogRepository;
+    const driveFilingRepository = (globalThis as any).defaultDriveFilingRepository || defaultDriveFilingRepository;
 
     const input: DocumentWorkflowInput = {
       validatedDoc,
@@ -168,11 +102,13 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
       incomingRouting: form.incomingRouting,
       projectAbbr: p.projectAbbr,
       emptyFallbacks,
-      selectedAction
+      selectedAction,
+      logRepository,
+      driveFilingRepository
     };
 
-    const dwm = typeof DocumentWorkflowModule !== "undefined" ? DocumentWorkflowModule : (globalThis as any).DocumentWorkflowModule;
-    const policyFn = typeof getActionPolicy !== "undefined" ? getActionPolicy : (globalThis as any).getActionPolicy;
+    const dwm = (globalThis as any).DocumentWorkflowModule || DocumentWorkflowModule;
+    const policyFn = (globalThis as any).getActionPolicy || getActionPolicy;
     const result: DocumentWorkflowResult = await dwm.executeWorkflow(input);
     try {
       const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
@@ -197,12 +133,14 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
     const policy = policyFn(result.action);
 
     if (policy.direction === "incoming") {
+      const builder = (globalThis as any).buildMainCard || buildMainCard;
       return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(buildMainCard(e, null, false, result)))
+        .setNavigation(CardService.newNavigation().updateCard(builder(e, null, false, result)))
         .build();
     }
 
-    return defaultCardPresenter.presentOutgoingSuccess(e, result, p);
+    const cp = (globalThis as any).defaultCardPresenter || defaultCardPresenter;
+    return cp.presentOutgoingSuccess(e, result, p);
 
   } catch (err: any) {
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build();
@@ -238,7 +176,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
       ? strategy.getFilingSubfolders(doc)
       : [closedFolder];
 
-    const driveFilingRepo = (e && (e as any).driveFilingRepository) || (typeof defaultDriveFilingRepository !== "undefined" ? defaultDriveFilingRepository : null);
+    const driveFilingRepo = (e && (e as any).driveFilingRepository) || (globalThis as any).defaultDriveFilingRepository || defaultDriveFilingRepository;
     const filingResult = driveFilingRepo.fileDocument(
       { fileId: p.fileId },
       { targetFolderId: p.targetFolderId, subfolderPath }
@@ -257,11 +195,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
   } catch (err: any) { return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build(); }
 }
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    processSubmission,
-    moveSubmittalToClosed
-  };
-}
+export {
+  processSubmission,
+  moveSubmittalToClosed
+};

@@ -44,9 +44,8 @@ const mockSheet = { getSheetId: () => 101 };
   })
 };
 
-const { defaultPdfDocumentService } = require("../src/PdfDocumentService");
-const { FakePdfDocumentService } = require("./harness/index");
-const { FakeDriveFilingRepository } = require("./harness/index");
+import { defaultPdfDocumentService } from "../src/PdfDocumentService";
+import { FakePdfDocumentService, FakeDriveFilingRepository } from "./harness/index";
 
 (globalThis as any).buildMainCard = (e: any, d: any, tag: any, flashData: any) => ({ cardType: "MainCard", flashData });
 (globalThis as any).buildSuccessCard = (...args: any[]) => ({ cardType: "SuccessCard", args });
@@ -78,10 +77,10 @@ const mockFolder: any = {
   getFileById: () => mockFile
 };
 
-const { DocumentWorkflowModule, getActionPolicy } = require("../src/core/workflow/DocumentWorkflowModule");
+import { DocumentWorkflowModule, getActionPolicy } from "../src/core/workflow/DocumentWorkflowModule";
+import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "../src/DocumentLogStrategy";
 (globalThis as any).DocumentWorkflowModule = DocumentWorkflowModule;
 (globalThis as any).getActionPolicy = getActionPolicy;
-const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
 
 const defaultRepoMock = {
   verifyAndFormatLogSheet: () => ["Section", "Number", "Title", "Link"],
@@ -103,8 +102,8 @@ const defaultRepoMock = {
 };
 (globalThis as any).defaultLogRepository = defaultRepoMock;
 
-const { CardPresenter, defaultCardPresenter } = require("../src/adapters/gas/CardPresenter");
-const { processSubmission, moveSubmittalToClosed } = require("../src/Process");
+import { defaultCardPresenter } from "../src/adapters/gas/CardPresenter";
+import { processSubmission, moveSubmittalToClosed } from "../src/Process";
 
 test("processSubmission for Architecture incoming action delegates to DocumentWorkflowModule and updates main card", async () => {
   let appendCalled = false;

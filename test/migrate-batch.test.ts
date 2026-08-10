@@ -1,9 +1,10 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert";
 import { parseMigrateBatchArgs, runMigrateBatchCli } from "../scripts/migrate-batch";
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { InMemorySheetStorageAdapter } from "./harness/fakes/InMemorySheetStorageAdapter";
 import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
+import { migrateBatchLogSpreadsheets } from "../src/Main";
 
 test.beforeEach(() => {
   GasMockHarness.install();
@@ -56,7 +57,6 @@ test("runMigrateBatchCli - executes multi-workbook batch migration via CLI and r
 });
 
 test("migrateBatchLogSpreadsheets - GAS entry point executes multi-workbook batch migration under GasMockHarness", () => {
-  const { migrateBatchLogSpreadsheets } = require("../src/Main");
   const storageMap = new Map<string, InMemorySheetStorageAdapter>();
   const getStorage = (id: string) => {
     if (!storageMap.has(id)) {

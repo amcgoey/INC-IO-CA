@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
-const { PrefixCacheManager } = require("../src/core/admin/PrefixCacheManager");
-const { InMemoryCacheAdapter } = require("../src/adapters/fakes/FakeCacheAdapter");
+import { PrefixCacheManager } from "../src/core/admin/PrefixCacheManager";
+import { InMemoryCacheAdapter } from "../src/adapters/fakes/FakeCacheAdapter";
 
 test("PrefixCacheManager stores and retrieves scoped entries", () => {
   const cache = new InMemoryCacheAdapter();

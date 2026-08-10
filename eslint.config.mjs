@@ -109,7 +109,7 @@ export default tseslint.config(
   // Architectural rules and project overrides
   {
     rules: {
-      'no-var': 'off',
+      'no-var': 'error',
       'no-undef': 'off',
       'no-empty': ['error', { allowEmptyCatch: true }],
       'no-useless-escape': 'off',
@@ -117,7 +117,7 @@ export default tseslint.config(
       'no-case-declarations': 'off',
       'no-fallthrough': 'off',
       'preserve-caught-error': 'off',
-      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-require-imports': 'error',
       '@typescript-eslint/triple-slash-reference': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unsafe-function-type': 'off',

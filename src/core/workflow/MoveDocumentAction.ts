@@ -60,14 +60,7 @@ class MoveDocumentAction implements DocumentAction<DocumentActionContext, Docume
   }
 }
 
-declare var module: any;
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    MoveDocumentAction,
-    resolveSubfolderPath
-  };
-}
-
-(globalThis as any).MoveDocumentAction = MoveDocumentAction;
-(globalThis as any).resolveSubfolderPath = resolveSubfolderPath;
+export {
+  MoveDocumentAction,
+  resolveSubfolderPath
+};

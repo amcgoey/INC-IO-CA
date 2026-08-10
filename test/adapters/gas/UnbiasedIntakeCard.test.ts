@@ -5,20 +5,16 @@ import { CardSerializer } from "../../harness/CardSerializer";
 import { FakeDriveFilingRepository } from "../../harness/fakes/FakeDriveFilingRepository";
 import { FakePdfDocumentService } from "../../harness/fakes/FakePdfDocumentService";
 
-// Ensure global modules and helpers are loaded
-require("../../../src/AIUtils");
-require("../../../src/Config");
-require("../../../src/core/config/DocumentLogWorkbookSpec");
-require("../../../src/core/intake/DocumentPipeline");
-require("../../../src/core/log/LogEngine");
-require("../../../src/SheetStorageAdapter");
-require("../../../src/GoogleSheetsLogRepository");
-require("../../../src/DocumentTypeConfigRegistry");
-require("../../../src/prototypes/CardDraftStateManager");
-require("../../../src/adapters/gas/CardPresenter");
-const UI = require("../../../src/adapters/gas/UI");
-const Process = require("../../../src/Process");
-const { GoogleSheetsLogRepository } = require("../../../src/GoogleSheetsLogRepository");
+import { CONFIG } from "../../../src/Config";
+import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../../../src/core/config/DocumentLogWorkbookSpec";
+import { DocumentPipeline } from "../../../src/core/intake/DocumentPipeline";
+import { LogEngine } from "../../../src/core/log/LogEngine";
+import { GoogleSheetsStorageAdapter } from "../../../src/SheetStorageAdapter";
+import { GoogleSheetsLogRepository } from "../../../src/GoogleSheetsLogRepository";
+import { defaultDocumentTypeConfigRegistry } from "../../../src/DocumentTypeConfigRegistry";
+import * as UI from "../../../src/adapters/gas/UI";
+import * as Process from "../../../src/Process";
+
 
 test.beforeEach(() => {
   GasMockHarness.install();

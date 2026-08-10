@@ -77,14 +77,5 @@ var defaultDriveNameProvider: DriveNameProvider = new GoogleDriveNameProvider();
 
 export { defaultDriveNameProvider };
 
-declare var module: any;
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    GoogleDriveNameProvider,
-    defaultDriveNameProvider
-  };
-}
-
 (globalThis as any).GoogleDriveNameProvider = GoogleDriveNameProvider;
 (globalThis as any).defaultDriveNameProvider = defaultDriveNameProvider;

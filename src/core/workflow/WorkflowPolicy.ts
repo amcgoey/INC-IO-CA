@@ -4,8 +4,7 @@
  * @description Helper functions for workflow action policy, strategy resolution, title extraction, and sheet URL generation.
  */
 
-declare var ArchitectureSubmittalStrategy: any;
-declare var FFESubmittalStrategy: any;
+import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from '../../DocumentLogStrategy';
 
 /**
  * Resolves execution policy settings based on the specified workflow action string.
@@ -37,16 +36,10 @@ export function getActionPolicy(action: string): WorkflowActionPolicy {
  */
 export function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy {
   const details = doc ? doc.disciplineDetails : null;
-  const FfeCtor = (globalThis as any).FFESubmittalStrategy || (typeof FFESubmittalStrategy !== "undefined" ? FFESubmittalStrategy : null);
-  const ArchCtor = (globalThis as any).ArchitectureSubmittalStrategy || (typeof ArchitectureSubmittalStrategy !== "undefined" ? ArchitectureSubmittalStrategy : null);
-
-  if (details && details.discipline === "FF&E" && FfeCtor) {
-    return new FfeCtor();
+  if (details && details.discipline === "FF&E") {
+    return new FFESubmittalStrategy();
   }
-  if (ArchCtor) {
-    return new ArchCtor();
-  }
-  throw new Error("Unable to resolve DocumentLogStrategy: strategy constructors unavailable");
+  return new ArchitectureSubmittalStrategy();
 }
 
 /**
@@ -82,18 +75,4 @@ export function buildDirectRowUrl(logFileId: string, rowIndex: number, sheetId?:
   return `https://docs.google.com/spreadsheets/d/${logFileId}/edit#gid=${resolvedSheetId}&range=A${rowIndex}`;
 }
 
-declare var module: any;
 
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    getActionPolicy,
-    getDocumentLogStrategy,
-    getDocumentTitle,
-    buildDirectRowUrl
-  };
-}
-
-(globalThis as any).getActionPolicy = getActionPolicy;
-(globalThis as any).getDocumentLogStrategy = getDocumentLogStrategy;
-(globalThis as any).getDocumentTitle = getDocumentTitle;
-(globalThis as any).buildDirectRowUrl = buildDirectRowUrl;

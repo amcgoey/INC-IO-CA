@@ -1,10 +1,10 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert";
 
 // Ambient mock for CONFIG
 (global as any).CONFIG = { LOG_HEADER_ROW: 3 };
 
-const {
+import {
   getBoundedData,
   getRowGroupKey,
   getRowSortKey,
@@ -14,7 +14,7 @@ const {
   createRowIdentityGroupKeyFn,
   createRowIdentityRevisionGroupKeyFn,
   createRowIdentityKeyFn
-} = require("../../../src/RowPositionCalculator");
+} from "../../../src/RowPositionCalculator";
 
 test("RowPositionCalculator calculates IdentityGroup, IdentityRevisionGroup, and Identity in-memory without discipline hardcoding", () => {
   const headers = ["Section", "Number", "Revision", "Date", "Title"];

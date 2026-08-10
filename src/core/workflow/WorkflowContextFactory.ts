@@ -4,46 +4,16 @@
  * @description Factory for creating DocumentActionContext instances with lazy adapter ES5 property getters.
  */
 
-declare var require: any;
-declare var defaultLogRepository: LogRepository;
-declare var defaultDriveFilingRepository: DriveFilingRepository;
-declare var defaultPdfDocumentService: PdfDocumentService;
-declare var defaultAiAnalysisService: AiAnalysisService;
-declare var defaultCacheAdapter: CacheAdapter;
-declare var defaultSpreadsheetLockAdapter: SpreadsheetLockAdapter;
-declare var defaultUserInterfacePresenter: UserInterfacePresenter;
-
-let FakeLogRepoClass: new (...args: unknown[]) => LogRepository | undefined;
-let FakeDriveFilingRepoClass: new (...args: unknown[]) => DriveFilingRepository | undefined;
-let FakePdfServiceClass: new (...args: unknown[]) => PdfDocumentService | undefined;
-let FakeAiAdapterClass: new (...args: unknown[]) => AiAnalysisService | undefined;
-let FakeCacheAdapterClass: new (...args: unknown[]) => CacheAdapter | undefined;
-let FakeSpreadsheetLockAdapterClass: new (...args: unknown[]) => SpreadsheetLockAdapter | undefined;
-let FakeUserInterfacePresenterClass: new (...args: unknown[]) => UserInterfacePresenter | undefined;
-
-if (typeof require !== 'undefined') {
-  try {
-    FakeLogRepoClass = require('../../adapters/fakes/FakeLogRepository').FakeLogRepository;
-  } catch (e) {}
-  try {
-    FakeDriveFilingRepoClass = require('../../adapters/fakes/FakeDriveFilingRepository').FakeDriveFilingRepository;
-  } catch (e) {}
-  try {
-    FakePdfServiceClass = require('../../adapters/fakes/FakePdfDocumentService').FakePdfDocumentService;
-  } catch (e) {}
-  try {
-    FakeAiAdapterClass = require('../../adapters/fakes/FakeAiAnalysisAdapter').FakeAiAnalysisAdapter;
-  } catch (e) {}
-  try {
-    FakeCacheAdapterClass = require('../../adapters/fakes/FakeCacheAdapter').FakeCacheAdapter;
-  } catch (e) {}
-  try {
-    FakeSpreadsheetLockAdapterClass = require('../../adapters/fakes/FakeSpreadsheetLockAdapter').FakeSpreadsheetLockAdapter;
-  } catch (e) {}
-  try {
-    FakeUserInterfacePresenterClass = require('../../adapters/fakes/FakeUserInterfacePresenter').FakeUserInterfacePresenter;
-  } catch (e) {}
-}
+import { FakeLogRepository } from '../../adapters/fakes/FakeLogRepository';
+import { FakeDriveFilingRepository } from '../../adapters/fakes/FakeDriveFilingRepository';
+import { FakePdfDocumentService } from '../../adapters/fakes/FakePdfDocumentService';
+import { FakeAiAnalysisAdapter } from '../../adapters/fakes/FakeAiAnalysisAdapter';
+import { FakeCacheAdapter } from '../../adapters/fakes/FakeCacheAdapter';
+import { FakeSpreadsheetLockAdapter } from '../../adapters/fakes/FakeSpreadsheetLockAdapter';
+import { FakeUserInterfacePresenter } from '../../adapters/fakes/FakeUserInterfacePresenter';
+import { defaultDocumentTypeConfigRegistry } from '../../DocumentTypeConfigRegistry';
+import { defaultLogRepository } from '../../GoogleSheetsLogRepository';
+import { defaultDriveFilingRepository } from '../../DriveFilingRepository';
 
 type AdapterMap = ContextAdapters;
 
@@ -97,7 +67,12 @@ class WorkflowContextFactory {
   ): DocumentActionContext {
     const registry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== 'undefined' ? defaultDocumentTypeConfigRegistry : undefined);
     const resolvedConfig = config || (registry ? registry.getConfig('Submittal') : undefined);
-    const combinedOverrides = { ...options.adapters, ...overrides };
+    const combinedOverrides = {
+      ...options.adapters,
+      ...overrides,
+      ...(options.logRepository ? { logRepository: options.logRepository } : {}),
+      ...(options.driveFilingRepository ? { driveFilingRepository: options.driveFilingRepository } : {})
+    };
 
     const context: DocumentActionContext = {
       ...options,
@@ -109,17 +84,17 @@ class WorkflowContextFactory {
     const resolvers: Record<keyof ContextAdapters, () => any> = {
       logRepository: () => {
         if (combinedOverrides.logRepository !== undefined) return combinedOverrides.logRepository;
-        if (typeof defaultLogRepository !== 'undefined') return defaultLogRepository;
+        if (g.defaultLogRepository) return g.defaultLogRepository;
         const adapterKey = resolvedConfig?.logAdapterKey || 'GoogleSheetsLogRepository';
         if (g[adapterKey]) return new g[adapterKey]();
-        return null;
+        return defaultLogRepository;
       },
       driveFilingRepository: () => {
         if (combinedOverrides.driveFilingRepository !== undefined) return combinedOverrides.driveFilingRepository;
-        if (typeof defaultDriveFilingRepository !== 'undefined') return defaultDriveFilingRepository;
+        if (g.defaultDriveFilingRepository) return g.defaultDriveFilingRepository;
         const adapterKey = resolvedConfig?.filingAdapterKey || 'GoogleDriveFilingRepository';
         if (g[adapterKey]) return new g[adapterKey]();
-        return null;
+        return defaultDriveFilingRepository;
       },
       pdfService: () => resolvers.pdfDocumentService(),
       pdfDocumentService: () => {
@@ -190,63 +165,49 @@ class WorkflowContextFactory {
       logRepository: () => {
         if (combinedOverrides.logRepository !== undefined) return combinedOverrides.logRepository;
         if (!testFakes.logRepository) {
-          const Ctor = FakeLogRepoClass || g.FakeLogRepository;
-          if (!Ctor) throw new Error('FakeLogRepository unavailable in current test environment');
-          testFakes.logRepository = new Ctor();
+          testFakes.logRepository = new FakeLogRepository();
         }
         return testFakes.logRepository;
       },
       driveFilingRepository: () => {
         if (combinedOverrides.driveFilingRepository !== undefined) return combinedOverrides.driveFilingRepository;
         if (!testFakes.driveFilingRepository) {
-          const Ctor = FakeDriveFilingRepoClass || g.FakeDriveFilingRepository;
-          if (!Ctor) throw new Error('FakeDriveFilingRepository unavailable in current test environment');
-          testFakes.driveFilingRepository = new Ctor();
+          testFakes.driveFilingRepository = new FakeDriveFilingRepository();
         }
         return testFakes.driveFilingRepository;
       },
       pdfDocumentService: () => {
         if (combinedOverrides.pdfDocumentService !== undefined) return combinedOverrides.pdfDocumentService;
         if (!testFakes.pdfDocumentService) {
-          const Ctor = FakePdfServiceClass || g.FakePdfDocumentService;
-          if (!Ctor) throw new Error('FakePdfDocumentService unavailable in current test environment');
-          testFakes.pdfDocumentService = new Ctor();
+          testFakes.pdfDocumentService = new FakePdfDocumentService();
         }
         return testFakes.pdfDocumentService;
       },
       aiAnalysisService: () => {
         if (combinedOverrides.aiAnalysisService !== undefined) return combinedOverrides.aiAnalysisService;
         if (!testFakes.aiAnalysisService) {
-          const Ctor = FakeAiAdapterClass || g.FakeAiAnalysisAdapter;
-          if (!Ctor) throw new Error('FakeAiAnalysisAdapter unavailable in current test environment');
-          testFakes.aiAnalysisService = new Ctor();
+          testFakes.aiAnalysisService = new FakeAiAnalysisAdapter();
         }
         return testFakes.aiAnalysisService;
       },
       cacheAdapter: () => {
         if (combinedOverrides.cacheAdapter !== undefined) return combinedOverrides.cacheAdapter;
         if (!testFakes.cacheAdapter) {
-          const Ctor = FakeCacheAdapterClass || g.FakeCacheAdapter;
-          if (!Ctor) throw new Error('FakeCacheAdapter unavailable in current test environment');
-          testFakes.cacheAdapter = new Ctor();
+          testFakes.cacheAdapter = new FakeCacheAdapter();
         }
         return testFakes.cacheAdapter;
       },
       spreadsheetLockAdapter: () => {
         if (combinedOverrides.spreadsheetLockAdapter !== undefined) return combinedOverrides.spreadsheetLockAdapter;
         if (!testFakes.spreadsheetLockAdapter) {
-          const Ctor = FakeSpreadsheetLockAdapterClass || g.FakeSpreadsheetLockAdapter;
-          if (!Ctor) throw new Error('FakeSpreadsheetLockAdapter unavailable in current test environment');
-          testFakes.spreadsheetLockAdapter = new Ctor();
+          testFakes.spreadsheetLockAdapter = new FakeSpreadsheetLockAdapter();
         }
         return testFakes.spreadsheetLockAdapter;
       },
       userInterfacePresenter: () => {
         if (combinedOverrides.userInterfacePresenter !== undefined) return combinedOverrides.userInterfacePresenter;
         if (!testFakes.userInterfacePresenter) {
-          const Ctor = FakeUserInterfacePresenterClass || g.FakeUserInterfacePresenter;
-          if (!Ctor) throw new Error('FakeUserInterfacePresenter unavailable in current test environment');
-          testFakes.userInterfacePresenter = new Ctor();
+          testFakes.userInterfacePresenter = new FakeUserInterfacePresenter();
         }
         return testFakes.userInterfacePresenter;
       }
@@ -265,13 +226,7 @@ function createTestContext(
   return WorkflowContextFactory.createTestContext(config, overrides, options);
 }
 
-declare var module: any;
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    WorkflowContextFactory,
-    createTestContext
-  };
-}
-
-(globalThis as any).WorkflowContextFactory = WorkflowContextFactory;
-(globalThis as any).createTestContext = createTestContext;
+export {
+  WorkflowContextFactory,
+  createTestContext
+};

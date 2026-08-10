@@ -379,18 +379,11 @@ class DocumentTypeConfigRegistry {
 
 const defaultDocumentTypeConfigRegistry = new DocumentTypeConfigRegistry();
 
-declare var module: any;
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    DocumentTypeConfigRegistry,
-    defaultDocumentTypeConfigRegistry,
-    resolve5TierFieldValue,
-    DEFAULT_SUBMITTAL_FIELDS,
-    DEFAULT_FFE_SUBMITTAL_FIELDS,
-    ffeStrategyValidationHook
-  };
-}
-
-(globalThis as any).resolve5TierFieldValue = resolve5TierFieldValue;
-(globalThis as any).DocumentTypeConfigRegistry = DocumentTypeConfigRegistry;
-(globalThis as any).defaultDocumentTypeConfigRegistry = defaultDocumentTypeConfigRegistry;
+export {
+  DocumentTypeConfigRegistry,
+  defaultDocumentTypeConfigRegistry,
+  resolve5TierFieldValue,
+  DEFAULT_SUBMITTAL_FIELDS,
+  DEFAULT_FFE_SUBMITTAL_FIELDS,
+  ffeStrategyValidationHook
+};

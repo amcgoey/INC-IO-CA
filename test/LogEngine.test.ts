@@ -8,10 +8,10 @@ beforeEach(() => {
     CLOSED_FOLDER_NAME: "Closed"
   };
 });
-const { DocumentFactory, InMemorySheetStorageAdapter } = require("./harness");
-const { ArchitectureSubmittalStrategy, FFESubmittalStrategy } = require("../src/DocumentLogStrategy");
-const { LogEngine } = require("../src/core/log/LogEngine");
-const { FakeLogRepository } = require("../src/adapters/fakes/FakeLogRepository");
+import { DocumentFactory, InMemorySheetStorageAdapter, GasMockHarness } from "./harness";
+import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "../src/DocumentLogStrategy";
+import { LogEngine, getBoundedData } from "../src/core/log/LogEngine";
+import { FakeLogRepository } from "../src/adapters/fakes/FakeLogRepository";
 
 test("ArchitectureSubmittalStrategy extracts keys, formats filename and payload", () => {
   const strategy = new ArchitectureSubmittalStrategy();
@@ -684,7 +684,7 @@ test("FakeLogRepository promoted adapter records appendDocument and readLog oper
 });
 
 test("LogEngine.getBoundedData tolerates up to 5 consecutive blank spacer rows in template fixture context", () => {
-  const { getBoundedData: getBoundedDataFn } = require("../src/core/log/LogEngine");
+  const getBoundedDataFn = getBoundedData;
   const templateSpec = require("./fixtures/document-log-workbook-template.json");
   const archTab = templateSpec.tabs.find((t: any) => t.name === "Submittal Arch");
 
@@ -718,7 +718,6 @@ test("LogEngine respects 2-row Headers named range taxonomy and BufferRow bounde
 });
 
 test("LogEngine integration with GasMockHarness and FakeLogRepository validates 2-row Headers and 5-blank-row bounded scanning", () => {
-  const { GasMockHarness } = require("./harness");
   GasMockHarness.install();
 
   const fakeRepo = new FakeLogRepository();
