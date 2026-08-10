@@ -18,9 +18,9 @@ test("Tier 1 PDF Unit Tests: FakePdfDocumentService mergeBlobsToPdf records call
 });
 
 test("Tier 1 PDF Unit Tests: GoogleAppsScriptPdfDocumentService mergeBlobsToPdf combines PDF and image blobs", async () => {
-  let createdPages: any[] = [];
-  let addedPages: any[] = [];
-  let embeddedImages: any[] = [];
+  const createdPages: any[] = [];
+  const addedPages: any[] = [];
+  const embeddedImages: any[] = [];
 
   const mockMergedDoc = {
     embedPng: async (u8: any) => {

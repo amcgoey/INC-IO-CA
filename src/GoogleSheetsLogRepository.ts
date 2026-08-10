@@ -105,7 +105,7 @@ class GoogleSheetsLogRepository implements LogRepository {
       }
     }
 
-    let result: LogSettings = { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null };
+    const result: LogSettings = { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null };
 
     try {
       const ss = SpreadsheetApp.openById(spreadsheetId);

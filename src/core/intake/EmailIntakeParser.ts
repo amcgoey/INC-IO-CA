@@ -314,7 +314,7 @@ class EmailIntakeParser {
 
     const projectMatch = subject.match(/\[([^\]]+)\]/);
     if (projectMatch) {
-      let rawProj = projectMatch[1].trim();
+      const rawProj = projectMatch[1].trim();
       if (rawProj.includes("-")) {
         const parts = rawProj.split("-");
         result.driveName = parts.slice(1).join("-").trim();

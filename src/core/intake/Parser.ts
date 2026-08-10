@@ -89,7 +89,7 @@ function parseDriveFilename(filename: string): ParsedData {
   if (typeof DocumentPipeline !== "undefined" && typeof DocumentPipeline.parseFilename === "function") {
     return DocumentPipeline.parseFilename(filename);
   }
-  let data: ParsedData = { discipline: "Architecture", specSection: undefined, submittalNum: undefined, revNum: undefined, title: undefined, specTag: undefined, vendor: undefined, date: undefined };
+  const data: ParsedData = { discipline: "Architecture", specSection: undefined, submittalNum: undefined, revNum: undefined, title: undefined, specTag: undefined, vendor: undefined, date: undefined };
 
   for (const pattern of LEGACY_DRIVE_FILENAME_PATTERNS) {
     const match = filename.match(pattern.regex);

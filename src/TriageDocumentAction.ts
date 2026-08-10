@@ -22,7 +22,7 @@ function resolveAiAnalysisService(): AiAnalysisService {
       }
       return require("./AiAnalysisService").defaultAiAnalysisService;
     } catch (e) {
-      throw new Error("AiAnalysisService is not available");
+      throw new Error("AiAnalysisService is not available: " + String(e));
     }
   }
   throw new Error("AiAnalysisService is not available");

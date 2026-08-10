@@ -505,7 +505,7 @@ export class LogMigrationEngine {
     let targetSpillCollisionBlocked = false;
 
     const targetTab = options?.targetTabName;
-    let targetAppendedRowCount = sourceDataRowCount;
+    const targetAppendedRowCount = sourceDataRowCount;
 
     if (targetTab) {
       const targetValues = this.storageAdapter.getSheetValues(targetTab);

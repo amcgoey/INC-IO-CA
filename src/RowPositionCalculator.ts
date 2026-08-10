@@ -170,20 +170,20 @@ export function getRowGroupKey(row: unknown[], disciplineOrGroupKeyFn: string | 
   if (headers.includes("Section") && headers.includes("Number")) {
     const secIdx = headers.indexOf("Section");
     const numIdx = headers.indexOf("Number");
-    let secVal = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
-    let num = padNum(numIdx !== -1 ? row[numIdx] : "", 3);
+    const secVal = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
+    const num = padNum(numIdx !== -1 ? row[numIdx] : "", 3);
     if (secVal) {
       const secSpec = fieldSpecs?.find(f => f.key === "section" || f.key === "specSection") || { key: "section", keyNormalizationRule: "code" as const };
-      let secCode = normalizeValueForGroupKey(secVal, secSpec);
-      let sec = padNum(secCode, 6);
+      const secCode = normalizeValueForGroupKey(secVal, secSpec);
+      const sec = padNum(secCode, 6);
       return `${sec}-${num}`.toUpperCase();
     }
     return num.toUpperCase();
   } else {
     const tagIdx = headers.indexOf("Spec Tag");
-    let tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim();
+    const tag = String(tagIdx !== -1 ? row[tagIdx] || "" : "").trim();
     const tagSpec = fieldSpecs?.find(f => f.key === "specTag" || f.key === "tag") || { key: "specTag", keyNormalizationRule: "exact" as const };
-    let normalizedTag = normalizeValueForGroupKey(tag, tagSpec);
+    const normalizedTag = normalizeValueForGroupKey(tag, tagSpec);
     return normalizedTag.toUpperCase();
   }
 }
@@ -202,8 +202,8 @@ export function getRowSortKey(row: unknown[], disciplineOrGroupKeyFn: string | R
   const revIdx = headers.indexOf("Revision");
   const dateIdx = headers.indexOf("Date");
   
-  let rev = padNum(revIdx !== -1 ? row[revIdx] : "", 3);
-  let rawDate = dateIdx !== -1 ? row[dateIdx] : "";
+  const rev = padNum(revIdx !== -1 ? row[revIdx] : "", 3);
+  const rawDate = dateIdx !== -1 ? row[dateIdx] : "";
   let dateStr = "";
 
   if (rawDate instanceof Date) {
@@ -245,13 +245,13 @@ export function computeRowInsertionPlan(
   const normalizedTargetGroupKey = getGroupKeyFn(rowData, headers);
   const targetSortKey = getSortKeyFn(rowData, headers);
 
-  let groups: Array<{ val: string; start: number; end: number; rows: Array<{ index: number; key: string }> }> = [];
+  const groups: Array<{ val: string; start: number; end: number; rows: Array<{ index: number; key: string }> }> = [];
   let currentGroup: { val: string; start: number; end: number; rows: Array<{ index: number; key: string }> } | null = null;
   let firstDataRowIdx = -1;
 
   const headerRowIdx = typeof CONFIG !== "undefined" && CONFIG.LOG_HEADER_ROW ? CONFIG.LOG_HEADER_ROW : 3;
   for (let i = headerRowIdx; i < boundedData.length; i++) {
-    let row = boundedData[i];
+    const row = boundedData[i];
     if (String(row[0] || "").toLowerCase().includes("formula row")) continue;
     if (isRowBlank(row)) {
       if (currentGroup) {
@@ -261,7 +261,7 @@ export function computeRowInsertionPlan(
       continue;
     }
 
-    let rowGroupVal = getGroupKeyFn(row, headers);
+    const rowGroupVal = getGroupKeyFn(row, headers);
     if (rowGroupVal && rowGroupVal !== "-") {
       if (firstDataRowIdx === -1) firstDataRowIdx = i;
       if (!currentGroup) {
@@ -284,7 +284,7 @@ export function computeRowInsertionPlan(
 
   if (targetGroup) {
     let insertAfterIdx = targetGroup.start - 1;
-    for (let r of targetGroup.rows) {
+    for (const r of targetGroup.rows) {
       if (targetSortKey.localeCompare(r.key) >= 0) insertAfterIdx = r.index;
     }
     return {
@@ -297,7 +297,7 @@ export function computeRowInsertionPlan(
     const firstDataRow1Based = firstDataRowIdx !== -1 ? firstDataRowIdx + 1 : -1;
     const headerRowConfig = typeof CONFIG !== "undefined" && CONFIG.LOG_HEADER_ROW ? CONFIG.LOG_HEADER_ROW : 3;
     let insertAfterRow1Based = firstDataRow1Based !== -1 ? firstDataRow1Based - 1 : headerRowConfig;
-    for (let g of groups) {
+    for (const g of groups) {
       if (normalizedTargetGroupKey.localeCompare(g.val) > 0) insertAfterRow1Based = g.end + 1;
     }
 
@@ -309,7 +309,7 @@ export function computeRowInsertionPlan(
     }
 
     let insertBlankAfter = false;
-    let dataRowBelow = insertAfterRow1Based < boundedData.length ? boundedData[insertAfterRow1Based] : null;
+    const dataRowBelow = insertAfterRow1Based < boundedData.length ? boundedData[insertAfterRow1Based] : null;
     let isRowBelowBlank = false;
     if (!dataRowBelow || isRowBlank(dataRowBelow)) {
       isRowBelowBlank = true;

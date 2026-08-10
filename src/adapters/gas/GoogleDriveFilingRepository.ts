@@ -111,12 +111,12 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
     try {
       if (typeof Drive !== "undefined" && (Drive as any).Files) {
         const fileMeta = (Drive as any).Files.get(fileId, {supportsAllDrives: true});
-        let path = [fileMeta.title];
+        const path = [fileMeta.title];
         if (fileMeta.driveId) {
           const driveMeta = (Drive as any).Drives.get(fileMeta.driveId);
           let currentParentId = (fileMeta.parents && fileMeta.parents.length > 0) ? fileMeta.parents[0].id : null;
           while (currentParentId && currentParentId !== fileMeta.driveId) {
-            let pFolder = (Drive as any).Files.get(currentParentId, {supportsAllDrives: true});
+            const pFolder = (Drive as any).Files.get(currentParentId, {supportsAllDrives: true});
             path.unshift(pFolder.title);
             currentParentId = (pFolder.parents && pFolder.parents.length > 0) ? pFolder.parents[0].id : null;
           }
@@ -126,12 +126,12 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
       }
 
       if (typeof DriveApp !== "undefined") {
-        let curFile = DriveApp.getFileById(fileId);
-        let path = [curFile.getName()];
+        const curFile = DriveApp.getFileById(fileId);
+        const path = [curFile.getName()];
         let parents = curFile.getParents();
         while (parents.hasNext()) {
-          let pFolder = parents.next();
-          let n = pFolder.getName();
+          const pFolder = parents.next();
+          const n = pFolder.getName();
           if (n !== "Drive" && n !== "My Drive") path.unshift(n);
           parents = pFolder.getParents();
         }

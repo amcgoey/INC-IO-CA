@@ -287,7 +287,7 @@ Your task is to logically deduce the project. Return JSON.
       const responseText = fetchResult.response ? fetchResult.response.getContentText() : "";
       const json = JSON.parse(responseText);
       if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts && json.candidates[0].content.parts[0] && json.candidates[0].content.parts[0].text) {
-        let text = json.candidates[0].content.parts[0].text.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const text = json.candidates[0].content.parts[0].text.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsedResponse = JSON.parse(text);
 
         let projectName = parsedResponse.predictedProjectName || "";
@@ -453,7 +453,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
       const json = JSON.parse(responseText);
       const textCandidate = json?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (textCandidate) {
-        let text = textCandidate.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const text = textCandidate.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsed: DeepAnalysisPrediction = JSON.parse(text);
         return {
           success: true,

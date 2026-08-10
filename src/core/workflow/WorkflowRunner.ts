@@ -104,7 +104,7 @@ class RenameDocumentAction implements DocumentAction<DocumentActionContext, Docu
     }
 
     const finalName = context.newFileName;
-    const driveApp = context.driveApp || (typeof DriveApp !== 'undefined' ? DriveApp : null);
+    const driveApp = context.driveApp || (typeof (globalThis as any).DriveApp !== 'undefined' ? (globalThis as any).DriveApp : null);
 
     if (context.fileId && driveApp) {
       const file = driveApp.getFileById(context.fileId);

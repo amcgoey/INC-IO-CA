@@ -106,7 +106,7 @@ export class GoogleDriveLogSearchAdapter {
    * Helper encapsulating native GAS DriveApp file metadata mapping.
    */
   private mapGasFileToMetadata(file: GoogleAppsScript.Drive.File): LogCandidateMetadata {
-    let parentFolderNames: string[] = [];
+    const parentFolderNames: string[] = [];
     try {
       const parents = file.getParents();
       while (parents.hasNext()) {

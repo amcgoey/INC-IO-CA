@@ -9,6 +9,8 @@
     "open": "clasp open",
     "deploy": "clasp deploy",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test": "npx tsx --test test/**/*.ts",
     "check-models": "npx tsx scripts/check-models.ts",
     "preview:card": "npx tsx scripts/previewCard.ts",
@@ -24,10 +26,14 @@
     "repair:hyperlinks": "npx tsx scripts/repair-hyperlinks.ts"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@google/clasp": "^2.4.2",
     "@types/google-apps-script": "^2.0.11",
     "@types/node": "^22.10.0",
+    "eslint": "^10.8.1",
+    "globals": "^17.9.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.66.0"
   }
 }

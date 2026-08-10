@@ -49,3 +49,11 @@ When reviewing code or adding new files, watch for these specific violations:
 - ❌ **Node API Leakage**: A file under `src/` importing `node:path`, `fs`, or `crypto`.
 - ❌ **Inverted Tier Dependency**: A Tier 1 or Tier 2 file importing a script or test harness file from `scripts/` or `test/`.
 - ❌ **Monolithic Handler**: Mixing card UI generation (`CardService`) with core submittal parsing or business rules in a single file.
+
+---
+
+## 4. Automated Code Quality & Linting
+
+1. **ESLint Compliance**: All code must pass `npm run lint` with exit code 0 before committing or merging.
+2. **Automated Rule Enforcement**: ESLint (`eslint.config.mjs`) enforces Tier 1 GAS global restrictions (`no-restricted-globals`) and Node.js import rules (`no-restricted-imports`) alongside TypeScript checks.
+

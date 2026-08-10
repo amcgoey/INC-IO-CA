@@ -131,9 +131,9 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
     const form = pdfDoc.getForm();
 
     const fill = (names: string[], val: string) => {
-      for (let n of names) {
+      for (const n of names) {
         try {
-          let f = form.getTextField(n);
+          const f = form.getTextField(n);
           if (f) { f.setText(val); return; }
         } catch (e) {}
       }
@@ -146,12 +146,12 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
 
     if (act) {
       try {
-        let rg = form.getRadioGroup('Submittal Response'), opts = rg.getOptions();
+        const rg = form.getRadioGroup('Submittal Response'), opts = rg.getOptions();
         if (opts.includes(act)) rg.select(act);
         else if (opts.includes(act.toUpperCase())) rg.select(act.toUpperCase());
         else if (cbMap[act] && opts.includes(cbMap[act])) rg.select(cbMap[act]);
       } catch (e) {
-        let box = cbMap[act] || (act ? cbMap[act.toUpperCase()] : null);
+        const box = cbMap[act] || (act ? cbMap[act.toUpperCase()] : null);
         if (box) {
           try { form.getCheckBox(box).check(); } catch (err) {}
         }

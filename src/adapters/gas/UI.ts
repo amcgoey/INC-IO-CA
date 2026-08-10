@@ -236,14 +236,14 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
   const driveFileId = p.driveFileId || formInput.driveFileId || (flashMessage && flashMessage.newDriveFileId) || "";
 
   const getActionParams = (): Record<string, string> => {
-    let res: Record<string, string> = {};
+    const res: Record<string, string> = {};
     if (messageId) res.messageId = messageId;
     if (driveFileId) res.driveFileId = driveFileId;
     return res;
   };
 
   let fallbackDate = formatGasDate(new Date());
-  let extractedUrls: Array<{ url: string; text: string }> = [];
+  const extractedUrls: Array<{ url: string; text: string }> = [];
   let pdfAttachments: GoogleAppsScript.Gmail.GmailAttachment[] = [];
   
   try {
@@ -259,7 +259,7 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
       const urlMap = new Map<string, string>();
 
       while ((match = linkRegex.exec(htmlBody)) !== null) {
-        let url = match[1];
+        const url = match[1];
         let label = match[2].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
         
         if (!url.includes('schemas.') && !url.includes('w3.org') && !url.includes('google.com')) {
@@ -276,7 +276,7 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
       });
 
       urlMap.forEach((label, url) => {
-        let cleanLabel = label.length > 40 ? label.substring(0, 37) + "..." : label;
+        const cleanLabel = label.length > 40 ? label.substring(0, 37) + "..." : label;
         extractedUrls.push({ url: url, text: `🔗 ${cleanLabel}` });
       });
     }
@@ -365,7 +365,7 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
 
   const section1 = CardService.newCardSection().setHeader("1. Project Location");
   
-  let drives = (typeof defaultDriveNameProvider !== "undefined" && defaultDriveNameProvider.getSharedDrives)
+  const drives = (typeof defaultDriveNameProvider !== "undefined" && defaultDriveNameProvider.getSharedDrives)
     ? defaultDriveNameProvider.getSharedDrives()
     : [];
   drives.sort((a,b) => a.name.localeCompare(b.name));
@@ -381,7 +381,7 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
     }
   }
 
-  let matchedDrive = drives.find(d => d.name === state.driveName);
+  const matchedDrive = drives.find(d => d.name === state.driveName);
   if (matchedDrive) state.driveId = matchedDrive.id;
 
   const driveInput = CardService.newTextInput().setFieldName("driveName").setTitle("Project Shared Drive").setValue(state.driveName).setOnChangeAction(CardService.newAction().setFunctionName("onStateChange").setParameters(getActionParams()));
@@ -769,7 +769,7 @@ function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servi
     const primary = configs.sendAs.find((c: any) => c.isPrimary);
     if (primary && primary.signature) signature = "\n\n" + primary.signature;
   } catch (err) {}
-  let templateData = (p.action === "Referred") ? EMAIL_TEMPLATES.toRefer(p) : (p.action === "Rejected" ? EMAIL_TEMPLATES.rejectedOutgoing(p) : EMAIL_TEMPLATES.standardOutgoing(p));
+  const templateData = (p.action === "Referred") ? EMAIL_TEMPLATES.toRefer(p) : (p.action === "Rejected" ? EMAIL_TEMPLATES.rejectedOutgoing(p) : EMAIL_TEMPLATES.standardOutgoing(p));
   const draft = GmailApp.createDraft("", templateData.subject, "", { htmlBody: templateData.body + signature });
   const draftUrl = 'https://mail.google.com/mail/u/0/#drafts?compose=' + draft.getMessage().getId();
   
