@@ -1,13 +1,13 @@
 /**
  * @file SheetValidationAndProtectionAdapter.ts
- * @description Tier 2 GAS Infrastructure Adapter encapsulating Google Sheets DataValidation and Range Protection APIs.
- * Implements declarative cell formatting (applyNumberFormats) across data columns during workbook provisioning and auto-patching.
+ * @description Tier 2 GAS Infrastructure Adapter encapsulating Google Sheets DataValidation, Protection, and Cell Formatting APIs.
+ * Implements declarative cell formatting (applyNumberFormats) across data columns during workbook provisioning and patching.
  */
 
 import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC } from "../../core/config/DocumentLogWorkbookSpec";
 import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../core/config/DocumentLogWorkbookViewSpec";
 
-export class SheetValidationAndProtectionAdapter {
+class SheetValidationAndProtectionAdapter {
   /**
    * Applies declarative numberFormat strings to data columns across log tabs.
    */
@@ -24,7 +24,7 @@ export class SheetValidationAndProtectionAdapter {
         continue;
       }
 
-      const sheet = spreadsheet.getSheetByName(tab.name);
+      const sheet = typeof spreadsheet.getSheetByName === "function" ? spreadsheet.getSheetByName(tab.name) : null;
       if (!sheet) continue;
 
       const maxRows = typeof sheet.getMaxRows === "function" ? sheet.getMaxRows() : (tab.rowCount || 25);
@@ -33,7 +33,7 @@ export class SheetValidationAndProtectionAdapter {
       tab.columns.forEach((colSpec, idx) => {
         if (colSpec.numberFormat) {
           const colIdx = idx + 1;
-          const range = sheet.getRange(firstDataRow, colIdx, numRows, 1);
+          const range = typeof sheet.getRange === "function" ? sheet.getRange(firstDataRow, colIdx, numRows, 1) : null;
           if (range && typeof range.setNumberFormat === "function") {
             range.setNumberFormat(colSpec.numberFormat);
           }
@@ -44,6 +44,11 @@ export class SheetValidationAndProtectionAdapter {
 }
 
 const defaultSheetValidationAndProtectionAdapter = new SheetValidationAndProtectionAdapter();
+
+export {
+  SheetValidationAndProtectionAdapter,
+  defaultSheetValidationAndProtectionAdapter
+};
 
 declare var module: any;
 

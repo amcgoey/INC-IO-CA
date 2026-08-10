@@ -743,6 +743,7 @@ interface MinimalFieldSpec {
 
 interface DocumentFieldSpec {
   key: string;
+  numberFormat?: string;
   label: string;
   type: 'string' | 'multiline' | 'date' | 'list' | 'enum';
   required?: boolean;

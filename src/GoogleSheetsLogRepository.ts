@@ -236,6 +236,13 @@ class GoogleSheetsLogRepository implements LogRepository {
       headers = sheet.getRange(CONFIG.LOG_HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0].map((h: any) => String(h).trim());
     }
 
+    try {
+      const adapter = (globalThis as any).defaultSheetValidationAndProtectionAdapter;
+      if (adapter && typeof adapter.applyNumberFormats === "function") {
+        adapter.applyNumberFormats(ss);
+      }
+    } catch (_err) {}
+
     return headers;
   }
 
