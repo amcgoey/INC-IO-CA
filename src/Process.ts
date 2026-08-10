@@ -1,3 +1,12 @@
+declare const TransientOverrideLogger: any;
+if (typeof require !== "undefined") {
+  try {
+      const overrideLoggerModule = eval('require("./core/logging/TransientOverrideLogger")');
+      if (overrideLoggerModule && overrideLoggerModule.TransientOverrideLogger && typeof (globalThis as any).TransientOverrideLogger === "undefined") {
+        (globalThis as any).TransientOverrideLogger = overrideLoggerModule.TransientOverrideLogger;
+      }
+  } catch (e) {}
+}
 /**
  * @file Process.ts
  * @description Application event handlers for processing submittal form submissions and file movement actions.
@@ -100,7 +109,15 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
       bypassVendorValidation: p.bypassVendorValidation === "true"
     };
 
-    const validationResult = DocumentPipeline.processFormIntake(form, validationContext);
+    const initialAi = (e as any).aiResult || (p && p.aiResult ? JSON.parse(p.aiResult) : null) || null;
+if (initialAi) {
+    const LoggerClass = typeof (globalThis as any).TransientOverrideLogger !== "undefined" ? (globalThis as any).TransientOverrideLogger : (typeof TransientOverrideLogger !== "undefined" ? TransientOverrideLogger : null);
+    if (LoggerClass) {
+      new LoggerClass().logOverrides(initialAi, form);
+    }
+}
+
+const validationResult = DocumentPipeline.processFormIntake(form, validationContext);
 
     if (validationResult.status === "error") {
       return defaultCardPresenter.presentValidationError(

@@ -103,7 +103,6 @@
               "type": "DatePicker",
               "fieldName": "date",
               "title": "Date",
-              "valueInMsSinceEpoch": 1786334400000,
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
@@ -158,7 +157,7 @@
               "type": "TextInput",
               "fieldName": "title",
               "title": "Title",
-              "value": "Cast-in-Place Concrete",
+              "value": "",
               "multiline": false,
               "onChangeAction": {
                 "functionName": "onStateChange",
@@ -172,7 +171,7 @@
               "type": "TextInput",
               "fieldName": "section",
               "title": "Section",
-              "value": "033000",
+              "value": "",
               "hint": "CSI Section # (6 digits)",
               "multiline": false,
               "onChangeAction": {
@@ -187,7 +186,7 @@
               "type": "TextInput",
               "fieldName": "number",
               "title": "Number",
-              "value": "001",
+              "value": "",
               "hint": "Submittal #",
               "multiline": false,
               "onChangeAction": {
