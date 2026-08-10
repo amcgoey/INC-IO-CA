@@ -51,7 +51,7 @@ test('DocumentPipeline.validate - returns error with missing required fields dri
 
   assert.equal(result.status, 'error');
   if (result.status === 'error') {
-    assert.match(result.errors[0], /Missing required fields: Date, Contact, Incoming Routing, Title/);
+    assert.match(result.errors[0], /Missing required fields: Title, Date, Contact, Incoming Routing/);
   }
 });
 

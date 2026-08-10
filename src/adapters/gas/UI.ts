@@ -96,6 +96,138 @@ function renderDynamicFormFields(
 
     displayTitle = getWidgetTitle(field.key, displayTitle, fieldConfidence);
 
+    // Special Field Handling for Contact
+    if (field.key === 'contact') {
+      const conDrop = CardService.newSelectionInput()
+        .setType(CardService.SelectionInputType.DROPDOWN)
+        .setTitle(displayTitle)
+        .setFieldName("contact");
+
+      const logSettings = hydrationContext.logSettings || {};
+      const contactsList = (logSettings.contacts && logSettings.contacts.length > 0)
+        ? logSettings.contacts
+        : [
+            { abbr: "ARCH", name: "Architect" },
+            { abbr: "GC", name: "General Contractor" },
+            { abbr: "CLIENT", name: "Client" },
+            { abbr: "MEP", name: "MEP Engineer" },
+            { abbr: "STR", name: "Structural Engineer" }
+          ];
+
+      let selectedFound = false;
+      contactsList.forEach((c: any) => {
+        const isSelected = String(hydratedValue) === String(c.abbr);
+        if (isSelected) selectedFound = true;
+        conDrop.addItem(`${c.abbr} - ${c.name}`, c.abbr, isSelected);
+      });
+
+      if (hydratedValue && !selectedFound) {
+        conDrop.addItem(String(hydratedValue), String(hydratedValue), true);
+      }
+
+      if (onStateActionName) {
+        conDrop.setOnChangeAction(
+          CardService.newAction().setFunctionName(onStateActionName).setParameters(actionParams)
+        );
+      }
+      section.addWidget(conDrop);
+      return;
+    }
+
+    // Special Field Handling for Action
+    if (field.key === 'action') {
+      const actDrop = CardService.newSelectionInput()
+        .setType(CardService.SelectionInputType.DROPDOWN)
+        .setTitle(displayTitle)
+        .setFieldName("action");
+
+      const logSettings = hydrationContext.logSettings || {};
+      const actionsList = (logSettings.actions && logSettings.actions.length > 0)
+        ? logSettings.actions
+        : [
+            { action: "Received", abbr: "REC", status: "Incoming" },
+            { action: "Reviewed", abbr: "REV", status: "Outgoing" },
+            { action: "Referred", abbr: "REF", status: "Outgoing" },
+            { action: "Rejected", abbr: "REJ", status: "Outgoing" }
+          ];
+
+      actDrop.addItem("", "", !hydratedValue);
+
+      let selectedFound = false;
+      actionsList.forEach((a: any) => {
+        const isSelected = String(hydratedValue) === String(a.action);
+        if (isSelected) selectedFound = true;
+        actDrop.addItem(a.action, a.action, isSelected);
+      });
+
+      if (hydratedValue && !selectedFound) {
+        actDrop.addItem(String(hydratedValue), String(hydratedValue), true);
+      }
+
+      if (onStateActionName) {
+        actDrop.setOnChangeAction(
+          CardService.newAction().setFunctionName(onStateActionName).setParameters(actionParams)
+        );
+      }
+      section.addWidget(actDrop);
+      return;
+    }
+
+    // Special Field Handling for Incoming Routing
+    if (field.key === 'incomingRouting') {
+      const currentAction = hydrationContext.formInput?.action || hydrationContext.state?.action || hydrationContext.userCacheDraft?.action || hydrationContext.parserResult?.action || hydrationContext.aiMetadata?.action || "";
+      const logSettings = hydrationContext.logSettings || {};
+      const actionsList = (logSettings.actions && logSettings.actions.length > 0)
+        ? logSettings.actions
+        : [
+            { action: "Received", abbr: "REC", status: "Incoming" }
+          ];
+
+      const isIncomingAction = currentAction === "Received" ||
+        actionsList.some((a: any) => (a.action === currentAction || a.abbr === currentAction) && a.action === "Received");
+
+      if (!isIncomingAction) {
+        return; // Omit Incoming Routing when Action is not Received/Incoming
+      }
+
+      const routingDrop = CardService.newSelectionInput()
+        .setType(CardService.SelectionInputType.DROPDOWN)
+        .setTitle(displayTitle)
+        .setFieldName("incomingRouting");
+
+      routingDrop.addItem("To Review", "To Review", String(hydratedValue) === "To Review");
+      routingDrop.addItem("To Refer", "To Refer", String(hydratedValue) === "To Refer");
+
+      if (onStateActionName) {
+        routingDrop.setOnChangeAction(
+          CardService.newAction().setFunctionName(onStateActionName).setParameters(actionParams)
+        );
+      }
+      section.addWidget(routingDrop);
+      return;
+    }
+
+    // Special Field Handling for Date
+    if (field.key === 'date') {
+      const dateVal = String(hydratedValue || formatGasDate(new Date()));
+      const dateWidget = CardService.newTextInput()
+        .setFieldName("date")
+        .setTitle(displayTitle || "Date")
+        .setValue(dateVal);
+
+      if (typeof (dateWidget as any).setHint === "function") {
+        (dateWidget as any).setHint(hintText || "Date (YYMMDD)");
+      }
+
+      if (onStateActionName) {
+        dateWidget.setOnChangeAction(
+          CardService.newAction().setFunctionName(onStateActionName).setParameters(actionParams)
+        );
+      }
+      section.addWidget(dateWidget);
+      return;
+    }
+
     // Widget Generation based on Field Type
     if (field.type === 'list' || field.type === 'enum') {
       const dropdownWidget = CardService.newSelectionInput()
@@ -606,14 +738,35 @@ function buildIntakeCard(
   // 2. Cascading Selectors (Project & DocumentType)
   const cascadeSec = CardService.newCardSection().setHeader("1. Project & Document Type");
 
+  const driveProvider = (globalThis as any).defaultDriveNameProvider || defaultDriveNameProvider;
+  let drives: Array<{ id: string; name: string }> = [];
+  if (driveProvider && typeof driveProvider.getSharedDrives === "function") {
+    try {
+      drives = driveProvider.getSharedDrives() || [];
+    } catch (err) {}
+  }
+  drives.sort((a, b) => a.name.localeCompare(b.name));
+
   const projDrop = CardService.newSelectionInput()
     .setType(CardService.SelectionInputType.DROPDOWN)
     .setTitle("Target Project")
     .setFieldName("project")
     .setOnChangeAction(CardService.newAction().setFunctionName("onStateChange").setParameters(getActionParams()));
   projDrop.addItem("-- Select Project --", "", state.project === "");
-  projDrop.addItem("PROJ ? Main St Tower", "PROJ", state.project === "PROJ");
-  projDrop.addItem("RES ? Ocean Beach House", "RES", state.project === "RES");
+
+  let projectSelectedInList = false;
+  if (drives.length > 0) {
+    drives.forEach(d => {
+      const isSelected = state.project === d.name || state.project === d.id;
+      if (isSelected) projectSelectedInList = true;
+      projDrop.addItem(d.name, d.name, isSelected);
+    });
+  }
+
+  if (state.project && !projectSelectedInList) {
+    projDrop.addItem(state.project, state.project, true);
+  }
+
   cascadeSec.addWidget(projDrop);
 
   const docTypeDrop = CardService.newSelectionInput()
@@ -652,12 +805,20 @@ function buildIntakeCard(
   const parserResult = (flashMessage && flashMessage.parserResult) ||
                    (initialData && (initialData as any).parserResult) || {};
 
+  const logRepo = (globalThis as any).defaultLogRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
+  const discipline = state.documentType === "SUBMITTAL_FFE" ? "FF&E" : "Architecture";
+  const logSettings = (logRepo && p.logFileId && typeof logRepo.getLogSettings === "function")
+    ? logRepo.getLogSettings(p.logFileId, discipline)
+    : { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null };
+
   const hydrationContext: HydrationContext = {
     formInput: (e && e.formInput) ? { ...e.formInput } : {},
     userCacheDraft: userCacheDraft,
     parserResult: parserResult,
     aiMetadata: aiResult ? (aiResult.fields ? Object.fromEntries(Object.entries(aiResult.fields).map(([k, v]) => [k, v.value])) : {}) : {},
-    docTypeKey: docTypeKey
+    docTypeKey: docTypeKey,
+    logSettings: logSettings,
+    state: state
   };
 
   const validationContext: ValidationUIContext = {

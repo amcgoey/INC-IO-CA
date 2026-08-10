@@ -31,14 +31,9 @@
                   "selected": false
                 },
                 {
-                  "text": "PROJ ? Main St Tower",
+                  "text": "PROJ",
                   "value": "PROJ",
                   "selected": true
-                },
-                {
-                  "text": "RES ? Ocean Beach House",
-                  "value": "RES",
-                  "selected": false
                 }
               ],
               "onChangeAction": {
@@ -109,74 +104,6 @@
               ]
             },
             {
-              "type": "DatePicker",
-              "fieldName": "date",
-              "title": "❌ Date",
-              "onChangeAction": {
-                "functionName": "onStateChange",
-                "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
-                }
-              }
-            },
-            {
-              "type": "TextInput",
-              "fieldName": "contact",
-              "title": "Contact",
-              "value": "",
-              "multiline": false,
-              "onChangeAction": {
-                "functionName": "onStateChange",
-                "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
-                }
-              }
-            },
-            {
-              "type": "TextInput",
-              "fieldName": "action",
-              "title": "Action",
-              "value": "",
-              "multiline": false,
-              "onChangeAction": {
-                "functionName": "onStateChange",
-                "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
-                }
-              }
-            },
-            {
-              "type": "TextInput",
-              "fieldName": "incomingRouting",
-              "title": "Incoming Routing",
-              "value": "",
-              "multiline": false,
-              "onChangeAction": {
-                "functionName": "onStateChange",
-                "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
-                }
-              }
-            },
-            {
-              "type": "TextInput",
-              "fieldName": "title",
-              "title": "❌ Title",
-              "value": "",
-              "multiline": false,
-              "onChangeAction": {
-                "functionName": "onStateChange",
-                "parameters": {
-                  "project": "PROJ",
-                  "documentType": "SUBMITTAL_ARCH"
-                }
-              }
-            },
-            {
               "type": "TextInput",
               "fieldName": "section",
               "title": "Section",
@@ -208,11 +135,120 @@
             },
             {
               "type": "TextInput",
+              "fieldName": "title",
+              "title": "❌ Title",
+              "value": "",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "TextInput",
               "fieldName": "revision",
               "title": "Revision",
               "value": "0",
               "hint": "Revision #",
               "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "TextInput",
+              "fieldName": "date",
+              "title": "❌ Date",
+              "value": "260810",
+              "hint": "Date (YYMMDD)",
+              "multiline": false,
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "contact",
+              "title": "Contact",
+              "items": [
+                {
+                  "text": "ARCH - Architect",
+                  "value": "ARCH",
+                  "selected": false
+                },
+                {
+                  "text": "GC - General Contractor",
+                  "value": "GC",
+                  "selected": false
+                },
+                {
+                  "text": "CLIENT - Client",
+                  "value": "CLIENT",
+                  "selected": false
+                },
+                {
+                  "text": "MEP - MEP Engineer",
+                  "value": "MEP",
+                  "selected": false
+                },
+                {
+                  "text": "STR - Structural Engineer",
+                  "value": "STR",
+                  "selected": false
+                }
+              ],
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "PROJ",
+                  "documentType": "SUBMITTAL_ARCH"
+                }
+              }
+            },
+            {
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "action",
+              "title": "Action",
+              "items": [
+                {
+                  "text": "",
+                  "value": "",
+                  "selected": true
+                },
+                {
+                  "text": "Received",
+                  "value": "Received",
+                  "selected": false
+                },
+                {
+                  "text": "Reviewed",
+                  "value": "Reviewed",
+                  "selected": false
+                },
+                {
+                  "text": "Referred",
+                  "value": "Referred",
+                  "selected": false
+                },
+                {
+                  "text": "Rejected",
+                  "value": "Rejected",
+                  "selected": false
+                }
+              ],
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {

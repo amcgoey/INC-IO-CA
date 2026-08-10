@@ -58,7 +58,7 @@ test('validateDocument - Architecture failure missing required fields', () => {
   assert.equal(result.status, 'error');
   if (result.status === 'error') {
     assert.equal(result.errors.length, 1);
-    assert.match(result.errors[0], /Missing required fields: Date, Contact, Incoming Routing, Title/);
+    assert.match(result.errors[0], /Missing required fields: Title, Date, Contact, Incoming Routing/);
   }
 });
 
@@ -238,8 +238,8 @@ test('DocumentPipeline.processFormIntake - returns status error and missingField
 
   assert.equal(result.status, 'error');
   if (result.status === 'error') {
-    assert.deepEqual(result.missingFields, ['Date', 'Contact', 'Action', 'Title']);
-    assert.match(result.errors[0], /Missing required fields: Date, Contact, Action, Title/);
+    assert.deepEqual(result.missingFields, ['Title', 'Date', 'Contact', 'Action']);
+    assert.match(result.errors[0], /Missing required fields: Title, Date, Contact, Action/);
   }
 });
 

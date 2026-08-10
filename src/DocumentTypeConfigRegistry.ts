@@ -6,28 +6,28 @@
  */
 
 const DEFAULT_SUBMITTAL_FIELDS: DocumentFieldSpec[] = [
-  { key: 'date', label: 'Date', type: 'date', required: true, header: 'Date' },
-  { key: 'contact', label: 'Contact', type: 'string', required: true, header: 'Contact' },
-  { key: 'action', label: 'Action', type: 'string', required: true, header: 'Action' },
-  { key: 'incomingRouting', label: 'Incoming Routing', type: 'string', required: false, header: 'Incoming Routing' },
-  { key: 'title', label: 'Title', type: 'string', required: true, header: 'Title' },
   { key: 'section', label: 'Section', type: 'string', required: false, description: 'CSI Section # (6 digits)', header: 'Section', keyNormalizationRule: 'code' },
   { key: 'number', label: 'Number', type: 'string', required: false, description: 'Submittal #', header: 'Number' },
+  { key: 'title', label: 'Title', type: 'string', required: true, header: 'Title' },
   { key: 'revision', label: 'Revision', type: 'string', required: false, description: 'Revision #', defaultValue: '0', header: 'Revision' },
+  { key: 'date', label: 'Date', type: 'date', required: true, description: 'Date (YYMMDD)', header: 'Date' },
+  { key: 'contact', label: 'Contact', type: 'enum', required: true, header: 'Contact' },
+  { key: 'action', label: 'Action', type: 'enum', required: true, header: 'Action' },
+  { key: 'incomingRouting', label: 'Incoming Routing', type: 'enum', required: false, header: 'Incoming Routing' },
   { key: 'notes', label: 'Notes', type: 'multiline', required: false, description: 'Notes', header: 'Notes' },
   { key: 'calcFileName', label: 'Calc File Name', type: 'string', isCalculated: true, header: 'Calc File Name', formulaOrFunction: '=CONCAT()' }
 ];
 
 const DEFAULT_FFE_SUBMITTAL_FIELDS: DocumentFieldSpec[] = [
-  { key: 'date', label: 'Date', type: 'date', required: true, header: 'Date' },
-  { key: 'contact', label: 'Contact', type: 'string', required: true, header: 'Contact' },
-  { key: 'action', label: 'Action', type: 'string', required: true, header: 'Action' },
-  { key: 'incomingRouting', label: 'Incoming Routing', type: 'string', required: false, header: 'Incoming Routing' },
   { key: 'specTag', label: 'Spec Tag', type: 'string', required: true, header: 'Spec Tag' },
+  { key: 'relatedTag', label: 'Related Tag', type: 'string', required: false, header: 'Related Tag' },
   { key: 'specTitle', label: 'Spec Title', type: 'string', required: true, header: 'Spec Title' },
   { key: 'vendor', label: 'Vendor', type: 'string', required: true, header: 'Vendor' },
   { key: 'revision', label: 'Revision', type: 'string', required: false, header: 'Revision' },
-  { key: 'relatedTag', label: 'Related Tag', type: 'string', required: false, header: 'Related Tag' },
+  { key: 'date', label: 'Date', type: 'date', required: true, description: 'Date (YYMMDD)', header: 'Date' },
+  { key: 'contact', label: 'Contact', type: 'enum', required: true, header: 'Contact' },
+  { key: 'action', label: 'Action', type: 'enum', required: true, header: 'Action' },
+  { key: 'incomingRouting', label: 'Incoming Routing', type: 'enum', required: false, header: 'Incoming Routing' },
   { key: 'notes', label: 'Notes', type: 'multiline', required: false, header: 'Notes' }
 ];
 
@@ -129,12 +129,13 @@ const DEFAULT_SUBMITTAL_FFE_CONFIG: DocumentTypeConfig = {
 };
 
 const DEFAULT_RFI_FIELDS: DocumentFieldSpec[] = [
-  { key: 'date', label: 'Date', type: 'date', required: true, header: 'Date' },
-  { key: 'contact', label: 'Contact', type: 'string', required: true, header: 'Contact' },
-  { key: 'action', label: 'Action', type: 'string', required: true, header: 'Action' },
-  { key: 'incomingRouting', label: 'Incoming Routing', type: 'string', required: false, header: 'Incoming Routing' },
   { key: 'rfiNumber', label: 'RFI Number', type: 'string', required: true, description: 'RFI Number', header: 'RFI Number' },
   { key: 'title', label: 'Title', type: 'string', required: true, description: 'RFI Subject / Title', header: 'Title' },
+  { key: 'revision', label: 'Revision', type: 'string', required: false, description: 'Revision #', defaultValue: '0', header: 'Revision' },
+  { key: 'date', label: 'Date', type: 'date', required: true, description: 'Date (YYMMDD)', header: 'Date' },
+  { key: 'contact', label: 'Contact', type: 'enum', required: true, header: 'Contact' },
+  { key: 'action', label: 'Action', type: 'enum', required: true, header: 'Action' },
+  { key: 'incomingRouting', label: 'Incoming Routing', type: 'enum', required: false, header: 'Incoming Routing' },
   { key: 'notes', label: 'Notes', type: 'multiline', required: false, description: 'Notes', header: 'Notes' },
   { key: 'calcFileName', label: 'Calc File Name', type: 'string', isCalculated: true, header: 'Calc File Name', formulaOrFunction: '=CONCAT()' }
 ];
@@ -153,12 +154,13 @@ const DEFAULT_RFI_CONFIG: DocumentTypeConfig = {
 };
 
 const DEFAULT_ASI_FIELDS: DocumentFieldSpec[] = [
-  { key: 'date', label: 'Date', type: 'date', required: true, header: 'Date' },
-  { key: 'contact', label: 'Contact', type: 'string', required: true, header: 'Contact' },
-  { key: 'action', label: 'Action', type: 'string', required: true, header: 'Action' },
-  { key: 'incomingRouting', label: 'Incoming Routing', type: 'string', required: false, header: 'Incoming Routing' },
   { key: 'asiNumber', label: 'ASI Number', type: 'string', required: true, description: 'ASI Number', header: 'ASI Number' },
   { key: 'title', label: 'Title', type: 'string', required: true, description: 'ASI Title', header: 'Title' },
+  { key: 'revision', label: 'Revision', type: 'string', required: false, description: 'Revision #', defaultValue: '0', header: 'Revision' },
+  { key: 'date', label: 'Date', type: 'date', required: true, description: 'Date (YYMMDD)', header: 'Date' },
+  { key: 'contact', label: 'Contact', type: 'enum', required: true, header: 'Contact' },
+  { key: 'action', label: 'Action', type: 'enum', required: true, header: 'Action' },
+  { key: 'incomingRouting', label: 'Incoming Routing', type: 'enum', required: false, header: 'Incoming Routing' },
   { key: 'notes', label: 'Notes', type: 'multiline', required: false, description: 'Notes', header: 'Notes' },
   { key: 'calcFileName', label: 'Calc File Name', type: 'string', isCalculated: true, header: 'Calc File Name', formulaOrFunction: '=CONCAT()' }
 ];
