@@ -315,8 +315,20 @@ The contextual Google Workspace add-on card rendered upon email or file selectio
 _Avoid_: SubmittalFormCard, IntakeFormView
 
 **TemplateDriftAuditor**:
-The inspection tool and service that audits live Google Sheet workbooks across 6 structural dimensions against `DocumentLogWorkbookSpec` to detect version, tab, named range, header, formula, or validation discrepancies prior to template deployment or runtime config loading. Always performs direct, uncached live reads (`bypassCache: true`) of target workbooks to guarantee structural ground truth without stale `ScriptCache` / `UserCache` masking. Formula Integrity Audit (Dimension 5) is strictly scoped to `FormulaRow` (Row 2) to respect `1:2` range bounding; data row formula coercion is handled exclusively during migration by `LogMigrationEngine`.
+The inspection tool and service that audits live Google Sheet workbooks across 8 structural dimensions against `DocumentLogWorkbookSpec` to detect version, tab, named range, header, formula, validation, or protection discrepancies prior to template deployment or runtime config loading. Always performs direct, uncached live reads (`bypassCache: true`) of target workbooks to guarantee structural ground truth without stale `ScriptCache` / `UserCache` masking. Formula Integrity Audit (Dimension 5) is strictly scoped to `FormulaRow` (Row 2) to respect `1:2` range bounding; data row formula coercion is handled exclusively during migration by `LogMigrationEngine`.
 _Avoid_: SheetInspector, SchemaChecker
+
+**ValidationRuleSpec**:
+The declarative cell validation specification attached to a log column defining validation type (`LIST_FROM_RANGE`, `REGEX_MATCH`, `DATE_FORMAT`, `NUMBER_RANGE`, `CUSTOM_FORMULA`), dedicated single-column target Named Range (`targetNamedRange`), regex pattern string, numeric boundaries, `allowInvalid` flag, and custom error tooltip text.
+
+**ProtectionTierSpec**:
+The 3-tier workbook protection taxonomy establishing soft warning-based range protections (`warningOnly: true`) across:
+1. *System Tab Protection*: Applied to `_Config` and `_AuditLog` tabs.
+2. *Header Stack & Formula Protection*: Applied to Rows 1–3 of all log tabs (`LOCK_HEADERS_<TabName>`), protecting headers and Row 2 `MAP/LAMBDA` formula definitions.
+3. *Calculated Column Protection*: Applied to calculated column ranges across data rows, preventing manual hardcoded overwrites while preserving dynamic formula spill.
+
+**SheetValidationAndProtectionAdapter**:
+The Tier 2 Apps Script adapter encapsulating native Google Sheets `Protection` and `DataValidation` APIs to programmatically compile validation rules and apply range protection warning banners across log sheets.
 
 **Single-Pass Structural Audit**:
 The batch inspection pattern where `TemplateDriftAuditor` delegates uncached spreadsheet reads across all 15+ tabs to `Sheets.Spreadsheets.get` (Advanced Sheets Service v4), fetching named ranges, headers, formulas, and validations in 1-2 HTTP roundtrips to collapse execution times from >30s down to <1-3s.
