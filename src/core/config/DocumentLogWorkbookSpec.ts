@@ -9,12 +9,26 @@ const DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION = "1.0.0";
 const TEST_TEMPLATE_SPREADSHEET_TITLE = "INC Document Log - Test Template";
 const PROD_TEMPLATE_SPREADSHEET_TITLE = "INC Document Log - Template";
 
+export type ValidationType = "LIST_FROM_RANGE" | "REGEX_MATCH" | "DATE_FORMAT" | "NUMBER_RANGE" | "CUSTOM_FORMULA";
+
+export interface ValidationRuleSpec {
+  type: ValidationType;
+  targetNamedRange?: string;
+  pattern?: string;
+  minValue?: number;
+  maxValue?: number;
+  allowInvalid: boolean;
+  helpText?: string;
+}
+
 export interface ColumnSpec {
   id: string;
   header: string;
   width?: number;
   formula?: string;
+  /** @deprecated Use validationRule instead */
   validationRange?: string;
+  validationRule?: ValidationRuleSpec;
   numberFormat?: string;
 }
 
@@ -54,14 +68,14 @@ const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       columnCount: 26,
       isLogTab: true,
       columns: [
-        { id: "status", header: "Status", validationRange: "Statuses_Submittal" },
+        { id: "status", header: "Status", validationRule: { type: "LIST_FROM_RANGE", targetNamedRange: "Statuses_Submittal_Labels", allowInvalid: false } },
         { id: "section", header: "Section", numberFormat: "000000" },
         { id: "number", header: "Number", numberFormat: "000" },
         { id: "revision", header: "Revision", numberFormat: "0" },
         { id: "title", header: "Title" },
         { id: "date", header: "Date", numberFormat: "yyMMdd" },
-        { id: "contact", header: "Contact", validationRange: "Shared_Contacts_Arch" },
-        { id: "action", header: "Action", validationRange: "Actions_Submittal" },
+        { id: "contact", header: "Contact", validationRule: { type: "LIST_FROM_RANGE", targetNamedRange: "Shared_Contacts_Arch_Keys", allowInvalid: false } },
+        { id: "action", header: "Action", validationRule: { type: "LIST_FROM_RANGE", targetNamedRange: "Actions_Submittal_Labels", allowInvalid: false } },
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
         { id: "calcFileName", header: "Calc File Name", formula: '=MAP(B4:B, C4:C, E4:E, D4:D, LAMBDA(sec, num, title, rev, IF(ISBLANK(sec), "", TEXT(sec, "000000") & "-" & TEXT(num, "000") & "-" & title & "-" & rev)))' },
@@ -98,15 +112,15 @@ const DOCUMENT_LOG_WORKBOOK_SPEC: DocumentLogWorkbookSpec = {
       columnCount: 26,
       isLogTab: true,
       columns: [
-        { id: "status", header: "Status", validationRange: "Statuses_Submittal" },
-        { id: "specTag", header: "Spec Tag", validationRange: "SpecTags" },
-        { id: "relatedTag", header: "Related Tag", validationRange: "SpecTags" },
+        { id: "status", header: "Status", validationRule: { type: "LIST_FROM_RANGE", targetNamedRange: "Statuses_Submittal_Labels", allowInvalid: false } },
+        { id: "specTag", header: "Spec Tag", validationRule: { type: "LIST_FROM_RANGE", targetNamedRange: "SpecTags_Keys", allowInvalid: false } },
+        { id: "relatedTag", header: "Related Tag", validationRule: { type: "LIST_FROM_RANGE", targetNamedRange: "SpecTags_Keys", allowInvalid: false } },
         { id: "revision", header: "Revision", numberFormat: "0" },
         { id: "specTitle", header: "Spec Title", formula: '=MAP(B4:B, LAMBDA(tag, IF(ISBLANK(tag), "", IFERROR(VLOOKUP(tag, \'Submittal FFE Support\'!SpecTags, 2, FALSE), ""))))' },
-        { id: "vendor", header: "Vendor", validationRange: "Vendors" },
+        { id: "vendor", header: "Vendor", validationRule: { type: "LIST_FROM_RANGE", targetNamedRange: "Vendors_Keys", allowInvalid: false } },
         { id: "date", header: "Date", numberFormat: "yyMMdd" },
-        { id: "contact", header: "Contact", validationRange: "Shared_Contacts_FFE" },
-        { id: "action", header: "Action", validationRange: "Actions_Submittal" },
+        { id: "contact", header: "Contact", validationRule: { type: "LIST_FROM_RANGE", targetNamedRange: "Shared_Contacts_FFE_Keys", allowInvalid: false } },
+        { id: "action", header: "Action", validationRule: { type: "LIST_FROM_RANGE", targetNamedRange: "Actions_Submittal_Labels", allowInvalid: false } },
         { id: "notes", header: "Notes" },
         { id: "link", header: "Link" },
         { id: "calcFileName", header: "Calc File Name", formula: '=MAP(B4:B, C4:C, D4:D, LAMBDA(tag, rel, rev, IF(ISBLANK(tag), "", tag & IF(ISBLANK(rel), "", "-" & rel) & "-" & rev)))' },

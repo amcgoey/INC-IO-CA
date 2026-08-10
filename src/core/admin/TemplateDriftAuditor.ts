@@ -520,10 +520,11 @@ class TemplateDriftInspector {
       // Dimension 6: Validations
       for (let colIdx = 0; colIdx < specTab.columns.length; colIdx++) {
         const colSpec = specTab.columns[colIdx];
-        if (!colSpec.validationRange) continue;
+        const targetRange = colSpec.validationRule?.targetNamedRange || colSpec.validationRange;
+        if (!targetRange) continue;
 
         let hasValidation = false;
-        if (this.hasNamedRange(colSpec.validationRange)) {
+        if (this.hasNamedRange(targetRange)) {
           hasValidation = true;
         } else if (this.seam && typeof this.seam.getSheetByName === "function") {
           const sheet = this.seam.getSheetByName(specTab.name);
@@ -540,7 +541,7 @@ class TemplateDriftInspector {
           issues.push({
             category: "VALIDATION",
             severity: "WARNING",
-            description: "Missing data validation rule for column '" + colSpec.id + "' on tab '" + specTab.name + "' (expected range '" + colSpec.validationRange + "')."
+            description: "Missing data validation rule for column '" + colSpec.id + "' on tab '" + specTab.name + "' (expected range '" + targetRange + "')."
           });
         }
       }

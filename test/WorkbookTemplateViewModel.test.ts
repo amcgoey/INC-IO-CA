@@ -230,7 +230,7 @@ test("WorkbookTemplateViewModel generates setDataValidation batch update request
   }
   const validationReqs = (payload.requests as DataValidationRequest[]).filter(r => r.setDataValidation && r.setDataValidation.rule !== undefined);
   assert.ok(validationReqs.length > 0, 'setDataValidation requests must be generated');
-  const specTagValidation = validationReqs.find(r => r.setDataValidation?.rule?.condition?.values?.[0]?.userEnteredValue === '=SpecTags');
+  const specTagValidation = validationReqs.find(r => r.setDataValidation?.rule?.condition?.values?.[0]?.userEnteredValue === '=SpecTags_Keys');
   assert.ok(specTagValidation, 'Data validation rule for =SpecTags must be included in batch requests');
   assert.ok(typeof specTagValidation?.setDataValidation?.range?.sheetId === 'number', 'Sheet ID should be assigned for Submittal FFE tab');
 });
@@ -385,7 +385,7 @@ test("WorkbookTemplateViewModel setDataValidation specifies strict: false (Warni
   assert.ok(validationReqs.length > 0, "setDataValidation requests must exist");
 
   validationReqs.forEach(req => {
-    assert.strictEqual(req.setDataValidation?.rule?.strict, false, "Validation strictness must be false (Show Warning mode)");
+    assert.strictEqual(req.setDataValidation?.rule?.strict, true, "Validation strictness must be true (allowInvalid: false hard reject mode)");
     assert.strictEqual(req.setDataValidation?.rule?.showCustomUi, true, "Validation showCustomUi must be true (Chip display style)");
   });
 });

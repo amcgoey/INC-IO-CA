@@ -480,3 +480,35 @@ test('GasMockHarness - mocks setNumberFormat and getNumberFormat on range object
   assert.strictEqual(sheet.getRange('A2').getNumberFormat(), 'yyMMdd');
   assert.strictEqual(sheet.getRange('B2').getNumberFormat(), '0');
 });
+
+
+test('GasMockHarness - supports DataValidationBuilder, requireValueInRange, setAllowInvalid, and setDataValidation', () => {
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById('ss-dv-test');
+  const sheet = ss.getSheetByName('Sheet1');
+
+  const targetRange = sheet.getRange('Z1:Z10');
+  const builder = (globalThis as any).SpreadsheetApp.newDataValidation();
+
+  assert.ok(builder, 'SpreadsheetApp.newDataValidation() must return a builder');
+  assert.strictEqual(typeof builder.requireValueInRange, 'function');
+  assert.strictEqual(typeof builder.setAllowInvalid, 'function');
+
+  builder.requireValueInRange(targetRange);
+  builder.setAllowInvalid(false);
+  builder.setHelpText('Select from valid options');
+
+  const rule = builder.build();
+  assert.ok(rule, 'builder.build() must return DataValidation rule');
+  assert.strictEqual(rule.getCriteriaType(), 'VALUE_IN_RANGE');
+  assert.deepStrictEqual(rule.getCriteriaValues(), [targetRange, true]);
+  assert.strictEqual(rule.getAllowInvalid(), false);
+  assert.strictEqual(rule.getHelpText(), 'Select from valid options');
+
+  const dataRange = sheet.getRange('A6:A25');
+  dataRange.setDataValidation(rule);
+
+  const appliedRule = sheet.getRange('A6').getDataValidation();
+  assert.ok(appliedRule, 'Data validation rule must be attached to range');
+  assert.strictEqual(appliedRule.getAllowInvalid(), false);
+});

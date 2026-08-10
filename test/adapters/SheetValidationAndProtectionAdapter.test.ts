@@ -36,3 +36,51 @@ test('SheetValidationAndProtectionAdapter.applyNumberFormats - applies number fo
   // Column 7 is Date (id: date, numberFormat: yyMMdd)
   assert.equal(ffeSheet.getRange('G6').getNumberFormat(), 'yyMMdd', 'Submittal FFE Date (G6) format must be yyMMdd');
 });
+
+
+test('SheetValidationAndProtectionAdapter.applyValidationRules - compiles and applies strict DataValidation rules linked to single-column Named Ranges', () => {
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById('ss-adapter-valrules-test');
+  ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  const adapter = new SheetValidationAndProtectionAdapter();
+  adapter.applyValidationRules(ss, DOCUMENT_LOG_WORKBOOK_SPEC);
+
+  const archSheet = ss.getSheetByName('Submittal Arch');
+  assert.ok(archSheet, 'Submittal Arch sheet must exist');
+
+  // Status (Column 1 - A6) -> Statuses_Submittal_Labels
+  const statusRule = archSheet.getRange('A6').getDataValidation();
+  assert.ok(statusRule, 'Status column (A6) must have DataValidation rule');
+  assert.equal(statusRule.getCriteriaType(), 'VALUE_IN_RANGE');
+  assert.equal(statusRule.getAllowInvalid(), false);
+  const statusTargetRange = statusRule.getCriteriaValues()[0];
+  assert.ok(statusTargetRange, 'Status validation target range must exist');
+
+  // Contact (Column 7 - G6) -> Shared_Contacts_Arch_Keys
+  const contactRule = archSheet.getRange('G6').getDataValidation();
+  assert.ok(contactRule, 'Contact column (G6) must have DataValidation rule');
+  assert.equal(contactRule.getCriteriaType(), 'VALUE_IN_RANGE');
+  assert.equal(contactRule.getAllowInvalid(), false);
+
+  // Action (Column 8 - H6) -> Actions_Submittal_Labels
+  const actionRule = archSheet.getRange('H6').getDataValidation();
+  assert.ok(actionRule, 'Action column (H6) must have DataValidation rule');
+  assert.equal(actionRule.getCriteriaType(), 'VALUE_IN_RANGE');
+  assert.equal(actionRule.getAllowInvalid(), false);
+
+  const ffeSheet = ss.getSheetByName('Submittal FFE');
+  assert.ok(ffeSheet, 'Submittal FFE sheet must exist');
+
+  // Vendor (Column 6 - F6) -> Vendors_Keys
+  const vendorRule = ffeSheet.getRange('F6').getDataValidation();
+  assert.ok(vendorRule, 'Vendor column (F6) must have DataValidation rule');
+  assert.equal(vendorRule.getCriteriaType(), 'VALUE_IN_RANGE');
+  assert.equal(vendorRule.getAllowInvalid(), false);
+
+  // Spec Tag (Column 2 - B6) -> SpecTags_Keys
+  const specTagRule = ffeSheet.getRange('B6').getDataValidation();
+  assert.ok(specTagRule, 'Spec Tag column (B6) must have DataValidation rule');
+  assert.equal(specTagRule.getCriteriaType(), 'VALUE_IN_RANGE');
+  assert.equal(specTagRule.getAllowInvalid(), false);
+});

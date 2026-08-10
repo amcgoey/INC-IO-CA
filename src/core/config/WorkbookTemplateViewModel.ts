@@ -457,7 +457,9 @@ export class WorkbookTemplateViewModel {
             }
           });
 
-          if (col.validationRange) {
+          const targetNamedRange = col.validationRule?.targetNamedRange || col.validationRange;
+          if (targetNamedRange) {
+            const isStrict = col.validationRule ? !col.validationRule.allowInvalid : false;
             requests.push({
               setDataValidation: {
                 range: {
@@ -472,12 +474,12 @@ export class WorkbookTemplateViewModel {
                     type: "ONE_OF_RANGE",
                     values: [
                       {
-                        userEnteredValue: `=${col.validationRange}`
+                        userEnteredValue: `=${targetNamedRange}`
                       }
                     ]
                   },
                   showCustomUi: true,
-                  strict: false
+                  strict: isStrict
                 }
               }
             });

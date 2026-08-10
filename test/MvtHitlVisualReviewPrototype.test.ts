@@ -77,9 +77,9 @@ test("Issue 192 - HITL Visual Review Verification Checklist Tokens", () => {
   const archTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === "Submittal Arch");
   assert.ok(archTab);
   const actionCol = archTab.columns.find(c => c.id === "action");
-  assert.equal(actionCol?.validationRange, "Actions_Submittal");
+  assert.equal(actionCol?.validationRule?.targetNamedRange || actionCol?.validationRange, "Actions_Submittal_Labels");
   const contactCol = archTab.columns.find(c => c.id === "contact");
-  assert.equal(contactCol?.validationRange, "Shared_Contacts_Arch");
+  assert.equal(contactCol?.validationRule?.targetNamedRange || contactCol?.validationRange, "Shared_Contacts_Arch_Keys");
 });
 
 test("Issue 192 - Single-Submittal Execution and PDF Hyperlink Opening Verification", async () => {

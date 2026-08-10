@@ -39,9 +39,6 @@ test('DocumentLogWorkbookSpec - defines all 15 columns for Submittal Arch with f
     const col = submittalArchTab.columns![idx];
     assert.equal(col.id, expected.id, `Column ${idx} ID must be ${expected.id}`);
     assert.equal(col.header, expected.header, `Column ${idx} header must be ${expected.header}`);
-    if (expected.validationRange) {
-      assert.equal(col.validationRange, expected.validationRange, `Column ${idx} validationRange must be ${expected.validationRange}`);
-    }
   });
 
   const calcFileNameCol = submittalArchTab.columns.find(c => c.id === 'calcFileName');
@@ -242,5 +239,49 @@ test('DocumentLogWorkbookSpec - registers 6 dedicated single-column Named Ranges
     assert.equal(nr.tabName, exp.tabName, `${exp.name} tabName must be ${exp.tabName}`);
     assert.equal(nr.rangeNotation, exp.rangeNotation, `${exp.name} rangeNotation must be ${exp.rangeNotation}`);
     assert.equal(nr.scope, 'Workbook', `${exp.name} scope must be Workbook`);
+  });
+});
+
+
+test('DocumentLogWorkbookSpec - defines declarative validationRule specs on picklist columns targeting single-column Named Ranges', () => {
+  const archTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal Arch');
+  assert.ok(archTab?.columns, 'Submittal Arch columns must exist');
+
+  const archStatus = archTab.columns.find(c => c.id === 'status');
+  assert.deepEqual(archStatus?.validationRule, {
+    type: 'LIST_FROM_RANGE',
+    targetNamedRange: 'Statuses_Submittal_Labels',
+    allowInvalid: false
+  });
+
+  const archContact = archTab.columns.find(c => c.id === 'contact');
+  assert.deepEqual(archContact?.validationRule, {
+    type: 'LIST_FROM_RANGE',
+    targetNamedRange: 'Shared_Contacts_Arch_Keys',
+    allowInvalid: false
+  });
+
+  const archAction = archTab.columns.find(c => c.id === 'action');
+  assert.deepEqual(archAction?.validationRule, {
+    type: 'LIST_FROM_RANGE',
+    targetNamedRange: 'Actions_Submittal_Labels',
+    allowInvalid: false
+  });
+
+  const ffeTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === 'Submittal FFE');
+  assert.ok(ffeTab?.columns, 'Submittal FFE columns must exist');
+
+  const ffeVendor = ffeTab.columns.find(c => c.id === 'vendor');
+  assert.deepEqual(ffeVendor?.validationRule, {
+    type: 'LIST_FROM_RANGE',
+    targetNamedRange: 'Vendors_Keys',
+    allowInvalid: false
+  });
+
+  const ffeSpecTag = ffeTab.columns.find(c => c.id === 'specTag');
+  assert.deepEqual(ffeSpecTag?.validationRule, {
+    type: 'LIST_FROM_RANGE',
+    targetNamedRange: 'SpecTags_Keys',
+    allowInvalid: false
   });
 });

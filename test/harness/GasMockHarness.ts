@@ -1,3 +1,61 @@
+
+export class MockDataValidation {
+  constructor(
+    private criteriaType: string,
+    private criteriaValues: any[],
+    private allowInvalid: boolean,
+    private helpText?: string
+  ) {}
+
+  public getCriteriaType(): string {
+    return this.criteriaType;
+  }
+
+  public getCriteriaValues(): any[] {
+    return this.criteriaValues;
+  }
+
+  public getAllowInvalid(): boolean {
+    return this.allowInvalid;
+  }
+
+  public getHelpText(): string | undefined {
+    return this.helpText;
+  }
+}
+
+export class MockDataValidationBuilder {
+  private criteriaType: string = "";
+  private criteriaValues: any[] = [];
+  private allowInvalid: boolean = true;
+  private helpText?: string;
+
+  public requireValueInRange(range: MockRange | any, showDropdown: boolean = true): this {
+    this.criteriaType = "VALUE_IN_RANGE";
+    this.criteriaValues = [range, showDropdown];
+    return this;
+  }
+
+  public requireValueInList(values: string[], showDropdown: boolean = true): this {
+    this.criteriaType = "VALUE_IN_LIST";
+    this.criteriaValues = [values, showDropdown];
+    return this;
+  }
+
+  public setAllowInvalid(allow: boolean): this {
+    this.allowInvalid = allow;
+    return this;
+  }
+
+  public setHelpText(helpText: string): this {
+    this.helpText = helpText;
+    return this;
+  }
+
+  public build(): MockDataValidation {
+    return new MockDataValidation(this.criteriaType, this.criteriaValues, this.allowInvalid, this.helpText);
+  }
+}
 import { ColumnSpec, DocumentLogWorkbookSpec } from "../../src/core/config/DocumentLogWorkbookSpec";
 import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../src/core/config/DocumentLogWorkbookViewSpec";
 import { MockDriveState, MockDriveApp } from "./MockDrive";
@@ -691,6 +749,11 @@ export class MockSheetsService {
       first = this.openById("default-ss");
     }
     return first;
+  }
+
+  public newDataValidation(): MockDataValidationBuilder {
+    this.recordCall("newDataValidation", []);
+    return new MockDataValidationBuilder();
   }
 
   public reset(): void {

@@ -291,7 +291,7 @@ export async function runLiveVerification(
     details: `Submittal Arch has ${formulaCols.length}/5 top-level MAP/LAMBDA formula columns`
   });
 
-  const validationCols = archTab?.columns?.filter(c => c.validationRange) || [];
+  const validationCols = archTab?.columns?.filter(c => c.validationRule || c.validationRange) || [];
   const validationPass = validationCols.length >= 2;
   checks.push({
     dimension: "6. Workbook-Scoped Data Validation Picklists",
