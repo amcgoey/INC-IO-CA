@@ -4,7 +4,7 @@
  * @description DocumentAction implementation for duplicating document files and blobs with clean ID resolution.
  */
 
-declare var defaultDriveFilingRepository: DriveFilingRepository;
+import { defaultDriveFilingRepository } from "../../DriveFilingRepository";
 
 /**
  * Primitive workflow action that duplicates a document file or blob in Google Drive.

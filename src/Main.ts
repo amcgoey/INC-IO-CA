@@ -1,6 +1,3 @@
-declare var GasSpreadsheetLockAdapter: any;
-declare var GasTimeoutBudget: any;
-
 /**
  * @file Main.ts
  * @description Primary Google Apps Script entry points for the Workspace Add-on.
@@ -9,12 +6,17 @@ declare var GasTimeoutBudget: any;
  */
 
 import { defaultTriageDocumentAction } from "./TriageDocumentAction";
+import { defaultAnalyzeDocumentAction } from "./AnalyzeDocumentAction";
 import { BatchMigrationEngine } from "./core/log/BatchMigrationEngine";
 import { LogMigrationEngine } from "./core/log/LogMigrationEngine";
 import { DocumentPipeline } from "./core/intake/DocumentPipeline";
 import { defaultPdfDocumentService } from "./PdfDocumentService";
 import { defaultLogRepository } from "./GoogleSheetsLogRepository";
+import { defaultDriveFilingRepository } from "./DriveFilingRepository";
 import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
+import { defaultAiAnalysisService, checkAiModelHealth } from "./AiAnalysisService";
+import { GasSpreadsheetLockAdapter } from "./adapters/gas/GasSpreadsheetLockAdapter";
+import { GasTimeoutBudget } from "./core/log/GasTimeoutBudget";
 import { CONFIG, MESSAGES } from "./Config";
 import { processSubmission, moveSubmittalToClosed } from "./Process";
 import {
@@ -34,9 +36,6 @@ import {
   onAutoPatchWorkbook
 } from "./adapters/gas/AdminFoldOutPresenter";
 import { onSheetsContextRefresh } from "./adapters/gas/SheetsRootCard";
-import { checkAiModelHealth } from "./AiAnalysisService";
-
-declare var defaultAiAnalysisService: AiAnalysisService;
 
 /**
  * Contextual trigger entry point invoked by Google Workspace when an email is opened in Gmail.
@@ -396,9 +395,16 @@ g.DocumentPipeline = DocumentPipeline;
 g.buildMainCard = buildMainCard;
 g.defaultPdfDocumentService = defaultPdfDocumentService;
 g.defaultLogRepository = defaultLogRepository;
+g.defaultDriveFilingRepository = defaultDriveFilingRepository;
 g.defaultCardPresenter = defaultCardPresenter;
+g.defaultAiAnalysisService = defaultAiAnalysisService;
+g.defaultTriageDocumentAction = defaultTriageDocumentAction;
+g.defaultAnalyzeDocumentAction = defaultAnalyzeDocumentAction;
 g.LogMigrationEngine = LogMigrationEngine;
+g.BatchMigrationEngine = BatchMigrationEngine;
 g.GoogleSheetsStorageAdapter = GoogleSheetsStorageAdapter;
+g.GasSpreadsheetLockAdapter = GasSpreadsheetLockAdapter;
+g.GasTimeoutBudget = GasTimeoutBudget;
 
 export {
   onDriveItemsSelected,
