@@ -890,11 +890,11 @@ function buildIntakeCard(
     return params;
   };
 
-  // 1. Status Message Box (Conditional ? only added if a message is displayed or low AI confidence detected)
+  // 1. Status Message Box (Conditional — only added if a message is displayed or low AI confidence detected)
   if (hasLowConfidence) {
     card.addSection(
       CardService.newCardSection().addWidget(
-        CardService.newTextParagraph().setText("?? Low AI Confidence (<85%) ? please review indicated field predictions before processing.")
+        CardService.newTextParagraph().setText("⚠️ Low AI Confidence (<85%) — please review indicated field predictions before processing.")
       )
     );
   }
@@ -973,6 +973,7 @@ function buildIntakeCard(
   cascadeSec.addWidget(docTypeDrop);
 
   if (discoveredLogs.length > 1) {
+    cascadeSec.addWidget(CardService.newTextParagraph().setText("⚠️ Multiple log files found. Select target log:"));
     const logDrop = CardService.newSelectionInput()
       .setType(CardService.SelectionInputType.DROPDOWN)
       .setTitle("Log File")
@@ -980,6 +981,8 @@ function buildIntakeCard(
       .setOnChangeAction(CardService.newAction().setFunctionName("onStateChange").setParameters(getActionParams()));
     discoveredLogs.forEach(l => logDrop.addItem(l.title, l.id, activeLogFileId === l.id));
     cascadeSec.addWidget(logDrop);
+  } else if (activeLogFileId) {
+    cascadeSec.addWidget(CardService.newTextParagraph().setText("✓ Log file loaded successfully"));
   }
 
   if (activeLogFileId) {
@@ -1055,7 +1058,7 @@ function buildIntakeCard(
         driveFileName = DriveApp.getFileById(driveFileId).getName();
       }
     } catch (err) {}
-    fileSourceSec.addWidget(CardService.newTextParagraph().setText(`📄 ${driveFileName}`));
+    fileSourceSec.addWidget(CardService.newTextParagraph().setText(`📄 **Selected Drive File:** ${driveFileName}`));
   } else {
     const srcDrop = CardService.newSelectionInput()
       .setType(CardService.SelectionInputType.DROPDOWN)
@@ -1083,8 +1086,7 @@ function buildIntakeCard(
         pdfAttachments.forEach(a => attDrop.addItem(a.getName(), a.getName(), selectedAttName === a.getName()));
         fileSourceSec.addWidget(attDrop);
       } else {
-        const warningMsg = (typeof MESSAGES !== "undefined" && MESSAGES.WARNING_NO_PDF_ATTACHMENTS) ? MESSAGES.WARNING_NO_PDF_ATTACHMENTS : "⚠️ No PDF attachments found in this email.";
-        fileSourceSec.addWidget(CardService.newTextParagraph().setText(warningMsg));
+        fileSourceSec.addWidget(CardService.newTextParagraph().setText(MESSAGES.WARNING_NO_PDF_ATTACHMENTS));
       }
     } else if (selectedFileSource === 'Google Drive URL') {
       fileSourceSec.addWidget(
@@ -1102,10 +1104,10 @@ function buildIntakeCard(
       );
       const fetchAction = CardService.newAction()
         .setFunctionName("handleFetchUrl")
-        .setParameters({ ...getActionParams(), targetFolderId: logSettings.targetFolderId || "", url: selectedFileSource });
+        .setParameters({ ...getActionParams(), url: selectedFileSource });
       fileSourceSec.addWidget(
         CardService.newTextButton()
-          .setText("Fetch & Save to Drive")
+          .setText(MESSAGES.BTN_FETCH)
           .setOnClickAction(fetchAction)
           .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
       );
@@ -1114,62 +1116,54 @@ function buildIntakeCard(
 
   card.addSection(fileSourceSec);
 
-  // 3. Dynamic Document Attributes Section
-  const attrSec = CardService.newCardSection().setHeader("3. Document Attributes");
+  // 3. Document Attributes Section
+  const registry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== "undefined" ? defaultDocumentTypeConfigRegistry : DocumentTypeConfigRegistry);
+  const config = registry.getConfig(state.documentType || "SUBMITTAL_ARCH");
+  const attrSecHeader = `3. Document Attributes (${config.displayName})`;
+  const attrSec = CardService.newCardSection().setHeader(attrSecHeader);
 
-  // Heavy AI Analysis Button at top of Document Attributes
-  const aiBtn = CardService.newTextButton()
-    .setText("🔍 Analyze Document with AI")
-    .setOnClickAction(CardService.newAction().setFunctionName("handleDeepAnalysis").setParameters(getActionParams()))
-    .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
-  attrSec.addWidget(CardService.newButtonSet().addButton(aiBtn));
-
-  const docTypeKey = state.documentType || "SUBMITTAL_ARCH";
-  const registry = defaultDocumentTypeConfigRegistry;
-  let fields: DocumentFieldSpec[] = [];
-  if (registry && registry.hasConfig(docTypeKey)) {
-    fields = registry.getConfig(docTypeKey).fields || [];
+  const showAiBtn = selectedFileSource === "Email Attachment" || selectedFileSource === "Google Drive URL" || selectedFileSource === "Selected Drive File" || driveFileId !== "";
+  if (showAiBtn) {
+    attrSec.addWidget(
+      CardService.newButtonSet().addButton(
+        CardService.newTextButton()
+          .setText(MESSAGES.BTN_ANALYZE)
+          .setOnClickAction(CardService.newAction().setFunctionName("handleDeepAnalysis").setParameters(getActionParams()))
+          .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+      )
+    );
   }
 
-  const userCacheDraft = (flashMessage && flashMessage.userCacheDraft) ||
-                        (initialData && (initialData as any).userCacheDraft) ||
-                        ((initialData && !(initialData as any).displayPath) ? initialData : {}) || {};
-  const parserResult = (flashMessage && flashMessage.parserResult) ||
-                   (initialData && (initialData as any).parserResult) || {};
+  renderDynamicFormFields(
+    attrSec,
+    config.fields,
+    {
+      formInput,
+      state,
+      initialData,
+      parserResult: initialData,
+      aiMetadata: aiClassification,
+      logSettings
+    },
+    {
+      missingFields: flashMessage && flashMessage.missingFields ? flashMessage.missingFields : [],
+      fieldConfidence,
+      onStateActionName: "onStateChange",
+      actionParams: getActionParams()
+    }
+  );
 
-  const hydrationContext: HydrationContext = {
-    formInput: (e && e.formInput) ? { ...e.formInput } : {},
-    userCacheDraft: userCacheDraft,
-    parserResult: parserResult,
-    aiMetadata: aiResult ? (aiResult.fields ? Object.fromEntries(Object.entries(aiResult.fields).map(([k, v]) => [k, v.value])) : {}) : {},
-    docTypeKey: docTypeKey,
-    logSettings: logSettings,
-    state: state
-  };
-
-  const validationContext: ValidationUIContext = {
-    missingFields: (flashMessage && flashMessage.missingFields) || [],
-    fieldConfidence: fieldConfidence,
-    onStateActionName: "onStateChange",
-    actionParams: getActionParams()
-  };
-
-  renderDynamicFormFields(attrSec, fields, hydrationContext, validationContext);
-
-  const isFormValid = state.project !== "" && state.documentType !== "";
-  const subBtn = CardService.newTextButton()
-    .setText("Process Document")
-    .setOnClickAction(CardService.newAction().setFunctionName("processSubmission").setParameters(getActionParams()))
-    .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
-
-  if (!isFormValid) {
-    subBtn.setDisabled(true);
-  }
-
-  const buttonSet = CardService.newButtonSet().addButton(subBtn);
+  const subBtnText = (state.documentType === "SUBMITTAL_ARCH" || state.documentType === "SUBMITTAL_FFE") ? "Process Document" : `File & Log ${config.displayName}`;
+  const buttonSet = CardService.newButtonSet();
+  buttonSet.addButton(
+    CardService.newTextButton()
+      .setText(subBtnText)
+      .setOnClickAction(CardService.newAction().setFunctionName("processSubmission").setParameters(getActionParams()))
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+  );
 
   if (flashMessage && flashMessage.promptAddTag) {
-    const tagParams: Record<string, string> = { ...getActionParams(), newTag: formInput.specTag || state.specTag, newTitle: formInput.title || formInput.specTitle || state.specTitle };
+    const tagParams: Record<string, string> = { ...getActionParams(), newTag: formInput.specTag || state.specTag, newTitle: formInput.specTitle || state.specTitle };
     buttonSet.addButton(
       CardService.newTextButton()
         .setText("Add New Tag, File & Log")
@@ -1194,16 +1188,16 @@ function buildIntakeCard(
   const manifestKey = state.documentType || "SUBMITTAL_ARCH";
 
   const adminSec = CardService.newCardSection()
-    .setHeader("?? Admin & Status")
+    .setHeader("⚙️ Admin & Status")
     .setCollapsible(true)
-    .addWidget(CardService.newTextParagraph().setText(`?? **Target Log Tab:** \`${targetTab}\``))
-    .addWidget(CardService.newTextParagraph().setText(`??? **Config Tier:** \`Config_Manifest\` ? \`Config_${manifestKey}\``))
-    .addWidget(CardService.newTextParagraph().setText("?? **Relative Offsets:** Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4"))
-    .addWidget(CardService.newTextParagraph().setText(`?? **AI Triage Status:** Project \`${state.project || "Unselected"}\` | Type \`${state.documentType || "Unselected"}\` (Confidence: 94%)`))
+    .addWidget(CardService.newTextParagraph().setText(`📋 **Target Log Tab:** \`${targetTab}\``))
+    .addWidget(CardService.newTextParagraph().setText(`📜 **Config Tier:** \`Config_Manifest\` ➔ \`Config_${manifestKey}\``))
+    .addWidget(CardService.newTextParagraph().setText("📐 **Relative Offsets:** Header=Row 1 | Formula=Row 2 | Buffer=Row 3 | Data=Row 4"))
+    .addWidget(CardService.newTextParagraph().setText(`🤖 **AI Triage Status:** Project \`${state.project || "Unselected"}\` | Type \`${state.documentType || "Unselected"}\` (Confidence: 94%)`))
     .addWidget(
       CardService.newButtonSet().addButton(
         CardService.newTextButton()
-          .setText("?? Refresh Cache & Reload")
+          .setText("🔄 Refresh Cache & Reload")
           .setOnClickAction(CardService.newAction().setFunctionName("handleRefreshCache").setParameters(getActionParams()))
       )
     );

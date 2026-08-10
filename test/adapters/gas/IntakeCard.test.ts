@@ -296,3 +296,81 @@ test("Process Document submit action - row insertion, AuditLog telemetry, and Us
   const auditValues = auditSheet.getDataRange().getValues();
   assert.ok(auditValues.length >= 2, "AuditLog should contain header and event entry");
 });
+
+test("IntakeCard - Refresh Cache & Reload button in Admin & Status section", () => {
+  const event = {
+    formInput: {
+      project: "PROJ",
+      documentType: "SUBMITTAL_ARCH"
+    },
+    parameters: {
+      project: "PROJ",
+      documentType: "SUBMITTAL_ARCH",
+      logFileId: "log-ss-123"
+    }
+  };
+
+  const card = UI.buildIntakeCard(event);
+  const json = CardSerializer.toJSON(card);
+
+  const adminSec = json.sections.find(s => s.header && s.header.includes("Admin & Status"));
+  assert.ok(adminSec, "Admin & Status section should exist");
+
+  const buttonSets = adminSec.widgets.filter(w => w.type === "ButtonSet");
+  let refreshBtn: any = null;
+  for (const bs of buttonSets) {
+    refreshBtn = bs.buttons.find((b: any) => b.text && b.text.includes("Refresh Cache"));
+    if (refreshBtn) break;
+  }
+
+  assert.ok(refreshBtn, "Refresh Cache & Reload button should exist in Admin & Status section");
+  assert.strictEqual(refreshBtn.onClickAction?.functionName, "handleRefreshCache");
+});
+
+test("IntakeCard - Log status informational messages rendering", () => {
+  const event = {
+    formInput: {
+      project: "PROJ",
+      documentType: "SUBMITTAL_ARCH"
+    },
+    parameters: {
+      project: "PROJ",
+      documentType: "SUBMITTAL_ARCH",
+      logFileId: "log-ss-123"
+    }
+  };
+
+  const card = UI.buildIntakeCard(event);
+  const json = CardSerializer.toJSON(card);
+
+  const cascadeSec = json.sections.find(s => s.header === "1. Project & Document Type");
+  assert.ok(cascadeSec, "Cascading selectors section should exist");
+
+  const hasLoadedText = cascadeSec.widgets.some(w => w.text && (w.text.includes("Log file loaded successfully") || w.text.includes("Log loaded")));
+  assert.strictEqual(hasLoadedText, true, "Log status loaded message should render when log is loaded");
+});
+
+test("IntakeCard - AI auto-triage flash message banner rendering", () => {
+  const event = {
+    formInput: {
+      project: "PROJ",
+      documentType: "SUBMITTAL_ARCH"
+    },
+    parameters: {
+      project: "PROJ",
+      documentType: "SUBMITTAL_ARCH"
+    }
+  };
+
+  const flashMessage = {
+    warning: "AI auto-triaged as Submittal (Architecture) based on email body"
+  };
+
+  const card = UI.buildIntakeCard(event, null, flashMessage);
+  const json = CardSerializer.toJSON(card);
+
+  const hasFlashWarningText = json.sections.some(s =>
+    s.widgets.some(w => w.text && w.text.includes("AI auto-triaged as Submittal"))
+  );
+  assert.strictEqual(hasFlashWarningText, true, "AI auto-triage warning message should render in status section");
+});
