@@ -689,13 +689,67 @@ function buildIntakeCard(
     notes: formInput.notes || ""
   };
 
+  const driveProvider = (globalThis as any).defaultDriveNameProvider || defaultDriveNameProvider;
+  let drives: Array<{ id: string; name: string }> = [];
+  if (driveProvider && typeof driveProvider.getSharedDrives === "function") {
+    try {
+      drives = driveProvider.getSharedDrives() || [];
+    } catch (err) {}
+  }
+  drives.sort((a, b) => a.name.localeCompare(b.name));
+
+  let matchedDrive = drives.find(d => d.name === state.project || d.id === state.project);
+  const selectedDriveId = matchedDrive ? matchedDrive.id : (initialData && (initialData as any).driveId ? (initialData as any).driveId : "");
+
+  let candidateLogFileId = formInput.logFileId || p.logFileId || (initialData && (initialData as any).logFileId) || "";
+  let discoveredLogs: Array<{ id: string; title: string }> = [];
+
+  if (!candidateLogFileId && selectedDriveId) {
+    const cache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
+    const logSearchKey = `log_search_${selectedDriveId}`;
+    const cachedLogs = cache ? cache.get(logSearchKey) : null;
+
+    if (cachedLogs) {
+      try { discoveredLogs = JSON.parse(cachedLogs); } catch (e) {}
+    }
+
+    if (discoveredLogs.length === 0) {
+      try {
+        const logSearchTerm = (typeof CONFIG !== "undefined" && CONFIG.LOG_FILE_SEARCH_TERM) ? CONFIG.LOG_FILE_SEARCH_TERM : "Document Log";
+        if (typeof Drive !== "undefined" && (Drive as any).Files) {
+          const resp = (Drive as any).Files.list({
+            q: `title contains '${logSearchTerm}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`,
+            corpora: 'drive',
+            driveId: selectedDriveId,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true
+          });
+          if (resp && resp.items) {
+            discoveredLogs = resp.items.map((l: any) => ({ id: l.id, title: l.title }));
+            if (cache && discoveredLogs.length > 0) {
+              try { cache.put(logSearchKey, JSON.stringify(discoveredLogs), 3600); } catch (e) {}
+            }
+          }
+        }
+      } catch (err) {}
+    }
+
+    if (!candidateLogFileId && discoveredLogs.length > 0) {
+      candidateLogFileId = discoveredLogs[0].id;
+    }
+  }
+
   const discipline = state.documentType === "SUBMITTAL_FFE" ? "FF&E" : "Architecture";
   const logRepo = (globalThis as any).defaultLogRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
-  const logSettings = (logRepo && p.logFileId && typeof logRepo.getLogSettings === "function")
-    ? logRepo.getLogSettings(p.logFileId, discipline)
-    : { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null, targetFolderId: p.targetFolderId || "", logFileId: p.logFileId || "" };
+  let logSettings = (logRepo && candidateLogFileId && typeof logRepo.getLogSettings === "function")
+    ? logRepo.getLogSettings(candidateLogFileId, discipline)
+    : { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null, targetFolderId: p.targetFolderId || "", logFileId: candidateLogFileId };
 
-  const activeLogFileId = p.logFileId || logSettings.logFileId || "";
+  if (!logSettings.logFileId && candidateLogFileId) {
+    logSettings.logFileId = candidateLogFileId;
+  }
+
+  const activeLogFileId = candidateLogFileId || logSettings.logFileId || "";
   let targetFolderId = p.targetFolderId || logSettings.targetFolderId || "";
 
   if (activeLogFileId && !targetFolderId) {
@@ -780,15 +834,6 @@ function buildIntakeCard(
   // 2. Cascading Selectors (Project & DocumentType)
   const cascadeSec = CardService.newCardSection().setHeader("1. Project & Document Type");
 
-  const driveProvider = (globalThis as any).defaultDriveNameProvider || defaultDriveNameProvider;
-  let drives: Array<{ id: string; name: string }> = [];
-  if (driveProvider && typeof driveProvider.getSharedDrives === "function") {
-    try {
-      drives = driveProvider.getSharedDrives() || [];
-    } catch (err) {}
-  }
-  drives.sort((a, b) => a.name.localeCompare(b.name));
-
   const projDrop = CardService.newSelectionInput()
     .setType(CardService.SelectionInputType.DROPDOWN)
     .setTitle("Target Project")
@@ -821,6 +866,16 @@ function buildIntakeCard(
   docTypeDrop.addItem("Submittal (FF&E)", "SUBMITTAL_FFE", state.documentType === "SUBMITTAL_FFE");
   docTypeDrop.addItem("RFI (Request for Information)", "RFI", state.documentType === "RFI");
   cascadeSec.addWidget(docTypeDrop);
+
+  if (discoveredLogs.length > 1) {
+    const logDrop = CardService.newSelectionInput()
+      .setType(CardService.SelectionInputType.DROPDOWN)
+      .setTitle("Log File")
+      .setFieldName("logFileId")
+      .setOnChangeAction(CardService.newAction().setFunctionName("onStateChange").setParameters(getActionParams()));
+    discoveredLogs.forEach(l => logDrop.addItem(l.title, l.id, activeLogFileId === l.id));
+    cascadeSec.addWidget(logDrop);
+  }
 
   if (activeLogFileId) {
     let logUrl = `https://docs.google.com/spreadsheets/d/${activeLogFileId}/edit`;
