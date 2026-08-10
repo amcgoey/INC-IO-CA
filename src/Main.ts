@@ -1,4 +1,4 @@
-﻿declare var GasSpreadsheetLockAdapter: any;
+declare var GasSpreadsheetLockAdapter: any;
 declare var LogMigrationEngine: any;
 declare var BatchMigrationEngine: any;
 declare var GasTimeoutBudget: any;
@@ -355,7 +355,10 @@ if (typeof module !== "undefined" && module.exports) {
   };
 }
 
+(globalThis as any).onDriveItemsSelected = onDriveItemsSelected;
+(globalThis as any).buildAddOn = buildAddOn;
 (globalThis as any).migrateLogSpreadsheet = migrateLogSpreadsheet;
 (globalThis as any).migrateBatchLogSpreadsheets = migrateBatchLogSpreadsheets;
 (globalThis as any).onBatchMigrationContinuationTrigger = onBatchMigrationContinuationTrigger;
 (globalThis as any).repairCrossLogReferences = repairCrossLogReferences;
+

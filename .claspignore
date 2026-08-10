@@ -1,15 +1,6 @@
-# Ignore configuration and node_modules by default
-node_modules/**
-.git/**
-tsconfig.json
-package.json
-package-lock.json
+# Ignore all files by default
+**/*
 
-# Allow all files under rootDir (src/)
-!*
-!**/*
-
-# Exclude test fakes and harness from GAS push
-src/adapters/fakes/**
-adapters/fakes/**
-
+# Explicitly allow dist output
+!appsscript.json
+!**/*.js
