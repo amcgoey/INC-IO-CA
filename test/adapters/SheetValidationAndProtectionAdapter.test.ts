@@ -84,3 +84,38 @@ test('SheetValidationAndProtectionAdapter.applyValidationRules - compiles and ap
   assert.equal(specTagRule.getCriteriaType(), 'VALUE_IN_RANGE');
   assert.equal(specTagRule.getAllowInvalid(), false);
 });
+
+
+test('SheetValidationAndProtectionAdapter.applyValidationRules - throws error when target Named Range is missing from spreadsheet', () => {
+  GasMockHarness.install();
+  const ss = (globalThis as any).SpreadsheetApp.openById('ss-adapter-missing-nr-test');
+  ss.insertSheet('Submittal Arch');
+  
+  // Create minimal spec with a missing target named range
+  const customSpec: any = {
+    tabs: [
+      {
+        name: 'Submittal Arch',
+        isLogTab: true,
+        rowCount: 25,
+        columnCount: 10,
+        columns: [
+          {
+            id: 'status',
+            header: 'Status',
+            validationRule: {
+              type: 'LIST_FROM_RANGE',
+              targetNamedRange: 'MISSING_NAMED_RANGE',
+              allowInvalid: false
+            }
+          }
+        ]
+      }
+    ]
+  };
+
+  const adapter = new SheetValidationAndProtectionAdapter();
+  assert.throws(() => {
+    adapter.applyValidationRules(ss, customSpec);
+  }, /Target Named Range 'MISSING_NAMED_RANGE' for validation rule on column 'status' could not be found/);
+});
