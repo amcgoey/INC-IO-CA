@@ -2,6 +2,10 @@
 import { defaultAnalyzeDocumentAction } from "../../AnalyzeDocumentAction";
 import { defaultDocumentTypeConfigRegistry, resolve5TierFieldValue } from "../../DocumentTypeConfigRegistry";
 import { MESSAGES, CONFIG } from "../../Config";
+import { defaultLogRepository } from "../../GoogleSheetsLogRepository";
+import { defaultCardPresenter } from "./CardPresenter";
+import { defaultDriveNameProvider } from "../../GoogleDriveNameProvider";
+import { FieldConfidenceThreshold } from "../../core/interfaces/AiAnalysisService";
 
 /**
  * Helper to append ⚠ Check Value label indicator when field confidence is below threshold (< 0.85).
@@ -89,6 +93,8 @@ function renderDynamicFormFields(
         hintText = `Low AI confidence (${pct}%) — please verify`;
       }
     }
+
+    displayTitle = getWidgetTitle(field.key, displayTitle, fieldConfidence);
 
     // Widget Generation based on Field Type
     if (field.type === 'list' || field.type === 'enum') {
@@ -429,7 +435,8 @@ function buildMainCard(e: GoogleAppsScriptEvent, initialData: ParsedData | null 
         section1.addWidget(logDrop);
       }
 
-      logSettings = { ...logSettings, ...defaultLogRepository.getLogSettings(logSettings.logFileId, state.discipline) };
+      const logRepo = (globalThis as any).defaultLogRepository || defaultLogRepository;
+      logSettings = { ...logSettings, ...logRepo.getLogSettings(logSettings.logFileId, state.discipline) };
       if (logSettings.logFileId) {
         let logUrl = `https://docs.google.com/spreadsheets/d/${logSettings.logFileId}/edit`;
         if (logSettings.logSheetId) {
@@ -646,7 +653,8 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
      } catch (err) {}
   }
 
-  const logSettings = defaultLogRepository.getLogSettings(p.logFileId, p.discipline);
+  const logRepo = (globalThis as any).defaultLogRepository || defaultLogRepository;
+  const logSettings = logRepo.getLogSettings(p.logFileId, p.discipline);
   const contextObj = { contacts: logSettings.contacts, actions: logSettings.actions };
   const analyzeAction = defaultAnalyzeDocumentAction;
   const result = await analyzeAction.execute({ sourceBlob, emailText, contextObj });
@@ -809,12 +817,14 @@ function onSpecTagChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servic
 function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};
-    defaultLogRepository.addNewTagToTagList(p.logFileId, p.newTag, p.newTitle);
+    const logRepo = (globalThis as any).defaultLogRepository || defaultLogRepository;
+    logRepo.addNewTagToTagList(p.logFileId, p.newTag, p.newTitle);
     e.parameters = e.parameters || {};
     e.parameters.bypassTagValidation = "true";
     return processSubmission(e);
   } catch (err: any) {
-    return defaultCardPresenter.presentNotification("Error adding tag: " + err.message);
+    const cp = (globalThis as any).defaultCardPresenter || defaultCardPresenter;
+    return cp.presentNotification("Error adding tag: " + err.message);
   }
 }
 
@@ -827,12 +837,14 @@ function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
 function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};
-    defaultLogRepository.addNewVendorToTagList(p.logFileId, p.newVendor);
+    const logRepo = (globalThis as any).defaultLogRepository || defaultLogRepository;
+    logRepo.addNewVendorToTagList(p.logFileId, p.newVendor);
     e.parameters = e.parameters || {};
     e.parameters.bypassVendorValidation = "true";
     return processSubmission(e);
   } catch (err: any) {
-    return defaultCardPresenter.presentNotification("Error adding vendor: " + err.message);
+    const cp = (globalThis as any).defaultCardPresenter || defaultCardPresenter;
+    return cp.presentNotification("Error adding vendor: " + err.message);
   }
 }
 

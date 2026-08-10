@@ -13,6 +13,8 @@ import { BatchMigrationEngine } from "./core/log/BatchMigrationEngine";
 import { LogMigrationEngine } from "./core/log/LogMigrationEngine";
 import { DocumentPipeline } from "./core/intake/DocumentPipeline";
 import { defaultPdfDocumentService } from "./PdfDocumentService";
+import { defaultLogRepository } from "./GoogleSheetsLogRepository";
+import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
 import { CONFIG, MESSAGES } from "./Config";
 import { processSubmission, moveSubmittalToClosed } from "./Process";
 import {
@@ -393,6 +395,8 @@ g.checkAiModelHealth = checkAiModelHealth;
 g.DocumentPipeline = DocumentPipeline;
 g.buildMainCard = buildMainCard;
 g.defaultPdfDocumentService = defaultPdfDocumentService;
+g.defaultLogRepository = defaultLogRepository;
+g.defaultCardPresenter = defaultCardPresenter;
 g.LogMigrationEngine = LogMigrationEngine;
 g.GoogleSheetsStorageAdapter = GoogleSheetsStorageAdapter;
 
