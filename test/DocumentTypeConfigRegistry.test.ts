@@ -11,6 +11,7 @@ test('DocumentTypeConfigRegistry - pre-configured for Submittal by default', () 
   assert.deepEqual(config.rootFolderSearchTerms, ['Submittals', 'Submittal']);
   assert.equal(config.closedRootFolderName, 'Closed');
   assert.equal(config.filenamePrefix, '_');
+  assert.deepEqual(config.logSearchTerms, ['document log', 'inc document log', 'submittal log']);
   assert.equal(config.logSheetName, 'Log');
   assert.equal(config.logAdapterKey, 'GoogleSheetsLogRepository');
   assert.equal(config.filingAdapterKey, 'GoogleDriveFilingRepository');

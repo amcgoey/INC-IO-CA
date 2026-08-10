@@ -12,7 +12,7 @@ const CONFIG = {
   /** Target subfolder for filed/closed submittals. */
   CLOSED_FOLDER_NAME: "Closed",
   /** Shared Drive search term used to discover submittal log spreadsheets. */
-  LOG_FILE_SEARCH_TERM: "submittal log",
+  LOG_FILE_SEARCH_TERM: "document log",
   /** Tab name for the primary submittal log sheet. */
   LOG_SHEET_NAME: "Log",
   /** Tab name for project settings (contacts, actions, project abbreviation). */
@@ -137,10 +137,10 @@ const MESSAGES = {
   ADDON_TITLE: "INC IO CA",
   MAIN_CARD_TITLE: "File Submittal",
   SUCCESS_CARD_TITLE: "Submittal Logged",
-  LOG_LOADED_SUCCESS: "✅ Submittal Log loaded.",
-  LOG_MULTIPLE_FOUND: "⚠️ Multiple Submittal Logs detected. Please select the correct log below.",
+  LOG_LOADED_SUCCESS: "✅ Document Log loaded.",
+  LOG_MULTIPLE_FOUND: "⚠️ Multiple Document Logs detected. Please select the correct log below.",
   ERROR_MISSING_ACTION: "❌ Missing Information: Action and Contact are required to proceed.",
-  ERROR_NO_LOG: "❌ No Submittal Log found in this Drive.",
+  ERROR_NO_LOG: "❌ No Document Log found in this Drive.",
   ERROR_AI_BUSY: "⏳ Google's AI is currently experiencing high demand. Please try again in a moment, or enter the metadata manually.",
 
   SUCCESS_INCOMING: (targetKey: string) => `✅ Successfully logged ${targetKey} and saved original to 'Closed'.`,

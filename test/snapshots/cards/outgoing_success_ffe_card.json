@@ -26,7 +26,7 @@
                 },
                 {
                   "type": "TextButton",
-                  "text": "Open Submittal Log",
+                  "text": "Open Document Log",
                   "disabled": false,
                   "openLink": {
                     "url": "https://docs.google.com/spreadsheets/d/log-ffe/edit?gid=0#gid=0"
