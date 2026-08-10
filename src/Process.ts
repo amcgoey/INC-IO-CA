@@ -1,3 +1,11 @@
+if (typeof require !== "undefined") {
+  try {
+    const cdsmModule = eval('require("./prototypes/CardDraftStateManager")');
+    if (cdsmModule && cdsmModule.CardDraftStateManager && typeof (globalThis as any).CardDraftStateManager === "undefined") {
+      (globalThis as any).CardDraftStateManager = cdsmModule.CardDraftStateManager;
+    }
+  } catch (e) {}
+}
 declare const TransientOverrideLogger: any;
 if (typeof require !== "undefined") {
   try {
@@ -164,6 +172,26 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
     const dwm = typeof DocumentWorkflowModule !== "undefined" ? DocumentWorkflowModule : (globalThis as any).DocumentWorkflowModule;
     const policyFn = typeof getActionPolicy !== "undefined" ? getActionPolicy : (globalThis as any).getActionPolicy;
     const result: DocumentWorkflowResult = await dwm.executeWorkflow(input);
+    try {
+      const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
+      if (userCache) {
+        const cdsm = typeof CardDraftStateManager !== "undefined" ? CardDraftStateManager : (globalThis as any).CardDraftStateManager;
+        const evictDraft = (key: string) => {
+          if (cdsm && typeof cdsm.clearDraft === "function") {
+            cdsm.clearDraft(userCache, key);
+          } else {
+            const cacheKey = key.startsWith("CARD_DRAFT_V1_") ? key : `CARD_DRAFT_V1_${key}`;
+            userCache.remove(cacheKey);
+          }
+        };
+
+        if (p.messageId) evictDraft(`GMAIL_${p.messageId}`);
+        if (p.driveFileId || form.driveFileId) evictDraft(`DRIVE_${p.driveFileId || form.driveFileId}`);
+        if (p.contextKey) evictDraft(p.contextKey);
+        if (p.draftKey) evictDraft(p.draftKey);
+      }
+    } catch (e) {}
+
     const policy = policyFn(result.action);
 
     if (policy.direction === "incoming") {

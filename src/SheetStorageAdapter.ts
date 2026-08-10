@@ -55,8 +55,14 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
 
   private getSheet(sheetName: string): GoogleAppsScript.Spreadsheet.Sheet {
     const ss = SpreadsheetApp.openById(this.spreadsheetId);
-    const sheet = ss.getSheetByName(sheetName);
-    if (!sheet) throw new Error(`Sheet '${sheetName}' not found in spreadsheet.`);
+    let sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      if (sheetName === "_AuditLog") {
+        sheet = ss.insertSheet(sheetName);
+      } else {
+        throw new Error(`Sheet '${sheetName}' not found in spreadsheet.`);
+      }
+    }
     return sheet;
   }
 
