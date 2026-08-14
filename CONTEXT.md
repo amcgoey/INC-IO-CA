@@ -67,6 +67,9 @@ The pristine, validated data specific to the Architecture discipline (e.g., Sect
 **FFEDetails**:
 The pristine, validated data specific to the FF&E discipline (e.g., Spec Tag, Vendor, Related Tags).
 
+**SpecTag**:
+The primary alphanumeric identifier for an FF&E item (e.g., FB101, CG138) used as a lookup key for related support data such as Spec Title and Vendor. Distinct from architectural CSI MasterFormat sections.
+
 **ValidationContext**:
 The dependencies (like LogSettings, valid tags, valid vendors) passed into the pure validation module from the orchestrator so it can validate without reaching out to external services.
 
@@ -99,6 +102,23 @@ _Avoid_: ActionStep, PipelineTask
 **DocumentTypeConfig**:
 Pure, serializable configuration schema encapsulating document-type specific search criteria (root folder and log search terms), closed subfolder maps, cover page template references, filename prefixes, string adapter selection keys, and the unified `fields` specification list (`DocumentFieldSpec[]`).
 
+**DocumentTypeSpec**:
+The comprehensive, unified declarative Tier 1 specification defining a document type's identity (`key`, `label`, `name`), field attributes, picklist contracts, polymorphic storage options (`driveStorage`, `sqlStorage`), trigger-driven workflow sequences (`WorkflowTriggerSpec`), and UI card layout hints, strictly decoupled from host runtime logic and spreadsheet adapter mechanics.
+_Avoid_: DocumentTypeDefinition, DocTypeSchema
+
+**WorkflowTriggerSpec**:
+The declarative trigger matching rule within `DocumentTypeSpec` (`context` and `fieldMatches`) that dynamically selects which workflow sequence (`sequence` of `DocumentAction` keys) executes based on intake context and field values (e.g. `action === 'Received'`).
+
+**PolymorphicStorageSpec**:
+The storage specification array within `DocumentTypeSpec` supporting multiple concurrent or configurable target storage providers (`DriveStorageSpec`, `SqlStorageSpec`) for document filing and log persistence.
+
+**TemplateFormat**:
+A declarative format string (e.g. `${section}-${number}-${revision}`) used within `DocumentTypeSpec` to define calculated field expressions, identity keys, and filename formats without raw code functions.
+
+**TemplateFormatCompiler**:
+The Tier 1 pure compiler and evaluator for `TemplateFormat` format strings (e.g. `${section}-${number}-${revision}`), responsible for parsing field variable tokens, filtering null/empty field values, joining non-empty segments without dangling delimiters (e.g., producing `061000-0` instead of `061000--0`), and transpiling format strings into Tier 2 Google Sheets formulas (`TEXTJOIN` / `=MAP(...)` expressions).
+
+
 **DisjunctiveLogSearchQuery**:
 The Google Drive API search query string built dynamically from `DocumentTypeConfig.logSearchTerms` by joining terms with `OR` operators (e.g., `(title contains 'submittal log' or title contains 'submittal') and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`) to discover candidate log spreadsheets in a single API request.
 
@@ -116,10 +136,20 @@ Declarative property schema defining a field's key, target spreadsheet header, U
 _Avoid_: ColumnDefinition, FieldSchema
 
 **Declarative UI Field Rendering Engine**:
-The dynamic card rendering mechanism within `UnbiasedIntakeCard` (`renderDynamicFormFields`) that reads `DocumentFieldSpec[]` from `DocumentTypeConfig`, skips calculated fields (`isCalculated === true`), resolves 2D picklist ranges (`optionsRange`), and generates `CardService` input widgets dynamically without hardcoded `if/else` document type branches.
+The dynamic card rendering mechanism within `IntakeCard` (`renderDynamicFormFields`) that reads `DocumentFieldSpec[]` from `DocumentTypeSpec`, completely excludes calculated fields (`isCalculated === true`) from UI widget rendering without read-only previews, resolves picklists via `PicklistResolver`, and dynamically generates `CardService` input widgets strictly within the "Document Attributes" card section only when `documentType` is populated. If `documentType` is empty, the Document Attributes section is omitted entirely while preserving surrounding top context and bottom action sections.
 
 **PicklistOption**:
-The normalized key-label tuple (`value`, `label`) resolved from a Named Range reference (`optionsRange`) in Google Sheets or static JSON fallback files for populating UI dropdown widgets.
+The normalized key-label tuple (`value`, `label`) resolved dynamically via `PicklistResolver` from `DocumentFieldSpec.picklistSource` (supporting static lists, named ranges, and log settings) to populate UI dropdown widgets without hardcoded field key branches (`if (field.key === 'contact')`). Unlisted hydrated draft values are appended dynamically as fallback options to prevent data loss.
+
+**SupportDataSpec**:
+The Tier 1 pure declarative specification (`src/core/specs/DocumentTypeSpec.ts`) defining a reference dataset schema (`key`, `columns`, `isShared`, `allowDynamicAddition`, `dynamicPrompts`, `items`) attached to `DocumentTypeSpec.supportData`. Holds multi-column picklists and reference tables while leaving project-specific item instances to live project Google Sheets workbooks.
+
+**SupportDataColumnSpec**:
+The column schema entry (`key`, `type`, `isPrimaryKey`, `isDisplayLabel`) defining individual attributes within a `SupportDataSpec`.
+
+**PicklistSourceSpec**:
+The field-level picklist reference contract on `DocumentFieldSpec.picklistSource` (`supportDataKey`, `valueColumnKey`, `displayColumnKey`) linking a document field to a `SupportDataSpec` and specifying which dataset column is stored in the document record versus displayed in UI dropdowns.
+
 
 **Config_<DocTypeKey>_Fields**:
 The structured subtable Named Range on `_Config` tab for a specific `DocumentType` defining its `DocumentFieldSpec` rows (Key, Header, Label, Type, IsCalculated, FormulaOrFunction, OptionsRange).
@@ -131,6 +161,25 @@ _Avoid_: DocTypeIndex, ManifestSheet
 
 **DocumentTypeConfigRegistry**:
 The application registry that manages, registers, and resolves `DocumentTypeConfig` instances by document type name and spreadsheet ID at runtime, utilizing Google Apps Script `CacheService.getScriptCache()` (6-hour TTL) with `SpreadsheetId`-scoped cache keys (`DOC_CONFIG_<SpreadsheetId>_<DocTypeKey>`) for zero-latency lookup and cross-workbook isolation, with automatic fallback to `_Config` spreadsheet tab parsing.
+
+**DocumentTypeSpecRegistry**:
+The central application registry that loads, validates, caches, and serves `DocumentTypeSpec` objects by document type key and spreadsheet ID at runtime, providing a unified source of truth for UI presentation, validation rules, identity calculations, and filing strategies.
+_Avoid_: DocumentTypeRegistry, SpecManager
+
+**JsonDocumentTypeSpecAdapter**:
+The Tier 1 pure core adapter (`src/core/specs/JsonDocumentTypeSpecAdapter.ts`) responsible for bidirectional serialization between canonical JSON strings/files (`src/specs/*.json`) and typed, in-memory `DocumentTypeSpec` objects without Node.js `fs` or GAS `SpreadsheetApp` runtime dependencies. Ensures deserialized objects pass `ValidationEngine.validateSpec` before registration or re-serialization.
+
+**GoogleSheetsDocumentTypeSpecAdapter**:
+The Tier 2 Google Apps Script infrastructure adapter (`src/adapters/gas/GoogleSheetsDocumentTypeSpecAdapter.ts`) responsible for bidirectional compilation between typed `DocumentTypeSpec` instances and Google Sheets workbooks. Forward compilation translates `DocumentTypeSpec[]` into an intermediate `DocumentLogWorkbookSpec` model (generating `_Config` subtables, `_Shared` / `<Type> Support` tabs, single full-table Named Ranges, cell Data Validation rules, and Row 2 `=MAP(...)` spill formulas via `TemplateFormatCompiler`), while reverse decompilation reads live workbook tables via `SpreadsheetBatchReaderAdapter` and reconstructs validated `DocumentTypeSpec` instances via `ValidationEngine.validateSpec`, returning `SpecValidationResult[]`.
+_Avoid_: SheetSpecCompiler, DocTypeSheetAdapter
+
+**SpecValidationResult**:
+The discriminated union (`{ status: 'valid', spec: DocumentTypeSpec } | { status: 'invalid', errors: string[] }`) returned by `ValidationEngine.validateSpec`, `JsonDocumentTypeSpecAdapter.parse`, and `GoogleSheetsDocumentTypeSpecAdapter.decompile` when validating `DocumentTypeSpec` structural schema integrity, field key uniqueness, format string variable bindings, support data picklists, and registered action sequences.
+
+**ValidationHookRegistry**:
+The central Tier 1 registry mapping declarative validation hook identifier strings (e.g., `validationHookKey: "FfeStrategyValidationHook"`) on `DocumentTypeSpec` to pure runtime validation functions, decoupling custom document data validation logic from serialized JSON specs.
+
+
 
 **PrefixCacheManager**:
 The Tier 1 application cache service that wraps `CacheAdapter` to maintain tracked key manifest index entries (`_INDEX_<prefix>`), enabling targeted batch cache eviction (`invalidatePrefix`) across Google Script and test fake storage adapters without requiring native key queries or regex pattern matching.
@@ -285,8 +334,7 @@ The standardized payload returned from 1-pass AI document triage containing an `
 _Avoid_: AiPredictionDict, TriageResultMap
 
 **FieldConfidenceThreshold**:
-The fixed numerical cut-off (`0.85`) below which AI-predicted fields and overall triage scores trigger visual warning indicators in field labels and non-blocking yellow status banners on `UnbiasedIntakeCard` UI cards.
-_Avoid_: ConfidenceCutoff, UncertaintyLimit
+The fixed numerical cut-off (`0.85`) below which AI-predicted fields trigger visual warning indicators in field labels and non-blocking yellow status banners on `IntakeCard` UI cards. Formatted standardly via `CardPresenter.formatFieldTitleAndHint` with strict visual precedence: missing required fields (`❌`) override low-confidence warnings (`⚠️`).
 
 **TransientOverrideLogger**:
 The lightweight logging approach for manual AI field overrides, emitting non-persistent diagnostic entries strictly to `Logger.log()` / Apps Script Cloud execution logs during submission for debugging purposes, avoiding sheet tab bloat.
@@ -307,11 +355,11 @@ _Avoid_: GeminiTriageAdapter
 The in-memory test implementation of AiAnalysisService that returns deterministic predictions without network or script property dependencies.
 
 **CardPresenter**:
-The application presenter module responsible for assembling Google Apps Script CardService action responses, navigation updates (card refreshes and pushes), and notification toasts.
+The Tier 2 application presenter module responsible for assembling Google Apps Script CardService action responses, navigation updates (card refreshes and pushes), and notification toasts. Delegates dynamic Document Attributes form section rendering to `buildIntakeCard` via Tier 1 `DocumentTypeSpecRegistry` lookups.
 _Avoid_: UIHelper, CardNavigator, CardResponseBuilder
 
 **IntakeCard (`buildIntakeCard`)**:
-The dynamic multi-document contextual Google Workspace Add-on form intake card (`buildIntakeCard`) rendered upon email or file selection, featuring dynamic Project, DocumentType, and LogFile dropdown controls with loss-less state preservation during re-bind re-renders. Supersedes `UnbiasedIntakeCard` (`buildUnbiasedIntakeCard`) and `buildMainCard`.
+The dynamic multi-document contextual Google Workspace Add-on form intake card (`buildIntakeCard`) rendered upon email or file selection. Inspects active event inputs (`e.formInput.docType`) to look up `DocumentTypeSpec` from `DocumentTypeSpecRegistry`, dynamically constructing the Document Attributes card section when `documentType` is populated, or omitting it when empty. Supersedes `UnbiasedIntakeCard` (`buildUnbiasedIntakeCard`) and `buildMainCard`.
 _Avoid_: SubmittalFormCard, IntakeFormView
 
 **TemplateDriftAuditor**:
