@@ -126,7 +126,7 @@
         "FFE"
       ],
       "closedRootFolderName": "Closed",
-      "closedSubfolderFormat": "Closed/${specCategory}/${specTag}",
+      "closedSubfolderFormat": "Closed/${specTag}",
       "filenamePrefix": "_",
       "filenameFormat": "${calcFileName}"
     }

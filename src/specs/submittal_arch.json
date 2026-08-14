@@ -105,94 +105,240 @@
   "storage": [
     {
       "type": "drive",
-      "rootFolderSearchTerms": ["Submittals", "Submittal"],
-      "projectSearchTerms": ["Submittals", "Submittal"],
+      "rootFolderSearchTerms": [
+        "Submittals",
+        "Submittal"
+      ],
+      "projectSearchTerms": [
+        "Submittals",
+        "Submittal"
+      ],
       "closedRootFolderName": "Closed",
-      "closedSubfolderFormat": "Closed/${division}",
-      "closedSubfolderMap": {
-        "Architecture": "Architecture",
-        "FF&E": "FFE"
-      },
+      "closedSubfolderFormat": "Closed/${section}",
       "filenamePrefix": "_",
-      "filenameFormat": "${calcFileName}",
-      "coverPageTemplateId": ""
+      "filenameFormat": "${calcFileName}"
     }
   ],
   "workflows": [
     {
       "context": "GoogleDrive",
-      "sequence": ["AnalyzeDocument", "MoveDocument", "WriteLog"]
+      "sequence": [
+        "AnalyzeDocument",
+        "MoveDocument",
+        "WriteLog"
+      ]
     },
     {
       "context": "Gmail",
-      "sequence": ["TriageDocument", "InsertPages", "WriteLog"]
+      "sequence": [
+        "TriageDocument",
+        "InsertPages",
+        "WriteLog"
+      ]
     }
   ],
   "supportData": {
     "Contacts_Arch": {
       "key": "Contacts_Arch",
-      "isShared": true,
+      "isShared": false,
       "columns": [
-        { "key": "code", "type": "string", "isPrimaryKey": true },
-        { "key": "name", "type": "string", "isDisplayLabel": true },
-        { "key": "email", "type": "string" }
+        {
+          "key": "code",
+          "type": "string",
+          "isPrimaryKey": true
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "isDisplayLabel": true
+        },
+        {
+          "key": "email",
+          "type": "string"
+        }
       ],
       "items": [
-        { "code": "ARCH", "name": "Architect", "email": "arch@example.com" },
-        { "code": "GC", "name": "General Contractor", "email": "gc@example.com" },
-        { "code": "MEP", "name": "MEP Engineer", "email": "mep@example.com" },
-        { "code": "STR", "name": "Structural Engineer", "email": "str@example.com" },
-        { "code": "OWN", "name": "Owner", "email": "owner@example.com" }
+        {
+          "code": "ARCH",
+          "name": "Architect",
+          "email": "arch@example.com"
+        },
+        {
+          "code": "GC",
+          "name": "General Contractor",
+          "email": "gc@example.com"
+        },
+        {
+          "code": "MEP",
+          "name": "MEP Engineer",
+          "email": "mep@example.com"
+        },
+        {
+          "code": "STR",
+          "name": "Structural Engineer",
+          "email": "str@example.com"
+        },
+        {
+          "code": "OWN",
+          "name": "Owner",
+          "email": "owner@example.com"
+        }
       ]
     },
     "Actions": {
       "key": "Actions",
       "isShared": true,
       "columns": [
-        { "key": "code", "type": "string", "isPrimaryKey": true },
-        { "key": "name", "type": "string", "isDisplayLabel": true }
+        {
+          "key": "code",
+          "type": "string",
+          "isPrimaryKey": true
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "isDisplayLabel": true
+        }
       ],
       "items": [
-        { "code": "Received", "name": "Received" },
-        { "code": "Review", "name": "Review" },
-        { "code": "Approved", "name": "Approved" },
-        { "code": "Approved as Noted", "name": "Approved as Noted" },
-        { "code": "Revise and Resubmit", "name": "Revise and Resubmit" },
-        { "code": "Rejected", "name": "Rejected" },
-        { "code": "Returned", "name": "Returned" }
+        {
+          "code": "Received",
+          "name": "Received"
+        },
+        {
+          "code": "Review",
+          "name": "Review"
+        },
+        {
+          "code": "Approved",
+          "name": "Approved"
+        },
+        {
+          "code": "Approved as Noted",
+          "name": "Approved as Noted"
+        },
+        {
+          "code": "Revise and Resubmit",
+          "name": "Revise and Resubmit"
+        },
+        {
+          "code": "Rejected",
+          "name": "Rejected"
+        },
+        {
+          "code": "Returned",
+          "name": "Returned"
+        }
       ]
     },
     "CSI_DIVISIONS": {
       "key": "CSI_DIVISIONS",
       "isShared": true,
       "columns": [
-        { "key": "division", "type": "string", "isPrimaryKey": true },
-        { "key": "title", "type": "string", "isDisplayLabel": true }
+        {
+          "key": "division",
+          "type": "string",
+          "isPrimaryKey": true
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "isDisplayLabel": true
+        }
       ],
       "items": [
-        { "division": "01", "title": "General Requirements" },
-        { "division": "02", "title": "Existing Conditions" },
-        { "division": "03", "title": "Concrete" },
-        { "division": "04", "title": "Masonry" },
-        { "division": "05", "title": "Metals" },
-        { "division": "06", "title": "Wood, Plastics, and Composites" },
-        { "division": "07", "title": "Thermal and Moisture Protection" },
-        { "division": "08", "title": "Openings" },
-        { "division": "09", "title": "Finishes" },
-        { "division": "10", "title": "Specialties" },
-        { "division": "11", "title": "Equipment" },
-        { "division": "12", "title": "Furnishings" },
-        { "division": "13", "title": "Special Construction" },
-        { "division": "14", "title": "Conveying Equipment" },
-        { "division": "21", "title": "Fire Suppression" },
-        { "division": "22", "title": "Plumbing" },
-        { "division": "23", "title": "Heating, Ventilating, and Air Conditioning (HVAC)" },
-        { "division": "26", "title": "Electrical" },
-        { "division": "27", "title": "Communications" },
-        { "division": "28", "title": "Electronic Safety and Security" },
-        { "division": "31", "title": "Earthwork" },
-        { "division": "32", "title": "Exterior Improvements" },
-        { "division": "33", "title": "Utilities" }
+        {
+          "division": "01",
+          "title": "General Requirements"
+        },
+        {
+          "division": "02",
+          "title": "Existing Conditions"
+        },
+        {
+          "division": "03",
+          "title": "Concrete"
+        },
+        {
+          "division": "04",
+          "title": "Masonry"
+        },
+        {
+          "division": "05",
+          "title": "Metals"
+        },
+        {
+          "division": "06",
+          "title": "Wood, Plastics, and Composites"
+        },
+        {
+          "division": "07",
+          "title": "Thermal and Moisture Protection"
+        },
+        {
+          "division": "08",
+          "title": "Openings"
+        },
+        {
+          "division": "09",
+          "title": "Finishes"
+        },
+        {
+          "division": "10",
+          "title": "Specialties"
+        },
+        {
+          "division": "11",
+          "title": "Equipment"
+        },
+        {
+          "division": "12",
+          "title": "Furnishings"
+        },
+        {
+          "division": "13",
+          "title": "Special Construction"
+        },
+        {
+          "division": "14",
+          "title": "Conveying Equipment"
+        },
+        {
+          "division": "21",
+          "title": "Fire Suppression"
+        },
+        {
+          "division": "22",
+          "title": "Plumbing"
+        },
+        {
+          "division": "23",
+          "title": "Heating, Ventilating, and Air Conditioning (HVAC)"
+        },
+        {
+          "division": "26",
+          "title": "Electrical"
+        },
+        {
+          "division": "27",
+          "title": "Communications"
+        },
+        {
+          "division": "28",
+          "title": "Electronic Safety and Security"
+        },
+        {
+          "division": "31",
+          "title": "Earthwork"
+        },
+        {
+          "division": "32",
+          "title": "Exterior Improvements"
+        },
+        {
+          "division": "33",
+          "title": "Utilities"
+        }
       ]
     }
   },

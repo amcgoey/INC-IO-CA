@@ -17,28 +17,31 @@ export interface JsonStringifyOptions {
 
 export class JsonDocumentTypeSpecAdapter {
   /**
-   * Parses a JSON string into a validated DocumentTypeSpec result.
+   * Parses a JSON string or in-memory object into a validated DocumentTypeSpec result.
    * Catches native JSON SyntaxErrors and delegates structural validation to ValidationEngine.
    */
   public static parse(
-    jsonText: string,
+    jsonInput: string | object,
     options?: ValidationEngineOptions
   ): SpecValidationResult {
-    if (typeof jsonText !== 'string') {
-      return {
-        status: 'invalid',
-        errors: ['Expected JSON input to be a string'],
-      };
-    }
-
     let parsed: unknown;
-    try {
-      parsed = JSON.parse(jsonText);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+
+    if (typeof jsonInput === 'string') {
+      try {
+        parsed = JSON.parse(jsonInput);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          status: 'invalid',
+          errors: ['Invalid JSON syntax: ' + message],
+        };
+      }
+    } else if (jsonInput !== null && typeof jsonInput === 'object') {
+      parsed = jsonInput;
+    } else {
       return {
         status: 'invalid',
-        errors: [`Invalid JSON syntax: ${message}`],
+        errors: ['Expected JSON string or object input'],
       };
     }
 

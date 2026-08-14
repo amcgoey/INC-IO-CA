@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { specToConfigAdapter } from '../../../src/core/specs/specToConfigAdapter';
 import type { DocumentTypeSpec } from '../../../src/core/specs/DocumentTypeSpec';
 import {
@@ -22,10 +22,7 @@ describe('specToConfigAdapter (Tier 1 Pure Core)', () => {
     expect(config.targetTab).toBe('Submittal Arch');
     expect(config.rootFolderSearchTerms).toEqual(['Submittals', 'Submittal']);
     expect(config.closedRootFolderName).toBe('Closed');
-    expect(config.closedSubfolderMap).toEqual({
-      Architecture: 'Architecture',
-      'FF&E': 'FFE',
-    });
+    expect(config.closedSubfolderMap).toBeUndefined();
     expect(config.filenamePrefix).toBe('_');
     expect(config.logSheetName).toBe('Log');
     expect(config.logSearchTerms).toEqual(['document log', 'inc document log', 'submittal log']);
@@ -38,7 +35,7 @@ describe('specToConfigAdapter (Tier 1 Pure Core)', () => {
   });
 
   it('should project canonical FF&E Submittal spec and bind registered validation hook', () => {
-    const dummyHook = (rawDoc: any) => ({ status: 'success', warnings: [] });
+    const dummyHook = (_rawDoc: any) => ({ status: 'success', warnings: [] });
     defaultValidationHookRegistry.registerHook('ffeStrategyValidationHook', dummyHook as any);
 
     const spec = ffeSpecJson as DocumentTypeSpec;
@@ -72,7 +69,7 @@ describe('specToConfigAdapter (Tier 1 Pure Core)', () => {
     expect(config.validateHook).toBe(customHook);
   });
 
-  it('should project custom generic DocumentTypeSpec with reasonable defaults', () => {
+  it('should project custom generic DocumentTypeSpec with reasonable defaults and closedSubfolderMap if present', () => {
     const customSpec: DocumentTypeSpec = {
       key: 'ASI',
       label: 'ASI Log',
@@ -91,6 +88,7 @@ describe('specToConfigAdapter (Tier 1 Pure Core)', () => {
           type: 'drive',
           rootFolderSearchTerms: ['ASIs', 'ASI'],
           closedRootFolderName: 'Closed',
+          closedSubfolderMap: { Custom: 'Folder' },
           filenamePrefix: 'ASI_',
         },
       ],
@@ -107,6 +105,7 @@ describe('specToConfigAdapter (Tier 1 Pure Core)', () => {
     expect(config.displayName).toBe("Architect's Supplemental Instructions");
     expect(config.targetTab).toBe('ASI Log');
     expect(config.rootFolderSearchTerms).toEqual(['ASIs', 'ASI']);
+    expect(config.closedSubfolderMap).toEqual({ Custom: 'Folder' });
     expect(config.filenamePrefix).toBe('ASI_');
     expect(config.logSheetName).toBe('ASI Log');
     expect(config.fields).toHaveLength(2);

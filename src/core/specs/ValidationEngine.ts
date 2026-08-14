@@ -4,7 +4,7 @@
  * Pure core logic: zero GAS globals, zero Node.js built-in imports.
  */
 
-import type { DocumentTypeSpec } from './DocumentTypeSpec';
+import type { DocumentTypeSpec, DriveStorageSpec } from './DocumentTypeSpec';
 import { TemplateFormatCompiler } from './TemplateFormatCompiler';
 import type { ValidationHookRegistry } from './ValidationHookRegistry';
 
@@ -112,21 +112,21 @@ export class ValidationEngine {
       });
     }
 
-    // 4. Validate Template Format Variable Bindings
-    if (spec.identity && typeof spec.identity === 'object') {
-      const checkIdentityBinding = (formatStr: string | undefined, propName: string) => {
-        if (!formatStr || typeof formatStr !== 'string') return;
-        const tokens = TemplateFormatCompiler.extractVariableTokens(formatStr);
-        for (const token of tokens) {
-          if (!fieldKeySet.has(token) && !STANDARD_BUILTIN_VARIABLES.has(token)) {
-            errors.push(`Unbound template variable '${token}' in ${propName}`);
-          }
+    const checkTemplateBinding = (formatStr: string | undefined, locationDesc: string) => {
+      if (!formatStr || typeof formatStr !== 'string') return;
+      const tokens = TemplateFormatCompiler.extractVariableTokens(formatStr);
+      for (const token of tokens) {
+        if (!fieldKeySet.has(token) && !STANDARD_BUILTIN_VARIABLES.has(token)) {
+          errors.push(`Unbound template variable '${token}' in ${locationDesc}`);
         }
-      };
+      }
+    };
 
-      checkIdentityBinding(spec.identity.format, 'identity.format');
-      checkIdentityBinding(spec.identity.groupFormat, 'identity.groupFormat');
-      checkIdentityBinding(spec.identity.revisionGroupFormat, 'identity.revisionGroupFormat');
+    // 4. Validate Template Format Variable Bindings in Identity and Calculated Fields
+    if (spec.identity && typeof spec.identity === 'object') {
+      checkTemplateBinding(spec.identity.format, 'identity.format');
+      checkTemplateBinding(spec.identity.groupFormat, 'identity.groupFormat');
+      checkTemplateBinding(spec.identity.revisionGroupFormat, 'identity.revisionGroupFormat');
     }
 
     if (spec.fields && Array.isArray(spec.fields)) {
@@ -159,18 +159,24 @@ export class ValidationEngine {
             errors.push(`Field '${field.key}' picklistSource missing 'displayColumnKey'`);
           }
 
-          if (spec.supportData && supportDataKey && spec.supportData[supportDataKey]) {
-            const dataset = spec.supportData[supportDataKey];
-            const datasetCols = new Set((dataset.columns || []).map((c) => c.key));
-            if (valueColumnKey && !datasetCols.has(valueColumnKey)) {
+          if (supportDataKey) {
+            if (!spec.supportData || !spec.supportData[supportDataKey]) {
               errors.push(
-                `Field '${field.key}' picklistSource references non-existent value column '${valueColumnKey}' in supportData '${supportDataKey}'`
+                `Field '${field.key}' picklistSource references non-existent supportDataKey '${supportDataKey}'`
               );
-            }
-            if (displayColumnKey && !datasetCols.has(displayColumnKey)) {
-              errors.push(
-                `Field '${field.key}' picklistSource references non-existent display column '${displayColumnKey}' in supportData '${supportDataKey}'`
-              );
+            } else {
+              const dataset = spec.supportData[supportDataKey];
+              const datasetCols = new Set((dataset.columns || []).map((c) => c.key));
+              if (valueColumnKey && !datasetCols.has(valueColumnKey)) {
+                errors.push(
+                  `Field '${field.key}' picklistSource references non-existent value column '${valueColumnKey}' in supportData '${supportDataKey}'`
+                );
+              }
+              if (displayColumnKey && !datasetCols.has(displayColumnKey)) {
+                errors.push(
+                  `Field '${field.key}' picklistSource references non-existent display column '${displayColumnKey}' in supportData '${supportDataKey}'`
+                );
+              }
             }
           }
         }
@@ -184,6 +190,13 @@ export class ValidationEngine {
       spec.storage.forEach((st, idx) => {
         if (!st || typeof st !== 'object' || !st.type || typeof st.type !== 'string') {
           errors.push(`Storage at index ${idx} missing required 'type' discriminator`);
+          return;
+        }
+
+        if (st.type === 'drive') {
+          const driveStorage = st as Partial<DriveStorageSpec>;
+          checkTemplateBinding(driveStorage.closedSubfolderFormat, `storage[${idx}].closedSubfolderFormat`);
+          checkTemplateBinding(driveStorage.filenameFormat, `storage[${idx}].filenameFormat`);
         }
       });
     }
@@ -210,8 +223,12 @@ export class ValidationEngine {
     if (spec.validationHookKey !== undefined) {
       if (typeof spec.validationHookKey !== 'string' || spec.validationHookKey.trim() === '') {
         errors.push("Property 'validationHookKey' must be a non-empty string when defined");
-      } else if (options?.requireRegisteredHook && options.hookRegistry) {
-        if (!options.hookRegistry.hasHook(spec.validationHookKey)) {
+      } else if (options?.requireRegisteredHook) {
+        if (!options.hookRegistry) {
+          errors.push(
+            `validationHookKey '${spec.validationHookKey}' requires hookRegistry when requireRegisteredHook is true`
+          );
+        } else if (!options.hookRegistry.hasHook(spec.validationHookKey)) {
           errors.push(`validationHookKey '${spec.validationHookKey}' is not registered in ValidationHookRegistry`);
         }
       }

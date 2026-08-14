@@ -45,6 +45,16 @@ describe('JsonDocumentTypeSpecAdapter', () => {
       }
     });
 
+    it('should successfully parse an in-memory object directly without requiring stringify', () => {
+      const result = JsonDocumentTypeSpecAdapter.parse(minimalValidSpec);
+
+      expect(result.status).toBe('valid');
+      if (result.status === 'valid') {
+        expect(result.spec.key).toBe('SUBMITTAL_TEST');
+        expect(result.spec.fields).toHaveLength(2);
+      }
+    });
+
     it('should catch native JSON syntax errors gracefully and return invalid status', () => {
       const malformedJson = '{ "key": "SUBMITTAL_TEST", "label": ';
       const result = JsonDocumentTypeSpecAdapter.parse(malformedJson);
@@ -56,11 +66,23 @@ describe('JsonDocumentTypeSpecAdapter', () => {
       }
     });
 
-    it('should return invalid when non-string input is provided', () => {
-      const result = JsonDocumentTypeSpecAdapter.parse(123 as any);
-      expect(result.status).toBe('invalid');
-      if (result.status === 'invalid') {
-        expect(result.errors[0]).toBe('Expected JSON input to be a string');
+    it('should return invalid when non-string and non-object input is provided', () => {
+      const numResult = JsonDocumentTypeSpecAdapter.parse(123 as any);
+      expect(numResult.status).toBe('invalid');
+      if (numResult.status === 'invalid') {
+        expect(numResult.errors[0]).toBe('Expected JSON string or object input');
+      }
+
+      const nullResult = JsonDocumentTypeSpecAdapter.parse(null as any);
+      expect(nullResult.status).toBe('invalid');
+      if (nullResult.status === 'invalid') {
+        expect(nullResult.errors[0]).toBe('Expected JSON string or object input');
+      }
+
+      const boolResult = JsonDocumentTypeSpecAdapter.parse(true as any);
+      expect(boolResult.status).toBe('invalid');
+      if (boolResult.status === 'invalid') {
+        expect(boolResult.errors[0]).toBe('Expected JSON string or object input');
       }
     });
 
@@ -128,6 +150,7 @@ describe('JsonDocumentTypeSpecAdapter', () => {
         expect(spec.fields.length).toBeGreaterThanOrEqual(10);
         expect(spec.storage[0].type).toBe('drive');
         expect(spec.supportData?.Contacts_Arch).toBeDefined();
+        expect(spec.supportData?.Contacts_Arch.isShared).toBe(false);
         expect(spec.supportData?.Actions).toBeDefined();
         expect(spec.supportData?.CSI_DIVISIONS).toBeDefined();
 
@@ -159,6 +182,7 @@ describe('JsonDocumentTypeSpecAdapter', () => {
         expect(spec.identity.revisionGroupFormat).toBe('${specTag}-${revision}');
         expect(spec.validationHookKey).toBe('ffeStrategyValidationHook');
         expect(spec.supportData?.Contacts_FFE).toBeDefined();
+        expect(spec.supportData?.Contacts_FFE.isShared).toBe(false);
         expect(spec.supportData?.Actions).toBeDefined();
         expect(spec.supportData?.Vendors).toBeDefined();
         expect(spec.supportData?.SpecTags).toBeDefined();

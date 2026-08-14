@@ -43,6 +43,7 @@ describe('ValidationEngine', () => {
           type: 'drive',
           rootFolderSearchTerms: ['Submittals'],
           closedRootFolderName: '01 - Closed Submittals',
+          closedSubfolderFormat: 'Closed/${section}',
           filenameFormat: '${calcFileName}',
         },
       ],
@@ -167,7 +168,56 @@ describe('ValidationEngine', () => {
     }
   });
 
-  it('should detect invalid picklist linkages to non-existent supportData or columns', () => {
+  it('should detect invalid picklist linkages when supportDataKey does not exist in spec.supportData', () => {
+    const missingSupportDataSpec: DocumentTypeSpec = {
+      ...validSpec,
+      fields: [
+        ...validSpec.fields,
+        {
+          key: 'unknownPicklist',
+          label: 'Unknown Picklist',
+          type: 'list' as const,
+          picklistSource: {
+            supportDataKey: 'NonExistentDataset',
+            valueColumnKey: 'code',
+            displayColumnKey: 'name',
+          },
+        },
+      ],
+    };
+    const result = ValidationEngine.validateSpec(missingSupportDataSpec);
+    expect(result.status).toBe('invalid');
+    if (result.status === 'invalid') {
+      expect(result.errors.some((e) => e.includes("references non-existent supportDataKey 'NonExistentDataset'"))).toBe(true);
+    }
+  });
+
+  it('should detect invalid picklist linkages when supportData is undefined', () => {
+    const noSupportDataSpec: DocumentTypeSpec = {
+      ...validSpec,
+      supportData: undefined,
+      fields: [
+        { key: 'section', label: 'Section', type: 'string' },
+        {
+          key: 'contact',
+          label: 'Contact',
+          type: 'list',
+          picklistSource: {
+            supportDataKey: 'Contacts_Arch',
+            valueColumnKey: 'code',
+            displayColumnKey: 'name',
+          },
+        },
+      ],
+    };
+    const result = ValidationEngine.validateSpec(noSupportDataSpec);
+    expect(result.status).toBe('invalid');
+    if (result.status === 'invalid') {
+      expect(result.errors.some((e) => e.includes("references non-existent supportDataKey 'Contacts_Arch'"))).toBe(true);
+    }
+  });
+
+  it('should detect invalid picklist linkages to non-existent columns in supportData', () => {
     const badPicklistSpec = {
       ...validSpec,
       fields: [
@@ -191,6 +241,27 @@ describe('ValidationEngine', () => {
     }
   });
 
+  it('should detect unbound template variables in storage closedSubfolderFormat and filenameFormat', () => {
+    const unboundStorageSpec: DocumentTypeSpec = {
+      ...validSpec,
+      storage: [
+        {
+          type: 'drive',
+          rootFolderSearchTerms: ['Submittals'],
+          closedRootFolderName: 'Closed',
+          closedSubfolderFormat: 'Closed/${unknownFolderVar}',
+          filenameFormat: '${unknownFileVar}',
+        },
+      ],
+    };
+    const result = ValidationEngine.validateSpec(unboundStorageSpec);
+    expect(result.status).toBe('invalid');
+    if (result.status === 'invalid') {
+      expect(result.errors.some((e) => e.includes("Unbound template variable 'unknownFolderVar' in storage[0].closedSubfolderFormat"))).toBe(true);
+      expect(result.errors.some((e) => e.includes("Unbound template variable 'unknownFileVar' in storage[0].filenameFormat"))).toBe(true);
+    }
+  });
+
   it('should detect missing or empty action sequences in workflows', () => {
     const emptyWorkflowSpec = {
       ...validSpec,
@@ -205,6 +276,20 @@ describe('ValidationEngine', () => {
     expect(result.status).toBe('invalid');
     if (result.status === 'invalid') {
       expect(result.errors.some((e) => e.includes('sequence'))).toBe(true);
+    }
+  });
+
+  it('should record an error when requireRegisteredHook is true but hookRegistry is not provided', () => {
+    const specWithHook: DocumentTypeSpec = {
+      ...validSpec,
+      validationHookKey: 'UnregisteredHook',
+    };
+    const result = ValidationEngine.validateSpec(specWithHook, {
+      requireRegisteredHook: true,
+    });
+    expect(result.status).toBe('invalid');
+    if (result.status === 'invalid') {
+      expect(result.errors.some((e) => e.includes("validationHookKey 'UnregisteredHook' requires hookRegistry when requireRegisteredHook is true"))).toBe(true);
     }
   });
 
