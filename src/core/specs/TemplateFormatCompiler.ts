@@ -4,13 +4,22 @@
  * Pure core logic: zero GAS globals, zero Node.js built-in imports.
  */
 
+const VARIABLE_TOKEN_PATTERN = /\$\{([^}]+)\}/g;
+
 export class TemplateFormatCompiler {
+  /**
+   * Helper to create a fresh regular expression for token matching.
+   */
+  private static createTokenRegex(): RegExp {
+    return new RegExp(VARIABLE_TOKEN_PATTERN.source, 'g');
+  }
+
   /**
    * Extracts all unique variable token names from a ${variable} format string.
    */
   public static extractVariableTokens(formatStr: string): string[] {
     if (!formatStr) return [];
-    const regex = /\${([^}]+)\}/g;
+    const regex = TemplateFormatCompiler.createTokenRegex();
     const tokens: string[] = [];
     let match: RegExpExecArray | null;
     while ((match = regex.exec(formatStr)) !== null) {
@@ -28,7 +37,7 @@ export class TemplateFormatCompiler {
   public static evaluate(formatStr: string, record: Record<string, any>): string {
     if (!formatStr) return '';
 
-    let result = formatStr.replace(/\${([^}]+)\}/g, (_, varName) => {
+    let result = formatStr.replace(TemplateFormatCompiler.createTokenRegex(), (_, varName) => {
       const val = record[varName];
       if (val === null || val === undefined) return '';
       return String(val).trim();
@@ -65,7 +74,7 @@ export class TemplateFormatCompiler {
     const candidateDelimiters = ['-', '/', '_', ' ', ':'];
 
     // Identify primary delimiter by inspecting static text outside ${...}
-    const templateMasked = formatStr.replace(/\$\{[^}]+\}/g, '');
+    const templateMasked = formatStr.replace(TemplateFormatCompiler.createTokenRegex(), '');
     let primaryDelimiter = '';
     let maxCount = 0;
 
@@ -108,7 +117,7 @@ export class TemplateFormatCompiler {
         // Mixed segment (e.g. "Closed/${section}" or "PRE${tag}POST")
         // Tokenize into literal chunks and variable chunks
         const parts: string[] = [];
-        const regex = /\${([^}]+)\}/g;
+        const regex = TemplateFormatCompiler.createTokenRegex();
         let lastIndex = 0;
         let match: RegExpExecArray | null;
 

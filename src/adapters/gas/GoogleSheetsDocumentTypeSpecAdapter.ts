@@ -15,6 +15,11 @@ import type {
 import { DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION } from '../../core/config/DocumentLogWorkbookSpec';
 import { TemplateFormatCompiler } from '../../core/specs/TemplateFormatCompiler';
 
+/** Log Tab default layout constants */
+const DATA_ROW_START_INDEX = 4;
+const DEFAULT_LOG_TAB_ROW_COUNT = 25;
+const DEFAULT_LOG_TAB_MIN_COLUMN_COUNT = 26;
+
 /**
  * Converts a 0-based column index to A1 column letters (e.g. 0 -> 'A', 25 -> 'Z', 26 -> 'AA').
  */
@@ -47,7 +52,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       const columnMap: Record<string, string> = {};
       spec.fields.forEach((field, idx) => {
         const colLetter = getColumnLetter(idx);
-        columnMap[field.key] = `${colLetter}4:${colLetter}`;
+        columnMap[field.key] = `${colLetter}${DATA_ROW_START_INDEX}:${colLetter}`;
       });
 
       // 2. Build ColumnSpec array
@@ -93,8 +98,8 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       const existingTabIdx = tabs.findIndex((t) => t.name === logTabName);
       const logTab: TabSpec = {
         name: logTabName,
-        rowCount: 25,
-        columnCount: Math.max(columns.length, 26),
+        rowCount: DEFAULT_LOG_TAB_ROW_COUNT,
+        columnCount: Math.max(columns.length, DEFAULT_LOG_TAB_MIN_COLUMN_COUNT),
         isLogTab: true,
         columns,
         seedRows: existingTabIdx >= 0 ? tabs[existingTabIdx].seedRows : undefined,
