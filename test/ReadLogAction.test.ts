@@ -3,15 +3,16 @@ import assert from "node:assert/strict";
 import { ReadLogAction } from "../src/ReadLogAction";
 import { WorkflowRunner } from "../src/core/workflow/WorkflowRunner";
 import { FakeLogRepository } from "./harness/fakes/FakeLogRepository";
-import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "../src/DocumentLogStrategy";
+import { DeclarativeDocumentLogStrategy } from "../src/DocumentLogStrategy";
+import { defaultDocumentTypeSpecRegistry } from "../src/core/specs/DocumentTypeSpecRegistry";
 import { createValidatedArchitectureSubmittal, createValidatedFFESubmittal } from "./harness/factories/DocumentFactory";
 import { IdentityData, ReadLogInput } from "../src/types";
 
-test("ReadLogAction - resolves IdentityData from ArchitectureSubmittalStrategy and reads log via FakeLogRepository", async () => {
+test("ReadLogAction - resolves IdentityData from DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) and reads log via FakeLogRepository", async () => {
   const fakeRepo = new FakeLogRepository();
   const action = new ReadLogAction();
   const doc = createValidatedArchitectureSubmittal();
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const input: ReadLogInput = {
     spreadsheetId: "test-ss-123",
@@ -56,7 +57,7 @@ test("ReadLogAction - returns stubbed previous entry and handles status transiti
   const fakeRepo = new FakeLogRepository();
   const action = new ReadLogAction();
   const doc = createValidatedArchitectureSubmittal();
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   fakeRepo.customReadResult = {
     found: true,
@@ -91,7 +92,7 @@ test("WorkflowRunner.runSequence - executes ReadLogAction in sequence pipeline",
   const fakeRepo = new FakeLogRepository();
   const action = new ReadLogAction();
   const doc = createValidatedFFESubmittal();
-  const strategy = new FFESubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_FFE"));
 
   const input: ReadLogInput = {
     spreadsheetId: "ffe-ss-seq",

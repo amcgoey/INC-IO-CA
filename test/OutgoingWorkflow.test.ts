@@ -2,7 +2,7 @@ import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 
 import { DocumentFactory, createTestContext } from "./harness";
-import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "../src/DocumentLogStrategy";
+import { DeclarativeDocumentLogStrategy } from "../src/DocumentLogStrategy";
 import { OutgoingWorkflow } from "../src/core/workflow/OutgoingWorkflow";
 import { DocumentWorkflowModule } from "../src/core/workflow/DocumentWorkflowModule";
 

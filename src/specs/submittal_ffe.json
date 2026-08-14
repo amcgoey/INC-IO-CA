@@ -3,9 +3,9 @@
   "label": "Submittal FF&E",
   "name": "Submittal Furniture, Fixtures & Equipment",
   "identity": {
-    "format": "${specTag}-${vendor}-${revision}-${date}",
+    "format": "${specTag}-${revision}-${date}",
     "groupFormat": "${specTag}",
-    "revisionGroupFormat": "${specTag}-${vendor}-${revision}"
+    "revisionGroupFormat": "${specTag}-${revision}"
   },
   "fields": [
     {
@@ -117,8 +117,14 @@
   "storage": [
     {
       "type": "drive",
-      "rootFolderSearchTerms": ["FF&E", "FFE"],
-      "projectSearchTerms": ["FF&E", "FFE"],
+      "rootFolderSearchTerms": [
+        "FF&E",
+        "FFE"
+      ],
+      "projectSearchTerms": [
+        "FF&E",
+        "FFE"
+      ],
       "closedRootFolderName": "Closed",
       "closedSubfolderFormat": "Closed/${specCategory}/${specTag}",
       "filenamePrefix": "_",
@@ -128,11 +134,19 @@
   "workflows": [
     {
       "context": "GoogleDrive",
-      "sequence": ["AnalyzeDocument", "MoveDocument", "WriteLog"]
+      "sequence": [
+        "AnalyzeDocument",
+        "MoveDocument",
+        "WriteLog"
+      ]
     },
     {
       "context": "Gmail",
-      "sequence": ["TriageDocument", "InsertPages", "WriteLog"]
+      "sequence": [
+        "TriageDocument",
+        "InsertPages",
+        "WriteLog"
+      ]
     }
   ],
   "supportData": {
@@ -140,63 +154,162 @@
       "key": "Contacts_FFE",
       "isShared": false,
       "columns": [
-        { "key": "code", "type": "string", "isPrimaryKey": true },
-        { "key": "name", "type": "string", "isDisplayLabel": true },
-        { "key": "email", "type": "string" }
+        {
+          "key": "code",
+          "type": "string",
+          "isPrimaryKey": true
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "isDisplayLabel": true
+        },
+        {
+          "key": "email",
+          "type": "string"
+        }
       ],
       "items": [
-        { "code": "INT", "name": "Interior Designer", "email": "interiors@example.com" },
-        { "code": "GC", "name": "General Contractor", "email": "gc@example.com" },
-        { "code": "OWN", "name": "Owner", "email": "owner@example.com" }
+        {
+          "code": "INT",
+          "name": "Interior Designer",
+          "email": "interiors@example.com"
+        },
+        {
+          "code": "GC",
+          "name": "General Contractor",
+          "email": "gc@example.com"
+        },
+        {
+          "code": "OWN",
+          "name": "Owner",
+          "email": "owner@example.com"
+        }
       ]
     },
     "Actions": {
       "key": "Actions",
       "isShared": true,
       "columns": [
-        { "key": "code", "type": "string", "isPrimaryKey": true },
-        { "key": "name", "type": "string", "isDisplayLabel": true }
+        {
+          "key": "code",
+          "type": "string",
+          "isPrimaryKey": true
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "isDisplayLabel": true
+        }
       ],
       "items": [
-        { "code": "Received", "name": "Received" },
-        { "code": "Review", "name": "Review" },
-        { "code": "Approved", "name": "Approved" },
-        { "code": "Approved as Noted", "name": "Approved as Noted" },
-        { "code": "Revise and Resubmit", "name": "Revise and Resubmit" },
-        { "code": "Rejected", "name": "Rejected" },
-        { "code": "Returned", "name": "Returned" }
+        {
+          "code": "Received",
+          "name": "Received"
+        },
+        {
+          "code": "Review",
+          "name": "Review"
+        },
+        {
+          "code": "Approved",
+          "name": "Approved"
+        },
+        {
+          "code": "Approved as Noted",
+          "name": "Approved as Noted"
+        },
+        {
+          "code": "Revise and Resubmit",
+          "name": "Revise and Resubmit"
+        },
+        {
+          "code": "Rejected",
+          "name": "Rejected"
+        },
+        {
+          "code": "Returned",
+          "name": "Returned"
+        }
       ]
     },
     "Vendors": {
       "key": "Vendors",
       "isShared": true,
       "allowDynamicAddition": true,
-      "dynamicPrompts": ["ADD_VENDOR"],
+      "dynamicPrompts": [
+        "ADD_VENDOR"
+      ],
       "columns": [
-        { "key": "code", "type": "string", "isPrimaryKey": true },
-        { "key": "name", "type": "string", "isDisplayLabel": true }
+        {
+          "key": "code",
+          "type": "string",
+          "isPrimaryKey": true
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "isDisplayLabel": true
+        }
       ],
       "items": [
-        { "code": "HERMAN_MILLER", "name": "Herman Miller" },
-        { "code": "STEELCASE", "name": "Steelcase" },
-        { "code": "KNOLL", "name": "Knoll" },
-        { "code": "HAWORTH", "name": "Haworth" }
+        {
+          "code": "HERMAN_MILLER",
+          "name": "Herman Miller"
+        },
+        {
+          "code": "STEELCASE",
+          "name": "Steelcase"
+        },
+        {
+          "code": "KNOLL",
+          "name": "Knoll"
+        },
+        {
+          "code": "HAWORTH",
+          "name": "Haworth"
+        }
       ]
     },
     "SpecTags": {
       "key": "SpecTags",
       "isShared": false,
       "allowDynamicAddition": true,
-      "dynamicPrompts": ["ADD_TAG"],
+      "dynamicPrompts": [
+        "ADD_TAG"
+      ],
       "columns": [
-        { "key": "tag", "type": "string", "isPrimaryKey": true },
-        { "key": "category", "type": "string" },
-        { "key": "description", "type": "string", "isDisplayLabel": true }
+        {
+          "key": "tag",
+          "type": "string",
+          "isPrimaryKey": true
+        },
+        {
+          "key": "category",
+          "type": "string"
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "isDisplayLabel": true
+        }
       ],
       "items": [
-        { "tag": "FB101", "category": "FBE", "description": "Fabric Task Chair" },
-        { "tag": "CG138", "category": "CASE", "description": "Conference Credenza" },
-        { "tag": "LT205", "category": "LGT", "description": "Pendant Task Light" }
+        {
+          "tag": "FB101",
+          "category": "FBE",
+          "description": "Fabric Task Chair"
+        },
+        {
+          "tag": "CG138",
+          "category": "CASE",
+          "description": "Conference Credenza"
+        },
+        {
+          "tag": "LT205",
+          "category": "LGT",
+          "description": "Pendant Task Light"
+        }
       ]
     }
   },

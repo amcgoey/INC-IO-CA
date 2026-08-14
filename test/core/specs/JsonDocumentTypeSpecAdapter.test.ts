@@ -154,9 +154,9 @@ describe('JsonDocumentTypeSpecAdapter', () => {
         expect(spec.key).toBe('SUBMITTAL_FFE');
         expect(spec.label).toBe('Submittal FF&E');
         expect(spec.name).toBe('Submittal Furniture, Fixtures & Equipment');
-        expect(spec.identity.format).toBe('${specTag}-${vendor}-${revision}-${date}');
+        expect(spec.identity.format).toBe('${specTag}-${revision}-${date}');
         expect(spec.identity.groupFormat).toBe('${specTag}');
-        expect(spec.identity.revisionGroupFormat).toBe('${specTag}-${vendor}-${revision}');
+        expect(spec.identity.revisionGroupFormat).toBe('${specTag}-${revision}');
         expect(spec.validationHookKey).toBe('ffeStrategyValidationHook');
         expect(spec.supportData?.Contacts_FFE).toBeDefined();
         expect(spec.supportData?.Actions).toBeDefined();

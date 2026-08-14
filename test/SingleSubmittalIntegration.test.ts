@@ -6,7 +6,8 @@ import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../src/core/config/DocumentLogWorkbo
 import { DocumentPipeline } from "../src/core/intake/DocumentPipeline";
 import { DocumentWorkflowModule } from "../src/core/workflow/DocumentWorkflowModule";
 import { IncomingWorkflow } from "../src/core/workflow/IncomingWorkflow";
-import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "../src/DocumentLogStrategy";
+import { DeclarativeDocumentLogStrategy } from "../src/DocumentLogStrategy";
+import { defaultDocumentTypeSpecRegistry } from "../src/core/specs/DocumentTypeSpecRegistry";
 import { GoogleSheetsLogRepository } from "../src/GoogleSheetsLogRepository";
 import { FakeDriveFilingRepository } from "./harness/fakes/FakeDriveFilingRepository";
 import { FakePdfDocumentService } from "./harness/fakes/FakePdfDocumentService";
@@ -57,7 +58,7 @@ test("Single-Submittal Architecture Incoming Workflow - End-to-End Integration",
       projectAbbr: "PROJ",
       emptyFallbacks: [],
       selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
-      strategy: new ArchitectureSubmittalStrategy(),
+      strategy: new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH")),
       logRepository: googleSheetsLogRepo,
       driveFilingRepository: fakeDriveRepo,
       pdfDocumentService: fakePdfService,
@@ -152,7 +153,7 @@ test("Single-Submittal FF&E Incoming Workflow - End-to-End Integration", async (
       projectAbbr: "PROJ",
       emptyFallbacks: [],
       selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
-      strategy: new FFESubmittalStrategy(),
+      strategy: new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_FFE")),
       logRepository: googleSheetsLogRepo,
       driveFilingRepository: fakeDriveRepo,
       pdfDocumentService: fakePdfService,
@@ -219,7 +220,7 @@ test("Single-Submittal Architecture Outgoing Workflow - End-to-End Integration",
       projectAbbr: "PROJ",
       emptyFallbacks: [],
       selectedAction: { action: "Approved as Noted", abbr: " AAN", status: "Closed" },
-      strategy: new ArchitectureSubmittalStrategy(),
+      strategy: new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH")),
       logRepository: googleSheetsLogRepo,
       driveFilingRepository: fakeDriveRepo,
       spreadsheetApp: harness.sheetsService

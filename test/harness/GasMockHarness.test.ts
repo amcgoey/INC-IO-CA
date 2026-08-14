@@ -4,7 +4,8 @@ import { GasMockHarness } from "./GasMockHarness";
 import { DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, DOCUMENT_LOG_WORKBOOK_SPEC, TabSpec, NamedRangeSpec } from "../../src/core/config/DocumentLogWorkbookSpec";
 import { LogEngine } from "../../src/core/log/LogEngine";
 import { GoogleSheetsStorageAdapter } from "../../src/SheetStorageAdapter";
-import { ArchitectureSubmittalStrategy } from "../../src/DocumentLogStrategy";
+import { DeclarativeDocumentLogStrategy } from "../../src/DocumentLogStrategy";
+import { defaultDocumentTypeSpecRegistry } from "../../src/core/specs/DocumentTypeSpecRegistry";
 
 test.afterEach(() => {
   GasMockHarness.uninstall();
@@ -399,7 +400,7 @@ test("LogEngine handles submittal revision row placement and updates previous re
 
   const adapter = new GoogleSheetsStorageAdapter("ss-revision-test");
   const engine = new LogEngine(adapter);
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const docRev0: any = {
     discipline: "Architecture",

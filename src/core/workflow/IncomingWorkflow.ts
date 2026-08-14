@@ -10,7 +10,7 @@ import { DuplicateDocumentAction } from './DuplicateDocumentAction';
 import { WriteLogAction } from '../../WriteLogAction';
 import { InsertPagesAction } from '../../InsertPagesAction';
 import { WorkflowRunner } from './WorkflowRunner';
-import { ArchitectureSubmittalStrategy } from '../../DocumentLogStrategy';
+
 
 class IncomingWorkflow {
   /**
@@ -93,8 +93,8 @@ class IncomingWorkflow {
     };
 
     const stratFn = (globalThis as any).getDocumentLogStrategy || (typeof getDocumentLogStrategy !== "undefined" ? getDocumentLogStrategy : null);
-    const ArchCtor = (globalThis as any).ArchitectureSubmittalStrategy || (typeof ArchitectureSubmittalStrategy !== "undefined" ? ArchitectureSubmittalStrategy : null);
-    const strategy = input.strategy || (stratFn ? stratFn(input.validatedDoc) : (ArchCtor ? new ArchCtor() : null));
+    
+    const strategy = input.strategy || (stratFn ? stratFn(input.validatedDoc) : null);
 
     const runner = (globalThis as any).WorkflowRunner || (typeof WorkflowRunner !== "undefined" ? WorkflowRunner : null);
 

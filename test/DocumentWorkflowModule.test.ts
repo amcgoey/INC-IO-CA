@@ -2,7 +2,7 @@ import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 
 import { DocumentFactory, createTestContext } from "./harness";
-import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "../src/DocumentLogStrategy";
+import { DeclarativeDocumentLogStrategy } from "../src/DocumentLogStrategy";
 import { getActionPolicy, getDocumentLogStrategy, getDocumentTitle, DocumentWorkflowModule } from "../src/core/workflow/DocumentWorkflowModule";
 
 
@@ -26,8 +26,8 @@ test("getDocumentLogStrategy resolves strategy based on discipline", () => {
   const archDoc = DocumentFactory.createValidatedArchitectureSubmittal();
   const ffeDoc = DocumentFactory.createValidatedFFESubmittal();
 
-  assert.ok(getDocumentLogStrategy(archDoc) instanceof ArchitectureSubmittalStrategy);
-  assert.ok(getDocumentLogStrategy(ffeDoc) instanceof FFESubmittalStrategy);
+  assert.ok(getDocumentLogStrategy(archDoc) instanceof DeclarativeDocumentLogStrategy);
+  assert.ok(getDocumentLogStrategy(ffeDoc) instanceof DeclarativeDocumentLogStrategy);
 });
 
 test("getDocumentTitle extracts title based on discipline", () => {
@@ -71,7 +71,7 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
   assert.strictEqual(context.logRepository.appendedDocuments.length, 1);
   const appDoc = context.logRepository.appendedDocuments[0];
   assert.strictEqual(appDoc.spreadsheetId, "log-ss-123");
-  assert.ok(appDoc.strategy instanceof ArchitectureSubmittalStrategy);
+  assert.ok(appDoc.strategy instanceof DeclarativeDocumentLogStrategy);
   assert.strictEqual(appDoc.options?.status, "Under Review");
   assert.strictEqual(appDoc.options?.actionAbbr, " Rec");
 

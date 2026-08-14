@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { WriteLogAction } from '../src/WriteLogAction';
 import { WorkflowRunner } from '../src/core/workflow/WorkflowRunner';
 import { FakeLogRepository } from './harness/fakes/FakeLogRepository';
-import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from '../src/DocumentLogStrategy';
+import { DeclarativeDocumentLogStrategy } from '../src/DocumentLogStrategy';
+import { defaultDocumentTypeSpecRegistry } from '../src/core/specs/DocumentTypeSpecRegistry';
 import { createValidatedArchitectureSubmittal, createValidatedFFESubmittal } from './harness/factories/DocumentFactory';
 import { IdentityData, WriteLogInput } from '../src/types';
 import { createTestContext } from '../src/core/workflow/WorkflowContextFactory';
@@ -34,7 +35,7 @@ test('WriteLogAction - early guard validation throws descriptive error when vali
 
 test('WriteLogAction - executes with DocumentActionContext and updates context with append results', async () => {
   const doc = createValidatedArchitectureSubmittal();
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec('SUBMITTAL_ARCH'));
   const action = new WriteLogAction();
 
   const testContext = createTestContext(undefined, undefined, {
@@ -53,11 +54,11 @@ test('WriteLogAction - executes with DocumentActionContext and updates context w
   assert.equal(testContext.adapters.logRepository.appendedDocuments.length, 1);
 });
 
-test('WriteLogAction - resolves IdentityData from ArchitectureSubmittalStrategy and appends document via FakeLogRepository', async () => {
+test('WriteLogAction - resolves IdentityData from DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) and appends document via FakeLogRepository', async () => {
   const fakeRepo = new FakeLogRepository();
   const action = new WriteLogAction();
   const doc = createValidatedArchitectureSubmittal();
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec('SUBMITTAL_ARCH'));
 
   const input: WriteLogInput = {
     spreadsheetId: 'test-ss-123',
@@ -99,7 +100,7 @@ test('WriteLogAction - accepts explicit IdentityData override in input', async (
   const fakeRepo = new FakeLogRepository();
   const action = new WriteLogAction();
   const doc = createValidatedArchitectureSubmittal();
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec('SUBMITTAL_ARCH'));
 
   const customIdentity: IdentityData = {
     identityGroup: 'custom-group',
@@ -127,7 +128,7 @@ test('WorkflowRunner.runAction - executes WriteLogAction seam cleanly for FF&E s
   const fakeRepo = new FakeLogRepository();
   const action = new WriteLogAction();
   const doc = createValidatedFFESubmittal();
-  const strategy = new FFESubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec('SUBMITTAL_FFE'));
 
   const input: WriteLogInput = {
     spreadsheetId: 'ffe-ss-789',
@@ -159,7 +160,7 @@ test('WorkflowRunner.runSequence - executes WriteLogAction in a sequence pipelin
   const fakeRepo = new FakeLogRepository();
   const action = new WriteLogAction();
   const doc = createValidatedArchitectureSubmittal();
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec('SUBMITTAL_ARCH'));
 
   const input: WriteLogInput = {
     spreadsheetId: 'test-ss-seq',

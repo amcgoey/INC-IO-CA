@@ -4,7 +4,8 @@
  * @description Helper functions for workflow action policy, strategy resolution, title extraction, and sheet URL generation.
  */
 
-import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from '../../DocumentLogStrategy';
+import { DeclarativeDocumentLogStrategy } from '../logging/DeclarativeDocumentLogStrategy';
+import { defaultDocumentTypeSpecRegistry } from '../specs/DocumentTypeSpecRegistry';
 
 /**
  * Resolves execution policy settings based on the specified workflow action string.
@@ -32,14 +33,15 @@ export function getActionPolicy(action: string): WorkflowActionPolicy {
  * Factory function returning the appropriate DocumentLogStrategy implementation for a given document.
  *
  * @param doc - The ValidatedDocument instance.
- * @returns FFESubmittalStrategy for FF&E discipline or ArchitectureSubmittalStrategy for Architecture.
+ * @returns DeclarativeDocumentLogStrategy for the document type spec.
  */
 export function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy {
   const details = doc ? doc.disciplineDetails : null;
-  if (details && details.discipline === "FF&E") {
-    return new FFESubmittalStrategy();
-  }
-  return new ArchitectureSubmittalStrategy();
+  const docTypeKey = (details && (details as any).discipline === "FF&E")
+    ? "SUBMITTAL_FFE"
+    : (doc?.docTypeKey || "SUBMITTAL_ARCH");
+  const spec = defaultDocumentTypeSpecRegistry.getSpec(docTypeKey);
+  return new DeclarativeDocumentLogStrategy(spec);
 }
 
 /**
@@ -51,7 +53,7 @@ export function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrat
 export function getDocumentTitle(doc: ValidatedDocument): string {
   const details = doc ? doc.disciplineDetails : null;
   if (!details) return "";
-  return details.discipline === "Architecture" ? details.title : details.specTitle;
+  return (details as any).discipline === "Architecture" ? (details as any).title : (details as any).specTitle;
 }
 
 /**
@@ -74,5 +76,3 @@ export function buildDirectRowUrl(logFileId: string, rowIndex: number, sheetId?:
 
   return `https://docs.google.com/spreadsheets/d/${logFileId}/edit#gid=${resolvedSheetId}&range=A${rowIndex}`;
 }
-
-

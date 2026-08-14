@@ -15,7 +15,8 @@ import { InsertPagesAction } from '../src/InsertPagesAction';
 import { WorkflowRunner } from '../src/core/workflow/WorkflowRunner';
 import { WorkflowActionRouter } from '../src/core/workflow/WorkflowActionRouter';
 import { createTestContext } from '../src/core/workflow/WorkflowContextFactory';
-import { ArchitectureSubmittalStrategy } from '../src/DocumentLogStrategy';
+import { DeclarativeDocumentLogStrategy } from '../src/DocumentLogStrategy';
+import { defaultDocumentTypeSpecRegistry } from '../src/core/specs/DocumentTypeSpecRegistry';
 import { createValidatedArchitectureSubmittal } from './harness/factories/DocumentFactory';
 import { FakeAiAnalysisAdapter } from './harness/fakes/FakeAiAnalysisAdapter';
 import { FakePdfDocumentService } from './harness/fakes/FakePdfDocumentService';
@@ -131,7 +132,7 @@ test('MoveDocumentAction - early guard validation throws descriptive error when 
 
 test('End-to-End Behavioral Test - WorkflowRunner runs Submittal Incoming_Filing sequence against createTestContext (unlogged doc)', async () => {
   const validatedDoc = createValidatedArchitectureSubmittal();
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec('SUBMITTAL_ARCH'));
 
   const testContext = createTestContext(undefined, undefined, {
     validatedDoc,
@@ -159,7 +160,7 @@ test('End-to-End Behavioral Test - WorkflowRunner runs Submittal Incoming_Filing
 
 test('End-to-End Behavioral Test - WorkflowRunner runs Submittal Incoming_Filing sequence parsing logged record details', async () => {
   const validatedDoc = createValidatedArchitectureSubmittal();
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec('SUBMITTAL_ARCH'));
 
   const testContext = createTestContext(undefined, undefined, {
     validatedDoc,
@@ -243,7 +244,7 @@ test('WorkflowActionRouter & WorkflowRunner - End-to-end incoming submittal tria
 
 test('End-to-End Behavioral Test - WorkflowRunner runs Submittal Outgoing sequence against createTestContext (WriteLogAction + MoveDocumentAction)', async () => {
   const validatedDoc = createValidatedArchitectureSubmittal();
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec('SUBMITTAL_ARCH'));
 
   const testContext = createTestContext(undefined, undefined, {
     validatedDoc,

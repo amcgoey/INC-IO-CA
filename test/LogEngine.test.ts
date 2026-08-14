@@ -9,12 +9,13 @@ beforeEach(() => {
   };
 });
 import { DocumentFactory, InMemorySheetStorageAdapter, GasMockHarness } from "./harness";
-import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "../src/DocumentLogStrategy";
+import { DeclarativeDocumentLogStrategy } from "../src/DocumentLogStrategy";
+import { defaultDocumentTypeSpecRegistry } from "../src/core/specs/DocumentTypeSpecRegistry";
 import { LogEngine, getBoundedData } from "../src/core/log/LogEngine";
 import { FakeLogRepository } from "../src/adapters/fakes/FakeLogRepository";
 
-test("ArchitectureSubmittalStrategy extracts keys, formats filename and payload", () => {
-  const strategy = new ArchitectureSubmittalStrategy();
+test("DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) extracts keys, formats filename and payload", () => {
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const doc = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
@@ -46,8 +47,8 @@ test("ArchitectureSubmittalStrategy extracts keys, formats filename and payload"
   assert.strictEqual(payload["Link"], "http://example.com/file.pdf");
 });
 
-test("ArchitectureSubmittalStrategy handles empty section (non-CSI submittal) without leading hyphens", () => {
-  const strategy = new ArchitectureSubmittalStrategy();
+test("DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) handles empty section (non-CSI submittal) without leading hyphens", () => {
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const doc = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
@@ -90,7 +91,7 @@ test("LogEngine appends new Architecture document end-to-end with InMemorySheetS
 
   const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
   const engine = new LogEngine(adapter);
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const doc = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
@@ -145,7 +146,7 @@ test("LogEngine handles revision workflow by updating previous row status and ch
 
   const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
   const engine = new LogEngine(adapter);
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const docRev2 = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
@@ -195,7 +196,7 @@ test("LogEngine correctly inserts new groups with gap formatting in sorted order
 
   const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
   const engine = new LogEngine(adapter);
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const midDoc = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
@@ -220,8 +221,8 @@ test("LogEngine correctly inserts new groups with gap formatting in sorted order
   assert.strictEqual(result.rowIndex, 6); // 1-based index 6
 });
 
-test("FFESubmittalStrategy extracts keys, formats filename and payload", () => {
-  const strategy = new FFESubmittalStrategy();
+test("DeclarativeDocumentLogStrategy (SUBMITTAL_FFE) extracts keys, formats filename and payload", () => {
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_FFE"));
 
   const doc = DocumentFactory.createValidatedFFESubmittal({
     date: "2026-07-25",
@@ -269,7 +270,7 @@ test("LogEngine appends new FF&E document end-to-end with InMemorySheetStorageAd
 
   const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
   const engine = new LogEngine(adapter);
-  const strategy = new FFESubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_FFE"));
 
   const doc = DocumentFactory.createValidatedFFESubmittal({
     date: "2026-07-25",
@@ -323,7 +324,7 @@ test("LogEngine handles FF&E revision workflow by updating previous row status t
 
   const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
   const engine = new LogEngine(adapter);
-  const strategy = new FFESubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_FFE"));
 
   const docRev2 = DocumentFactory.createValidatedFFESubmittal({
     date: "2026-07-25",
@@ -357,10 +358,10 @@ test("LogEngine handles FF&E revision workflow by updating previous row status t
   assert.strictEqual(sheetValues[4][11], "Vendor A Designer");
 });
 
-test("ArchitectureSubmittalStrategy resolves subfolder path segments from CSI divisions", () => {
+test("DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) resolves subfolder path segments from CSI divisions", () => {
   (globalThis as any).CSI_DIVISIONS = { "03": "03-Concrete" };
 
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const docConcrete = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
@@ -423,8 +424,8 @@ test("ArchitectureSubmittalStrategy resolves subfolder path segments from CSI di
   assert.deepStrictEqual(whitespaceSectionSubfolders, ["Closed"]);
 });
 
-test("FFESubmittalStrategy resolves subfolder path segments from spec tag prefix", () => {
-  const strategy = new FFESubmittalStrategy();
+test("DeclarativeDocumentLogStrategy (SUBMITTAL_FFE) resolves subfolder path segments from spec tag prefix", () => {
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_FFE"));
 
   const docWithTag = DocumentFactory.createValidatedFFESubmittal({
     date: "2026-07-25",
@@ -471,7 +472,7 @@ test("LogEngine uses ListDocumentField contact abbreviation in contact history c
 
   const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
   const engine = new LogEngine(adapter);
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const createContactField = (abbr: string, longForm: string): ResolvedListField => ({
     fieldName: "contact",
@@ -552,7 +553,7 @@ test("LogEngine handles empty contact abbreviation without trailing or leading w
 
   const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
   const engine = new LogEngine(adapter);
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const docNoContact = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
@@ -595,7 +596,7 @@ test("Testing Seam: Append Revision 1 submittal after Revision 0 in LogEngine an
 
   const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
   const engine = new LogEngine(adapter);
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const docRev1 = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
@@ -643,7 +644,7 @@ test("LogEngine.readLog - queries bounded log for IdentityData and returns previ
 
   const adapter = new InMemorySheetStorageAdapter({ "Submittals Log": initialLog });
   const engine = new LogEngine(adapter);
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const doc = DocumentFactory.createValidatedArchitectureSubmittal({
     disciplineDetails: { section: "033000", number: "001", title: "Concrete Mix", revision: "1" }
@@ -667,7 +668,7 @@ test("LogEngine.readLog - queries bounded log for IdentityData and returns previ
 
 test("FakeLogRepository promoted adapter records appendDocument and readLog operations in memory", () => {
   const fakeRepo = new FakeLogRepository();
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
   const doc = DocumentFactory.createValidatedArchitectureSubmittal({
     disciplineDetails: { section: "033000", number: "001", title: "Concrete Mix", revision: "001" }
   });
@@ -722,7 +723,7 @@ test("LogEngine integration with GasMockHarness and FakeLogRepository validates 
 
   const fakeRepo = new FakeLogRepository();
   const templateSpec = require("./fixtures/document-log-workbook-template.json");
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const headersNR = templateSpec.namedRanges.find((nr: any) => nr.name === "Headers" && nr.tabName === "Submittal Arch");
   assert.strictEqual(headersNR.rangeNotation, "A3:O4");
@@ -801,7 +802,7 @@ test("LogEngine.appendDocument automatically logs SUBMITTAL_APPENDED audit event
     "_AuditLog": initialAudit
   });
   const engine = new LogEngine(adapter);
-  const strategy = new ArchitectureSubmittalStrategy();
+  const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const doc = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",

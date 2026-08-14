@@ -7,7 +7,7 @@
 import { getActionPolicy, getDocumentLogStrategy, getDocumentTitle, buildDirectRowUrl } from './WorkflowPolicy';
 import { WriteLogAction } from '../../WriteLogAction';
 import { WorkflowRunner, RenameDocumentAction } from './WorkflowRunner';
-import { ArchitectureSubmittalStrategy } from '../../DocumentLogStrategy';
+
 
 class OutgoingWorkflow {
   /**
@@ -28,8 +28,8 @@ class OutgoingWorkflow {
     };
 
     const stratFn = (globalThis as any).getDocumentLogStrategy || (typeof getDocumentLogStrategy !== "undefined" ? getDocumentLogStrategy : null);
-    const ArchCtor = (globalThis as any).ArchitectureSubmittalStrategy || (typeof ArchitectureSubmittalStrategy !== "undefined" ? ArchitectureSubmittalStrategy : null);
-    const strategy = input.strategy || (stratFn ? stratFn(input.validatedDoc) : (ArchCtor ? new ArchCtor() : null));
+    
+    const strategy = input.strategy || (stratFn ? stratFn(input.validatedDoc) : null);
 
     const WriteCtor = (globalThis as any).WriteLogAction || (typeof WriteLogAction !== "undefined" ? WriteLogAction : null);
     const writeLogAction = input.writeLogAction || (WriteCtor ? new WriteCtor() : null);

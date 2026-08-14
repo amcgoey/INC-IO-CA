@@ -13,7 +13,8 @@ import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../src/core/config/DocumentLogW
 import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../src/core/config/DocumentLogWorkbookSpec";
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { DocumentWorkflowModule, WorkflowExecutionInput } from "../src/core/workflow/DocumentWorkflowModule";
-import { ArchitectureSubmittalStrategy } from "../src/DocumentLogStrategy";
+import { DeclarativeDocumentLogStrategy } from "../src/DocumentLogStrategy";
+import { defaultDocumentTypeSpecRegistry } from "../src/core/specs/DocumentTypeSpecRegistry";
 import { GoogleSheetsLogRepository } from "../src/GoogleSheetsLogRepository";
 import { FakeDriveFilingRepository } from "./harness/fakes/FakeDriveFilingRepository";
 import { FakePdfDocumentService } from "./harness/fakes/FakePdfDocumentService";
@@ -119,7 +120,7 @@ test("Issue 192 - Single-Submittal Execution and PDF Hyperlink Opening Verificat
       projectAbbr: "PROJ",
       emptyFallbacks: [],
       selectedAction: { action: "Received", abbr: " Rec", status: "Under Review" },
-      strategy: new ArchitectureSubmittalStrategy(),
+      strategy: new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH")),
       logRepository: googleSheetsLogRepo,
       driveFilingRepository: fakeDriveRepo,
       pdfDocumentService: fakePdfService,

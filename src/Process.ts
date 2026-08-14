@@ -4,7 +4,8 @@ import { TransientOverrideLogger } from "./core/logging/TransientOverrideLogger"
 import { buildIntakeCard } from "./adapters/gas/UI";
 import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
 import { DocumentPipeline } from "./core/intake/DocumentPipeline";
-import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "./DocumentLogStrategy";
+import { DeclarativeDocumentLogStrategy } from "./core/logging/DeclarativeDocumentLogStrategy";
+import { defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
 import { DocumentWorkflowModule, getActionPolicy } from "./core/workflow/DocumentWorkflowModule";
 import { defaultLogRepository } from "./GoogleSheetsLogRepository";
 import { defaultDriveFilingRepository } from "./DriveFilingRepository";
@@ -163,9 +164,9 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
 function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
   const p = e.parameters || {};
   try {
-    const strategy: DocumentLogStrategy = (p.discipline === "Architecture")
-      ? new ArchitectureSubmittalStrategy()
-      : new FFESubmittalStrategy();
+    const docTypeKey = p.discipline === "Architecture" ? "SUBMITTAL_ARCH" : "SUBMITTAL_FFE";
+    const spec = defaultDocumentTypeSpecRegistry.getSpec(docTypeKey);
+    const strategy: DocumentLogStrategy = new DeclarativeDocumentLogStrategy(spec);
 
     const doc: ValidatedDocument = {
       documentType: "Submittal",

@@ -78,7 +78,7 @@ const mockFolder: any = {
 };
 
 import { DocumentWorkflowModule, getActionPolicy } from "../src/core/workflow/DocumentWorkflowModule";
-import { ArchitectureSubmittalStrategy, FFESubmittalStrategy } from "../src/DocumentLogStrategy";
+import { DeclarativeDocumentLogStrategy } from "../src/DocumentLogStrategy";
 (globalThis as any).DocumentWorkflowModule = DocumentWorkflowModule;
 (globalThis as any).getActionPolicy = getActionPolicy;
 
@@ -115,7 +115,7 @@ test("processSubmission for Architecture incoming action delegates to DocumentWo
       appendCalled = true;
       passedOptions = options;
       assert.strictEqual(ssId, "log-ss-123");
-      assert.ok(strategy instanceof ArchitectureSubmittalStrategy);
+      assert.ok(strategy instanceof DeclarativeDocumentLogStrategy);
       return {
         targetKey: "033000-001-001",
         newFileName: "033000-001-001 Concrete - 2026-07-25 GC Rec",
@@ -169,7 +169,7 @@ test("processSubmission for Architecture outgoing action delegates to DocumentWo
       appendCalled = true;
       passedOptions = options;
       assert.strictEqual(ssId, "log-ss-456");
-      assert.ok(strategy instanceof ArchitectureSubmittalStrategy);
+      assert.ok(strategy instanceof DeclarativeDocumentLogStrategy);
       return {
         targetKey: "033000-001-002",
         newFileName: "033000-001-002 Concrete - 2026-07-25 Architect Rev",
@@ -222,7 +222,7 @@ test("processSubmission for FF&E incoming action delegates to DocumentWorkflowMo
       appendCalled = true;
       passedOptions = options;
       assert.strictEqual(ssId, "log-ss-789");
-      assert.ok(strategy instanceof FFESubmittalStrategy);
+      assert.ok(strategy instanceof DeclarativeDocumentLogStrategy);
       return {
         targetKey: "CH-01-001",
         newFileName: "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec",
@@ -275,7 +275,7 @@ test("processSubmission for FF&E outgoing action delegates to DocumentWorkflowMo
       appendCalled = true;
       passedOptions = options;
       assert.strictEqual(ssId, "log-ss-999");
-      assert.ok(strategy instanceof FFESubmittalStrategy);
+      assert.ok(strategy instanceof DeclarativeDocumentLogStrategy);
       return {
         targetKey: "CH-01-001",
         newFileName: "CH-01-001 Furniture Co - 2026-07-25 Vendor A Designer Appr",
