@@ -34,10 +34,11 @@ export class JsonDocumentTypeSpecAdapter {
     let parsed: unknown;
     try {
       parsed = JSON.parse(jsonText);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       return {
         status: 'invalid',
-        errors: [`Invalid JSON syntax: ${err?.message || String(err)}`],
+        errors: [`Invalid JSON syntax: ${message}`],
       };
     }
 
