@@ -1,118 +1,174 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { DocumentTypeConfigRegistry, defaultDocumentTypeConfigRegistry } from '../src/DocumentTypeConfigRegistry';
+﻿import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  DocumentTypeConfigRegistry,
+  defaultDocumentTypeConfigRegistry,
+  resolve5TierFieldValue,
+  DEFAULT_SUBMITTAL_FIELDS,
+  DEFAULT_FFE_SUBMITTAL_FIELDS,
+  DEFAULT_RFI_CONFIG,
+  DEFAULT_ASI_CONFIG,
+} from '../src/DocumentTypeConfigRegistry';
 
-test('DocumentTypeConfigRegistry - pre-configured for Submittal by default', () => {
-  const registry = new DocumentTypeConfigRegistry();
-  assert.equal(registry.hasConfig('Submittal'), true);
-  
-  const config = registry.getConfig('Submittal');
-  assert.equal(config.documentType, 'Submittal');
-  assert.deepEqual(config.rootFolderSearchTerms, ['Submittals', 'Submittal']);
-  assert.equal(config.closedRootFolderName, 'Closed');
-  assert.equal(config.filenamePrefix, '_');
-  assert.deepEqual(config.logSearchTerms, ['document log', 'inc document log', 'submittal log']);
-  assert.equal(config.logSheetName, 'Log');
-  assert.equal(config.logAdapterKey, 'GoogleSheetsLogRepository');
-  assert.equal(config.filingAdapterKey, 'GoogleDriveFilingRepository');
-  assert.equal(config.pdfAdapterKey, 'PdfDocumentService');
-  assert.equal(config.aiAdapterKey, 'GeminiAiAnalysisAdapter');
-});
+describe('DocumentTypeConfigRegistry (Adapter Seam over DocumentTypeSpecRegistry)', () => {
+  let registry: DocumentTypeConfigRegistry;
 
-test('DocumentTypeConfigRegistry - registers and retrieves custom DocumentTypeConfig', () => {
-  const registry = new DocumentTypeConfigRegistry();
-  const rfiConfig = {
-    documentType: 'RFI',
-    rootFolderSearchTerms: ['RFIs', 'RFI'],
-    closedRootFolderName: 'Closed RFIs',
-    filenamePrefix: 'RFI_',
-    logSearchTerms: ['rfi log'],
-    logSheetName: 'RFI Log',
-    logAdapterKey: 'GoogleSheetsLogRepository',
-    filingAdapterKey: 'GoogleDriveFilingRepository'
-  };
-
-  registry.registerConfig(rfiConfig);
-  assert.equal(registry.hasConfig('RFI'), true);
-  assert.deepEqual(registry.getConfig('RFI'), rfiConfig);
-});
-
-test('DocumentTypeConfigRegistry - throws error for unregistered document types', () => {
-  const registry = new DocumentTypeConfigRegistry();
-  assert.throws(() => {
-    registry.getConfig('NonExistentType');
-  }, /DocumentTypeConfig not registered/);
-});
-
-test('DocumentTypeConfigRegistry - reset restores default Submittal config', () => {
-  const registry = new DocumentTypeConfigRegistry();
-  registry.registerConfig({
-    documentType: 'CUSTOM_TEMP_TYPE',
-    rootFolderSearchTerms: ['Temp'],
-    closedRootFolderName: 'Closed',
-    filenamePrefix: 'TEMP_',
-    logSearchTerms: ['temp log'],
-    logSheetName: 'TEMP',
-    logAdapterKey: 'GoogleSheetsLogRepository',
-    filingAdapterKey: 'GoogleDriveFilingRepository'
+  beforeEach(() => {
+    registry = new DocumentTypeConfigRegistry();
   });
-  
-  assert.equal(registry.hasConfig('CUSTOM_TEMP_TYPE'), true);
-  registry.reset();
-  assert.equal(registry.hasConfig('CUSTOM_TEMP_TYPE'), false);
-  assert.equal(registry.hasConfig('Submittal'), true);
-});
 
-test('defaultDocumentTypeConfigRegistry is exported and pre-configured', () => {
-  assert.ok(defaultDocumentTypeConfigRegistry);
-  assert.equal(defaultDocumentTypeConfigRegistry.hasConfig('Submittal'), true);
-});
+  it('pre-configured for Submittal by default with standard properties', () => {
+    expect(registry.hasConfig('Submittal')).toBe(true);
 
-test('DocumentTypeConfigRegistry - DEFAULT_FFE_CONFIG includes standardized logSearchTerms', () => {
-  const registry = new DocumentTypeConfigRegistry();
-  const config = registry.getConfig('FF&E');
-  assert.deepEqual(config.logSearchTerms, ['document log', 'inc document log', 'submittal log', 'ffe log', 'ff&e log']);
-});
+    const config = registry.getConfig('Submittal');
+    expect(config.documentType).toBe('Submittal');
+    expect(config.rootFolderSearchTerms).toEqual(['Submittals', 'Submittal']);
+    expect(config.closedRootFolderName).toBe('Closed');
+    expect(config.filenamePrefix).toBe('_');
+    expect(config.logSearchTerms).toEqual(['document log', 'inc document log', 'submittal log']);
+    expect(config.logSheetName).toBe('Log');
+    expect(config.logAdapterKey).toBe('GoogleSheetsLogRepository');
+    expect(config.filingAdapterKey).toBe('GoogleDriveFilingRepository');
+    expect(config.pdfAdapterKey).toBe('PdfDocumentService');
+    expect(config.aiAdapterKey).toBe('GeminiAiAnalysisAdapter');
+  });
 
-test('DocumentTypeConfigRegistry - getAllConfigs returns active doc types without undeveloped RFI/ASI by default', () => {
-  const registry = new DocumentTypeConfigRegistry();
-  const configs = registry.getAllConfigs();
-  assert.equal(configs.length, 2, "Default active configs should only include Submittal_Arch and Submittal_FFE");
-  
-  const arch = configs.find(c => c.documentType === 'SUBMITTAL_ARCH');
-  assert.ok(arch);
-  assert.equal(arch.displayName, 'Architectural Submittals');
+  it('maintains referential equality for repeated getConfig calls (lazy cached projection)', () => {
+    const config1 = registry.getConfig('Submittal');
+    const config2 = registry.getConfig('Submittal');
+    expect(config1).toBe(config2);
 
-  const ffe = configs.find(c => c.documentType === 'SUBMITTAL_FFE');
-  assert.ok(ffe);
-  assert.equal(ffe.displayName, 'FFE Submittals');
+    const arch1 = registry.getConfig('SUBMITTAL_ARCH');
+    const arch2 = registry.getConfig('SUBMITTAL_ARCH');
+    expect(arch1).toBe(arch2);
 
-  const rfi = configs.find(c => c.documentType === 'RFI');
-  assert.equal(rfi, undefined, "Undeveloped RFI document type should not be active by default");
-});
+    const ffe1 = registry.getConfig('SUBMITTAL_FFE');
+    const ffe2 = registry.getConfig('SUBMITTAL_FFE');
+    expect(ffe1).toBe(ffe2);
+  });
 
-test('DocumentTypeConfigRegistry - loadFromSpreadsheetConfig deserializes _Config tab rows', () => {
-  const registry = new DocumentTypeConfigRegistry();
-  const docTypeRows = [
-    ['DocTypeKey', 'DisplayName', 'Prefix', 'LogTabName'],
-    ['Submittal_Arch', 'Architectural Submittals Custom', 'SUB-ARCH', 'Submittal Arch'],
-    ['Submittal_FFE', 'FFE Submittals Custom', 'SUB-FFE', 'Submittal FFE']
-  ];
-  const fieldSpecsMap = {
-    Submittal_Arch: [
-      ['Key', 'Header', 'Label', 'Type', 'IsCalculated', 'FormulaOrFunction', 'OptionsRange', 'Required', 'Description', 'DefaultValue', 'KeyNormalizationRule', 'NumberFormat'],
-      ['status', 'Status', 'Status', 'list', 'FALSE', '', 'Statuses_Submittal_Labels', 'TRUE', 'Status', 'Open', 'picklist', ''],
-      ['number', 'Number', 'Number', 'string', 'FALSE', '', '', 'FALSE', 'Submittal Number', '', '', '000']
-    ]
-  };
+  it('registers and retrieves custom DocumentTypeConfig', () => {
+    const rfiConfig = {
+      documentType: 'RFI',
+      rootFolderSearchTerms: ['RFIs', 'RFI'],
+      closedRootFolderName: 'Closed RFIs',
+      filenamePrefix: 'RFI_',
+      logSearchTerms: ['rfi log'],
+      logSheetName: 'RFI Log',
+      logAdapterKey: 'GoogleSheetsLogRepository',
+      filingAdapterKey: 'GoogleDriveFilingRepository',
+    };
 
-  registry.loadFromSpreadsheetConfig(docTypeRows, fieldSpecsMap);
-  const configs = registry.getAllConfigs();
-  assert.equal(configs.length, 2);
+    registry.registerConfig(rfiConfig);
+    expect(registry.hasConfig('RFI')).toBe(true);
+    expect(registry.getConfig('RFI')).toEqual(rfiConfig);
+    expect(registry.getConfig('RFI')).toBe(rfiConfig);
+  });
 
-  const arch = registry.getConfig('Submittal_Arch');
-  assert.equal(arch.displayName, 'Architectural Submittals Custom');
-  assert.equal(arch.logSheetName, 'Submittal Arch');
-  assert.ok(arch.fields && arch.fields.length === 2);
-  assert.equal(arch.fields[1].key, 'number');
+  it('throws error for unregistered document types', () => {
+    expect(() => {
+      registry.getConfig('NonExistentType');
+    }).toThrow(/DocumentTypeConfig not registered/);
+  });
+
+  it('reset restores default Submittal and FF&E configs and clears custom configs', () => {
+    registry.registerConfig({
+      documentType: 'CUSTOM_TEMP_TYPE',
+      rootFolderSearchTerms: ['Temp'],
+      closedRootFolderName: 'Closed',
+      filenamePrefix: 'TEMP_',
+      logSearchTerms: ['temp log'],
+      logSheetName: 'TEMP',
+      logAdapterKey: 'GoogleSheetsLogRepository',
+      filingAdapterKey: 'GoogleDriveFilingRepository',
+    });
+
+    expect(registry.hasConfig('CUSTOM_TEMP_TYPE')).toBe(true);
+    registry.reset();
+    expect(registry.hasConfig('CUSTOM_TEMP_TYPE')).toBe(false);
+    expect(registry.hasConfig('Submittal')).toBe(true);
+    expect(registry.hasConfig('SUBMITTAL_ARCH')).toBe(true);
+    expect(registry.hasConfig('SUBMITTAL_FFE')).toBe(true);
+  });
+
+  it('defaultDocumentTypeConfigRegistry is exported and pre-configured', () => {
+    expect(defaultDocumentTypeConfigRegistry).toBeDefined();
+    expect(defaultDocumentTypeConfigRegistry.hasConfig('Submittal')).toBe(true);
+  });
+
+  it('DEFAULT_FFE_CONFIG includes standardized logSearchTerms and validation hook', () => {
+    const config = registry.getConfig('FF&E');
+    expect(config.logSearchTerms).toEqual([
+      'document log',
+      'inc document log',
+      'submittal log',
+      'ffe log',
+      'ff&e log',
+    ]);
+    expect(config.validateHook).toBeDefined();
+  });
+
+  it('getAllConfigs returns active doc types without undeveloped RFI/ASI by default', () => {
+    const configs = registry.getAllConfigs();
+    expect(configs.length).toBe(2);
+
+    const arch = configs.find((c) => c.documentType === 'SUBMITTAL_ARCH');
+    expect(arch).toBeDefined();
+    expect(arch?.displayName).toBe('Architectural Submittals');
+
+    const ffe = configs.find((c) => c.documentType === 'SUBMITTAL_FFE');
+    expect(ffe).toBeDefined();
+    expect(ffe?.displayName).toBe('FFE Submittals');
+
+    const rfi = configs.find((c) => c.documentType === 'RFI');
+    expect(rfi).toBeUndefined();
+  });
+
+  it('loadFromSpreadsheetConfig deserializes _Config tab rows', () => {
+    const docTypeRows = [
+      ['DocTypeKey', 'DisplayName', 'Prefix', 'LogTabName'],
+      ['Submittal_Arch', 'Architectural Submittals Custom', 'SUB-ARCH', 'Submittal Arch'],
+      ['Submittal_FFE', 'FFE Submittals Custom', 'SUB-FFE', 'Submittal FFE'],
+    ];
+    const fieldSpecsMap = {
+      Submittal_Arch: [
+        [
+          'Key',
+          'Header',
+          'Label',
+          'Type',
+          'IsCalculated',
+          'FormulaOrFunction',
+          'OptionsRange',
+          'Required',
+          'Description',
+          'DefaultValue',
+          'KeyNormalizationRule',
+          'NumberFormat',
+        ],
+        ['status', 'Status', 'Status', 'list', 'FALSE', '', 'Statuses_Submittal_Labels', 'TRUE', 'Status', 'Open', 'picklist', ''],
+        ['number', 'Number', 'Number', 'string', 'FALSE', '', '', 'FALSE', 'Submittal Number', '', '', '000'],
+      ],
+    };
+
+    registry.loadFromSpreadsheetConfig(docTypeRows, fieldSpecsMap);
+    const configs = registry.getAllConfigs();
+    expect(configs.length).toBe(2);
+
+    const arch = registry.getConfig('Submittal_Arch');
+    expect(arch.displayName).toBe('Architectural Submittals Custom');
+    expect(arch.logSheetName).toBe('Submittal Arch');
+    expect(arch.fields && arch.fields.length === 2).toBe(true);
+    expect(arch.fields![1].key).toBe('number');
+  });
+
+  it('preserves resolve5TierFieldValue and default field specs exports', () => {
+    expect(DEFAULT_SUBMITTAL_FIELDS.length).toBeGreaterThan(0);
+    expect(DEFAULT_FFE_SUBMITTAL_FIELDS.length).toBeGreaterThan(0);
+    expect(DEFAULT_RFI_CONFIG.documentType).toBe('RFI');
+    expect(DEFAULT_ASI_CONFIG.documentType).toBe('ASI');
+
+    const field = DEFAULT_SUBMITTAL_FIELDS[0];
+    const val = resolve5TierFieldValue(field, { formInput: { [field.key]: 'FormVal' } });
+    expect(val).toBe('FormVal');
+  });
 });

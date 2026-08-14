@@ -1,9 +1,19 @@
-/// <reference path="./types.ts" />
+﻿/// <reference path="./types.ts" />
 /**
  * @file DocumentTypeConfigRegistry.ts
  * @description Central application registry managing DocumentTypeConfig instances by document type name,
+ * acting as an adapter seam over DocumentTypeSpecRegistry with lazy cached projections,
  * dynamic field spec subtable parsing, and 5-tier field state hydration logic.
  */
+
+globalThis.__currentFileTier = 1;
+
+import {
+  DocumentTypeSpecRegistry,
+  defaultDocumentTypeSpecRegistry,
+} from './core/specs/DocumentTypeSpecRegistry';
+import { specToConfigAdapter } from './core/specs/specToConfigAdapter';
+import { defaultValidationHookRegistry } from './core/specs/ValidationHookRegistry';
 
 const DEFAULT_SUBMITTAL_FIELDS: DocumentFieldSpec[] = [
   { key: 'section', label: 'Section', type: 'string', required: false, description: 'CSI Section # (6 digits)', header: 'Section', keyNormalizationRule: 'code' },
@@ -78,65 +88,8 @@ function ffeStrategyValidationHook(rawDoc: RawDocument, context?: ValidationCont
   }
 }
 
-const DEFAULT_SUBMITTAL_CONFIG: DocumentTypeConfig = {
-  documentType: 'Submittal',
-  displayName: 'Submittal (Architecture)',
-  targetTab: 'Submittal Arch',
-  rootFolderSearchTerms: ['Submittals', 'Submittal'],
-  projectSearchTerms: ['Submittals', 'Submittal'],
-  closedRootFolderName: 'Closed',
-  closedSubfolderMap: {
-    Architecture: 'Architecture',
-    'FF&E': 'FFE'
-  },
-  filenamePrefix: '_',
-  coverPageTemplateId: '',
-  logSearchTerms: ['document log', 'inc document log', 'submittal log'],
-  logSheetName: 'Log',
-  logParentFolderTerms: ['Submittals'],
-  logAdapterKey: 'GoogleSheetsLogRepository',
-  filingAdapterKey: 'GoogleDriveFilingRepository',
-  pdfAdapterKey: 'PdfDocumentService',
-  aiAdapterKey: 'GeminiAiAnalysisAdapter',
-  fields: DEFAULT_SUBMITTAL_FIELDS
-};
-
-const DEFAULT_ARCH_CONFIG: DocumentTypeConfig = {
-  ...DEFAULT_SUBMITTAL_CONFIG,
-  documentType: 'Architecture',
-  displayName: 'Submittal (Architecture)',
-  targetTab: 'Submittal Arch'
-};
-
-const DEFAULT_SUBMITTAL_ARCH_CONFIG: DocumentTypeConfig = {
-  ...DEFAULT_ARCH_CONFIG,
-  documentType: 'SUBMITTAL_ARCH',
-  displayName: 'Submittal (Architecture)',
-  targetTab: 'Submittal Arch'
-};
-
-const DEFAULT_FFE_CONFIG: DocumentTypeConfig = {
-  documentType: 'FF&E',
-  displayName: 'Submittal (FF&E)',
-  targetTab: 'Submittal FFE',
-  rootFolderSearchTerms: ['FF&E', 'FFE'],
-  projectSearchTerms: ['FF&E', 'FFE'],
-  closedRootFolderName: 'Closed',
-  filenamePrefix: '_',
-  logSearchTerms: ['document log', 'inc document log', 'submittal log', 'ffe log', 'ff&e log'],
-  logSheetName: 'Submittal FFE',
-  logAdapterKey: 'GoogleSheetsLogRepository',
-  filingAdapterKey: 'GoogleDriveFilingRepository',
-  fields: DEFAULT_FFE_SUBMITTAL_FIELDS,
-  validateHook: ffeStrategyValidationHook
-};
-
-const DEFAULT_SUBMITTAL_FFE_CONFIG: DocumentTypeConfig = {
-  ...DEFAULT_FFE_CONFIG,
-  documentType: 'SUBMITTAL_FFE',
-  displayName: 'Submittal (FF&E)',
-  targetTab: 'Submittal FFE'
-};
+// Register default validation hook
+defaultValidationHookRegistry.registerHook('ffeStrategyValidationHook', ffeStrategyValidationHook);
 
 const DEFAULT_RFI_FIELDS: DocumentFieldSpec[] = [
   { key: 'rfiNumber', label: 'RFI Number', type: 'string', required: true, description: 'RFI Number', header: 'RFI Number' },
@@ -232,10 +185,14 @@ function resolve5TierFieldValue(
 }
 
 class DocumentTypeConfigRegistry {
-  private configs: Map<string, DocumentTypeConfig>;
+  private customConfigs: Map<string, DocumentTypeConfig>;
+  private projectedCache: Map<string, DocumentTypeConfig>;
+  private specRegistry: DocumentTypeSpecRegistry;
 
-  constructor() {
-    this.configs = new Map<string, DocumentTypeConfig>();
+  constructor(specRegistry?: DocumentTypeSpecRegistry) {
+    this.customConfigs = new Map<string, DocumentTypeConfig>();
+    this.projectedCache = new Map<string, DocumentTypeConfig>();
+    this.specRegistry = specRegistry || defaultDocumentTypeSpecRegistry;
     this.reset();
   }
 
@@ -246,36 +203,89 @@ class DocumentTypeConfigRegistry {
     if (!config || !config.documentType) {
       throw new Error('Invalid DocumentTypeConfig: documentType is required');
     }
-    this.configs.set(config.documentType, config);
+    this.customConfigs.set(config.documentType, config);
+    // Invalidate cached projection if key matches
+    this.projectedCache.delete(config.documentType);
+    this.projectedCache.delete(config.documentType.toLowerCase());
   }
 
   /**
-   * Retrieves a DocumentTypeConfig by document type name.
+   * Finds matching key in custom configs.
    */
-  private findConfigKey(documentType: string): string | undefined {
+  private findCustomConfigKey(documentType: string): string | undefined {
     if (!documentType) return undefined;
-    if (this.configs.has(documentType)) return documentType;
-    const lower = documentType.toLowerCase();
-    for (const key of this.configs.keys()) {
+    if (this.customConfigs.has(documentType)) return documentType;
+    const lower = documentType.toLowerCase().trim();
+    for (const key of this.customConfigs.keys()) {
       if (key.toLowerCase() === lower) return key;
-    }
-    if (lower === 'submittal_arch' || lower === 'submittal arch') {
-      if (this.configs.has('SUBMITTAL_ARCH')) return 'SUBMITTAL_ARCH';
-      if (this.configs.has('Architecture')) return 'Architecture';
-    }
-    if (lower === 'submittal_ffe' || lower === 'submittal ffe') {
-      if (this.configs.has('SUBMITTAL_FFE')) return 'SUBMITTAL_FFE';
-      if (this.configs.has('FF&E')) return 'FF&E';
     }
     return undefined;
   }
 
   /**
-   * Retrieves a DocumentTypeConfig by document type name.
+   * Retrieves a DocumentTypeConfig by document type name, utilizing lazy cached projection.
    */
   public getConfig(documentType: string): DocumentTypeConfig {
-    const key = this.findConfigKey(documentType);
-    if (key) return this.configs.get(key)!;
+    if (!documentType || typeof documentType !== 'string') {
+      throw new Error('DocumentTypeConfig not registered for document type: ' + documentType);
+    }
+
+    // 1. Check custom configs first
+    const customKey = this.findCustomConfigKey(documentType);
+    if (customKey) {
+      return this.customConfigs.get(customKey)!;
+    }
+
+    // 2. Check projected cache
+    const lower = documentType.toLowerCase().trim();
+    if (this.projectedCache.has(lower)) {
+      return this.projectedCache.get(lower)!;
+    }
+
+    // 3. Resolve from DocumentTypeSpecRegistry
+    const specKey = this.specRegistry.findSpecKey(documentType);
+    if (specKey && this.specRegistry.hasSpec(specKey)) {
+      const spec = this.specRegistry.getSpec(specKey);
+      const projected = specToConfigAdapter(spec);
+
+      // Customize legacy alias presentation
+      let finalConfig: DocumentTypeConfig = projected;
+      if (lower === 'submittal' || lower === 'architecture') {
+        finalConfig = {
+          ...projected,
+          documentType: lower === 'submittal' ? 'Submittal' : 'Architecture',
+          displayName: 'Submittal (Architecture)',
+          targetTab: 'Submittal Arch',
+        };
+      } else if (lower === 'ff&e' || lower === 'ffe') {
+        finalConfig = {
+          ...projected,
+          documentType: lower === 'ff&e' ? 'FF&E' : 'FFE',
+          displayName: 'Submittal (FF&E)',
+          targetTab: 'Submittal FFE',
+        };
+      } else if (lower === 'submittal_arch') {
+        finalConfig = {
+          ...projected,
+          documentType: 'SUBMITTAL_ARCH',
+          displayName: 'Architectural Submittals',
+          targetTab: 'Submittal Arch',
+        };
+      } else if (lower === 'submittal_ffe') {
+        finalConfig = {
+          ...projected,
+          documentType: 'SUBMITTAL_FFE',
+          displayName: 'FFE Submittals',
+          targetTab: 'Submittal FFE',
+        };
+      }
+
+      this.projectedCache.set(lower, finalConfig);
+      this.projectedCache.set(finalConfig.documentType, finalConfig);
+      this.projectedCache.set(specKey, finalConfig);
+      return finalConfig;
+    }
+
     throw new Error('DocumentTypeConfig not registered for document type: ' + documentType);
   }
 
@@ -283,7 +293,9 @@ class DocumentTypeConfigRegistry {
    * Checks if a DocumentTypeConfig is registered for a given document type.
    */
   public hasConfig(documentType: string): boolean {
-    return this.findConfigKey(documentType) !== undefined;
+    if (!documentType || typeof documentType !== 'string') return false;
+    if (this.findCustomConfigKey(documentType) !== undefined) return true;
+    return this.specRegistry.hasSpec(documentType);
   }
 
   /**
@@ -292,7 +304,9 @@ class DocumentTypeConfigRegistry {
   public getAllConfigs(): DocumentTypeConfig[] {
     const list: DocumentTypeConfig[] = [];
     const seen = new Set<string>();
-    for (const config of this.configs.values()) {
+
+    // 1. Include custom configs
+    for (const config of this.customConfigs.values()) {
       const key = config.documentType;
       if (key === 'Architecture' || key === 'FF&E' || key === 'Submittal') continue;
       const lower = key.toLowerCase();
@@ -301,6 +315,17 @@ class DocumentTypeConfigRegistry {
         list.push(config);
       }
     }
+
+    // 2. Include active canonical specs if not overridden by custom configs
+    const specs = this.specRegistry.getAllSpecs();
+    for (const spec of specs) {
+      const lower = spec.key.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        list.push(this.getConfig(spec.key));
+      }
+    }
+
     return list;
   }
 
@@ -442,9 +467,10 @@ class DocumentTypeConfigRegistry {
         ? parsedFields
         : (rawKey.toLowerCase().includes('ffe') ? DEFAULT_FFE_SUBMITTAL_FIELDS : DEFAULT_SUBMITTAL_FIELDS);
 
-      const baseConfig: DocumentTypeConfig = rawKey.toLowerCase().includes('ffe')
-        ? { ...DEFAULT_FFE_CONFIG }
-        : { ...DEFAULT_SUBMITTAL_ARCH_CONFIG };
+      const isFfe = rawKey.toLowerCase().includes('ffe');
+      const baseConfig = this.hasConfig(rawKey)
+        ? this.getConfig(rawKey)
+        : this.getConfig(isFfe ? 'SUBMITTAL_FFE' : 'SUBMITTAL_ARCH');
 
       const config: DocumentTypeConfig = {
         ...baseConfig,
@@ -467,15 +493,12 @@ class DocumentTypeConfigRegistry {
   }
 
   /**
-   * Resets the registry back to default state (pre-configured for Submittal_Arch and Submittal_FFE from JSON spec).
+   * Resets the registry back to default state.
    */
   public reset(): void {
-    this.configs.clear();
-    this.registerConfig({ ...DEFAULT_SUBMITTAL_CONFIG });
-    this.registerConfig({ ...DEFAULT_ARCH_CONFIG });
-    this.registerConfig({ ...DEFAULT_FFE_CONFIG });
-    this.registerConfig({ ...DEFAULT_SUBMITTAL_ARCH_CONFIG, displayName: 'Architectural Submittals', targetTab: 'Submittal Arch' });
-    this.registerConfig({ ...DEFAULT_SUBMITTAL_FFE_CONFIG, displayName: 'FFE Submittals', targetTab: 'Submittal FFE' });
+    this.customConfigs.clear();
+    this.projectedCache.clear();
+    this.specRegistry.reset();
   }
 }
 
