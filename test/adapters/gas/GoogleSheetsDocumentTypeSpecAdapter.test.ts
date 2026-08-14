@@ -322,5 +322,225 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
       const ffeFieldsNR = workbookSpec.namedRanges.find((r) => r.name === 'Config_SUBMITTAL_FFE_Fields');
       expect(ffeFieldsNR).toBeDefined();
     });
+
+    it('should route supportData with isShared: true to _Shared tab and isShared: false to <Type> Support tab', () => {
+      const archSpecWithSupport: DocumentTypeSpec = {
+        ...mockSubmittalArchSpec,
+        supportData: {
+          Contacts_Arch: {
+            key: 'Contacts_Arch',
+            isShared: false,
+            columns: [
+              { key: 'code', type: 'string', isPrimaryKey: true },
+              { key: 'name', type: 'string', isDisplayLabel: true },
+              { key: 'email', type: 'string' }
+            ],
+            items: [
+              { code: 'ARCH', name: 'Architect', email: 'arch@example.com' },
+              { code: 'GC', name: 'General Contractor', email: 'gc@example.com' }
+            ]
+          },
+          Actions: {
+            key: 'Actions',
+            isShared: true,
+            columns: [
+              { key: 'code', type: 'string', isPrimaryKey: true },
+              { key: 'name', type: 'string', isDisplayLabel: true }
+            ],
+            items: [
+              { code: 'Received', name: 'Received' },
+              { code: 'Approved', name: 'Approved' }
+            ]
+          }
+        }
+      };
+
+      const workbookSpec = GoogleSheetsDocumentTypeSpecAdapter.compileWorkbookSpec([archSpecWithSupport]);
+
+      const sharedTab = workbookSpec.tabs.find((t) => t.name === '_Shared');
+      expect(sharedTab).toBeDefined();
+      expect(sharedTab?.isSharedTab).toBe(true);
+      expect(sharedTab?.seedRows).toBeDefined();
+      expect(sharedTab?.seedRows?.[0]).toEqual(['code', 'name']);
+      expect(sharedTab?.seedRows?.[1]).toEqual(['Received', 'Received']);
+      expect(sharedTab?.seedRows?.[2]).toEqual(['Approved', 'Approved']);
+
+      const actionsNR = workbookSpec.namedRanges.find((nr) => nr.name === 'Actions');
+      expect(actionsNR).toBeDefined();
+      expect(actionsNR?.tabName).toBe('_Shared');
+      expect(actionsNR?.scope).toBe('Workbook');
+      expect(actionsNR?.rangeNotation).toBe(`A2:B${sharedTab?.rowCount || 100}`);
+
+      const supportTab = workbookSpec.tabs.find((t) => t.name === 'Submittal Arch Support');
+      expect(supportTab).toBeDefined();
+      expect(supportTab?.isSupportTab).toBe(true);
+      expect(supportTab?.seedRows).toBeDefined();
+      expect(supportTab?.seedRows?.[0]).toEqual(['code', 'name', 'email']);
+      expect(supportTab?.seedRows?.[1]).toEqual(['ARCH', 'Architect', 'arch@example.com']);
+      expect(supportTab?.seedRows?.[2]).toEqual(['GC', 'General Contractor', 'gc@example.com']);
+
+      const contactsNR = workbookSpec.namedRanges.find((nr) => nr.name === 'Contacts_Arch');
+      expect(contactsNR).toBeDefined();
+      expect(contactsNR?.tabName).toBe('Submittal Arch Support');
+      expect(contactsNR?.scope).toBe('Workbook');
+      expect(contactsNR?.rangeNotation).toBe(`A2:C${supportTab?.rowCount || 50}`);
+    });
+
+    it('should layout multiple support datasets side-by-side on the same tab with full-table Named Ranges', () => {
+      const ffeSpecWithMultiSupport: DocumentTypeSpec = {
+        key: 'SUBMITTAL_FFE',
+        label: 'Submittal FFE',
+        name: 'FFE Submittals',
+        identity: {
+          format: '${specTag}-${revision}',
+          groupFormat: '${specTag}',
+          revisionGroupFormat: '${specTag}',
+        },
+        fields: [
+          {
+            key: 'vendor',
+            label: 'Vendor',
+            type: 'string',
+            picklistSource: {
+              supportDataKey: 'Vendors',
+              valueColumnKey: 'code',
+              displayColumnKey: 'name'
+            }
+          },
+          {
+            key: 'specTag',
+            label: 'Spec Tag',
+            type: 'string',
+            picklistSource: {
+              supportDataKey: 'SpecTags',
+              valueColumnKey: 'tag',
+              displayColumnKey: 'description'
+            }
+          }
+        ],
+        storage: [],
+        workflows: [],
+        supportData: {
+          Vendors: {
+            key: 'Vendors',
+            isShared: false,
+            columns: [
+              { key: 'code', type: 'string', isPrimaryKey: true },
+              { key: 'name', type: 'string', isDisplayLabel: true }
+            ],
+            items: [
+              { code: 'HERMAN_MILLER', name: 'Herman Miller' },
+              { code: 'STEELCASE', name: 'Steelcase' }
+            ]
+          },
+          SpecTags: {
+            key: 'SpecTags',
+            isShared: false,
+            columns: [
+              { key: 'tag', type: 'string', isPrimaryKey: true },
+              { key: 'category', type: 'string' },
+              { key: 'description', type: 'string', isDisplayLabel: true }
+            ],
+            items: [
+              { tag: 'FB101', category: 'FBE', description: 'Fabric Task Chair' },
+              { tag: 'CG138', category: 'CASE', description: 'Conference Credenza' },
+              { tag: 'LT205', category: 'LGT', description: 'Pendant Task Light' }
+            ]
+          }
+        }
+      };
+
+      const workbookSpec = GoogleSheetsDocumentTypeSpecAdapter.compileWorkbookSpec([ffeSpecWithMultiSupport]);
+
+      const supportTab = workbookSpec.tabs.find((t) => t.name === 'Submittal FFE Support');
+      expect(supportTab).toBeDefined();
+      expect(supportTab?.isSupportTab).toBe(true);
+
+      expect(supportTab?.seedRows?.[0]).toEqual(['code', 'name', 'tag', 'category', 'description']);
+      expect(supportTab?.seedRows?.[1]).toEqual(['HERMAN_MILLER', 'Herman Miller', 'FB101', 'FBE', 'Fabric Task Chair']);
+      expect(supportTab?.seedRows?.[2]).toEqual(['STEELCASE', 'Steelcase', 'CG138', 'CASE', 'Conference Credenza']);
+      expect(supportTab?.seedRows?.[3]).toEqual(['', '', 'LT205', 'LGT', 'Pendant Task Light']);
+
+      const vendorsNR = workbookSpec.namedRanges.find((nr) => nr.name === 'Vendors');
+      expect(vendorsNR).toEqual({
+        name: 'Vendors',
+        tabName: 'Submittal FFE Support',
+        rangeNotation: `A2:B${supportTab?.rowCount || 50}`,
+        scope: 'Workbook'
+      });
+
+      const specTagsNR = workbookSpec.namedRanges.find((nr) => nr.name === 'SpecTags');
+      expect(specTagsNR).toEqual({
+        name: 'SpecTags',
+        tabName: 'Submittal FFE Support',
+        rangeNotation: `C2:E${supportTab?.rowCount || 50}`,
+        scope: 'Workbook'
+      });
+
+      const logTab = workbookSpec.tabs.find((t) => t.name === 'Submittal FFE');
+      const vendorCol = logTab?.columns?.find((c) => c.id === 'vendor');
+      expect(vendorCol?.validationRule).toEqual({
+        type: 'LIST_FROM_RANGE',
+        targetNamedRange: 'Vendors',
+        allowInvalid: false
+      });
+
+      const specTagCol = logTab?.columns?.find((c) => c.id === 'specTag');
+      expect(specTagCol?.validationRule).toEqual({
+        type: 'LIST_FROM_RANGE',
+        targetNamedRange: 'SpecTags',
+        allowInvalid: false
+      });
+    });
+
+    it('should deduplicate shared datasets across multiple specs on _Shared tab', () => {
+      const specA: DocumentTypeSpec = {
+        ...mockSubmittalArchSpec,
+        key: 'SPEC_A',
+        label: 'Spec A',
+        name: 'Spec A',
+        supportData: {
+          Actions: {
+            key: 'Actions',
+            isShared: true,
+            columns: [
+              { key: 'code', type: 'string' },
+              { key: 'name', type: 'string' }
+            ],
+            items: [
+              { code: 'A1', name: 'Action 1' }
+            ]
+          }
+        }
+      };
+
+      const specB: DocumentTypeSpec = {
+        ...mockSubmittalArchSpec,
+        key: 'SPEC_B',
+        label: 'Spec B',
+        name: 'Spec B',
+        supportData: {
+          Actions: {
+            key: 'Actions',
+            isShared: true,
+            columns: [
+              { key: 'code', type: 'string' },
+              { key: 'name', type: 'string' }
+            ],
+            items: [
+              { code: 'A1', name: 'Action 1' }
+            ]
+          }
+        }
+      };
+
+      const workbookSpec = GoogleSheetsDocumentTypeSpecAdapter.compileWorkbookSpec([specA, specB]);
+      const sharedTab = workbookSpec.tabs.find((t) => t.name === '_Shared');
+      expect(sharedTab).toBeDefined();
+      expect(sharedTab?.seedRows?.[0]).toEqual(['code', 'name']);
+
+      const actionsNRs = workbookSpec.namedRanges.filter((nr) => nr.name === 'Actions');
+      expect(actionsNRs.length).toBe(1);
+    });
   });
 });

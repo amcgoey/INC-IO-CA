@@ -66,7 +66,10 @@ class SheetValidationAndProtectionAdapter {
           const range = typeof sheet.getRange === "function" ? sheet.getRange(firstDataRow, colIdx, numRows, 1) : null;
           if (range && typeof range.setDataValidation === "function" && spreadsheetApp && typeof spreadsheetApp.newDataValidation === "function") {
             const builder = spreadsheetApp.newDataValidation();
-            builder.requireValueInRange(targetRange);
+            const validationRange = typeof targetRange.offset === "function" && typeof targetRange.getNumRows === "function"
+              ? targetRange.offset(0, 0, targetRange.getNumRows(), 1)
+              : targetRange;
+            builder.requireValueInRange(validationRange);
             builder.setAllowInvalid(ruleSpec.allowInvalid);
             if (ruleSpec.helpText) {
               builder.setHelpText(ruleSpec.helpText);

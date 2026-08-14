@@ -325,6 +325,16 @@ export class MockCacheService {
   }
 }
 
+function columnNumberToLetter(colIndex: number): string {
+  let letter = '';
+  let temp = colIndex - 1;
+  while (temp >= 0) {
+    letter = String.fromCharCode((temp % 26) + 65) + letter;
+    temp = Math.floor(temp / 26) - 1;
+  }
+  return letter;
+}
+
 function columnLetterToNumber(letter: string): number {
   let col = 0;
   for (let i = 0; i < letter.length; i++) {
@@ -466,6 +476,38 @@ export class MockRange {
   }
 
   
+  public getNumRows(): number {
+    return this.numRows;
+  }
+
+  public getNumColumns(): number {
+    return this.numCols;
+  }
+
+  public getRow(): number {
+    return this.startRow;
+  }
+
+  public getColumn(): number {
+    return this.startCol;
+  }
+
+  public offset(rowOffset: number, columnOffset: number, numRows?: number, numCols?: number): MockRange {
+    return new MockRange(
+      this.sheet,
+      this.startRow + rowOffset,
+      this.startCol + columnOffset,
+      numRows !== undefined ? numRows : this.numRows,
+      numCols !== undefined ? numCols : this.numCols
+    );
+  }
+
+  public getA1Notation(): string {
+    const startLetter = columnNumberToLetter(this.startCol);
+    const endLetter = columnNumberToLetter(this.startCol + this.numCols - 1);
+    return `${startLetter}${this.startRow}:${endLetter}${this.startRow + this.numRows - 1}`;
+  }
+
   public getSheet(): MockSheet {
     return this.sheet;
   }

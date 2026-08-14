@@ -1,11 +1,16 @@
-/**
+﻿/**
  * @file GoogleSheetsDocumentTypeSpecAdapter.ts
  * @description Tier 2 GAS Infrastructure Adapter for DocumentTypeSpec.
  * Compiles DocumentTypeSpec[] into DocumentLogWorkbookSpec models.
  * Pure model translation logic: zero Node.js built-in imports.
  */
 
-import type { DocumentTypeSpec, DriveStorageSpec } from '../../core/specs/DocumentTypeSpec';
+import type {
+  DocumentTypeSpec,
+  DriveStorageSpec,
+  SupportDataSpec,
+  SupportDataColumnSpec,
+} from '../../core/specs/DocumentTypeSpec';
 import type {
   DocumentLogWorkbookSpec,
   TabSpec,
@@ -37,6 +42,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   /**
    * Compiles an array of DocumentTypeSpec definitions into a DocumentLogWorkbookSpec intermediate model.
    * Transpiles calcFormat definitions on log tabs into =MAP(..., LAMBDA(...)) Row 2 spill formulas,
+   * compiles _Shared and <Type> Support tabs with full-table Named Ranges,
    * and aggregates configuration metadata into 6 centralized tables on the _Config tab under SYSTEM_TAB_PROTECTION.
    */
   public static compileWorkbookSpec(
@@ -49,7 +55,10 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
     // 1. Process Log Tabs
     this.compileLogTabs(specs, tabs);
 
-    // 2. Build centralized _Config Tab and register Named Ranges
+    // 2. Process Support Tabs (_Shared and <Type> Support)
+    this.compileSupportTabs(specs, tabs, namedRanges);
+
+    // 3. Build centralized _Config Tab and register Named Ranges
     this.compileConfigTab(specs, baseSpec, tabs, namedRanges);
 
     return {
@@ -127,6 +136,192 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
         tabs[existingTabIdx] = logTab;
       } else {
         tabs.push(logTab);
+      }
+    }
+  }
+
+  /**
+   * Compiles and creates/updates _Shared and <Type> Support tabs from supportData definitions,
+   * generating single full-table Named Ranges per dataset.
+   */
+  private static compileSupportTabs(
+    specs: DocumentTypeSpec[],
+    tabs: TabSpec[],
+    namedRanges: NamedRangeSpec[]
+  ): void {
+    const generatedNamedRanges: NamedRangeSpec[] = [];
+
+    const registerNamedRange = (name: string, tabName: string, rangeNotation: string) => {
+      generatedNamedRanges.push({
+        name,
+        tabName,
+        rangeNotation,
+        scope: 'Workbook',
+      });
+    };
+
+    // 1. Group supportData into shared datasets and per-spec datasets
+    const sharedDatasetsMap = new Map<string, SupportDataSpec>();
+    const specSupportMap = new Map<string, { tabName: string; datasets: SupportDataSpec[] }>();
+
+    for (const spec of specs) {
+      if (!spec.supportData) continue;
+      const specSupportTabName = `${spec.label || spec.name} Support`;
+
+      for (const [key, ds] of Object.entries(spec.supportData)) {
+        const dataset: SupportDataSpec = { ...ds, key: ds.key || key };
+        if (dataset.isShared === true) {
+          if (!sharedDatasetsMap.has(dataset.key)) {
+            sharedDatasetsMap.set(dataset.key, dataset);
+          }
+        } else {
+          if (!specSupportMap.has(specSupportTabName)) {
+            specSupportMap.set(specSupportTabName, { tabName: specSupportTabName, datasets: [] });
+          }
+          const entry = specSupportMap.get(specSupportTabName)!;
+          if (!entry.datasets.some((d) => d.key === dataset.key)) {
+            entry.datasets.push(dataset);
+          }
+        }
+      }
+    }
+
+    // Helper to compile a support tab layout given an array of SupportDataSpec
+    const buildSupportTabSeedRowsAndNamedRanges = (
+      tabName: string,
+      datasets: SupportDataSpec[],
+      defaultRowCount: number
+    ): { seedRows: (string | number | boolean)[][]; tabRowCount: number; tabColumnCount: number } => {
+      let maxDataRows = 0;
+      let totalCols = 0;
+
+      const datasetLayouts: Array<{
+        dataset: SupportDataSpec;
+        startCol: number;
+        numCols: number;
+        columns: SupportDataColumnSpec[];
+      }> = [];
+
+      for (const ds of datasets) {
+        let cols = ds.columns || [];
+        if (cols.length === 0 && ds.items && ds.items.length > 0) {
+          cols = Object.keys(ds.items[0]).map((k) => ({ key: k, type: 'string' as const }));
+        }
+        const numCols = Math.max(1, cols.length);
+        datasetLayouts.push({
+          dataset: ds,
+          startCol: totalCols,
+          numCols,
+          columns: cols,
+        });
+        totalCols += numCols;
+        maxDataRows = Math.max(maxDataRows, ds.items?.length || 0);
+      }
+
+      const tabRowCount = Math.max(defaultRowCount, maxDataRows + 10);
+      const tabColumnCount = Math.max(10, totalCols);
+
+      const seedRows: (string | number | boolean)[][] = [];
+
+      // Row 0: Headers
+      const headerRow: string[] = new Array(totalCols).fill('');
+      for (const layout of datasetLayouts) {
+        layout.columns.forEach((c, idx) => {
+          headerRow[layout.startCol + idx] = c.key;
+        });
+      }
+      seedRows.push(headerRow);
+
+      // Subsequent rows: data items
+      for (let r = 0; r < maxDataRows; r++) {
+        const dataRow: (string | number | boolean)[] = new Array(totalCols).fill('');
+        for (const layout of datasetLayouts) {
+          const items = layout.dataset.items || [];
+          if (r < items.length) {
+            const item = items[r];
+            layout.columns.forEach((c, idx) => {
+              const val = item[c.key];
+              dataRow[layout.startCol + idx] = val !== undefined && val !== null ? val : '';
+            });
+          }
+        }
+        seedRows.push(dataRow);
+      }
+
+      // Generate single full-table Named Ranges spanning all columns
+      for (const layout of datasetLayouts) {
+        const startLetter = getColumnLetter(layout.startCol);
+        const endLetter = getColumnLetter(layout.startCol + layout.numCols - 1);
+        const rangeNotation = `${startLetter}2:${endLetter}${tabRowCount}`;
+        registerNamedRange(layout.dataset.key, tabName, rangeNotation);
+      }
+
+      return { seedRows, tabRowCount, tabColumnCount };
+    };
+
+    // 2. Compile _Shared tab
+    if (sharedDatasetsMap.size > 0) {
+      const sharedDatasets = Array.from(sharedDatasetsMap.values());
+      const { seedRows, tabRowCount, tabColumnCount } = buildSupportTabSeedRowsAndNamedRanges(
+        '_Shared',
+        sharedDatasets,
+        100
+      );
+
+      const existingSharedTabIdx = tabs.findIndex((t) => t.name === '_Shared');
+      const sharedTab: TabSpec = {
+        name: '_Shared',
+        rowCount: tabRowCount,
+        columnCount: Math.max(20, tabColumnCount),
+        isSharedTab: true,
+        seedRows,
+      };
+
+      if (existingSharedTabIdx >= 0) {
+        tabs[existingSharedTabIdx] = {
+          ...tabs[existingSharedTabIdx],
+          ...sharedTab,
+        };
+      } else {
+        tabs.push(sharedTab);
+      }
+    }
+
+    // 3. Compile per-spec <Type> Support tabs
+    for (const { tabName, datasets } of Array.from(specSupportMap.values())) {
+      if (datasets.length === 0) continue;
+      const { seedRows, tabRowCount, tabColumnCount } = buildSupportTabSeedRowsAndNamedRanges(
+        tabName,
+        datasets,
+        50
+      );
+
+      const existingTabIdx = tabs.findIndex((t) => t.name === tabName);
+      const supportTab: TabSpec = {
+        name: tabName,
+        rowCount: tabRowCount,
+        columnCount: tabColumnCount,
+        isSupportTab: true,
+        seedRows,
+      };
+
+      if (existingTabIdx >= 0) {
+        tabs[existingTabIdx] = {
+          ...tabs[existingTabIdx],
+          ...supportTab,
+        };
+      } else {
+        tabs.push(supportTab);
+      }
+    }
+
+    // Merge generated named ranges
+    for (const genNR of generatedNamedRanges) {
+      const existingIdx = namedRanges.findIndex((nr) => nr.name === genNR.name);
+      if (existingIdx >= 0) {
+        namedRanges[existingIdx] = genNR;
+      } else {
+        namedRanges.push(genNR);
       }
     }
   }
