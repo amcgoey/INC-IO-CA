@@ -213,7 +213,7 @@
               "type": "TextInput",
               "fieldName": "date",
               "title": "❌ Date",
-              "value": "260810",
+              "value": "260814",
               "hint": "Date (YYMMDD)",
               "multiline": false,
               "onChangeAction": {
