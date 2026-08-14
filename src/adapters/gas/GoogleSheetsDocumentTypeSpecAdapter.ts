@@ -5,7 +5,7 @@
  * Pure model translation logic: zero Node.js built-in imports.
  */
 
-import type { DocumentTypeSpec } from '../../core/specs/DocumentTypeSpec';
+import type { DocumentTypeSpec, DriveStorageSpec } from '../../core/specs/DocumentTypeSpec';
 import type {
   DocumentLogWorkbookSpec,
   TabSpec,
@@ -46,7 +46,23 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
     const tabs: TabSpec[] = baseSpec?.tabs ? [...baseSpec.tabs] : [];
     const namedRanges: NamedRangeSpec[] = baseSpec?.namedRanges ? [...baseSpec.namedRanges] : [];
 
-    // 1. Process Log Tabs for each DocumentTypeSpec
+    // 1. Process Log Tabs
+    this.compileLogTabs(specs, tabs);
+
+    // 2. Build centralized _Config Tab and register Named Ranges
+    this.compileConfigTab(specs, baseSpec, tabs, namedRanges);
+
+    return {
+      schemaVersion: baseSpec?.schemaVersion || DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION,
+      tabs,
+      namedRanges,
+    };
+  }
+
+  /**
+   * Compiles and creates/updates log tabs for each DocumentTypeSpec.
+   */
+  private static compileLogTabs(specs: DocumentTypeSpec[], tabs: TabSpec[]): void {
     for (const spec of specs) {
       const logTabName = spec.label || spec.name;
 
@@ -113,8 +129,17 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
         tabs.push(logTab);
       }
     }
+  }
 
-    // 2. Build centralized _Config Tab with the 6 configuration tables
+  /**
+   * Compiles the centralized _Config tab and registers workbook-scoped Named Ranges.
+   */
+  private static compileConfigTab(
+    specs: DocumentTypeSpec[],
+    baseSpec: Partial<DocumentLogWorkbookSpec> | undefined,
+    tabs: TabSpec[],
+    namedRanges: NamedRangeSpec[]
+  ): void {
     const configSeedRows: (string | number | boolean)[][] = [];
     const generatedNamedRanges: NamedRangeSpec[] = [];
 
@@ -150,7 +175,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       } else if (spec.key === 'SUBMITTAL_FFE' || spec.key === 'Submittal_FFE') {
         prefix = 'SUB-FFE';
       } else {
-        const driveStorage = spec.storage?.find((s) => s.type === 'drive') as any;
+        const driveStorage = spec.storage?.find((s): s is DriveStorageSpec => s.type === 'drive');
         prefix = driveStorage?.filenamePrefix || spec.key.replace(/_/g, '-');
       }
 
@@ -199,7 +224,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       if (spec.storage && spec.storage.length > 0) {
         for (const st of spec.storage) {
           if (st.type === 'drive') {
-            const driveSt = st as any;
+            const driveSt = st as DriveStorageSpec;
             configSeedRows.push([
               'drive',
               (driveSt.rootFolderSearchTerms || []).join(','),
@@ -314,11 +339,5 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
         namedRanges.push(genNR);
       }
     }
-
-    return {
-      schemaVersion: baseSpec?.schemaVersion || DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION,
-      tabs,
-      namedRanges,
-    };
   }
 }
