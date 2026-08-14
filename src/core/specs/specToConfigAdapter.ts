@@ -37,6 +37,7 @@ export function specToConfigAdapter(
   const closedSubfolderMap = driveStorage?.closedSubfolderMap;
   const filenamePrefix = driveStorage?.filenamePrefix || '_';
   const coverPageTemplateId = driveStorage?.coverPageTemplateId || '';
+  const logParentFolderTerms = driveStorage?.rootFolderSearchTerms || [spec.name, spec.label].filter(Boolean);
 
   // Log criteria
   const logSearchTerms = isFfe
@@ -78,6 +79,7 @@ export function specToConfigAdapter(
       ...(field.header ? { header: field.header } : {}),
       ...(field.numberFormat ? { numberFormat: field.numberFormat } : {}),
       ...(field.optionsRange ? { optionsRange: field.optionsRange } : {}),
+      ...(field.options ? { options: field.options } : {}),
       ...(field.keyNormalizationRule ? { keyNormalizationRule: field.keyNormalizationRule } : {}),
       ...(field.formulaOrFunction ? { formulaOrFunction: field.formulaOrFunction } : (field.isCalculated ? { formulaOrFunction: '=CONCAT()' } : {})),
     };
@@ -95,7 +97,7 @@ export function specToConfigAdapter(
     ...(coverPageTemplateId ? { coverPageTemplateId } : {}),
     logSearchTerms,
     logSheetName,
-    logParentFolderTerms: ['Submittals'],
+    logParentFolderTerms,
     logAdapterKey: 'GoogleSheetsLogRepository',
     filingAdapterKey: 'GoogleDriveFilingRepository',
     pdfAdapterKey: 'PdfDocumentService',

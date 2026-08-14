@@ -131,7 +131,7 @@ test("Issue 192 - Single-Submittal Execution and PDF Hyperlink Opening Verificat
 
     // 1. Verify Subfolder Hierarchy Filing
     assert.equal(fakeDriveRepo.filedDocuments.length, 2);
-    assert.deepEqual(fakeDriveRepo.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+    assert.deepEqual(fakeDriveRepo.filedDocuments[0].options.subfolderPath, ["Closed", "033000"]);
 
     // 2. Verify PDF Hyperlink Opening URL in Link Column
     const archSheet = ss.getSheetByName("Submittal Arch");

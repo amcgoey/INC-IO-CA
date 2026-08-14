@@ -85,7 +85,7 @@ test("DocumentWorkflowModule.executeWorkflow handles Architecture incoming submi
   assert.strictEqual(result.directRowUrl, "https://docs.google.com/spreadsheets/d/log-ss-123/edit#gid=101&range=A5");
 
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 2);
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03 Concrete"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "033000"]);
   assert.strictEqual(context.driveFilingRepository.filedDocuments[1].options.subfolderPath, undefined);
 
   assert.strictEqual(context.pdfDocumentService.stampCalls.length, 1);
@@ -181,7 +181,7 @@ test("DocumentWorkflowModule.executeWorkflow handles FF&E incoming submittals", 
   assert.strictEqual(result.targetKey, "CH-01-001");
   assert.strictEqual(result.title, "Side Chair");
   assert.strictEqual(result.directRowUrl, "https://docs.google.com/spreadsheets/d/log-ss-ffe/edit#gid=101&range=A9");
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "CH"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "CH-01"]);
   assert.strictEqual(context.pdfDocumentService.stampCalls[0].options.templateId, "tmpl-pdf");
 });
 
@@ -375,7 +375,7 @@ test("For Incoming Architectural Submittals, original file is saved to Submittal
   const result = await DocumentWorkflowModule.executeWorkflow(input as any);
 
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 2);
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03 Concrete"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "033000"]);
   assert.strictEqual(context.driveFilingRepository.filedDocuments[1].options.subfolderPath, undefined);
   assert.strictEqual(context.driveFilingRepository.filedDocuments[0].options.targetFolderId, "submittals-root-folder-id");
   assert.ok(result.fileId);

@@ -108,6 +108,63 @@ describe('specToConfigAdapter (Tier 1 Pure Core)', () => {
     expect(config.closedSubfolderMap).toEqual({ Custom: 'Folder' });
     expect(config.filenamePrefix).toBe('ASI_');
     expect(config.logSheetName).toBe('ASI Log');
+    expect(config.logParentFolderTerms).toEqual(['ASIs', 'ASI']);
     expect(config.fields).toHaveLength(2);
+  });
+
+  it('should preserve field.options when mapping DocumentFieldSpec to DocumentFieldConfig', () => {
+    const specWithOptions: DocumentTypeSpec = {
+      key: 'CUSTOM_DOC',
+      label: 'Custom Doc',
+      name: 'Custom Document',
+      identity: {
+        format: '${num}',
+        groupFormat: '${num}',
+        revisionGroupFormat: '${num}',
+      },
+      fields: [
+        {
+          key: 'status',
+          label: 'Status',
+          type: 'enum',
+          options: [
+            { value: 'OPEN', label: 'Open' },
+            { value: 'CLOSED', label: 'Closed' },
+          ],
+        },
+      ],
+      storage: [],
+      workflows: [],
+    };
+
+    const config = specToConfigAdapter(specWithOptions);
+    expect(config.fields?.[0].options).toEqual([
+      { value: 'OPEN', label: 'Open' },
+      { value: 'CLOSED', label: 'Closed' },
+    ]);
+  });
+
+  it('should dynamically derive logParentFolderTerms from driveStorage.rootFolderSearchTerms or spec name/label', () => {
+    // 1. With driveStorage.rootFolderSearchTerms
+    const ffeSpec = ffeSpecJson as DocumentTypeSpec;
+    const ffeConfig = specToConfigAdapter(ffeSpec);
+    expect(ffeConfig.logParentFolderTerms).toEqual(['FF&E', 'FFE']);
+
+    // 2. Fallback to [spec.name, spec.label] when storage is empty
+    const noStorageSpec: DocumentTypeSpec = {
+      key: 'CONTRACT',
+      label: 'Contract Log',
+      name: 'Contract Document',
+      identity: {
+        format: '${id}',
+        groupFormat: '${id}',
+        revisionGroupFormat: '${id}',
+      },
+      fields: [],
+      storage: [],
+      workflows: [],
+    };
+    const contractConfig = specToConfigAdapter(noStorageSpec);
+    expect(contractConfig.logParentFolderTerms).toEqual(['Contract Document', 'Contract Log']);
   });
 });

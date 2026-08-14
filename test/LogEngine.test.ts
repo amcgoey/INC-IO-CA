@@ -358,7 +358,7 @@ test("LogEngine handles FF&E revision workflow by updating previous row status t
   assert.strictEqual(sheetValues[4][11], "Vendor A Designer");
 });
 
-test("DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) resolves subfolder path segments from CSI divisions", () => {
+test("DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) resolves subfolder path segments declaratively from closedSubfolderFormat", () => {
   (globalThis as any).CSI_DIVISIONS = { "03": "03-Concrete" };
 
   const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
@@ -376,7 +376,7 @@ test("DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) resolves subfolder path se
   });
 
   const subfolders = strategy.getFilingSubfolders!(docConcrete);
-  assert.deepStrictEqual(subfolders, ["Closed", "03-Concrete"]);
+  assert.deepStrictEqual(subfolders, ["Closed", "033000"]);
 
   const docFallback = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
@@ -391,7 +391,7 @@ test("DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) resolves subfolder path se
   });
 
   const fallbackSubfolders = strategy.getFilingSubfolders!(docFallback);
-  assert.deepStrictEqual(fallbackSubfolders, ["Closed"]);
+  assert.deepStrictEqual(fallbackSubfolders, ["Closed", "990000"]);
 
   const docBlankSection = DocumentFactory.createValidatedArchitectureSubmittal({
     date: "2026-07-25",
@@ -424,7 +424,7 @@ test("DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) resolves subfolder path se
   assert.deepStrictEqual(whitespaceSectionSubfolders, ["Closed"]);
 });
 
-test("DeclarativeDocumentLogStrategy (SUBMITTAL_FFE) resolves subfolder path segments from spec tag prefix", () => {
+test("DeclarativeDocumentLogStrategy (SUBMITTAL_FFE) resolves subfolder path segments declaratively from closedSubfolderFormat", () => {
   const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_FFE"));
 
   const docWithTag = DocumentFactory.createValidatedFFESubmittal({
@@ -440,7 +440,7 @@ test("DeclarativeDocumentLogStrategy (SUBMITTAL_FFE) resolves subfolder path seg
   });
 
   const subfolders = strategy.getFilingSubfolders!(docWithTag);
-  assert.deepStrictEqual(subfolders, ["Closed", "CH"]);
+  assert.deepStrictEqual(subfolders, ["Closed", "CH-01"]);
 
   const docFallback = DocumentFactory.createValidatedFFESubmittal({
     date: "2026-07-25",

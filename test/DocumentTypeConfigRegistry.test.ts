@@ -46,6 +46,27 @@ describe('DocumentTypeConfigRegistry (Adapter Seam over DocumentTypeSpecRegistry
     expect(ffe1).toBe(ffe2);
   });
 
+  it('purges all cached projection alias entries when a custom config is registered', () => {
+    // 1. Warm the projected cache with aliases
+    const initialSubmittal = registry.getConfig('Submittal');
+    const initialArch = registry.getConfig('SUBMITTAL_ARCH');
+    expect(initialSubmittal).toBeDefined();
+    expect(initialArch).toBeDefined();
+
+    // 2. Register custom config for SUBMITTAL_ARCH
+    const customArchConfig = {
+      ...initialArch,
+      displayName: 'Custom Override Architecture',
+      targetTab: 'Custom Arch Tab',
+    };
+    registry.registerConfig(customArchConfig);
+
+    // 3. Verify that aliases resolve to the new custom config and cache was purged
+    const retrievedArch = registry.getConfig('SUBMITTAL_ARCH');
+    expect(retrievedArch.displayName).toBe('Custom Override Architecture');
+    expect(retrievedArch).toBe(customArchConfig);
+  });
+
   it('registers and retrieves custom DocumentTypeConfig', () => {
     const rfiConfig = {
       documentType: 'RFI',

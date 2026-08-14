@@ -204,9 +204,8 @@ class DocumentTypeConfigRegistry {
       throw new Error('Invalid DocumentTypeConfig: documentType is required');
     }
     this.customConfigs.set(config.documentType, config);
-    // Invalidate cached projection if key matches
-    this.projectedCache.delete(config.documentType);
-    this.projectedCache.delete(config.documentType.toLowerCase());
+    // Invalidate and purge all projected cache entries including aliases
+    this.projectedCache.clear();
   }
 
   /**

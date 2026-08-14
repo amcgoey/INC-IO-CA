@@ -164,19 +164,27 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
 function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
   const p = e.parameters || {};
   try {
-    const docTypeKey = p.discipline === "Architecture" ? "SUBMITTAL_ARCH" : "SUBMITTAL_FFE";
+    const docTypeKey = p.documentType || (p.discipline ? (defaultDocumentTypeSpecRegistry.findSpecKey(p.discipline) || (p.discipline === "Architecture" ? "SUBMITTAL_ARCH" : "SUBMITTAL_FFE")) : "SUBMITTAL_ARCH");
     const spec = defaultDocumentTypeSpecRegistry.getSpec(docTypeKey);
     const strategy: DocumentLogStrategy = new DeclarativeDocumentLogStrategy(spec);
 
     const doc: ValidatedDocument = {
-      documentType: "Submittal",
-      date: "",
-      contact: "",
-      action: "",
-      disciplineDetails: p.discipline === "Architecture"
-        ? { discipline: "Architecture", section: p.section || "", number: "", title: "", revision: "" }
-        : { discipline: "FF&E", specTag: p.specTag || "", specTitle: "", vendor: "", revision: "" }
-    };
+      documentType: spec.key,
+      date: p.date || "",
+      contact: p.contact || "",
+      action: p.action || "",
+      disciplineDetails: {
+        discipline: p.discipline || spec.label,
+        section: p.section || "",
+        specTag: p.specTag || "",
+        number: p.number || "",
+        revision: p.revision || "",
+        title: p.title || p.itemTitle || "",
+        vendor: p.vendor || "",
+      },
+      section: p.section || "",
+      specTag: p.specTag || "",
+    } as any;
 
     const closedFolder = (typeof CONFIG !== "undefined" && CONFIG.CLOSED_FOLDER_NAME) ? CONFIG.CLOSED_FOLDER_NAME : "Closed";
     const subfolderPath = strategy.getFilingSubfolders

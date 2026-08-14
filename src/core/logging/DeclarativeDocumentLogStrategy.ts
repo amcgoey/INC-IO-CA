@@ -11,7 +11,7 @@ globalThis.__currentFileTier = 1;
 import type { DocumentTypeSpec, DriveStorageSpec } from '../specs/DocumentTypeSpec';
 import { TemplateFormatCompiler } from '../specs/TemplateFormatCompiler';
 import { getRowGroupKey, getRowSortKey } from '../../RowPositionCalculator';
-import { CSI_DIVISIONS, CONFIG } from '../../Config';
+import { CONFIG } from '../../Config';
 
 /**
  * Formats a Date object or raw date string into a standard 6-to-8 digit string.
@@ -197,22 +197,14 @@ export class DeclarativeDocumentLogStrategy implements DocumentLogStrategy<Valid
       (typeof CONFIG !== 'undefined' && (CONFIG as any).CLOSED_FOLDER_NAME) ||
       'Closed';
 
-    const secStr = String(record.section || '').trim();
-    if (secStr) {
-      const secPrefix = secStr.substring(0, 2);
-      const csiDivs = (globalThis as any).CSI_DIVISIONS || CSI_DIVISIONS;
-      const divName = csiDivs && csiDivs[secPrefix] ? csiDivs[secPrefix] : null;
-      if (divName) {
-        return [closedFolder, divName];
-      }
-      return [closedFolder];
-    }
-
-    const specTag = String(record.specTag || '').trim();
-    if (specTag) {
-      const prefix = specTag.substring(0, 2);
-      if (prefix) {
-        return [closedFolder, prefix];
+    if (driveStorage?.closedSubfolderFormat) {
+      const evaluated = TemplateFormatCompiler.evaluate(driveStorage.closedSubfolderFormat, record);
+      const segments = evaluated
+        .split('/')
+        .map((seg) => seg.trim())
+        .filter(Boolean);
+      if (segments.length > 0) {
+        return segments;
       }
     }
 

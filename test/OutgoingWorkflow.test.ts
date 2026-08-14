@@ -54,7 +54,7 @@ test("OutgoingWorkflow - AppContext = 'Gmail' executes log writing, file renamin
 
   // Assert single pass immediate filing into Closed subfolder hierarchy
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03 Concrete"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "033000"]);
 });
 
 test("OutgoingWorkflow - AppContext = 'Gmail' handles FF&E outgoing submittals with immediate filing", async () => {
@@ -91,7 +91,7 @@ test("OutgoingWorkflow - AppContext = 'Gmail' handles FF&E outgoing submittals w
 
   assert.strictEqual(result.targetKey, "CH-01-001");
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "CH"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "CH-01"]);
 });
 
 test("OutgoingWorkflow - AppContext = 'Gmail' Non-CSI submittal files directly into Closed root subfolder when section is empty", async () => {
@@ -193,7 +193,7 @@ test("OutgoingWorkflow - auto-detects 'Gmail' context when fileSource is 'Email 
   await OutgoingWorkflow.execute(input as any);
 
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03 Concrete"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "033000"]);
 });
 
 test("DocumentWorkflowModule.executeWorkflow delegates outgoing workflow to OutgoingWorkflow for Gmail context", async () => {
@@ -227,5 +227,5 @@ test("DocumentWorkflowModule.executeWorkflow delegates outgoing workflow to Outg
 
   assert.strictEqual(result.targetKey, "033000-001-001");
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 1);
-  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "03 Concrete"]);
+  assert.deepStrictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath, ["Closed", "033000"]);
 });

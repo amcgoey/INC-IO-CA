@@ -133,18 +133,18 @@ describe('DeclarativeDocumentLogStrategy', () => {
       expect(payload['Contact History']).toBe('GC');
     });
 
-    it('resolves Drive subfolders based on CSI divisions and fallback rules', () => {
+    it('resolves Drive subfolders declaratively based on closedSubfolderFormat and fallback rules', () => {
       const docConcrete = DocumentFactory.createValidatedArchitectureSubmittal({
         date: '2026-07-25',
         disciplineDetails: { section: '033000', number: '001', title: 'Concrete', revision: '0' }
       });
-      expect(strategy.getFilingSubfolders(docConcrete)).toEqual(['Closed', '03-Concrete']);
+      expect(strategy.getFilingSubfolders(docConcrete)).toEqual(['Closed', '033000']);
 
-      const docUnknown = DocumentFactory.createValidatedArchitectureSubmittal({
+      const docOther = DocumentFactory.createValidatedArchitectureSubmittal({
         date: '2026-07-25',
-        disciplineDetails: { section: '990000', number: '001', title: 'Unknown', revision: '0' }
+        disciplineDetails: { section: '081100', number: '001', title: 'Metal Doors', revision: '0' }
       });
-      expect(strategy.getFilingSubfolders(docUnknown)).toEqual(['Closed']);
+      expect(strategy.getFilingSubfolders(docOther)).toEqual(['Closed', '081100']);
 
       const docBlank = DocumentFactory.createValidatedArchitectureSubmittal({
         date: '2026-07-25',
@@ -237,12 +237,12 @@ describe('DeclarativeDocumentLogStrategy', () => {
       expect(payload['Status']).toBe('Under Review');
     });
 
-    it('resolves Drive subfolders based on spec tag 2-char prefix', () => {
+    it('resolves Drive subfolders declaratively based on closedSubfolderFormat (${specTag})', () => {
       const docWithTag = DocumentFactory.createValidatedFFESubmittal({
         date: '2026-07-25',
         disciplineDetails: { specTag: 'CH-01', specTitle: 'Chair', vendor: 'Co', revision: '0' }
       });
-      expect(strategy.getFilingSubfolders(docWithTag)).toEqual(['Closed', 'CH']);
+      expect(strategy.getFilingSubfolders(docWithTag)).toEqual(['Closed', 'CH-01']);
 
       const docFallback = DocumentFactory.createValidatedFFESubmittal({
         date: '2026-07-25',
@@ -272,7 +272,8 @@ describe('DeclarativeDocumentLogStrategy', () => {
         {
           type: 'drive',
           rootFolderSearchTerms: ['RFIs'],
-          closedRootFolderName: 'Closed RFIs'
+          closedRootFolderName: 'Closed RFIs',
+          closedSubfolderFormat: 'Closed RFIs/${rfiNumber}'
         }
       ],
       workflows: []
@@ -293,7 +294,7 @@ describe('DeclarativeDocumentLogStrategy', () => {
       expect(strategy.getGroupKey(doc)).toBe('042');
       expect(strategy.getTargetKey(doc)).toBe('042-1');
       expect(strategy.getSortKey(doc)).toBe('042-001-20260801');
-      expect(strategy.getFilingSubfolders(doc)).toEqual(['Closed RFIs']);
+      expect(strategy.getFilingSubfolders(doc)).toEqual(['Closed RFIs', '042']);
 
       const payload = strategy.formatRowPayload(doc, {
         link: 'http://link',

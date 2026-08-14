@@ -82,7 +82,7 @@ test("Single-Submittal Architecture Incoming Workflow - End-to-End Integration",
     // 6. Verify Drive Filing Subfolder Creation
     assert.equal(fakeDriveRepo.filedDocuments.length, 2);
     const origFiling = fakeDriveRepo.filedDocuments[0];
-    assert.deepEqual(origFiling.options.subfolderPath, ["Closed", "03-Concrete"]);
+    assert.deepEqual(origFiling.options.subfolderPath, ["Closed", "033000"]);
     const reviewFiling = fakeDriveRepo.filedDocuments[1];
     assert.equal(reviewFiling.options.newFileName, "STAMPED_033000-001-001 Cast-in-Place Concrete - 2026-08-08 GC Rec.pdf");
 
@@ -167,7 +167,7 @@ test("Single-Submittal FF&E Incoming Workflow - End-to-End Integration", async (
     assert.equal(result.targetKey, "CH-01-001");
     assert.equal(result.title, "Lounge Chair");
     assert.equal(fakeDriveRepo.filedDocuments[0].options.subfolderPath[0], "Closed");
-    assert.equal(fakeDriveRepo.filedDocuments[0].options.subfolderPath[1], "CH");
+    assert.equal(fakeDriveRepo.filedDocuments[0].options.subfolderPath[1], "CH-01");
 
     // 5. Verify Submittal FFE Sheet Link Cell Insertion
     const ffeSheet = ss.getSheetByName("Submittal FFE");

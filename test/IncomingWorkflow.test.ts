@@ -41,7 +41,7 @@ test("IncomingWorkflow.execute processes Architecture incoming submittal with du
   // 2. Verify OriginalDocument filed in Submittals\Closed\<Subfolder>
   assert.strictEqual(context.driveFilingRepository.filedDocuments.length, 2);
   const originalFiling = context.driveFilingRepository.filedDocuments[0];
-  assert.deepStrictEqual(originalFiling.options.subfolderPath, ["Closed", "03 Concrete"]);
+  assert.deepStrictEqual(originalFiling.options.subfolderPath, ["Closed", "033000"]);
   assert.strictEqual(originalFiling.options.targetFolderId, "submittals-root-folder-id");
 
   // 3. Verify ReviewDocument duplicated and placed in Submittals\ root with STAMPED_ prefix
@@ -101,7 +101,7 @@ test("IncomingWorkflow.execute processes FF&E incoming submittal with dual-path 
   assert.strictEqual(result.targetKey, "CH-01-001");
   assert.strictEqual(result.title, "Side Chair");
   assert.strictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath[0], "Closed");
-  assert.strictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath[1], "CH");
+  assert.strictEqual(context.driveFilingRepository.filedDocuments[0].options.subfolderPath[1], "CH-01");
   assert.strictEqual(context.driveFilingRepository.filedDocuments[1].options.subfolderPath, undefined);
   assert.strictEqual(context.driveFilingRepository.filedDocuments[1].options.newFileName, "STAMPED_CH-01-001 Side Chair - 2026-07-25 Vendor Rec.pdf");
 });

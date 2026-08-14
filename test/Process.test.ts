@@ -341,7 +341,7 @@ test("moveSubmittalToClosed delegates file move and subfolder path resolution to
 
   const res = moveSubmittalToClosed(event as any);
   assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
-  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "033000"]);
   assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-123");
 });
 
@@ -398,7 +398,7 @@ test("moveSubmittalToClosed delegates file move and subfolder path resolution to
 
   const res = moveSubmittalToClosed(event as any);
   assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
-  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "CH"]);
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "CH-01"]);
   assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-ffe-456");
 });
 
@@ -579,5 +579,5 @@ test("moveSubmittalToClosed files document to Closed subfolder hierarchy and ret
   const response = moveSubmittalToClosed(event as any);
   assert.ok(response);
   assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
-  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "03-Concrete"]);
+  assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "033000"]);
 });
