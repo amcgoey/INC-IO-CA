@@ -47,7 +47,7 @@ export class TemplateFormatCompiler {
   }
 
   /**
-   * Compiles a format string into a Google Sheets TEXTJOIN formula.
+   * Compiles a format string into a Google Sheets formula (TEXTJOIN or CONCATENATE).
    */
   public static compileToSheetsFormula(
     formatStr: string,
@@ -55,35 +55,71 @@ export class TemplateFormatCompiler {
   ): string {
     if (!formatStr) return '=TEXTJOIN("-", TRUE, "")';
 
-    // Detect primary delimiter in the template
-    let delimiter = '-';
-    if (formatStr.includes('/')) {
-      delimiter = '/';
-    } else if (formatStr.includes('-')) {
-      delimiter = '-';
-    } else if (formatStr.includes('_')) {
-      delimiter = '_';
-    }
+    // Check if the format string can be cleanly partitioned by a single primary delimiter
+    const delimiters = ['/', '-', '_'];
+    for (const delimiter of delimiters) {
+      if (formatStr.includes(delimiter)) {
+        // Ensure no other delimiters exist in the format string
+        const otherDelimiters = delimiters.filter((d) => d !== delimiter);
+        const hasOtherDelimiters = otherDelimiters.some((d) => formatStr.includes(d));
 
-    // Split formatStr by delimiter
-    const segments = formatStr.split(delimiter);
-    const formulaArgs: string[] = [];
+        if (!hasOtherDelimiters) {
+          const segments = formatStr.split(delimiter);
+          const formulaArgs: string[] = [];
+          let isClean = true;
 
-    for (const seg of segments) {
-      const trimmed = seg.trim();
-      if (!trimmed) continue;
+          for (const seg of segments) {
+            const trimmed = seg.trim();
+            if (!trimmed) continue;
 
-      const varMatch = trimmed.match(/^\${([^}]+)\}$/);
-      if (varMatch) {
-        const varName = varMatch[1];
-        const cellRef = columnMap ? columnMap[varName] || varName : varName;
-        formulaArgs.push(cellRef);
-      } else {
-        // Static literal segment
-        formulaArgs.push(JSON.stringify(trimmed));
+            const varMatch = trimmed.match(/^\${([^}]+)\}$/);
+            if (varMatch) {
+              const varName = varMatch[1];
+              const cellRef = columnMap ? columnMap[varName] || varName : varName;
+              formulaArgs.push(cellRef);
+            } else if (!seg.includes('${')) {
+              // Static literal segment without any embedded variables
+              formulaArgs.push(JSON.stringify(trimmed));
+            } else {
+              // Contains partial or mixed token syntax
+              isClean = false;
+              break;
+            }
+          }
+
+          if (isClean && formulaArgs.length > 0) {
+            return `=TEXTJOIN("${delimiter}", TRUE, ${formulaArgs.join(', ')})`;
+          }
+        }
       }
     }
 
-    return `=TEXTJOIN("${delimiter}", TRUE, ${formulaArgs.join(', ')})`;
+    // Composite, multi-delimiter, or mixed token format: compile via tokenization into CONCATENATE
+    const regex = /\${([^}]+)\}/g;
+    const formulaArgs: string[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(formatStr)) !== null) {
+      if (match.index > lastIndex) {
+        const literal = formatStr.slice(lastIndex, match.index);
+        formulaArgs.push(JSON.stringify(literal));
+      }
+      const varName = match[1];
+      const cellRef = columnMap ? columnMap[varName] || varName : varName;
+      formulaArgs.push(cellRef);
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < formatStr.length) {
+      const literal = formatStr.slice(lastIndex);
+      formulaArgs.push(JSON.stringify(literal));
+    }
+
+    if (formulaArgs.length === 0) {
+      return '=TEXTJOIN("-", TRUE, "")';
+    }
+
+    return `=CONCATENATE(${formulaArgs.join(', ')})`;
   }
 }
