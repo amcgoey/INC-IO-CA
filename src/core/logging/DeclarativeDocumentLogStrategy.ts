@@ -18,14 +18,11 @@ import { CSI_DIVISIONS, CONFIG } from '../../Config';
  */
 export function formatDateStr(rawDate: unknown): string {
   if (rawDate instanceof Date) {
-    if (typeof Utilities !== 'undefined' && Utilities.formatDate && typeof Session !== 'undefined') {
-      return Utilities.formatDate(rawDate, Session.getScriptTimeZone(), 'yyMMdd');
-    } else {
-      const yy = String(rawDate.getFullYear()).slice(-2);
-      const mm = String(rawDate.getMonth() + 1).padStart(2, '0');
-      const dd = String(rawDate.getDate()).padStart(2, '0');
-      return `${yy}${mm}${dd}`;
-    }
+    if (isNaN(rawDate.getTime())) return '';
+    const yyyy = String(rawDate.getFullYear());
+    const mm = String(rawDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(rawDate.getDate()).padStart(2, '0');
+    return yyyy + mm + dd;
   }
   return String(rawDate || '').replace(/\D/g, '').padStart(6, '0');
 }

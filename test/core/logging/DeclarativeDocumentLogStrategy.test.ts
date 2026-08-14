@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { DeclarativeDocumentLogStrategy } from '../../../src/core/logging/DeclarativeDocumentLogStrategy';
+import { DeclarativeDocumentLogStrategy, formatDateStr } from '../../../src/core/logging/DeclarativeDocumentLogStrategy';
 import { defaultDocumentTypeSpecRegistry } from '../../../src/core/specs/DocumentTypeSpecRegistry';
 import type { DocumentTypeSpec } from '../../../src/core/specs/DocumentTypeSpec';
 import { DocumentFactory } from '../../harness';
@@ -305,6 +305,36 @@ describe('DeclarativeDocumentLogStrategy', () => {
       expect(payload['Subject']).toBe('Beam Penetrations');
       expect(payload['Revision']).toBe('1');
       expect(payload['Status']).toBe('Open');
+    });
+  });
+
+  describe('formatDateStr (Pure Tier 1 Date Formatter)', () => {
+    it('formats standard Date objects into 8-digit YYYYMMDD string without GAS globals', () => {
+      const date = new Date(2026, 6, 25);
+      expect(formatDateStr(date)).toBe('20260725');
+    });
+
+    it('pads single-digit month and day values correctly', () => {
+      const date = new Date(2026, 0, 5);
+      expect(formatDateStr(date)).toBe('20260105');
+    });
+
+    it('handles ISO formatted date strings', () => {
+      expect(formatDateStr('2026-07-25')).toBe('20260725');
+    });
+
+    it('handles existing 6-digit compact date strings', () => {
+      expect(formatDateStr('260725')).toBe('260725');
+    });
+
+    it('handles null and undefined gracefully', () => {
+      expect(formatDateStr(null)).toBe('000000');
+      expect(formatDateStr(undefined)).toBe('000000');
+      expect(formatDateStr('')).toBe('000000');
+    });
+
+    it('handles invalid Date objects gracefully', () => {
+      expect(formatDateStr(new Date('invalid'))).toBe('');
     });
   });
 });

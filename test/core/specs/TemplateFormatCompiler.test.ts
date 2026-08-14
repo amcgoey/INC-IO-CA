@@ -75,7 +75,7 @@ describe('TemplateFormatCompiler', () => {
       expect(formula).toBe('=TEXTJOIN("-", TRUE, B2, C2, D2)');
     });
 
-    it('should compile prefixed path format to TEaTJOIN or concat formula', () => {
+    it('should compile prefixed path format to TEXTJOIN formula', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         'Closed/${section}',
         { section: 'B2' }
@@ -88,6 +88,48 @@ describe('TemplateFormatCompiler', () => {
         '${section}-${number}'
       );
       expect(formula).toBe('=TEXTJOIN("-", TRUE, section, number)');
+    });
+
+    it('should compile composite multi-token format strings with mixed delimiters into CONCATENATE formula', () => {
+      const formula = TemplateFormatCompiler.compileToSheetsFormula(
+        'Closed/${section}-${revision}',
+        { section: 'B2', revision: 'D2' }
+      );
+      expect(formula).toBe('=CONCATENATE("Closed/", B2, "-", D2)');
+    });
+
+    it('should compile multi-token formats with path and hyphen delimiters into CONCATENATE formula', () => {
+      const formula = TemplateFormatCompiler.compileToSheetsFormula(
+        '${section}/${number}-${revision}',
+        { section: 'B2', number: 'C2', revision: 'D2' }
+      );
+      expect(formula).toBe('=CONCATENATE(B2, "/", C2, "-", D2)');
+    });
+
+    it('should compile multi-token path formats with uniform slash delimiter into TEXTJOIN formula', () => {
+      const formula = TemplateFormatCompiler.compileToSheetsFormula(
+        'Closed/${specCategory}/${specTag}',
+        { specCategory: 'B2', specTag: 'C2' }
+      );
+      expect(formula).toBe('=TEXTJOIN("/", TRUE, "Closed", B2, C2)');
+    });
+
+    it('should compile underscore-delimited format with literals into TEXTJOIN formula', () => {
+      const formula = TemplateFormatCompiler.compileToSheetsFormula(
+        'PREFIX_${tag}_SUFFIX',
+        { tag: 'A1' }
+      );
+      expect(formula).toBe('=TEXTJOIN("_", TRUE, "PREFIX", A1, "SUFFIX")');
+    });
+
+    it('should handle empty format string gracefully', () => {
+      expect(TemplateFormatCompiler.compileToSheetsFormula('')).toBe('=TEXTJOIN("-", TRUE, "")');
+    });
+
+    it('should compile static literal format strings without tokens into CONCATENATE formula', () => {
+      expect(TemplateFormatCompiler.compileToSheetsFormula('StaticLiteralOnly')).toBe(
+        '=CONCATENATE("StaticLiteralOnly")'
+      );
     });
   });
 });
