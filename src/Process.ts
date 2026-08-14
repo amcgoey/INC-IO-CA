@@ -135,7 +135,7 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
         const drftKey = p.draftKey || form.draftKey;
         if (drftKey) evictDraft(drftKey);
       }
-    } catch (e) {}
+    } catch (_err) {}
 
     const policy = policyFn(result.action);
 

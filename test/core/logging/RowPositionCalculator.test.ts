@@ -5,12 +5,7 @@ import assert from "node:assert";
 (global as any).CONFIG = { LOG_HEADER_ROW: 3 };
 
 import {
-  getBoundedData,
-  getRowGroupKey,
-  getRowSortKey,
   computeRowInsertionPlan,
-  createRowGroupKeyFn,
-  createRowSortKeyFn,
   createRowIdentityGroupKeyFn,
   createRowIdentityRevisionGroupKeyFn,
   createRowIdentityKeyFn
