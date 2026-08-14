@@ -47,7 +47,8 @@ export class TemplateFormatCompiler {
   }
 
   /**
-   * Compiles a format string into a Google Sheets formula (TEXTJOIN or CONCATENATE).
+   * Compiles a format string into a Google Sheets =MAP(..., LAMBDA(...)) spill formula.
+   * Utilizes the "Delimiter Split & TEXTJOIN" AST algorithm for delimiter collapse.
    */
   public static compileToSheetsFormula(
     formatStr: string,
@@ -55,71 +56,91 @@ export class TemplateFormatCompiler {
   ): string {
     if (!formatStr) return '=TEXTJOIN("-", TRUE, "")';
 
-    // Check if the format string can be cleanly partitioned by a single primary delimiter
-    const delimiters = ['/', '-', '_'];
-    for (const delimiter of delimiters) {
-      if (formatStr.includes(delimiter)) {
-        // Ensure no other delimiters exist in the format string
-        const otherDelimiters = delimiters.filter((d) => d !== delimiter);
-        const hasOtherDelimiters = otherDelimiters.some((d) => formatStr.includes(d));
+    const tokens = TemplateFormatCompiler.extractVariableTokens(formatStr);
+    if (tokens.length === 0) {
+      return `=CONCATENATE(${JSON.stringify(formatStr)})`;
+    }
 
-        if (!hasOtherDelimiters) {
-          const segments = formatStr.split(delimiter);
-          const formulaArgs: string[] = [];
-          let isClean = true;
+    // Candidate delimiters to check outside ${...}
+    const candidateDelimiters = ['-', '/', '_', ' ', ':'];
 
-          for (const seg of segments) {
-            const trimmed = seg.trim();
-            if (!trimmed) continue;
+    // Identify primary delimiter by inspecting static text outside ${...}
+    const templateMasked = formatStr.replace(/\$\{[^}]+\}/g, '');
+    let primaryDelimiter = '';
+    let maxCount = 0;
 
-            const varMatch = trimmed.match(/^\${([^}]+)\}$/);
-            if (varMatch) {
-              const varName = varMatch[1];
-              const cellRef = columnMap ? columnMap[varName] || varName : varName;
-              formulaArgs.push(cellRef);
-            } else if (!seg.includes('${')) {
-              // Static literal segment without any embedded variables
-              formulaArgs.push(JSON.stringify(trimmed));
-            } else {
-              // Contains partial or mixed token syntax
-              isClean = false;
-              break;
-            }
+    for (const d of candidateDelimiters) {
+      const escapedD = '\\' + d;
+      const count = (templateMasked.match(new RegExp(escapedD, 'g')) || []).length;
+      if (count > maxCount) {
+        maxCount = count;
+        primaryDelimiter = d;
+      }
+    }
+
+    // If single variable and no delimiter in static parts
+    if (!primaryDelimiter && tokens.length === 1 && formatStr.trim() === `\${${tokens[0]}}`) {
+      const token = tokens[0];
+      const range = columnMap && columnMap[token] ? columnMap[token] : token;
+      return `=MAP(${range}, LAMBDA(${token}, IF(ISBLANK(${token}), "", ${token})))`;
+    }
+
+    // Default to '-' if none found but tokens exist
+    const delimiter = primaryDelimiter || '-';
+
+    // Split format string into segments by primary delimiter
+    const rawSegments = formatStr.split(delimiter);
+    const segmentExprs: string[] = [];
+
+    for (const seg of rawSegments) {
+      const trimmed = seg.trim();
+      if (!trimmed) continue;
+
+      const segTokens = TemplateFormatCompiler.extractVariableTokens(trimmed);
+      if (segTokens.length === 0) {
+        // Pure static literal segment
+        segmentExprs.push(JSON.stringify(trimmed));
+      } else if (trimmed === `\${${segTokens[0]}}`) {
+        // Pure single variable token segment
+        const varName = segTokens[0];
+        segmentExprs.push(`IF(ISBLANK(${varName}), "", ${varName})`);
+      } else {
+        // Mixed segment (e.g. "Closed/${section}" or "PRE${tag}POST")
+        // Tokenize into literal chunks and variable chunks
+        const parts: string[] = [];
+        const regex = /\${([^}]+)\}/g;
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        while ((match = regex.exec(trimmed)) !== null) {
+          if (match.index > lastIndex) {
+            parts.push(JSON.stringify(trimmed.slice(lastIndex, match.index)));
           }
-
-          if (isClean && formulaArgs.length > 0) {
-            return `=TEXTJOIN("${delimiter}", TRUE, ${formulaArgs.join(', ')})`;
-          }
+          parts.push(match[1]);
+          lastIndex = regex.lastIndex;
         }
+        if (lastIndex < trimmed.length) {
+          parts.push(JSON.stringify(trimmed.slice(lastIndex)));
+        }
+
+        const concatExpr = parts.join(' & ');
+        const condition =
+          segTokens.length === 1
+            ? `ISBLANK(${segTokens[0]})`
+            : `AND(${segTokens.map((t) => `ISBLANK(${t})`).join(', ')})`;
+
+        segmentExprs.push(`IF(${condition}, "", ${concatExpr})`);
       }
     }
 
-    // Composite, multi-delimiter, or mixed token format: compile via tokenization into CONCATENATE
-    const regex = /\${([^}]+)\}/g;
-    const formulaArgs: string[] = [];
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
+    const lambdaBody =
+      segmentExprs.length === 1 && !primaryDelimiter
+        ? segmentExprs[0]
+        : `TEXTJOIN("${delimiter}", TRUE, ${segmentExprs.join(', ')})`;
 
-    while ((match = regex.exec(formatStr)) !== null) {
-      if (match.index > lastIndex) {
-        const literal = formatStr.slice(lastIndex, match.index);
-        formulaArgs.push(JSON.stringify(literal));
-      }
-      const varName = match[1];
-      const cellRef = columnMap ? columnMap[varName] || varName : varName;
-      formulaArgs.push(cellRef);
-      lastIndex = regex.lastIndex;
-    }
+    const ranges = tokens.map((t) => (columnMap && columnMap[t] ? columnMap[t] : t));
+    const lambdaArgs = tokens.join(', ');
 
-    if (lastIndex < formatStr.length) {
-      const literal = formatStr.slice(lastIndex);
-      formulaArgs.push(JSON.stringify(literal));
-    }
-
-    if (formulaArgs.length === 0) {
-      return '=TEXTJOIN("-", TRUE, "")';
-    }
-
-    return `=CONCATENATE(${formulaArgs.join(', ')})`;
+    return `=MAP(${ranges.join(', ')}, LAMBDA(${lambdaArgs}, ${lambdaBody}))`;
   }
 }

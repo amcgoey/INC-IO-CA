@@ -67,59 +67,73 @@ describe('TemplateFormatCompiler', () => {
   });
 
   describe('compileToSheetsFormula', () => {
-    it('should compile simple hyphen-delimited format to TEXTJOIN formula', () => {
+    it('should compile simple hyphen-delimited format to MAP LAMBDA TEXTJOIN spill formula', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         '${section}-${number}-${revision}',
-        { section: 'B2', number: 'C2', revision: 'D2' }
+        { section: 'B4:B', number: 'C4:C', revision: 'D4:D' }
       );
-      expect(formula).toBe('=TEXTJOIN("-", TRUE, B2, C2, D2)');
+      expect(formula).toBe(
+        '=MAP(B4:B, C4:C, D4:D, LAMBDA(section, number, revision, TEXTJOIN("-", TRUE, IF(ISBLANK(section), "", section), IF(ISBLANK(number), "", number), IF(ISBLANK(revision), "", revision))))'
+      );
     });
 
-    it('should compile prefixed path format to TEXTJOIN formula', () => {
+    it('should compile prefixed path format to MAP LAMBDA TEXTJOIN spill formula', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         'Closed/${section}',
-        { section: 'B2' }
+        { section: 'B4:B' }
       );
-      expect(formula).toBe('=TEXTJOIN("/", TRUE, "Closed", B2)');
+      expect(formula).toBe(
+        '=MAP(B4:B, LAMBDA(section, TEXTJOIN("/", TRUE, "Closed", IF(ISBLANK(section), "", section))))'
+      );
     });
 
     it('should fall back to field names if no columnMap is provided', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         '${section}-${number}'
       );
-      expect(formula).toBe('=TEXTJOIN("-", TRUE, section, number)');
+      expect(formula).toBe(
+        '=MAP(section, number, LAMBDA(section, number, TEXTJOIN("-", TRUE, IF(ISBLANK(section), "", section), IF(ISBLANK(number), "", number))))'
+      );
     });
 
-    it('should compile composite multi-token format strings with mixed delimiters into CONCATENATE formula', () => {
+    it('should compile composite multi-token format strings with mixed delimiters into MAP LAMBDA spill formula', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         'Closed/${section}-${revision}',
-        { section: 'B2', revision: 'D2' }
+        { section: 'B4:B', revision: 'D4:D' }
       );
-      expect(formula).toBe('=CONCATENATE("Closed/", B2, "-", D2)');
+      expect(formula).toBe(
+        '=MAP(B4:B, D4:D, LAMBDA(section, revision, TEXTJOIN("-", TRUE, IF(ISBLANK(section), "", "Closed/" & section), IF(ISBLANK(revision), "", revision))))'
+      );
     });
 
-    it('should compile multi-token formats with path and hyphen delimiters into CONCATENATE formula', () => {
-      const formula = TemplateFormatCompiler.compileToSheetsFormula(
-        '${section}/${number}-${revision}',
-        { section: 'B2', number: 'C2', revision: 'D2' }
-      );
-      expect(formula).toBe('=CONCATENATE(B2, "/", C2, "-", D2)');
-    });
-
-    it('should compile multi-token path formats with uniform slash delimiter into TEXTJOIN formula', () => {
+    it('should compile multi-token path formats with uniform slash delimiter into MAP LAMBDA formula', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         'Closed/${specCategory}/${specTag}',
-        { specCategory: 'B2', specTag: 'C2' }
+        { specCategory: 'B4:B', specTag: 'C4:C' }
       );
-      expect(formula).toBe('=TEXTJOIN("/", TRUE, "Closed", B2, C2)');
+      expect(formula).toBe(
+        '=MAP(B4:B, C4:C, LAMBDA(specCategory, specTag, TEXTJOIN("/", TRUE, "Closed", IF(ISBLANK(specCategory), "", specCategory), IF(ISBLANK(specTag), "", specTag))))'
+      );
     });
 
-    it('should compile underscore-delimited format with literals into TEXTJOIN formula', () => {
+    it('should compile underscore-delimited format with literals into MAP LAMBDA formula', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         'PREFIX_${tag}_SUFFIX',
-        { tag: 'A1' }
+        { tag: 'A4:A' }
       );
-      expect(formula).toBe('=TEXTJOIN("_", TRUE, "PREFIX", A1, "SUFFIX")');
+      expect(formula).toBe(
+        '=MAP(A4:A, LAMBDA(tag, TEXTJOIN("_", TRUE, "PREFIX", IF(ISBLANK(tag), "", tag), "SUFFIX")))'
+      );
+    });
+
+    it('should compile single variable without delimiter into MAP LAMBDA formula', () => {
+      const formula = TemplateFormatCompiler.compileToSheetsFormula(
+        '${title}',
+        { title: 'E4:E' }
+      );
+      expect(formula).toBe(
+        '=MAP(E4:E, LAMBDA(title, IF(ISBLANK(title), "", title)))'
+      );
     });
 
     it('should handle empty format string gracefully', () => {
