@@ -1,0 +1,224 @@
+{
+  "key": "SUBMITTAL_FFE",
+  "label": "Submittal FF&E",
+  "name": "Submittal Furniture, Fixtures & Equipment",
+  "identity": {
+    "format": "${specTag}-${vendor}-${revision}-${date}",
+    "groupFormat": "${specTag}",
+    "revisionGroupFormat": "${specTag}-${vendor}-${revision}"
+  },
+  "fields": [
+    {
+      "key": "specTag",
+      "label": "Spec Tag",
+      "type": "string",
+      "required": true,
+      "header": "Spec Tag",
+      "picklistSource": {
+        "supportDataKey": "SpecTags",
+        "valueColumnKey": "tag",
+        "displayColumnKey": "tag"
+      }
+    },
+    {
+      "key": "relatedTag",
+      "label": "Related Tag",
+      "type": "string",
+      "required": false,
+      "header": "Related Tag"
+    },
+    {
+      "key": "specTitle",
+      "label": "Spec Title",
+      "type": "string",
+      "required": true,
+      "header": "Spec Title"
+    },
+    {
+      "key": "vendor",
+      "label": "Vendor",
+      "type": "string",
+      "required": true,
+      "header": "Vendor",
+      "picklistSource": {
+        "supportDataKey": "Vendors",
+        "valueColumnKey": "code",
+        "displayColumnKey": "name"
+      }
+    },
+    {
+      "key": "revision",
+      "label": "Revision",
+      "type": "string",
+      "required": false,
+      "defaultValue": "0",
+      "header": "Revision"
+    },
+    {
+      "key": "date",
+      "label": "Date",
+      "type": "date",
+      "required": true,
+      "description": "Date (YYMMDD)",
+      "header": "Date"
+    },
+    {
+      "key": "contact",
+      "label": "Contact",
+      "type": "enum",
+      "required": true,
+      "header": "Contact",
+      "picklistSource": {
+        "supportDataKey": "Contacts_FFE",
+        "valueColumnKey": "code",
+        "displayColumnKey": "name"
+      }
+    },
+    {
+      "key": "action",
+      "label": "Action",
+      "type": "enum",
+      "required": true,
+      "header": "Action",
+      "picklistSource": {
+        "supportDataKey": "Actions",
+        "valueColumnKey": "code",
+        "displayColumnKey": "name"
+      }
+    },
+    {
+      "key": "incomingRouting",
+      "label": "Incoming Routing",
+      "type": "enum",
+      "required": false,
+      "header": "Incoming Routing",
+      "picklistSource": {
+        "supportDataKey": "Contacts_FFE",
+        "valueColumnKey": "code",
+        "displayColumnKey": "name"
+      }
+    },
+    {
+      "key": "notes",
+      "label": "Notes",
+      "type": "multiline",
+      "required": false,
+      "header": "Notes"
+    },
+    {
+      "key": "calcFileName",
+      "label": "Calc File Name",
+      "type": "string",
+      "isCalculated": true,
+      "header": "Calc File Name",
+      "calcFormat": "${specTag}-${vendor}-${revision}"
+    }
+  ],
+  "storage": [
+    {
+      "type": "drive",
+      "rootFolderSearchTerms": ["FF&E", "FFE"],
+      "projectSearchTerms": ["FF&E", "FFE"],
+      "closedRootFolderName": "Closed",
+      "closedSubfolderFormat": "Closed/${specCategory}/${specTag}",
+      "filenamePrefix": "_",
+      "filenameFormat": "${calcFileName}"
+    }
+  ],
+  "workflows": [
+    {
+      "context": "GoogleDrive",
+      "sequence": ["AnalyzeDocument", "MoveDocument", "WriteLog"]
+    },
+    {
+      "context": "Gmail",
+      "sequence": ["TriageDocument", "InsertPages", "WriteLog"]
+    }
+  ],
+  "supportData": {
+    "Contacts_FFE": {
+      "key": "Contacts_FFE",
+      "isShared": false,
+      "columns": [
+        { "key": "code", "type": "string", "isPrimaryKey": true },
+        { "key": "name", "type": "string", "isDisplayLabel": true },
+        { "key": "email", "type": "string" }
+      ],
+      "items": [
+        { "code": "INT", "name": "Interior Designer", "email": "interiors@example.com" },
+        { "code": "GC", "name": "General Contractor", "email": "gc@example.com" },
+        { "code": "OWN", "name": "Owner", "email": "owner@example.com" }
+      ]
+    },
+    "Actions": {
+      "key": "Actions",
+      "isShared": true,
+      "columns": [
+        { "key": "code", "type": "string", "isPrimaryKey": true },
+        { "key": "name", "type": "string", "isDisplayLabel": true }
+      ],
+      "items": [
+        { "code": "Received", "name": "Received" },
+        { "code": "Review", "name": "Review" },
+        { "code": "Approved", "name": "Approved" },
+        { "code": "Approved as Noted", "name": "Approved as Noted" },
+        { "code": "Revise and Resubmit", "name": "Revise and Resubmit" },
+        { "code": "Rejected", "name": "Rejected" },
+        { "code": "Returned", "name": "Returned" }
+      ]
+    },
+    "Vendors": {
+      "key": "Vendors",
+      "isShared": true,
+      "allowDynamicAddition": true,
+      "dynamicPrompts": ["ADD_VENDOR"],
+      "columns": [
+        { "key": "code", "type": "string", "isPrimaryKey": true },
+        { "key": "name", "type": "string", "isDisplayLabel": true }
+      ],
+      "items": [
+        { "code": "HERMAN_MILLER", "name": "Herman Miller" },
+        { "code": "STEELCASE", "name": "Steelcase" },
+        { "code": "KNOLL", "name": "Knoll" },
+        { "code": "HAWORTH", "name": "Haworth" }
+      ]
+    },
+    "SpecTags": {
+      "key": "SpecTags",
+      "isShared": false,
+      "allowDynamicAddition": true,
+      "dynamicPrompts": ["ADD_TAG"],
+      "columns": [
+        { "key": "tag", "type": "string", "isPrimaryKey": true },
+        { "key": "category", "type": "string" },
+        { "key": "description", "type": "string", "isDisplayLabel": true }
+      ],
+      "items": [
+        { "tag": "FB101", "category": "FBE", "description": "Fabric Task Chair" },
+        { "tag": "CG138", "category": "CASE", "description": "Conference Credenza" },
+        { "tag": "LT205", "category": "LGT", "description": "Pendant Task Light" }
+      ]
+    }
+  },
+  "validationHookKey": "ffeStrategyValidationHook",
+  "ui": {
+    "confidenceThreshold": 0.85,
+    "sections": [
+      {
+        "title": "Document Attributes",
+        "fields": [
+          "specTag",
+          "relatedTag",
+          "specTitle",
+          "vendor",
+          "revision",
+          "date",
+          "contact",
+          "action",
+          "incomingRouting",
+          "notes"
+        ]
+      }
+    ]
+  }
+}
