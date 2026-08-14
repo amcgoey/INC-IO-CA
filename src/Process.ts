@@ -122,7 +122,7 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
             userCache.remove(key);
           }
           if (cdsm && typeof cdsm.clearDraft === "function") {
-            try { cdsm.clearDraft(userCache, key); } catch (e) {}
+            try { cdsm.clearDraft(userCache, key); } catch (_e) {}
           }
         };
 

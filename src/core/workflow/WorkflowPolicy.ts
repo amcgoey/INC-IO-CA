@@ -67,7 +67,7 @@ export function buildDirectRowUrl(logFileId: string, rowIndex: number, sheetId?:
       const sheetName = typeof CONFIG !== "undefined" && CONFIG.LOG_SHEET_NAME ? CONFIG.LOG_SHEET_NAME : "Submittals Log";
       const logSheet = sheetName ? openSs.getSheetByName(sheetName) : (openSs ? openSs.getSheets()[0] : null);
       resolvedSheetId = logSheet ? logSheet.getSheetId() : 0;
-    } catch (e) {
+    } catch (_e) {
       resolvedSheetId = 0;
     }
   } else if (resolvedSheetId === undefined || resolvedSheetId === null) {
