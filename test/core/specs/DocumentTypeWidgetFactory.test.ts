@@ -262,4 +262,116 @@ describe("DocumentTypeWidgetFactory (Tier 1 Pure Core)", () => {
     expect(relatedTagField).toBeDefined();
     expect(relatedTagField!.type).toBe("multi_select");
   });
+
+  describe("Generic Picklist Resolution & Fallbacks in View Model (Issue #288)", () => {
+    const specWithPicklistSources: DocumentTypeSpec = {
+      key: "SUBMITTAL_CUSTOM",
+      name: "Submittal Custom",
+      label: "Submittal Custom",
+      identity: {
+        format: "${code}-${revision}",
+        groupFormat: "${code}",
+        revisionGroupFormat: "${code}"
+      },
+      fields: [
+        {
+          key: "category",
+          label: "Category",
+          type: "enum",
+          required: true,
+          picklistSource: {
+            supportDataKey: "Categories",
+            valueColumnKey: "code",
+            displayColumnKey: "label"
+          }
+        },
+        {
+          key: "subCategory",
+          label: "Sub Category",
+          type: "list",
+          picklistSource: {
+            supportDataKey: "SubCategories",
+            valueColumnKey: "id",
+            displayColumnKey: "title"
+          }
+        }
+      ],
+      storage: [{ type: "drive", rootFolderSearchTerms: ["Custom"], closedRootFolderName: "Closed" }],
+      workflows: [{ context: "intake", sequence: ["LogCustom", "FileDrive"] }],
+      supportData: {
+        Categories: {
+          key: "Categories",
+          columns: [
+            { key: "code", type: "string", isPrimaryKey: true },
+            { key: "label", type: "string", isDisplayLabel: true }
+          ],
+          items: [
+            { code: "ELEC", label: "Electrical" },
+            { code: "PLUMB", label: "Plumbing" }
+          ]
+        },
+        SubCategories: {
+          key: "SubCategories",
+          columns: [
+            { key: "id", type: "string", isPrimaryKey: true },
+            { key: "title", type: "string", isDisplayLabel: true }
+          ],
+          items: [
+            { id: "HVAC_DUCT", title: "Ductwork" },
+            { id: "HVAC_UNIT", title: "Air Handler" }
+          ]
+        }
+      }
+    };
+
+    it("generically populates dropdown options from supportData based on picklistSource", () => {
+      const result = DocumentTypeWidgetFactory.buildSectionViewModel(specWithPicklistSources, {
+        hydrationContext: {
+          formInput: {
+            category: "PLUMB"
+          }
+        }
+      });
+
+      expect(result).not.toBeNull();
+      const categoryField = result!.fields.find(f => f.key === "category");
+      expect(categoryField).toBeDefined();
+      expect(categoryField!.type).toBe("dropdown");
+      expect(categoryField!.options).toHaveLength(2);
+      expect(categoryField!.options![0]).toEqual({
+        value: "ELEC",
+        label: "Electrical",
+        isSelected: false
+      });
+      expect(categoryField!.options![1]).toEqual({
+        value: "PLUMB",
+        label: "Plumbing",
+        isSelected: true
+      });
+    });
+
+    it("dynamically appends unlisted draftValue as fallback option and sets isSelected to true", () => {
+      const result = DocumentTypeWidgetFactory.buildSectionViewModel(specWithPicklistSources, {
+        hydrationContext: {
+          formInput: {
+            category: "SOLAR_PV" // Unlisted in supportData
+          }
+        }
+      });
+
+      expect(result).not.toBeNull();
+      const categoryField = result!.fields.find(f => f.key === "category");
+      expect(categoryField).toBeDefined();
+      expect(categoryField!.type).toBe("dropdown");
+      // 2 spec options + 1 fallback option
+      expect(categoryField!.options).toHaveLength(3);
+      const fallbackOption = categoryField!.options!.find(o => o.value === "SOLAR_PV");
+      expect(fallbackOption).toBeDefined();
+      expect(fallbackOption).toEqual({
+        value: "SOLAR_PV",
+        label: "SOLAR_PV",
+        isSelected: true
+      });
+    });
+  });
 });

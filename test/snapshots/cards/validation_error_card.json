@@ -210,12 +210,11 @@
               }
             },
             {
-              "type": "TextInput",
+              "type": "DatePicker",
               "fieldName": "date",
               "title": "❌ Date",
-              "value": "260815",
+              "valueInMsSinceEpoch": 1786766400000,
               "hint": "Date (YYMMDD)",
-              "multiline": false,
               "onChangeAction": {
                 "functionName": "onStateChange",
                 "parameters": {
@@ -233,28 +232,28 @@
               "title": "Contact",
               "items": [
                 {
-                  "text": "ARCH - Architect",
+                  "text": "Architect",
                   "value": "ARCH",
                   "selected": false
                 },
                 {
-                  "text": "GC - General Contractor",
+                  "text": "General Contractor",
                   "value": "GC",
                   "selected": false
                 },
                 {
-                  "text": "CLIENT - Client",
-                  "value": "CLIENT",
-                  "selected": false
-                },
-                {
-                  "text": "MEP - MEP Engineer",
+                  "text": "MEP Engineer",
                   "value": "MEP",
                   "selected": false
                 },
                 {
-                  "text": "STR - Structural Engineer",
+                  "text": "Structural Engineer",
                   "value": "STR",
+                  "selected": false
+                },
+                {
+                  "text": "Owner",
+                  "value": "OWN",
                   "selected": false
                 }
               ],
@@ -285,18 +284,33 @@
                   "selected": false
                 },
                 {
-                  "text": "Reviewed",
-                  "value": "Reviewed",
+                  "text": "Review",
+                  "value": "Review",
                   "selected": false
                 },
                 {
-                  "text": "Referred",
-                  "value": "Referred",
+                  "text": "Approved",
+                  "value": "Approved",
+                  "selected": false
+                },
+                {
+                  "text": "Approved as Noted",
+                  "value": "Approved as Noted",
+                  "selected": false
+                },
+                {
+                  "text": "Revise and Resubmit",
+                  "value": "Revise and Resubmit",
                   "selected": false
                 },
                 {
                   "text": "Rejected",
                   "value": "Rejected",
+                  "selected": false
+                },
+                {
+                  "text": "Returned",
+                  "value": "Returned",
                   "selected": false
                 }
               ],

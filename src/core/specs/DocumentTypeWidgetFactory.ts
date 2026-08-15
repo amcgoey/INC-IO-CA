@@ -71,21 +71,6 @@ export interface WidgetFactoryOptions {
 
 const DEFAULT_CONFIDENCE_THRESHOLD = 0.85;
 
-const DEFAULT_CONTACTS = [
-  { abbr: "ARCH", name: "Architect" },
-  { abbr: "GC", name: "General Contractor" },
-  { abbr: "CLIENT", name: "Client" },
-  { abbr: "MEP", name: "MEP Engineer" },
-  { abbr: "STR", name: "Structural Engineer" }
-];
-
-const DEFAULT_ACTIONS = [
-  { action: "Received", abbr: "REC", status: "Incoming" },
-  { action: "Reviewed", abbr: "REV", status: "Outgoing" },
-  { action: "Referred", abbr: "REF", status: "Outgoing" },
-  { action: "Rejected", abbr: "REJ", status: "Outgoing" }
-];
-
 export class DocumentTypeWidgetFactory {
   /**
    * Builds an abstract UI section view model from a DocumentTypeSpec.
@@ -130,7 +115,8 @@ export class DocumentTypeWidgetFactory {
         fieldConfidence,
         threshold,
         onStateActionName,
-        actionParams
+        actionParams,
+        spec
       );
 
       if (widgetVm) {
@@ -218,7 +204,8 @@ export class DocumentTypeWidgetFactory {
     fieldConfidence: Record<string, number>,
     threshold: number,
     onStateActionName: string,
-    actionParams: Record<string, string>
+    actionParams: Record<string, string>,
+    spec?: DocumentTypeSpec | null
   ): DocumentWidgetViewModel | null {
     const hydratedValue = this.resolveHydratedValue(field, hydration);
     const { displayTitle, hintText, isMissing, isLowConfidence, confidence } =
@@ -226,95 +213,7 @@ export class DocumentTypeWidgetFactory {
 
     const logSettings = hydration.logSettings || {};
 
-    // Special Field Handling for Contact
-    if (field.key === "contact") {
-      const contactsList =
-        logSettings.contacts && logSettings.contacts.length > 0
-          ? logSettings.contacts
-          : DEFAULT_CONTACTS;
-
-      let selectedFound = false;
-      const options: WidgetOptionViewModel[] = contactsList.map((c: any) => {
-        const isSelected = String(hydratedValue) === String(c.abbr);
-        if (isSelected) selectedFound = true;
-        return {
-          label: `${c.abbr} - ${c.name}`,
-          value: c.abbr,
-          isSelected
-        };
-      });
-
-      if (hydratedValue && !selectedFound) {
-        options.push({
-          label: String(hydratedValue),
-          value: String(hydratedValue),
-          isSelected: true
-        });
-      }
-
-      return {
-        key: "contact",
-        type: "dropdown",
-        displayTitle,
-        hintText,
-        value: hydratedValue,
-        required: Boolean(field.required),
-        options,
-        isMissing,
-        isLowConfidence,
-        confidence,
-        onStateActionName,
-        actionParams
-      };
-    }
-
-    // Special Field Handling for Action
-    if (field.key === "action") {
-      const actionsList =
-        logSettings.actions && logSettings.actions.length > 0
-          ? logSettings.actions
-          : DEFAULT_ACTIONS;
-
-      let selectedFound = false;
-      const options: WidgetOptionViewModel[] = [
-        { label: "", value: "", isSelected: !hydratedValue }
-      ];
-
-      actionsList.forEach((a: any) => {
-        const isSelected = String(hydratedValue) === String(a.action);
-        if (isSelected) selectedFound = true;
-        options.push({
-          label: a.action,
-          value: a.action,
-          isSelected
-        });
-      });
-
-      if (hydratedValue && !selectedFound) {
-        options.push({
-          label: String(hydratedValue),
-          value: String(hydratedValue),
-          isSelected: true
-        });
-      }
-
-      return {
-        key: "action",
-        type: "dropdown",
-        displayTitle,
-        hintText,
-        value: hydratedValue,
-        required: Boolean(field.required),
-        options,
-        isMissing,
-        isLowConfidence,
-        confidence,
-        onStateActionName,
-        actionParams
-      };
-    }
-
-    // Special Field Handling for Incoming Routing
+    // Special Field Handling for Incoming Routing (conditional on incoming/received action)
     if (field.key === "incomingRouting") {
       const currentAction =
         hydration.formInput?.action ||
@@ -363,32 +262,34 @@ export class DocumentTypeWidgetFactory {
       };
     }
 
-    // Special Field Handling for Date
-    if (field.key === "date") {
-      return {
-        key: "date",
-        type: "date",
-        displayTitle: displayTitle || "Date",
-        hintText: hintText || "Date (YYMMDD)",
-        value: hydratedValue,
-        required: Boolean(field.required),
-        isMissing,
-        isLowConfidence,
-        confidence,
-        onStateActionName,
-        actionParams
-      };
-    }
+    // Common Resolution Context for Picklists and Suggestions
+    const resolutionContext = {
+      spec: hydration.spec || spec,
+      supportData: spec?.supportData || hydration.supportData,
+      spreadsheet: hydration.spreadsheet || null,
+      docTypeKey: hydration.docTypeKey || spec?.key,
+      activeSheetName: hydration.activeSheetName || spec?.label || spec?.name,
+      logSettings: hydration.logSettings,
+      fieldSpec: field
+    };
 
-    // Special Field Handling for FF&E Spec Tag
+    // Special Field Handling for FF&E Spec Tag (when type is string / text)
     if (
       field.key === "specTag" &&
       field.type !== "list" &&
-      field.type !== "enum" &&
-      (!field.options || field.options.length === 0)
+      field.type !== "enum"
     ) {
-      const ffeTags =
-        logSettings.ffeTags && logSettings.ffeTags.tags ? logSettings.ffeTags.tags : [];
+      let suggestions: string[] | undefined;
+      if (field.picklistSource) {
+        const resolved = PicklistResolver.resolve(field.picklistSource, resolutionContext);
+        if (resolved.options && resolved.options.length > 0) {
+          suggestions = resolved.options.map(o => o.value);
+        }
+      }
+      if (!suggestions || suggestions.length === 0) {
+        const ffeTags = logSettings.ffeTags && logSettings.ffeTags.tags ? logSettings.ffeTags.tags : [];
+        if (ffeTags.length > 0) suggestions = ffeTags;
+      }
 
       return {
         key: "specTag",
@@ -397,7 +298,7 @@ export class DocumentTypeWidgetFactory {
         hintText,
         value: hydratedValue,
         required: Boolean(field.required),
-        suggestions: ffeTags.length > 0 ? ffeTags : undefined,
+        suggestions: suggestions && suggestions.length > 0 ? suggestions : undefined,
         isMissing,
         isLowConfidence,
         confidence,
@@ -406,7 +307,7 @@ export class DocumentTypeWidgetFactory {
       };
     }
 
-    // Special Field Handling for FF&E Related Tags
+    // Special Field Handling for FF&E Related Tags (when type is string / text)
     if (
       field.key === "relatedTag" &&
       field.type !== "list" &&
@@ -495,17 +396,23 @@ export class DocumentTypeWidgetFactory {
       };
     }
 
-    // Special Field Handling for FF&E Vendor
+    // Special Field Handling for FF&E Vendor (when type is string / text)
     if (
       field.key === "vendor" &&
       field.type !== "list" &&
-      field.type !== "enum" &&
-      (!field.options || field.options.length === 0)
+      field.type !== "enum"
     ) {
-      const ffeVendors =
-        logSettings.ffeTags && logSettings.ffeTags.vendors
-          ? logSettings.ffeTags.vendors
-          : [];
+      let suggestions: string[] | undefined;
+      if (field.picklistSource) {
+        const resolved = PicklistResolver.resolve(field.picklistSource, resolutionContext);
+        if (resolved.options && resolved.options.length > 0) {
+          suggestions = resolved.options.map(o => o.value);
+        }
+      }
+      if (!suggestions || suggestions.length === 0) {
+        const ffeVendors = logSettings.ffeTags && logSettings.ffeTags.vendors ? logSettings.ffeTags.vendors : [];
+        if (ffeVendors.length > 0) suggestions = ffeVendors;
+      }
 
       return {
         key: "vendor",
@@ -514,7 +421,7 @@ export class DocumentTypeWidgetFactory {
         hintText,
         value: hydratedValue,
         required: Boolean(field.required),
-        suggestions: ffeVendors.length > 0 ? ffeVendors : undefined,
+        suggestions: suggestions && suggestions.length > 0 ? suggestions : undefined,
         isMissing,
         isLowConfidence,
         confidence,
@@ -523,35 +430,34 @@ export class DocumentTypeWidgetFactory {
       };
     }
 
-    // Generic Dropdown (list / enum)
-    if (field.type === "list" || field.type === "enum") {
-      let optionsList: PicklistOption[] = field.options || [];
+    // Dropdown fields (list, enum, or fields with picklistSource / contact / action)
+    const isDropdown =
+      field.type === "list" ||
+      field.type === "enum" ||
+      (Boolean(field.picklistSource) && field.type !== "string" && field.type !== "multiline" && field.type !== "date" && field.type !== "number" && field.type !== "boolean") ||
+      field.key === "contact" ||
+      field.key === "action";
 
-      if (field.optionsRange) {
-        const ss = hydration.spreadsheet || null;
-        const docTypeKey = hydration.docTypeKey || "Submittal_Arch";
-        const activeSheetName = hydration.activeSheetName || "Submittal Arch";
-        const resolvedResult = PicklistResolver.resolvePicklistOptionsRange(
-          field.optionsRange,
-          ss,
-          docTypeKey,
-          activeSheetName,
-          field
-        );
-        if (resolvedResult && resolvedResult.options && resolvedResult.options.length > 0) {
-          optionsList = resolvedResult.options;
-        }
-      }
+    if (isDropdown) {
+      const resolved = PicklistResolver.resolve(field.picklistSource, resolutionContext, hydratedValue);
+      const optionsList = resolved.options;
 
       const options: WidgetOptionViewModel[] = [];
+
+      if (field.key === "action" && !optionsList.some((o: PicklistOption) => o.value === "")) {
+        options.push({ label: "", value: "", isSelected: !hydratedValue });
+      }
 
       if (optionsList.length === 0) {
         options.push({ label: "-- None --", value: "", isSelected: true });
       } else {
-        optionsList.forEach((opt: any) => {
+        optionsList.forEach((opt: PicklistOption) => {
           const isSelected =
-            String(opt.value) === String(hydratedValue) ||
-            String(opt.label) === String(hydratedValue);
+            hydratedValue !== undefined &&
+            hydratedValue !== null &&
+            hydratedValue !== "" &&
+            (String(opt.value) === String(hydratedValue) ||
+              String(opt.label) === String(hydratedValue));
           options.push({
             label: opt.label || opt.value,
             value: opt.value,

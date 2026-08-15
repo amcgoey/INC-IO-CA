@@ -1,5 +1,5 @@
 import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import * as assert from "node:assert/strict";
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { CardSerializer } from "./harness/CardSerializer";
 
@@ -310,6 +310,149 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
       assert.equal(options.length, 4);
       assert.deepEqual(options[0], { value: "arch-reviewer@example.com", label: "arch-reviewer@example.com" });
       assert.deepEqual(options[1], { value: "arch-lead@example.com", label: "arch-lead@example.com" });
+    });
+  });
+
+  describe("Generic Picklist Resolution and Fallbacks (Issue #288)", () => {
+    let harness: GasMockHarness;
+
+    beforeEach(() => {
+      harness = GasMockHarness.install();
+    });
+
+    it("should resolve options generically from supportData items matching picklistSource", () => {
+      const picklistSource = {
+        supportDataKey: "Contacts_Arch",
+        valueColumnKey: "code",
+        displayColumnKey: "name"
+      };
+
+      const context = {
+        supportData: {
+          Contacts_Arch: {
+            key: "Contacts_Arch",
+            columns: [
+              { key: "code", type: "string" as const, isPrimaryKey: true },
+              { key: "name", type: "string" as const, isDisplayLabel: true }
+            ],
+            items: [
+              { code: "ARCH", name: "Architect" },
+              { code: "GC", name: "General Contractor" },
+              { code: "MEP", name: "MEP Engineer" }
+            ]
+          }
+        }
+      };
+
+      const result = PicklistResolver.resolve(picklistSource, context);
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      assert.deepEqual(result.options, [
+        { value: "ARCH", label: "Architect" },
+        { value: "GC", label: "General Contractor" },
+        { value: "MEP", label: "MEP Engineer" }
+      ]);
+    });
+
+    it("should dynamically append hydrated draftValue as a fallback option when not in resolved list", () => {
+      const picklistSource = {
+        supportDataKey: "Actions",
+        valueColumnKey: "code",
+        displayColumnKey: "name"
+      };
+
+      const context = {
+        supportData: {
+          Actions: {
+            key: "Actions",
+            columns: [
+              { key: "code", type: "string" as const },
+              { key: "name", type: "string" as const }
+            ],
+            items: [
+              { code: "Received", name: "Received" },
+              { code: "Reviewed", name: "Reviewed" }
+            ]
+          }
+        }
+      };
+
+      // Case 1: draftValue is NOT in options list -> appended dynamically
+      const resultWithMissingDraft = PicklistResolver.resolve(
+        picklistSource,
+        context,
+        "Custom Legacy Status"
+      );
+
+      assert.equal(resultWithMissingDraft.options.length, 3);
+      assert.deepEqual(resultWithMissingDraft.options[2], {
+        value: "Custom Legacy Status",
+        label: "Custom Legacy Status"
+      });
+
+      // Case 2: draftValue IS in options list -> not duplicated
+      const resultWithExistingDraft = PicklistResolver.resolve(
+        picklistSource,
+        context,
+        "Reviewed"
+      );
+
+      assert.equal(resultWithExistingDraft.options.length, 2);
+      assert.deepEqual(resultWithExistingDraft.options, [
+        { value: "Received", label: "Received" },
+        { value: "Reviewed", label: "Reviewed" }
+      ]);
+    });
+
+    it("should resolve options from context.spreadsheet when supportData items are not pre-populated", () => {
+      const ss = harness.sheetsService.openById("test-ss-support-resolve");
+      const supportSheet = ss.insertSheet("Submittal FFE Support");
+      supportSheet.setGrid([
+        ["Vendors Key", "Vendor Name"],
+        ["VEND_A", "Acme Corp"],
+        ["VEND_B", "Beta LLC"]
+      ]);
+      ss.setNamedRange("Vendors", "Submittal FFE Support", "A2:B3");
+
+      const picklistSource = {
+        supportDataKey: "Vendors",
+        valueColumnKey: "code",
+        displayColumnKey: "name"
+      };
+
+      const context = {
+        spreadsheet: ss,
+        docTypeKey: "Submittal_FFE",
+        activeSheetName: "Submittal FFE"
+      };
+
+      const result = PicklistResolver.resolve(picklistSource, context, "VEND_C");
+
+      assert.equal(result.success, true);
+      assert.equal(result.options.length, 3);
+      assert.deepEqual(result.options[0], { value: "VEND_A", label: "Acme Corp" });
+      assert.deepEqual(result.options[1], { value: "VEND_B", label: "Beta LLC" });
+      assert.deepEqual(result.options[2], { value: "VEND_C", label: "VEND_C" });
+    });
+
+    it("should handle undefined picklistSource gracefully using fieldSpec options or logSettings", () => {
+      const context = {
+        fieldSpec: {
+          key: "category",
+          options: [
+            { value: "CAT1", label: "Category 1" },
+            { value: "CAT2", label: "Category 2" }
+          ]
+        }
+      };
+
+      const result = PicklistResolver.resolve(undefined, context, "CAT3");
+
+      assert.equal(result.options.length, 3);
+      assert.deepEqual(result.options[0], { value: "CAT1", label: "Category 1" });
+      assert.deepEqual(result.options[1], { value: "CAT2", label: "Category 2" });
+      assert.deepEqual(result.options[2], { value: "CAT3", label: "CAT3" });
     });
   });
 

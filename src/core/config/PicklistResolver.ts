@@ -6,6 +6,7 @@
  */
 
 import { DOCUMENT_LOG_WORKBOOK_SPEC, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
+import type { DocumentTypeSpec, PicklistSourceSpec, SupportDataSpec } from "../specs/DocumentTypeSpec";
 
 export interface PicklistOption {
   label: string;
@@ -30,7 +31,19 @@ export interface MinimalFieldSpec {
   label?: string;
   optionsRange?: string;
   options?: PicklistOption[];
+  picklistSource?: PicklistSourceSpec;
   keyNormalizationRule?: "picklist" | "code" | "exact";
+}
+
+export interface PicklistResolutionContext {
+  spec?: DocumentTypeSpec | null;
+  supportData?: Record<string, SupportDataSpec>;
+  spreadsheet?: SpreadsheetLike | null;
+  docTypeKey?: string;
+  activeSheetName?: string;
+  logSettings?: Record<string, any>;
+  fieldSpec?: MinimalFieldSpec;
+  [key: string]: any;
 }
 
 export interface SpreadsheetRangeLike {
@@ -47,7 +60,182 @@ export interface SpreadsheetLike {
   getSheetByName(name: string): SpreadsheetSheetLike | null;
 }
 
+const DEFAULT_CONTACTS_LIST = [
+  { abbr: "ARCH", name: "Architect" },
+  { abbr: "GC", name: "General Contractor" },
+  { abbr: "CLIENT", name: "Client" },
+  { abbr: "MEP", name: "MEP Engineer" },
+  { abbr: "STR", name: "Structural Engineer" }
+];
+
+const DEFAULT_ACTIONS_LIST = [
+  { action: "Received", abbr: "REC", status: "Incoming" },
+  { action: "Reviewed", abbr: "REV", status: "Outgoing" },
+  { action: "Referred", abbr: "REF", status: "Outgoing" },
+  { action: "Rejected", abbr: "REJ", status: "Outgoing" }
+];
+
 export class PicklistResolver {
+  /**
+   * Generic resolution seam for picklist options based on configuration.
+   * Resolves options from supportData, spreadsheet named ranges, or logSettings,
+   * dynamically appending hydrated draftValue as a fallback option when missing to prevent data loss.
+   */
+  public static resolve(
+    picklistSource?: PicklistSourceSpec,
+    context?: PicklistResolutionContext,
+    draftValue?: any
+  ): PicklistResolveResult {
+    let resolvedOptions: PicklistOption[] = [];
+    let isSuccess = false;
+    let isFallback = false;
+
+    const field = context?.fieldSpec;
+    const supportDataKey = picklistSource?.supportDataKey;
+    const valueColKey = picklistSource?.valueColumnKey;
+    const displayColKey = picklistSource?.displayColumnKey;
+
+    // 1. Resolve from context.supportData or context.spec.supportData
+    const datasets = context?.supportData || context?.spec?.supportData;
+    if (supportDataKey && datasets && datasets[supportDataKey]) {
+      const dataset = datasets[supportDataKey];
+      if (Array.isArray(dataset.items) && dataset.items.length > 0) {
+        resolvedOptions = dataset.items
+          .map((item: Record<string, any>) => {
+            const rawVal = valueColKey && item[valueColKey] !== undefined && item[valueColKey] !== null
+              ? String(item[valueColKey]).trim()
+              : '';
+            const rawLabel = displayColKey && item[displayColKey] !== undefined && item[displayColKey] !== null && String(item[displayColKey]).trim() !== ''
+              ? String(item[displayColKey]).trim()
+              : rawVal;
+            return {
+              value: rawVal,
+              label: rawLabel || rawVal
+            };
+          })
+          .filter(opt => opt.value !== '');
+
+        if (resolvedOptions.length > 0) {
+          isSuccess = true;
+        }
+      }
+    }
+
+    // 2. Resolve from context.spreadsheet via named range matching supportDataKey
+    if (!isSuccess && supportDataKey && context?.spreadsheet) {
+      const docTypeKey = context.docTypeKey || context.spec?.key || 'Submittal_Arch';
+      const activeSheetName = context.activeSheetName || context.spec?.label || context.spec?.name || 'Submittal Arch';
+      const rangeResult = PicklistResolver.resolvePicklistOptionsRange(
+        supportDataKey,
+        context.spreadsheet,
+        docTypeKey,
+        activeSheetName,
+        field
+      );
+      if (rangeResult && rangeResult.options && rangeResult.options.length > 0 && rangeResult.success) {
+        resolvedOptions = rangeResult.options;
+        isSuccess = true;
+      }
+    }
+
+    // 3. Resolve from field.optionsRange if defined
+    if (!isSuccess && field?.optionsRange && context?.spreadsheet) {
+      const docTypeKey = context.docTypeKey || context.spec?.key || 'Submittal_Arch';
+      const activeSheetName = context.activeSheetName || context.spec?.label || context.spec?.name || 'Submittal Arch';
+      const rangeResult = PicklistResolver.resolvePicklistOptionsRange(
+        field.optionsRange,
+        context.spreadsheet,
+        docTypeKey,
+        activeSheetName,
+        field
+      );
+      if (rangeResult && rangeResult.options && rangeResult.options.length > 0 && rangeResult.success) {
+        resolvedOptions = rangeResult.options;
+        isSuccess = true;
+      }
+    }
+
+    // 4. Resolve from context.logSettings
+    if (!isSuccess && context?.logSettings) {
+      const logSettings = context.logSettings;
+      const keyLower = (supportDataKey || field?.key || '').toLowerCase();
+
+      if (keyLower.includes('contact')) {
+        const contacts = logSettings.contacts && logSettings.contacts.length > 0
+          ? logSettings.contacts
+          : DEFAULT_CONTACTS_LIST;
+        resolvedOptions = contacts.map((c: any) => ({
+          value: String(c.abbr || c.code || c.value || ''),
+          label: c.name ? `${c.abbr || c.code} - ${c.name}` : String(c.abbr || c.code || '')
+        })).filter((o: PicklistOption) => o.value !== '');
+        if (resolvedOptions.length > 0) isSuccess = true;
+      } else if (keyLower.includes('action')) {
+        const actions = logSettings.actions && logSettings.actions.length > 0
+          ? logSettings.actions
+          : DEFAULT_ACTIONS_LIST;
+        resolvedOptions = actions.map((a: any) => ({
+          value: String(a.action || a.code || a.value || ''),
+          label: String(a.action || a.name || a.label || a.value || '')
+        })).filter((o: PicklistOption) => o.value !== '');
+        if (resolvedOptions.length > 0) isSuccess = true;
+      } else if (keyLower.includes('vendor')) {
+        const vendors = logSettings.ffeTags?.vendors;
+        if (Array.isArray(vendors) && vendors.length > 0) {
+          resolvedOptions = vendors.map((v: string) => ({
+            value: String(v),
+            label: String(v)
+          }));
+          if (resolvedOptions.length > 0) isSuccess = true;
+        }
+      } else if (keyLower.includes('spectag') || keyLower.includes('tag')) {
+        const tags = logSettings.ffeTags?.tags;
+        if (Array.isArray(tags) && tags.length > 0) {
+          resolvedOptions = tags.map((t: string) => ({
+            value: String(t),
+            label: String(t)
+          }));
+          if (resolvedOptions.length > 0) isSuccess = true;
+        }
+      }
+    }
+
+    // 5. Fallback to field.options if defined
+    if (!isSuccess && field?.options && Array.isArray(field.options) && field.options.length > 0) {
+      resolvedOptions = field.options.map((opt: any) => ({
+        value: String(opt.value ?? ''),
+        label: String(opt.label ?? opt.value ?? '')
+      }));
+      isSuccess = true;
+    }
+
+    if (!isSuccess && resolvedOptions.length === 0) {
+      isFallback = true;
+    }
+
+    // 6. Draft Value Fallback Injection:
+    // If a hydrated draftValue is not present in the resolved options list, dynamically append it as a fallback option
+    if (draftValue !== undefined && draftValue !== null) {
+      const draftValStr = String(draftValue).trim();
+      if (draftValStr !== '') {
+        const exists = resolvedOptions.some(
+          opt => opt.value === draftValStr || opt.label === draftValStr
+        );
+        if (!exists) {
+          resolvedOptions.push({
+            value: draftValStr,
+            label: draftValStr
+          });
+        }
+      }
+    }
+
+    return {
+      options: resolvedOptions,
+      success: isSuccess,
+      isFallback
+    };
+  }
+
   /**
    * Transforms a 2D range array into PicklistOption[].
    * row[0] = value (canonical key)
