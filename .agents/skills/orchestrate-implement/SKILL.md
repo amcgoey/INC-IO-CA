@@ -6,7 +6,6 @@ disable-model-invocation: true
 
 # Code Implementation Orchestrator
 
-**Note**: It is highly recommended that you select the **Pro 3.1 High** model when running this skill as the Orchestrator, given the complexity of plan reviews and dependency mapping.
 
 This skill coordinates the development flow of subagents handling issue tickets. The **Orchestrator Agent** coordinates activities, manages the issue queue/frontier, reviews subagent plans, merges feature branches, and posts the final summary walkthrough on the primary parent issue upon completion. **Subagents** perform planning, implementation using `/implement` and `/tdd`, post-implementation `/code-review` (by spawning dedicated review subagents), milestone artifact posting on their assigned issue, defect breakdown, and child ticket closure.
 
@@ -20,7 +19,7 @@ This skill coordinates the development flow of subagents handling issue tickets.
 2. **Identify frontier issues**: Query the DAG for open issues that have no open blockers and no assignees.
    * *Completion Criterion*: A list of unblocked, unassigned frontier issues ready for immediate work.
 
-3. **Manage the queue & spawn subagents**: Assign each frontier issue (`gh issue edit <n> --add-assignee @me`) and spawn subagents using `invoke_subagent` with `Workspace: "share"` and `Model: "flash"` (ensuring they use the **Flash 3.7 Medium** model) (Git worktrees). Direct subagents to spawn separate review subagents when running `/code-review` and post milestone artifacts to their assigned issue.
+3. **Manage the queue & spawn subagents**: Assign each frontier issue (`gh issue edit <n> --add-assignee @me`) and spawn subagents using `invoke_subagent` with `Workspace: "share"` (Git worktrees). Direct subagents to spawn separate review subagents when running `/code-review` and post milestone artifacts to their assigned issue.
    * *Completion Criterion*: Subagents spawned on isolated Git branches (`ticket-<number>`) for all available frontier slots with strict subagent-spawning and milestone commenting directives.
 
 4. **Manage resources & review plans**: Enforce subagent concurrency caps (2–4 active agents). Review subagent implementation plans incrementally upon arrival against `CONTEXT.md` and repository standards. Provide feedback or approval immediately per subagent as its plan arrives so it can begin development without waiting for peers.
@@ -82,7 +81,7 @@ This skill coordinates the development flow of subagents handling issue tickets.
 
 ### Step 3: Manage Queue & Spawn Subagents
 * Claim each frontier issue before spawning (`gh issue edit <n> --add-assignee @me`).
-* Spawn a subagent via `invoke_subagent` using the `implement` skill with `Workspace: "share"` and `Model: "flash"` (to ensure they use the **Flash 3.7 Medium** model). This provisions an isolated Git worktree so subagents work on dedicated branches (`ticket-<number>`) without workspace collisions.
+* Spawn a subagent via `invoke_subagent` using the `implement` skill with `Workspace: "share"`. This provisions an isolated Git worktree so subagents work on dedicated branches (`ticket-<number>`) without workspace collisions.
 * **Directives to Subagent**: Explicitly instruct the spawned subagent: *"Post artifacts as comments at each milestone (approved plan, implementation walkthrough, and code review reports). When implementation is complete, you MUST spawn separate parallel subagents to run `/code-review` (Standards and Spec axes). Do NOT perform the code review yourself inline."*
 
 ### Step 4: Manage Resources & Review Plans
