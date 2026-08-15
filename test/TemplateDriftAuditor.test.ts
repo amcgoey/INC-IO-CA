@@ -11,15 +11,16 @@ import path from "node:path";
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { TemplateDriftAuditor } from "../src/core/admin/TemplateDriftAuditor";
 
-import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC } from "./fixtures/canonicalTestSpec";
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC, TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./fixtures/canonicalTestSpec";
 const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
+const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC;
 import { SheetValidationAndProtectionAdapter } from "../src/adapters/gas/SheetValidationAndProtectionAdapter";
 import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
 
 describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)", () => {
   beforeEach(() => {
     TemplateDriftAuditor.setDefaultSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
-    TemplateDriftAuditor.setDefaultValidationAndProtectionAdapter(new SheetValidationAndProtectionAdapter());
+    TemplateDriftAuditor.setDefaultValidationAndProtectionAdapter(new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC));
   });
 
   afterEach(() => {
@@ -41,9 +42,9 @@ describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)
     ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
 
     // Apply validations and protections via adapter
-    const adapter = new SheetValidationAndProtectionAdapter();
-    adapter.applyValidationRules(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
-    adapter.applyRangeProtections(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
+    const adapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+    adapter.applyValidationRules(ss as any);
+    adapter.applyRangeProtections(ss as any);
 
     const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
 
@@ -57,8 +58,8 @@ describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)
     ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
 
     // Apply only validation rules, omitting protections
-    const adapter = new SheetValidationAndProtectionAdapter();
-    adapter.applyValidationRules(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
+    const adapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+    adapter.applyValidationRules(ss as any);
 
     const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
 
@@ -84,8 +85,8 @@ describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)
     ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
 
     // Apply protections, omitting validations
-    const adapter = new SheetValidationAndProtectionAdapter();
-    adapter.applyRangeProtections(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
+    const adapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+    adapter.applyRangeProtections(ss as any);
 
     const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
 
@@ -136,9 +137,9 @@ describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)
     const ss = harness.sheetsService.openById("wb-244-fixture-e2e");
     ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
 
-    const adapter = new SheetValidationAndProtectionAdapter();
-    adapter.applyValidationRules(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
-    adapter.applyRangeProtections(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
+    const adapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+    adapter.applyValidationRules(ss as any);
+    adapter.applyRangeProtections(ss as any);
 
     const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
 

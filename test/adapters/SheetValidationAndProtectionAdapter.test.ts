@@ -1,8 +1,9 @@
-﻿import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { GasMockHarness } from '../harness/GasMockHarness';
 
-import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC } from '../fixtures/canonicalTestSpec';
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC, TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from '../fixtures/canonicalTestSpec';
 const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
+const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC;
 import { SheetValidationAndProtectionAdapter } from '../../src/adapters/gas/SheetValidationAndProtectionAdapter';
 
 describe('SheetValidationAndProtectionAdapter', () => {
@@ -10,13 +11,48 @@ describe('SheetValidationAndProtectionAdapter', () => {
     GasMockHarness.uninstall();
   });
 
+  it('constructor - throws an error if workbookSpec or viewSpec is missing', () => {
+    expect(() => {
+      new (SheetValidationAndProtectionAdapter as any)();
+    }).toThrow(/DocumentLogWorkbookSpec is required/);
+
+    expect(() => {
+      new (SheetValidationAndProtectionAdapter as any)(DOCUMENT_LOG_WORKBOOK_SPEC, undefined);
+    }).toThrow(/DocumentLogWorkbookViewSpec is required/);
+  });
+
+  it('constructor - accepts explicit SpreadsheetApp injection via options or direct parameter', () => {
+    const mockApp = {
+      newDataValidation: () => ({
+        requireValueInRange: () => {},
+        setAllowInvalid: () => {},
+        setHelpText: () => {},
+        build: () => ({ type: 'MOCK_VALIDATION' })
+      })
+    };
+
+    const adapterWithOptions = new SheetValidationAndProtectionAdapter(
+      DOCUMENT_LOG_WORKBOOK_SPEC,
+      DOCUMENT_LOG_WORKBOOK_VIEW_SPEC,
+      { spreadsheetApp: mockApp as any }
+    );
+    expect(adapterWithOptions).toBeInstanceOf(SheetValidationAndProtectionAdapter);
+
+    const adapterWithDirectApp = new SheetValidationAndProtectionAdapter(
+      DOCUMENT_LOG_WORKBOOK_SPEC,
+      DOCUMENT_LOG_WORKBOOK_VIEW_SPEC,
+      mockApp as any
+    );
+    expect(adapterWithDirectApp).toBeInstanceOf(SheetValidationAndProtectionAdapter);
+  });
+
   it('applyNumberFormats - applies number formats to data columns during workbook provisioning', () => {
     GasMockHarness.install();
     const ss = (globalThis as any).SpreadsheetApp.openById('ss-adapter-numfmt-test');
     ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
 
-    const adapter = new SheetValidationAndProtectionAdapter();
-    adapter.applyNumberFormats(ss, DOCUMENT_LOG_WORKBOOK_SPEC);
+    const adapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+    adapter.applyNumberFormats(ss);
 
     const archSheet = ss.getSheetByName('Submittal Arch');
     expect(archSheet).toBeTruthy();
@@ -44,8 +80,8 @@ describe('SheetValidationAndProtectionAdapter', () => {
     const ss = (globalThis as any).SpreadsheetApp.openById('ss-adapter-valrules-test');
     ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
 
-    const adapter = new SheetValidationAndProtectionAdapter();
-    adapter.applyValidationRules(ss, DOCUMENT_LOG_WORKBOOK_SPEC);
+    const adapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+    adapter.applyValidationRules(ss);
 
     const archSheet = ss.getSheetByName('Submittal Arch');
     expect(archSheet).toBeTruthy();
@@ -113,9 +149,9 @@ describe('SheetValidationAndProtectionAdapter', () => {
       ]
     };
 
-    const adapter = new SheetValidationAndProtectionAdapter();
+    const adapter = new SheetValidationAndProtectionAdapter(customSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
     expect(() => {
-      adapter.applyValidationRules(ss, customSpec);
+      adapter.applyValidationRules(ss);
     }).toThrow(/Target Named Range 'MISSING_NAMED_RANGE' for validation rule on column 'status' could not be found/);
   });
 
@@ -124,8 +160,8 @@ describe('SheetValidationAndProtectionAdapter', () => {
     const ss = (globalThis as any).SpreadsheetApp.openById('ss-adapter-protection-test');
     ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
 
-    const adapter = new SheetValidationAndProtectionAdapter();
-    adapter.applyRangeProtections(ss, DOCUMENT_LOG_WORKBOOK_SPEC);
+    const adapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+    adapter.applyRangeProtections(ss);
 
     // 1. Tier 1: System Tab Protection (_Config, _AuditLog)
     const configSheet = ss.getSheetByName('_Config');
@@ -228,8 +264,8 @@ describe('SheetValidationAndProtectionAdapter', () => {
 
     ss.loadWorkbookSpec(customSpec);
 
-    const adapter = new SheetValidationAndProtectionAdapter();
-    adapter.applyValidationRules(ss, customSpec);
+    const adapter = new SheetValidationAndProtectionAdapter(customSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+    adapter.applyValidationRules(ss);
 
     const ffeSheet = ss.getSheetByName('Submittal FFE');
     expect(ffeSheet).toBeTruthy();
