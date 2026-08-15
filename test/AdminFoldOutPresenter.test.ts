@@ -8,7 +8,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { CardSerializer } from "./harness/CardSerializer";
-import { AdminFoldOutPresenter, onFlushScriptCache, onSaveToJsonConfiguration } from "../src/adapters/gas/AdminFoldOutPresenter";
+import { AdminFoldOutPresenter, onFlushScriptCache, onSaveToJsonConfiguration, NO_SPECS_FOUND_ERROR } from "../src/adapters/gas/AdminFoldOutPresenter";
 import { SpreadsheetBatchData } from "../src/adapters/gas/SpreadsheetBatchReaderAdapter";
 import { GoogleSheetsDocumentTypeSpecAdapter } from "../src/adapters/gas/GoogleSheetsDocumentTypeSpecAdapter";
 import type { DocumentTypeSpec } from "../src/core/specs/DocumentTypeSpec";
@@ -214,7 +214,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
     const batchData = convertWorkbookSpecToBatchData(compiledWorkbook, fileId);
     const batchReader = {
       readWorkbookBatch: () => batchData
-    } as any;
+    } as unknown as SpreadsheetBatchReaderAdapter;
 
     const event = {
       parameters: {
@@ -261,7 +261,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
           }
         ]
       })
-    } as any;
+    } as unknown as SpreadsheetBatchReaderAdapter;
 
     const event = {
       parameters: {
@@ -293,7 +293,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
       readWorkbookBatch: () => {
         throw new SpreadsheetBatchReadException('Advanced Sheets API disabled', fileId);
       }
-    } as any;
+    } as unknown as SpreadsheetBatchReaderAdapter;
 
     const event = {
       parameters: {
@@ -351,7 +351,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
     const batchData = convertWorkbookSpecToBatchData(compiledWorkbook, 'wb-telemetry-123');
     const batchReader = {
       readWorkbookBatch: () => batchData
-    } as any;
+    } as unknown as SpreadsheetBatchReaderAdapter;
 
     const event = {
       parameters: {
@@ -462,7 +462,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
         namedRanges: [],
         sheets: []
       })
-    } as any;
+    } as unknown as SpreadsheetBatchReaderAdapter;
 
     const originalDecompile = GoogleSheetsDocumentTypeSpecAdapter.decompile;
     GoogleSheetsDocumentTypeSpecAdapter.decompile = () => multiErrorReport;
@@ -501,7 +501,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
         namedRanges: [],
         sheets: []
       })
-    } as any;
+    } as unknown as SpreadsheetBatchReaderAdapter;
 
     const originalDecompile = GoogleSheetsDocumentTypeSpecAdapter.decompile;
     GoogleSheetsDocumentTypeSpecAdapter.decompile = () => [];
@@ -520,7 +520,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
       assert.ok(actionJson.navigation?.card);
       const navCard = CardSerializer.toJSON(actionJson.navigation?.card);
       assert.ok(CardSerializer.hasWidgetText(navCard, 'Spec Configuration Errors'));
-      assert.ok(CardSerializer.hasWidgetText(navCard, 'No valid document type specifications found in configuration tabs.'));
+      assert.ok(CardSerializer.hasWidgetText(navCard, NO_SPECS_FOUND_ERROR));
     } finally {
       GoogleSheetsDocumentTypeSpecAdapter.decompile = originalDecompile;
     }

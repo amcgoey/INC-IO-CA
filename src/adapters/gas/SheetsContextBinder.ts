@@ -5,6 +5,7 @@
 
 import { SheetsTabRoleClassifier, TabRole } from "../../core/log/SheetsTabRoleClassifier";
 import { TemplateDriftReport } from "../../core/admin/TemplateDriftAuditor";
+import type { SpecValidationResult } from "../../core/specs/ValidationEngine";
 
 export interface SpreadsheetContext {
   spreadsheetId: string;
@@ -23,7 +24,7 @@ export interface SheetsContextParams {
   sheetName?: string;
   sheetId?: number;
   auditReport?: TemplateDriftReport;
-  specValidationReport?: import("../../core/specs/ValidationEngine").SpecValidationResult[];
+  specValidationReport?: SpecValidationResult[];
   lockContention?: boolean;
 }
 

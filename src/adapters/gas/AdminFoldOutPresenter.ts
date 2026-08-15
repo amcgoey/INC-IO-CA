@@ -62,6 +62,8 @@ function getSpreadsheetBatchReaderAdapterClass(): any {
   return SpreadsheetBatchReaderAdapter;
 }
 
+export const NO_SPECS_FOUND_ERROR = "No valid document type specifications found in configuration tabs.";
+
 export type AppContextType = "GoogleSheets" | "Gmail" | "GoogleDrive";
 
 export interface AdminFoldOutContextData {
@@ -659,7 +661,7 @@ export function onSaveToJsonConfiguration(
 
   let reportForCard = validationResults;
   if (reportForCard.length === 0) {
-    reportForCard = [{ status: "invalid", errors: ["No valid document type specifications found in configuration tabs."] }];
+    reportForCard = [{ status: "invalid", errors: [NO_SPECS_FOUND_ERROR] }];
   }
 
   const errors = extractValidationErrors(reportForCard);
