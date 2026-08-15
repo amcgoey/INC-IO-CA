@@ -203,7 +203,7 @@ export class AdminFoldOutPresenter {
           )
           .addButton(
             CardService.newTextButton()
-              .setText("💾 Save to JSON Configuration")
+              .setText("Save to JSON Configuration")
               .setOnClickAction(
                 CardService.newAction()
                   .setFunctionName("onSaveToJsonConfiguration")
@@ -542,11 +542,31 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
 }
 
 /**
+ * Helper extracting flat list of error messages from validation results.
+ */
+function extractValidationErrors(results: SpecValidationResult[]): string[] {
+  const errors: string[] = [];
+  for (const res of results) {
+    if (res.status === "invalid") {
+      errors.push(...res.errors);
+    }
+  }
+  return errors;
+}
+
+export interface SaveToJsonOptions {
+  batchReader?: SpreadsheetBatchReaderAdapter;
+}
+
+/**
  * Action Handler: Decompiles the active DocumentLogWorkbook configuration, serializes each valid
  * DocumentTypeSpec to canonical JSON via JsonDocumentTypeSpecAdapter.stringify(), and saves timestamped
  * JSON file(s) to the workbook's parent Google Drive folder via DriveApp (Issue #291).
  */
-export function onSaveToJsonConfiguration(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
+export function onSaveToJsonConfiguration(
+  e?: any,
+  options?: SaveToJsonOptions
+): GoogleAppsScript.Card_Service.ActionResponse {
   const BinderClass = getSheetsContextBinderClass();
   const spreadsheetId = BinderClass.extractSpreadsheetId(e);
 
@@ -557,7 +577,8 @@ export function onSaveToJsonConfiguration(e?: any): GoogleAppsScript.Card_Servic
   }
 
   const BatchReaderClass = getSpreadsheetBatchReaderAdapterClass();
-  const batchReader: SpreadsheetBatchReaderAdapter = (globalThis as any).defaultSpreadsheetBatchReaderAdapter || new BatchReaderClass();
+  const batchReader: SpreadsheetBatchReaderAdapter =
+    options?.batchReader || (globalThis as any).defaultSpreadsheetBatchReaderAdapter || new BatchReaderClass();
 
   const DocTypeSpecAdapterClass = getGoogleSheetsDocumentTypeSpecAdapterClass();
   const JsonAdapterClass = getJsonDocumentTypeSpecAdapterClass();
@@ -588,14 +609,8 @@ export function onSaveToJsonConfiguration(e?: any): GoogleAppsScript.Card_Servic
       .build();
   }
 
-  const hasInvalid = validationResults.some((r: SpecValidationResult) => r.status === "invalid");
-  if (hasInvalid || validationResults.length === 0) {
-    const errors: string[] = [];
-    for (const res of validationResults) {
-      if (res.status === "invalid") {
-        errors.push(...res.errors);
-      }
-    }
+  const errors = extractValidationErrors(validationResults);
+  if (errors.length > 0 || validationResults.length === 0) {
     const errorSummary = errors.length > 0 ? errors.join("; ") : "No valid document type specifications found.";
     return CardService.newActionResponseBuilder()
       .setNotification(CardService.newNotification().setText("Decompilation failed: " + errorSummary))
@@ -609,15 +624,8 @@ export function onSaveToJsonConfiguration(e?: any): GoogleAppsScript.Card_Servic
     }
   }
 
-  // Resolve parent folder in Drive
-  const driveApp = (globalThis as any).DriveApp || (typeof DriveApp !== "undefined" ? DriveApp : undefined);
-  if (!driveApp || typeof driveApp.getFileById !== "function") {
-    return CardService.newActionResponseBuilder()
-      .setNotification(CardService.newNotification().setText("Error: Google DriveApp is unavailable."))
-      .build();
-  }
-
-  const file = driveApp.getFileById(spreadsheetId);
+  // Resolve parent folder in Drive using DriveApp
+  const file = DriveApp.getFileById(spreadsheetId);
   const parents = file.getParents();
   if (!parents || !parents.hasNext()) {
     return CardService.newActionResponseBuilder()
@@ -645,12 +653,10 @@ export function onSaveToJsonConfiguration(e?: any): GoogleAppsScript.Card_Servic
     const engine = new LogEngineClass(storageAdapter);
 
     let actor = "GoogleAppsScript";
-    if (typeof Session !== "undefined" && (Session as any).getActiveUser) {
-      try {
-        const email = (Session as any).getActiveUser().getEmail();
-        if (email) actor = email;
-      } catch (err) {}
-    }
+    try {
+      const email = Session.getActiveUser().getEmail();
+      if (email) actor = email;
+    } catch (_err) {}
 
     engine.logAuditEvent(spreadsheetId, {
       category: "ADMIN_ACTION",
@@ -673,4 +679,3 @@ export function onSaveToJsonConfiguration(e?: any): GoogleAppsScript.Card_Servic
     .setNotification(CardService.newNotification().setText("Saved " + savedFileNames.length + " configuration file(s) to Google Drive."))
     .build();
 }
-
