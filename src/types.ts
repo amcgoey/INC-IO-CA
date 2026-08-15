@@ -654,7 +654,7 @@ interface WorkflowActionPolicy {
   previousRowStatus?: string;
 }
 
-/** Input object passed to DocumentWorkflowModule.executeWorkflow. */
+/** Input object passed to PipelineBuilder.buildAndExecute. */
 interface DocumentWorkflowInput {
   appContext?: AppContext;
   validatedDoc: ValidatedDocument;
@@ -686,7 +686,7 @@ interface DocumentWorkflowInput {
   spreadsheetApp?: any;
 }
 
-/** Output result returned from DocumentWorkflowModule.executeWorkflow. */
+/** Output result returned from PipelineBuilder.buildAndExecute. */
 interface DocumentWorkflowResult {
   fileId: string;
   targetKey: string;

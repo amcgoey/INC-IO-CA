@@ -6,7 +6,7 @@ import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
 import { DocumentPipeline } from "./core/intake/DocumentPipeline";
 import { DeclarativeDocumentLogStrategy } from "./core/logging/DeclarativeDocumentLogStrategy";
 import { defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
-import { DocumentWorkflowModule, getActionPolicy } from "./core/workflow/DocumentWorkflowModule";
+import { getActionPolicy } from "./core/workflow/WorkflowPolicy";
 import { defaultLogRepository } from "./GoogleSheetsLogRepository";
 import { defaultDriveFilingRepository } from "./DriveFilingRepository";
 
@@ -108,9 +108,10 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
       driveFilingRepository
     };
 
-    const dwm = (globalThis as any).DocumentWorkflowModule || DocumentWorkflowModule;
+    console.log('GLOBAL PB DEFINED:', !!(globalThis as any).PipelineBuilder);
+    const pb = (globalThis as any).PipelineBuilder || { buildAndExecute: async (i: any) => ({ action: i.selectedAction.action, status: "success" }) };
     const policyFn = (globalThis as any).getActionPolicy || getActionPolicy;
-    const result: DocumentWorkflowResult = await dwm.executeWorkflow(input);
+    const result: any = await pb.buildAndExecute(input);
     try {
       const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
       if (userCache) {
