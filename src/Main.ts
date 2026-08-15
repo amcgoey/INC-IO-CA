@@ -48,7 +48,8 @@ import {
   onAutoPatchWorkbook,
   onSaveToJsonConfiguration
 } from "./adapters/gas/AdminFoldOutPresenter";
-import { onSheetsContextRefresh } from "./adapters/gas/SheetsRootCard";
+import { onSheetsContextRefresh, buildSheetsRootCard } from "./adapters/gas/SheetsRootCard";
+import { SheetsContextBinder } from "./adapters/gas/SheetsContextBinder";
 
 /**
  * Contextual trigger entry point invoked by Google Workspace when an email is opened in Gmail.
@@ -152,6 +153,24 @@ async function onDriveItemsSelected(e: GoogleAppsScriptEvent): Promise<GoogleApp
 
   const buildCardFn = (globalThis as any).buildIntakeCard || buildIntakeCard;
   return buildCardFn(e, parsedData);
+}
+
+/**
+ * Contextual trigger entry point invoked by Google Workspace when the add-on is opened in Google Sheets.
+ *
+ * Extracts the active spreadsheet context using SheetsContextBinder and delegates
+ * rendering to the SheetsRootCard UI module.
+ *
+ * @param e - The Google Apps Script event object containing Google Sheets context.
+ * @returns A Promise resolving to the rendered CardService.Card UI.
+ */
+function buildSheetsAddOn(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.Card {
+  const spreadsheetId = SheetsContextBinder.extractSpreadsheetId(e);
+  const params = {
+    spreadsheetId,
+    sheetName: e?.sheetsContext?.sheetName || e?.parameters?.sheetName || undefined
+  };
+  return buildSheetsRootCard(params);
 }
 
 /**
@@ -440,6 +459,7 @@ g.onFlushScriptCache = onFlushScriptCache;
 g.onAutoPatchWorkbook = onAutoPatchWorkbook;
 g.onSaveToJsonConfiguration = onSaveToJsonConfiguration;
 g.onSheetsContextRefresh = onSheetsContextRefresh;
+g.buildSheetsAddOn = buildSheetsAddOn;
 g.checkAiModelHealth = checkAiModelHealth;
 g.DocumentPipeline = DocumentPipeline;
 g.buildIntakeCard = buildIntakeCard;
@@ -481,6 +501,7 @@ export {
   onAutoPatchWorkbook,
   onSaveToJsonConfiguration,
   onSheetsContextRefresh,
+  buildSheetsAddOn,
   checkAiModelHealth,
   buildIntakeCard
 };

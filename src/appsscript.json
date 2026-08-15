@@ -75,6 +75,11 @@
       "onItemsSelectedTrigger": {
         "runFunction": "onDriveItemsSelected"
       }
+    },
+    "sheets": {
+      "homepageTrigger": {
+        "runFunction": "buildSheetsAddOn"
+      }
     }
   }
 }
