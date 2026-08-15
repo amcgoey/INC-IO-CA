@@ -29,7 +29,7 @@ describe('DynamicDocumentLogStrategy', () => {
   } as unknown as DocumentTypeSpec;
 
   const mockCompiler = {
-    evaluate: vi.fn((format: string, _record: Record<string, any>) => {
+    evaluate: vi.fn((format: string, _record: Record<string, unknown>) => {
       if (format === mockSpec.identity.groupFormat) return '123-001';
       if (format === mockSpec.identity.revisionGroupFormat) return '123-001-0';
       if (format === mockSpec.identity.format) return '123-001-0-TARGET';
@@ -49,7 +49,7 @@ describe('DynamicDocumentLogStrategy', () => {
       number: '001',
       revision: '0'
     }
-  } as any;
+  } as unknown as import("../../../src/types").ValidatedDocument;
 
   describe('getIdentityData', () => {
     it('should extract identity data using compiler', () => {
@@ -125,4 +125,5 @@ describe('DynamicDocumentLogStrategy', () => {
     });
   });
 });
+
 
