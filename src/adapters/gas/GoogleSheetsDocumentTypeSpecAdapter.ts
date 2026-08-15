@@ -899,133 +899,22 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       }
     }
 
-    // Helper to compile a support tab layout given an array of SupportDataSpec
-    const buildSupportTabSeedRowsAndNamedRanges = (
-      tabName: string,
-      datasets: SupportDataSpec[],
-      defaultRowCount: number
-    ): { seedRows: (string | number | boolean)[][]; tabRowCount: number; tabColumnCount: number } => {
-      let maxDataRows = 0;
-      let totalCols = 0;
-
-      const datasetLayouts: Array<{
-        dataset: SupportDataSpec;
-        startCol: number;
-        numCols: number;
-        columns: SupportDataColumnSpec[];
-      }> = [];
-
-      for (const ds of datasets) {
-        let cols = ds.columns || [];
-        if (cols.length === 0 && ds.items && ds.items.length > 0) {
-          cols = Object.keys(ds.items[0]).map((k) => ({ key: k, type: 'string' as const }));
-        }
-        const numCols = Math.max(1, cols.length);
-        datasetLayouts.push({
-          dataset: ds,
-          startCol: totalCols,
-          numCols,
-          columns: cols,
-        });
-        totalCols += numCols;
-        maxDataRows = Math.max(maxDataRows, ds.items?.length || 0);
-      }
-
-      const tabRowCount = Math.max(defaultRowCount, maxDataRows + 10);
-      const tabColumnCount = Math.max(10, totalCols);
-
-      const seedRows: (string | number | boolean)[][] = [];
-
-      // Row 0: Headers
-      const headerRow: string[] = new Array(totalCols).fill('');
-      for (const layout of datasetLayouts) {
-        layout.columns.forEach((c, idx) => {
-          headerRow[layout.startCol + idx] = c.key;
-        });
-      }
-      seedRows.push(headerRow);
-
-      // Subsequent rows: data items
-      for (let r = 0; r < maxDataRows; r++) {
-        const dataRow: (string | number | boolean)[] = new Array(totalCols).fill('');
-        for (const layout of datasetLayouts) {
-          const items = layout.dataset.items || [];
-          if (r < items.length) {
-            const item = items[r];
-            layout.columns.forEach((c, idx) => {
-              const val = item[c.key];
-              dataRow[layout.startCol + idx] = val !== undefined && val !== null ? val : '';
-            });
-          }
-        }
-        seedRows.push(dataRow);
-      }
-
-      // Generate single full-table Named Ranges spanning all columns
-      for (const layout of datasetLayouts) {
-        const startLetter = getColumnLetter(layout.startCol);
-        const endLetter = getColumnLetter(layout.startCol + layout.numCols - 1);
-        const rangeNotation = `${startLetter}2:${endLetter}${tabRowCount}`;
-        registerNamedRange(layout.dataset.key, tabName, rangeNotation);
-      }
-
-      return { seedRows, tabRowCount, tabColumnCount };
-    };
-
     // 2. Compile per-spec <Type> Support tabs
     for (const { tabName, datasets } of Array.from(specSupportMap.values())) {
       if (datasets.length === 0) continue;
-      const { seedRows, tabRowCount, tabColumnCount } = buildSupportTabSeedRowsAndNamedRanges(
-        tabName,
-        datasets,
-        50
-      );
-
-      const existingTabIdx = tabs.findIndex((t) => t.name === tabName);
-      const supportTab: TabSpec = {
-        name: tabName,
-        rowCount: tabRowCount,
-        columnCount: tabColumnCount,
-        isSupportTab: true,
-        seedRows,
-      };
-
-      if (existingTabIdx >= 0) {
-        tabs[existingTabIdx] = {
-          ...tabs[existingTabIdx],
-          ...supportTab,
-        };
-      } else {
-        tabs.push(supportTab);
-      }
+      this.compileSupportTab(tabName, datasets, { defaultRowCount: 50 }, tabs, registerNamedRange);
     }
 
     // 3. Compile _Shared tab
     if (sharedDatasetsMap.size > 0) {
       const sharedDatasets = Array.from(sharedDatasetsMap.values());
-      const { seedRows, tabRowCount, tabColumnCount } = buildSupportTabSeedRowsAndNamedRanges(
+      this.compileSupportTab(
         '_Shared',
         sharedDatasets,
-        100
+        { defaultRowCount: 100, minColumnCount: 20, isShared: true },
+        tabs,
+        registerNamedRange
       );
-
-      const existingSharedTabIdx = tabs.findIndex((t) => t.name === '_Shared');
-      const sharedTab: TabSpec = {
-        name: '_Shared',
-        rowCount: tabRowCount,
-        columnCount: Math.max(20, tabColumnCount),
-        isSharedTab: true,
-        seedRows,
-      };
-
-      if (existingSharedTabIdx >= 0) {
-        tabs[existingSharedTabIdx] = {
-          ...tabs[existingSharedTabIdx],
-          ...sharedTab,
-        };
-      } else {
-        tabs.push(sharedTab);
-      }
     }
 
     // Merge generated named ranges
@@ -1036,6 +925,103 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       } else {
         namedRanges.push(genNR);
       }
+    }
+  }
+
+  /**
+   * Compiles a single support tab (_Shared or <Type> Support), generates full-table Named Ranges,
+   * and upserts the resulting TabSpec into the tabs array.
+   */
+  private static compileSupportTab(
+    tabName: string,
+    datasets: SupportDataSpec[],
+    config: { defaultRowCount: number; minColumnCount?: number; isShared?: boolean },
+    tabs: TabSpec[],
+    registerNamedRange: (name: string, tabName: string, rangeNotation: string) => void
+  ): void {
+    let maxDataRows = 0;
+    let totalCols = 0;
+
+    const datasetLayouts: Array<{
+      dataset: SupportDataSpec;
+      startCol: number;
+      numCols: number;
+      columns: SupportDataColumnSpec[];
+    }> = [];
+
+    for (const ds of datasets) {
+      let cols = ds.columns || [];
+      if (cols.length === 0 && ds.items && ds.items.length > 0) {
+        cols = Object.keys(ds.items[0]).map((k) => ({ key: k, type: 'string' as const }));
+      }
+      const numCols = Math.max(1, cols.length);
+      datasetLayouts.push({
+        dataset: ds,
+        startCol: totalCols,
+        numCols,
+        columns: cols,
+      });
+      totalCols += numCols;
+      maxDataRows = Math.max(maxDataRows, ds.items?.length || 0);
+    }
+
+    const tabRowCount = Math.max(config.defaultRowCount, maxDataRows + 10);
+    const tabColumnCount = config.minColumnCount
+      ? Math.max(config.minColumnCount, totalCols)
+      : Math.max(10, totalCols);
+
+    const seedRows: (string | number | boolean)[][] = [];
+
+    // Row 0: Headers
+    const headerRow: string[] = new Array(totalCols).fill('');
+    for (const layout of datasetLayouts) {
+      layout.columns.forEach((c, idx) => {
+        headerRow[layout.startCol + idx] = c.key;
+      });
+    }
+    seedRows.push(headerRow);
+
+    // Subsequent rows: data items
+    for (let r = 0; r < maxDataRows; r++) {
+      const dataRow: (string | number | boolean)[] = new Array(totalCols).fill('');
+      for (const layout of datasetLayouts) {
+        const items = layout.dataset.items || [];
+        if (r < items.length) {
+          const item = items[r];
+          layout.columns.forEach((c, idx) => {
+            const val = item[c.key];
+            dataRow[layout.startCol + idx] = val !== undefined && val !== null ? val : '';
+          });
+        }
+      }
+      seedRows.push(dataRow);
+    }
+
+    // Generate single full-table Named Ranges spanning all columns
+    for (const layout of datasetLayouts) {
+      const startLetter = getColumnLetter(layout.startCol);
+      const endLetter = getColumnLetter(layout.startCol + layout.numCols - 1);
+      const rangeNotation = `${startLetter}2:${endLetter}${tabRowCount}`;
+      registerNamedRange(layout.dataset.key, tabName, rangeNotation);
+    }
+
+    const existingTabIdx = tabs.findIndex((t) => t.name === tabName);
+    const supportTab: TabSpec = {
+      name: tabName,
+      rowCount: tabRowCount,
+      columnCount: tabColumnCount,
+      isSharedTab: config.isShared ? true : undefined,
+      isSupportTab: !config.isShared ? true : undefined,
+      seedRows,
+    };
+
+    if (existingTabIdx >= 0) {
+      tabs[existingTabIdx] = {
+        ...tabs[existingTabIdx],
+        ...supportTab,
+      };
+    } else {
+      tabs.push(supportTab);
     }
   }
 
