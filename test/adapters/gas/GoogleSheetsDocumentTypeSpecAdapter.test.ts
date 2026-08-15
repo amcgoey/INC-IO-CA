@@ -14,10 +14,10 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
     },
     fields: [
       { key: 'status', label: 'Status', type: 'list', required: true },
-      { key: 'section', label: 'Section', type: 'string', numberFormat: '000000' },
+      { key: 'section', label: 'Section', type: 'string', numberFormat: '000000', keyNormalizationRule: 'code' },
       { key: 'number', label: 'Number', type: 'string', numberFormat: '000' },
-      { key: 'revision', label: 'Revision', type: 'string', numberFormat: '0' },
-      { key: 'title', label: 'Title', type: 'string', required: true },
+      { key: 'revision', label: 'Revision', type: 'string', numberFormat: '0', defaultValue: '0' },
+      { key: 'title', label: 'Title', type: 'string', required: true, description: 'Submittal Title' },
       {
         key: 'calcFileName',
         label: 'Calc File Name',
@@ -36,13 +36,19 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
     storage: [
       {
         type: 'drive',
-        rootFolderSearchTerms: ['Submittals'],
+        rootFolderSearchTerms: ['Submittals', 'Specs'],
+        projectSearchTerms: ['Project Alpha', 'Site 1'],
         closedRootFolderName: 'Closed',
+        closedSubfolderFormat: 'Closed/${section}',
+        filenamePrefix: 'SUB-ARCH',
+        filenameFormat: '${section}-${number}',
+        coverPageTemplateId: 'tmpl_123',
       },
     ],
     workflows: [
       {
         context: 'INCOMING',
+        fieldMatches: [{ field: 'status', value: 'Open' }],
         sequence: ['extractPages', 'analyze', 'log'],
       },
     ],
@@ -142,12 +148,21 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
         'FilenameFormat',
         'CoverPageTemplateId',
       ]);
-      expect(seedRows[13]).toEqual(['drive', 'Submittals', '', 'Closed', '', '', '', '']);
+      expect(seedRows[13]).toEqual([
+        'drive',
+        'Submittals,Specs',
+        'Project Alpha,Site 1',
+        'Closed',
+        'Closed/${section}',
+        'SUB-ARCH',
+        '${section}-${number}',
+        'tmpl_123',
+      ]);
 
       // 5. Workflows Table
       expect(seedRows[14]).toEqual(['', '', '']);
       expect(seedRows[15]).toEqual(['Context', 'FieldMatches', 'Sequence']);
-      expect(seedRows[16]).toEqual(['INCOMING', '', 'extractPages,analyze,log']);
+      expect(seedRows[16]).toEqual(['INCOMING', JSON.stringify([{ field: 'status', value: 'Open' }]), 'extractPages,analyze,log']);
 
       // 6. Fields Table
       expect(seedRows[17]).toEqual(['', '', '', '', '', '', '', '', '', '', '', '']);
@@ -190,7 +205,7 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
         'FALSE',
         '',
         '',
-        '',
+        'code',
         '000000',
       ]);
     });
@@ -541,6 +556,360 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
 
       const actionsNRs = workbookSpec.namedRanges.filter((nr) => nr.name === 'Actions');
       expect(actionsNRs.length).toBe(1);
+    });
+  });
+
+  describe('decompile', () => {
+    function columnLetterToIndex(letter: string): number {
+      let index = 0;
+      for (let i = 0; i < letter.length; i++) {
+        index = index * 26 + (letter.charCodeAt(i) - 64);
+      }
+      return index - 1;
+    }
+
+    function parseRangeNotation(notation: string): {
+      startRowIndex: number;
+      endRowIndex: number;
+      startColumnIndex: number;
+      endColumnIndex: number;
+    } {
+      const parts = notation.split(':');
+      const startPart = parts[0].match(/([A-Z]+)(\d+)/);
+      if (!startPart) {
+        return { startRowIndex: 0, endRowIndex: 100, startColumnIndex: 0, endColumnIndex: 26 };
+      }
+      const startCol = columnLetterToIndex(startPart[1]);
+      const startRow = parseInt(startPart[2], 10) - 1;
+
+      if (parts.length === 1) {
+        return {
+          startRowIndex: startRow,
+          endRowIndex: startRow + 1,
+          startColumnIndex: startCol,
+          endColumnIndex: startCol + 1,
+        };
+      }
+
+      const endPart = parts[1].match(/([A-Z]+)(\d+)/);
+      if (!endPart) {
+        return {
+          startRowIndex: startRow,
+          endRowIndex: startRow + 100,
+          startColumnIndex: startCol,
+          endColumnIndex: startCol + 26,
+        };
+      }
+      const endCol = columnLetterToIndex(endPart[1]) + 1;
+      const endRow = parseInt(endPart[2], 10);
+
+      return {
+        startRowIndex: startRow,
+        endRowIndex: endRow,
+        startColumnIndex: startCol,
+        endColumnIndex: endCol,
+      };
+    }
+
+    function workbookSpecToBatchData(workbookSpec: any, omitNamedRanges = false): any {
+      const sheetMap = new Map<string, number>();
+      const sheets = workbookSpec.tabs.map((tab: any, idx: number) => {
+        const sheetId = idx + 1;
+        sheetMap.set(tab.name, sheetId);
+
+        const rowData = (tab.seedRows || []).map((row: any[]) => ({
+          values: row.map((val: any) => {
+            if (typeof val === 'number') {
+              return { userEnteredValue: { numberValue: val } };
+            }
+            if (typeof val === 'boolean') {
+              return { userEnteredValue: { boolValue: val } };
+            }
+            if (typeof val === 'string') {
+              if (val.startsWith('=')) {
+                return { userEnteredValue: { formulaValue: val } };
+              }
+              return { userEnteredValue: { stringValue: val } };
+            }
+            return { userEnteredValue: {} };
+          }),
+        }));
+
+        return {
+          properties: {
+            sheetId,
+            title: tab.name,
+          },
+          data: [
+            {
+              rowData,
+            },
+          ],
+        };
+      });
+
+      const namedRanges = omitNamedRanges
+        ? []
+        : workbookSpec.namedRanges.map((nr: any, idx: number) => {
+            const sheetId = sheetMap.get(nr.tabName) || 1;
+            const rangeCoords = parseRangeNotation(nr.rangeNotation);
+            return {
+              name: nr.name,
+              namedRangeId: `nr_${idx}`,
+              range: {
+                sheetId,
+                ...rangeCoords,
+              },
+            };
+          });
+
+      return {
+        spreadsheetId: 'test-ss-123',
+        properties: {
+          title: 'INC Project Document Log',
+        },
+        namedRanges,
+        sheets,
+      };
+    }
+
+    it('should decompile a compiled workbook back into a valid DocumentTypeSpec with full field properties', () => {
+      const compiled = GoogleSheetsDocumentTypeSpecAdapter.compileWorkbookSpec([mockSubmittalArchSpec]);
+      const batchData = workbookSpecToBatchData(compiled);
+
+      const results = GoogleSheetsDocumentTypeSpecAdapter.decompile(batchData);
+      expect(results).toBeDefined();
+      expect(results.length).toBe(1);
+
+      const res = results[0];
+      expect(res.status).toBe('valid');
+      if (res.status === 'valid') {
+        expect(res.spec.key).toBe(mockSubmittalArchSpec.key);
+        expect(res.spec.name).toBe(mockSubmittalArchSpec.name);
+        expect(res.spec.label).toBe(mockSubmittalArchSpec.label);
+        expect(res.spec.identity).toEqual(mockSubmittalArchSpec.identity);
+        expect(res.spec.fields.length).toBe(mockSubmittalArchSpec.fields.length);
+
+        const sectionField = res.spec.fields.find((f) => f.key === 'section');
+        expect(sectionField?.numberFormat).toBe('000000');
+        expect(sectionField?.keyNormalizationRule).toBe('code');
+
+        const revisionField = res.spec.fields.find((f) => f.key === 'revision');
+        expect(revisionField?.defaultValue).toBe('0');
+
+        const calcFileName = res.spec.fields.find((f) => f.key === 'calcFileName');
+        expect(calcFileName?.isCalculated).toBe(true);
+        expect(calcFileName?.calcFormat).toBe('${section}-${number}-${revision}');
+
+        const calcCustom = res.spec.fields.find((f) => f.key === 'calcCustom');
+        expect(calcCustom?.isCalculated).toBe(true);
+        expect(calcCustom?.formulaOrFunction).toBe('=CUSTOM_FORMULA()');
+
+        expect(res.spec.storage.length).toBe(1);
+        const driveStorage = res.spec.storage[0] as any;
+        expect(driveStorage.type).toBe('drive');
+        expect(driveStorage.rootFolderSearchTerms).toEqual(['Submittals', 'Specs']);
+        expect(driveStorage.projectSearchTerms).toEqual(['Project Alpha', 'Site 1']);
+        expect(driveStorage.closedRootFolderName).toBe('Closed');
+        expect(driveStorage.closedSubfolderFormat).toBe('Closed/${section}');
+        expect(driveStorage.filenamePrefix).toBe('SUB-ARCH');
+        expect(driveStorage.filenameFormat).toBe('${section}-${number}');
+        expect(driveStorage.coverPageTemplateId).toBe('tmpl_123');
+
+        expect(res.spec.workflows.length).toBe(1);
+        expect(res.spec.workflows[0].context).toBe('INCOMING');
+        expect(res.spec.workflows[0].fieldMatches).toEqual([{ field: 'status', value: 'Open' }]);
+        expect(res.spec.workflows[0].sequence).toEqual(['extractPages', 'analyze', 'log']);
+      }
+    });
+
+    it('should decompile correctly using sequential parsing fallback when named ranges are absent', () => {
+      const compiled = GoogleSheetsDocumentTypeSpecAdapter.compileWorkbookSpec([mockSubmittalArchSpec]);
+      const batchDataWithoutNRs = workbookSpecToBatchData(compiled, true);
+
+      const results = GoogleSheetsDocumentTypeSpecAdapter.decompile(batchDataWithoutNRs);
+      expect(results.length).toBe(1);
+      expect(results[0].status).toBe('valid');
+      if (results[0].status === 'valid') {
+        expect(results[0].spec.key).toBe('SUBMITTAL_ARCH');
+        expect(results[0].spec.identity.format).toBe('${section}-${number}-${revision}');
+        expect(results[0].spec.fields.length).toBe(mockSubmittalArchSpec.fields.length);
+      }
+    });
+
+    it('should decompile multiple specs with shared and per-type support tabs', () => {
+      const ffeSpecWithMultiSupport: DocumentTypeSpec = {
+        key: 'SUBMITTAL_FFE',
+        label: 'Submittal FFE',
+        name: 'FFE Submittals',
+        identity: {
+          format: '${specTag}-${vendor}-${revision}',
+          groupFormat: '${specTag}-${vendor}',
+          revisionGroupFormat: '${specTag}',
+        },
+        fields: [
+          { key: 'specTag', label: 'Spec Tag', type: 'string', required: true, optionsRange: 'SpecTags' },
+          { key: 'vendor', label: 'Vendor', type: 'string', required: true, optionsRange: 'Vendors' },
+          { key: 'revision', label: 'Revision', type: 'string', numberFormat: '0' },
+          { key: 'status', label: 'Status', type: 'list', required: true, optionsRange: 'Statuses' },
+        ],
+        storage: [
+          {
+            type: 'drive',
+            rootFolderSearchTerms: ['FFE', 'Submittals'],
+            closedRootFolderName: 'Closed FFE',
+          },
+        ],
+        workflows: [
+          {
+            context: 'INCOMING',
+            sequence: ['extractPages', 'analyze', 'log'],
+          },
+        ],
+        supportData: {
+          Statuses: {
+            key: 'Statuses',
+            isShared: true,
+            columns: [
+              { key: 'code', type: 'string' },
+              { key: 'name', type: 'string' },
+            ],
+            items: [
+              { code: 'OPEN', name: 'Open' },
+              { code: 'CLOSED', name: 'Closed' },
+            ],
+          },
+          Vendors: {
+            key: 'Vendors',
+            isShared: false,
+            columns: [
+              { key: 'code', type: 'string' },
+              { key: 'name', type: 'string' },
+            ],
+            items: [
+              { code: 'HERMAN_MILLER', name: 'Herman Miller' },
+              { code: 'STEELCASE', name: 'Steelcase' },
+            ],
+          },
+          SpecTags: {
+            key: 'SpecTags',
+            isShared: false,
+            columns: [
+              { key: 'tag', type: 'string' },
+              { key: 'category', type: 'string' },
+              { key: 'description', type: 'string' },
+            ],
+            items: [
+              { tag: 'FB101', category: 'FBE', description: 'Fabric Task Chair' },
+              { tag: 'CG138', category: 'CASE', description: 'Conference Credenza' },
+            ],
+          },
+        },
+      };
+
+      const compiled = GoogleSheetsDocumentTypeSpecAdapter.compileWorkbookSpec([
+        mockSubmittalArchSpec,
+        ffeSpecWithMultiSupport,
+      ]);
+      const batchData = workbookSpecToBatchData(compiled);
+
+      const results = GoogleSheetsDocumentTypeSpecAdapter.decompile(batchData);
+      expect(results.length).toBe(2);
+
+      const archResult = results.find((r) => r.status === 'valid' && r.spec.key === 'SUBMITTAL_ARCH');
+      const ffeResult = results.find((r) => r.status === 'valid' && r.spec.key === 'SUBMITTAL_FFE');
+
+      expect(archResult).toBeDefined();
+      expect(ffeResult).toBeDefined();
+
+      if (ffeResult && ffeResult.status === 'valid') {
+        expect(ffeResult.spec.supportData).toBeDefined();
+        expect(ffeResult.spec.supportData?.['Statuses']).toBeDefined();
+        expect(ffeResult.spec.supportData?.['Vendors']).toBeDefined();
+        expect(ffeResult.spec.supportData?.['SpecTags']).toBeDefined();
+        expect(ffeResult.spec.supportData?.['Vendors'].items?.length).toBe(2);
+        expect(ffeResult.spec.supportData?.['SpecTags'].items?.length).toBe(2);
+      }
+    });
+
+    it('should decompile via SpreadsheetBatchReaderAdapter instance and catch errors gracefully', () => {
+      const compiled = GoogleSheetsDocumentTypeSpecAdapter.compileWorkbookSpec([mockSubmittalArchSpec]);
+      const batchData = workbookSpecToBatchData(compiled);
+
+      const mockReader: any = {
+        readWorkbookBatch: (spreadsheetId: string) => {
+          expect(spreadsheetId).toBe('test-ss-456');
+          return batchData;
+        },
+      };
+
+      const results = GoogleSheetsDocumentTypeSpecAdapter.decompile(mockReader, 'test-ss-456');
+      expect(results.length).toBe(1);
+      expect(results[0].status).toBe('valid');
+
+      // Missing spreadsheetId
+      const missingIdResult = GoogleSheetsDocumentTypeSpecAdapter.decompile(mockReader);
+      expect(missingIdResult[0].status).toBe('invalid');
+      expect(missingIdResult[0].errors).toContain('Missing required spreadsheetId for SpreadsheetBatchReaderAdapter');
+
+      // Throwing reader
+      const throwingReader: any = {
+        readWorkbookBatch: () => {
+          throw new Error('API quota exceeded');
+        },
+      };
+      const errorResult = GoogleSheetsDocumentTypeSpecAdapter.decompile(throwingReader, 'test-ss-fail');
+      expect(errorResult[0].status).toBe('invalid');
+      expect(errorResult[0].errors[0]).toContain('Spreadsheet batch read error: API quota exceeded');
+    });
+
+    it('should return invalid status on null, missing, or corrupted batch data without crashing', () => {
+      const nullResult = GoogleSheetsDocumentTypeSpecAdapter.decompile(null as any);
+      expect(nullResult[0].status).toBe('invalid');
+      expect(nullResult[0].errors).toContain('Invalid or missing spreadsheet batch data');
+
+      const noSheetsResult = GoogleSheetsDocumentTypeSpecAdapter.decompile({ sheets: [] } as any);
+      expect(noSheetsResult[0].status).toBe('invalid');
+      expect(noSheetsResult[0].errors).toContain('Workbook is missing _Config tab');
+
+      const noConfigResult = GoogleSheetsDocumentTypeSpecAdapter.decompile({
+        sheets: [{ properties: { title: 'Log Tab' }, data: [] }],
+      } as any);
+      expect(noConfigResult[0].status).toBe('invalid');
+      expect(noConfigResult[0].errors).toContain('Workbook is missing _Config tab');
+    });
+
+    it('should return validation errors when _Config tab contains invalid spec data', () => {
+      const invalidConfigTab = {
+        properties: { sheetId: 1, title: '_Config' },
+        data: [
+          {
+            rowData: [
+              { values: [{ userEnteredValue: { stringValue: 'Key' } }, { userEnteredValue: { stringValue: 'Value' } }] },
+              { values: [{ userEnteredValue: { stringValue: 'MANIFEST_SCHEMA_VERSION' } }, { userEnteredValue: { stringValue: '1.0.0' } }] },
+              { values: [{ userEnteredValue: { stringValue: '' } }] },
+              { values: [{ userEnteredValue: { stringValue: 'DocTypeKey' } }, { userEnteredValue: { stringValue: 'DisplayName' } }] },
+              { values: [{ userEnteredValue: { stringValue: 'BAD_SPEC' } }, { userEnteredValue: { stringValue: 'Bad Spec' } }, { userEnteredValue: { stringValue: 'BAD' } }, { userEnteredValue: { stringValue: 'Bad' } }] },
+              { values: [{ userEnteredValue: { stringValue: '' } }] },
+              { values: [{ userEnteredValue: { stringValue: 'Format' } }, { userEnteredValue: { stringValue: 'GroupFormat' } }, { userEnteredValue: { stringValue: 'RevisionGroupFormat' } }] },
+              { values: [{ userEnteredValue: { stringValue: '' } }, { userEnteredValue: { stringValue: '' } }, { userEnteredValue: { stringValue: '' } }] },
+            ],
+          },
+        ],
+      };
+
+      const batchData: any = {
+        spreadsheetId: 'test-ss-err',
+        namedRanges: [],
+        sheets: [invalidConfigTab],
+      };
+
+      const results = GoogleSheetsDocumentTypeSpecAdapter.decompile(batchData);
+      expect(results.length).toBe(1);
+      expect(results[0].status).toBe('invalid');
+      if (results[0].status === 'invalid') {
+        expect(results[0].errors.length).toBeGreaterThan(0);
+      }
     });
   });
 });
