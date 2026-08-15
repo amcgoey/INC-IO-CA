@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -352,9 +354,7 @@ test('Main.ts buildAddOn - populates parsedData with Forma submittal notificatio
 });
 
 test("EmailIntakeParser parses Email 1 (.eml sample: Procore Distributed) correctly", () => {
-  const fs = require("fs");
-  const path = require("path");
-  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/24003-01, 38 East 35th Street_ Submittal Distributed 099100-17.0, PT432 - Public Spaces Limewash Samples.eml");
+      const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/24003-01, 38 East 35th Street_ Submittal Distributed 099100-17.0, PT432 - Public Spaces Limewash Samples.eml");
   if (!fs.existsSync(emlPath)) return;
   const content = fs.readFileSync(emlPath, "utf-8");
 
@@ -378,9 +378,7 @@ test("EmailIntakeParser parses Email 1 (.eml sample: Procore Distributed) correc
 });
 
 test("EmailIntakeParser parses Email 2 (.eml sample: Procore Approver Response Updated) correctly", () => {
-  const fs = require("fs");
-  const path = require("path");
-  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Action Required_ 24003-01, 38 East 35th Street_ Approver Erwan Malki Updated their Response for Submittal 084113-11.2, Entrance Canopy Shop Drawing.eml");
+      const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Action Required_ 24003-01, 38 East 35th Street_ Approver Erwan Malki Updated their Response for Submittal 084113-11.2, Entrance Canopy Shop Drawing.eml");
   if (!fs.existsSync(emlPath)) return;
   const content = fs.readFileSync(emlPath, "utf-8");
 
@@ -404,9 +402,7 @@ test("EmailIntakeParser parses Email 2 (.eml sample: Procore Approver Response U
 });
 
 test("EmailIntakeParser parses Email 3 (.eml sample: Procore Approver Response Updated - Variation) correctly", () => {
-  const fs = require("fs");
-  const path = require("path");
-  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Action Required_ 24003-01, 38 East 35th Street_ Approver Olivia O'Rourke Updated their Response for Submittal 102820-1.1, Shower Enclosure Hardware.eml");
+      const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Action Required_ 24003-01, 38 East 35th Street_ Approver Olivia O'Rourke Updated their Response for Submittal 102820-1.1, Shower Enclosure Hardware.eml");
   if (!fs.existsSync(emlPath)) return;
   const content = fs.readFileSync(emlPath, "utf-8");
 
@@ -430,9 +426,7 @@ test("EmailIntakeParser parses Email 3 (.eml sample: Procore Approver Response U
 });
 
 test("EmailIntakeParser parses Email 4 (.eml sample: Autodesk Forma) correctly", () => {
-  const fs = require("fs");
-  const path = require("path");
-  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Ballston Macy's - Submittal #06 20 00-003-00 was provided for your information (1).eml");
+      const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/Ballston Macy's - Submittal #06 20 00-003-00 was provided for your information (1).eml");
   if (!fs.existsSync(emlPath)) return;
   const content = fs.readFileSync(emlPath, "utf-8");
 
@@ -456,9 +450,7 @@ test("EmailIntakeParser parses Email 4 (.eml sample: Autodesk Forma) correctly",
 });
 
 test("EmailIntakeParser parses Email 5 (.eml sample: CMiC Collaborate) correctly", () => {
-  const fs = require("fs");
-  const path = require("path");
-  const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/New TRNS _ TRN00588 _ [11009106AU - Christie's 20 Rockefeller Plaza Reno-Auction Phase 2] P2_062200-030-1_Walnut Wood Refinishing_For App.eml");
+      const emlPath = path.resolve(__dirname, "../.scratch/submittal email examples/New TRNS _ TRN00588 _ [11009106AU - Christie's 20 Rockefeller Plaza Reno-Auction Phase 2] P2_062200-030-1_Walnut Wood Refinishing_For App.eml");
   if (!fs.existsSync(emlPath)) return;
   const content = fs.readFileSync(emlPath, "utf-8");
 
@@ -581,9 +573,7 @@ test("EmailIntakeParser.parseGenericEmail_ extracts titles via delimiters and fi
 
 
 test("No duplicate top-level const/let/var declarations exist across src files (GAS global scope protection)", () => {
-  const fs = require("fs");
-  const path = require("path");
-  const srcDir = path.resolve(__dirname, "../src");
+      const srcDir = path.resolve(__dirname, "../src");
   const files = fs.readdirSync(srcDir).filter((f: string) => f.endsWith(".ts") && f !== "types.ts");
 
   const declarations = new Map<string, string>(); // varName -> fileName

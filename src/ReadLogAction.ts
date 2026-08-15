@@ -70,14 +70,3 @@ export class ReadLogAction implements DocumentAction<DocumentActionContext, Docu
     };
   }
 }
-
-declare var module: any;
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    ReadLogAction
-  };
-}
-
-(globalThis as any).ReadLogAction = ReadLogAction;
-

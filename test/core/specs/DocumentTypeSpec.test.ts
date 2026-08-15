@@ -81,7 +81,7 @@ describe('DocumentTypeSpec Tier 1 Core Schema', () => {
     const archWorkflows: WorkflowTriggerSpec[] = [
       {
         context: 'GoogleDrive',
-        fieldMatches: { action: 'Received' },
+        fieldMatches: [{ field: 'action', value: 'Received' }],
         sequence: ['AnalyzeDocument', 'MoveDocument', 'WriteLog'],
       },
       {

@@ -1,3 +1,4 @@
+import templateSpec from "./fixtures/document-log-workbook-template.json";
 import test, { beforeEach } from "node:test";
 import assert from "node:assert";
 
@@ -686,7 +687,7 @@ test("FakeLogRepository promoted adapter records appendDocument and readLog oper
 
 test("LogEngine.getBoundedData tolerates up to 5 consecutive blank spacer rows in template fixture context", () => {
   const getBoundedDataFn = getBoundedData;
-  const templateSpec = require("./fixtures/document-log-workbook-template.json");
+  // templateSpec imported above
   const archTab = templateSpec.tabs.find((t: any) => t.name === "Submittal Arch");
 
   const mockSheetData: any[][] = [
@@ -708,7 +709,7 @@ test("LogEngine.getBoundedData tolerates up to 5 consecutive blank spacer rows i
 });
 
 test("LogEngine respects 2-row Headers named range taxonomy and BufferRow bounded Data range", () => {
-  const templateSpec = require("./fixtures/document-log-workbook-template.json");
+  // templateSpec imported above
   const headersNamedRange = templateSpec.namedRanges.find((nr: any) => nr.name === "Headers" && nr.tabName === "Submittal Arch");
   assert.strictEqual(headersNamedRange.rangeNotation, "A3:O4");
   assert.strictEqual(headersNamedRange.scope, "Sheet");
@@ -722,7 +723,7 @@ test("LogEngine integration with GasMockHarness and FakeLogRepository validates 
   GasMockHarness.install();
 
   const fakeRepo = new FakeLogRepository();
-  const templateSpec = require("./fixtures/document-log-workbook-template.json");
+  // templateSpec imported above
   const strategy = new DeclarativeDocumentLogStrategy(defaultDocumentTypeSpecRegistry.getSpec("SUBMITTAL_ARCH"));
 
   const headersNR = templateSpec.namedRanges.find((nr: any) => nr.name === "Headers" && nr.tabName === "Submittal Arch");

@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { WorkflowTriggerMatcher, MatcherContext } from '../../../src/core/workflow/WorkflowTriggerMatcher';
 
 describe('WorkflowTriggerMatcher', () => {
@@ -19,7 +19,10 @@ describe('WorkflowTriggerMatcher', () => {
   it('matches context and fieldValues', () => {
     const trigger = { 
       context: 'intake_submit', 
-      fieldMatches: { action: 'Received', priority: 'High' }, 
+      fieldMatches: [
+        { field: 'action', value: 'Received' },
+        { field: 'priority', value: 'High' }
+      ], 
       sequence: [] 
     };
     const ctx: MatcherContext = { 
@@ -32,7 +35,7 @@ describe('WorkflowTriggerMatcher', () => {
   it('fails if fieldValues do not match', () => {
     const trigger = { 
       context: 'intake_submit', 
-      fieldMatches: { action: 'Received' }, 
+      fieldMatches: [{ field: 'action', value: 'Received' }], 
       sequence: [] 
     };
     const ctx: MatcherContext = { 
@@ -42,9 +45,33 @@ describe('WorkflowTriggerMatcher', () => {
     expect(matcher.match(trigger, ctx)).toBe(false);
   });
 
-  it('matches if isDefault is true and we fallback', () => {
-    // Actually the issue says "evaluates context, fieldMatches (array of FieldMatchRule), and isDefault flags."
-    // Let me implement fieldMatches as Record<string, any> first because that's what it is in DocumentTypeSpec.ts
+  it('matches default trigger when isDefault is true', () => {
+    const trigger = { context: 'intake_submit', isDefault: true, sequence: [] };
+    const ctx: MatcherContext = { triggerContext: 'intake_submit', fieldValues: {} };
+    expect(matcher.match(trigger, ctx)).toBe(true);
+  });
+
+  it('findMatch prioritizes exact match over isDefault', () => {
+    const defaultTrigger = { context: 'intake_submit', isDefault: true, sequence: ['DefaultAction'] };
+    const exactTrigger = { 
+      context: 'intake_submit', 
+      fieldMatches: [{ field: 'action', value: 'Received' }], 
+      sequence: ['ReceivedAction'] 
+    };
+    const ctx: MatcherContext = { triggerContext: 'intake_submit', fieldValues: { action: 'Received' } };
+    const matched = matcher.findMatch([defaultTrigger, exactTrigger], ctx);
+    expect(matched).toBe(exactTrigger);
+  });
+
+  it('findMatch falls back to isDefault when exact does not match', () => {
+    const defaultTrigger = { context: 'intake_submit', isDefault: true, sequence: ['DefaultAction'] };
+    const exactTrigger = { 
+      context: 'intake_submit', 
+      fieldMatches: [{ field: 'action', value: 'Received' }], 
+      sequence: ['ReceivedAction'] 
+    };
+    const ctx: MatcherContext = { triggerContext: 'intake_submit', fieldValues: { action: 'Approved' } };
+    const matched = matcher.findMatch([defaultTrigger, exactTrigger], ctx);
+    expect(matched).toBe(defaultTrigger);
   });
 });
-

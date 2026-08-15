@@ -1,5 +1,5 @@
 ﻿/** Fixed numerical confidence threshold (< 0.85) for triggering visual low-confidence warning indicators. */
-var FieldConfidenceThreshold: number = (typeof globalThis !== "undefined" && (globalThis as any).FieldConfidenceThreshold) || 0.85;
+const FieldConfidenceThreshold: number = 0.85;
 
 /** Extracted field confidence object from 1-pass AI classification. */
 interface AiClassificationField {
@@ -477,7 +477,7 @@ interface PicklistOption {
   value: string;
 }
 
-declare var PicklistResolver: {
+declare const PicklistResolver: {
   resolveFrom2DArray(rows: unknown[][]): PicklistOption[];
   resolvePicklistOptionsRange(
     optionsRange: string | undefined,
@@ -590,13 +590,13 @@ interface DriveNameProvider {
   getSharedDrives(): SharedDriveInfo[];
 }
 
-declare var defaultCardPresenter: CardPresenter;
+declare const defaultCardPresenter: CardPresenter;
 declare function buildSuccessCard(...args: any[]): GoogleAppsScript.Card_Service.Card;
-declare var defaultLogRepository: LogRepository;
-declare var defaultDriveFilingRepository: DriveFilingRepository;
-declare var defaultPdfDocumentService: PdfDocumentService;
-declare var defaultAiAnalysisService: AiAnalysisService;
-declare var defaultDriveNameProvider: DriveNameProvider;
+declare const defaultLogRepository: LogRepository;
+declare const defaultDriveFilingRepository: DriveFilingRepository;
+declare const defaultPdfDocumentService: PdfDocumentService;
+declare const defaultAiAnalysisService: AiAnalysisService;
+declare const defaultDriveNameProvider: DriveNameProvider;
 /** Input payload for ReadLogAction. */
 interface ReadLogInput {
   spreadsheetId: string;
@@ -609,7 +609,7 @@ interface ReadLogInput {
   logRepository?: LogRepository;
 }
 
-declare var defaultExtractPagesAction: ExtractPagesAction;
+declare const defaultExtractPagesAction: ExtractPagesAction;
 
 /** Input payload for AnalyzeDocumentAction. */
 interface AnalyzeDocumentInput {
@@ -623,7 +623,7 @@ interface AnalyzeDocumentInput {
   extractPagesAction?: ExtractPagesAction;
 }
 
-declare var defaultAnalyzeDocumentAction: AnalyzeDocumentAction;
+declare const defaultAnalyzeDocumentAction: AnalyzeDocumentAction;
 
 /** Input payload for TriageDocumentAction. */
 interface TriageDocumentInput {
@@ -635,17 +635,17 @@ interface TriageDocumentInput {
   userInterfacePresenter?: UserInterfacePresenter;
 }
 
-declare var defaultTriageDocumentAction: TriageDocumentAction;
-declare var defaultDuplicateDocumentAction: DuplicateDocumentAction;
+declare const defaultTriageDocumentAction: TriageDocumentAction;
+declare const defaultDuplicateDocumentAction: DuplicateDocumentAction;
 
 
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 
 /** Policy detailing workflow actions (direction, stamping, subfolder rules). */
-declare var getActionPolicy: (action: string) => WorkflowActionPolicy;
-declare var getDocumentLogStrategy: (doc: ValidatedDocument) => DocumentLogStrategy;
-declare var getDocumentTitle: (doc: ValidatedDocument) => string;
-declare var buildDirectRowUrl: (logFileId: string, rowIndex: number, sheetId?: number | null, spreadsheetApp?: any) => string;
+declare const getActionPolicy: (action: string) => WorkflowActionPolicy;
+declare const getDocumentLogStrategy: (doc: ValidatedDocument) => DocumentLogStrategy;
+declare const getDocumentTitle: (doc: ValidatedDocument) => string;
+declare const buildDirectRowUrl: (logFileId: string, rowIndex: number, sheetId?: number | null, spreadsheetApp?: any) => string;
 
 interface WorkflowActionPolicy {
   direction: "incoming" | "outgoing";
@@ -792,7 +792,17 @@ interface ContextAdapters {
 }
 
 /** Execution context passed through action pipeline steps. */
+interface WorkflowPolicySpec {
+  direction?: 'incoming' | 'outgoing' | string;
+  stampPdf?: boolean;
+  updatePreviousStatus?: boolean;
+  previousRowStatus?: string;
+  timeoutMs?: number;
+  [key: string]: any;
+}
+
 interface DocumentActionContext<TDoc extends ValidatedDocument = ValidatedDocument> {
+  policy?: WorkflowPolicySpec;
   document?: TDoc;
   appContext?: AppContext;
   fileId?: string;

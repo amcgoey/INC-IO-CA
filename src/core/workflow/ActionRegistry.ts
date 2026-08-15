@@ -8,6 +8,10 @@
 export class ActionRegistry {
   private actions = new Map<string, DocumentAction>();
 
+  public has(key: string): boolean {
+    return this.actions.has(key);
+  }
+
   public register(key: string, action: any): void {
     if (!key) throw new Error("Action key cannot be empty");
     if (!action || typeof action.execute !== "function") {

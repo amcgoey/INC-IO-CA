@@ -5,7 +5,7 @@
  * delegating intake parsing to DocumentPipeline and rendering the main user interface.
  */
 
-import { ActionRegistry } from "./core/workflow/ActionRegistry";
+import { defaultActionRegistry } from "./core/workflow/ActionRegistry";
 import { WriteLogAction } from "./WriteLogAction";
 import { ReadLogAction } from "./ReadLogAction";
 import { MoveDocumentAction } from "./core/workflow/MoveDocumentAction";
@@ -376,7 +376,7 @@ function repairCrossLogReferences(batchId?: string): any {
 
 
 
-import { defaultActionRegistry } from "./core/workflow/ActionRegistry";`nconst actionRegistry = defaultActionRegistry;
+const actionRegistry = defaultActionRegistry;
 actionRegistry.register("WriteLog", new WriteLogAction());
 actionRegistry.register("ReadLog", new ReadLogAction());
 actionRegistry.register("MoveDocument", new MoveDocumentAction());

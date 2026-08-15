@@ -15,7 +15,7 @@ describe('PipelineBuilder', () => {
 
     const workflows: WorkflowTriggerSpec[] = [
       { context: 'intake_submit', isDefault: true, sequence: ['Action1'] },
-      { context: 'intake_submit', fieldMatches: { role: 'admin' }, sequence: ['Action1', 'Action2'] }
+      { context: 'intake_submit', fieldMatches: [{ field: 'role', value: 'admin' }], sequence: ['Action1', 'Action2'] }
     ];
 
     const ctx = { triggerContext: 'intake_submit', fieldValues: { role: 'admin' } };
@@ -33,7 +33,7 @@ describe('PipelineBuilder', () => {
 
     const workflows: WorkflowTriggerSpec[] = [
       { context: 'intake_submit', isDefault: true, sequence: ['Action1'] },
-      { context: 'intake_submit', fieldMatches: { role: 'admin' }, sequence: ['Action1', 'Action1'] }
+      { context: 'intake_submit', fieldMatches: [{ field: 'role', value: 'admin' }], sequence: ['Action1', 'Action1'] }
     ];
 
     const ctx = { triggerContext: 'intake_submit', fieldValues: { role: 'user' } };
