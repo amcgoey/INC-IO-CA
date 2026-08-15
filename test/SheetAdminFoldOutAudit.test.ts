@@ -11,8 +11,9 @@ import { CardSerializer } from "./harness/CardSerializer";
 import { TemplateDriftAuditor } from "../src/core/admin/TemplateDriftAuditor";
 import { loadWorkbookSpecs } from "../scripts/template/spec-loader";
 
-import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC } from "./fixtures/canonicalTestSpec";
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC, TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./fixtures/canonicalTestSpec";
 const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
+const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC;
 import { SheetValidationAndProtectionAdapter } from "../src/adapters/gas/SheetValidationAndProtectionAdapter";
 import { AdminFoldOutPresenter, onRunSchemaDriftAudit, onAutoPatchWorkbook } from "../src/adapters/gas/AdminFoldOutPresenter";
 import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
@@ -21,10 +22,12 @@ import { FakeCacheAdapter } from "../src/adapters/fakes/FakeCacheAdapter";
 describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", () => {
   beforeEach(() => {
     TemplateDriftAuditor.setDefaultSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+    TemplateDriftAuditor.setDefaultValidationAndProtectionAdapter(new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC));
   });
 
   afterEach(() => {
     TemplateDriftAuditor.setDefaultSpec(undefined);
+    TemplateDriftAuditor.setDefaultValidationAndProtectionAdapter(undefined);
   });
   let harness: ReturnType<typeof GasMockHarness.install>;
 
@@ -39,9 +42,9 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
   it("executes TemplateDriftAuditor.auditWorkbook in read-only mode without modifying sheet structure", () => {
     const ss = harness.sheetsService.openById("wb-audit-clean");
     ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
-    const valProtAdapter = new SheetValidationAndProtectionAdapter();
-    valProtAdapter.applyValidationRules(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
-    valProtAdapter.applyRangeProtections(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
+    const valProtAdapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+    valProtAdapter.applyValidationRules(ss as any);
+    valProtAdapter.applyRangeProtections(ss as any);
 
     const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
 
@@ -278,9 +281,9 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     it("returns status NO_OP under lock when double-checked audit confirms zero structural drift", () => {
       const ss = harness.sheetsService.openById("wb-autopatch-clean");
       ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
-      const valProtAdapter = new SheetValidationAndProtectionAdapter();
-      valProtAdapter.applyValidationRules(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
-      valProtAdapter.applyRangeProtections(ss as any, DOCUMENT_LOG_WORKBOOK_SPEC);
+      const valProtAdapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+      valProtAdapter.applyValidationRules(ss as any);
+      valProtAdapter.applyRangeProtections(ss as any);
 
       const lockAdapter = new FakeSpreadsheetLockAdapter();
       const cacheAdapter = new FakeCacheAdapter();

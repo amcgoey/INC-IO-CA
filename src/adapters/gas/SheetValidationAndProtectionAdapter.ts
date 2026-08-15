@@ -14,30 +14,45 @@ export interface LogTabContext {
   numRows: number;
 }
 
+export interface SheetValidationAndProtectionAdapterOptions {
+  spreadsheetApp?: typeof SpreadsheetApp;
+}
+
 class SheetValidationAndProtectionAdapter {
-  private defaultModel?: DocumentLogWorkbookSpec;
-  private defaultViewSpec?: DocumentLogWorkbookViewSpec;
+  private readonly workbookSpec: DocumentLogWorkbookSpec;
+  private readonly viewSpec: DocumentLogWorkbookViewSpec;
+  private readonly spreadsheetApp?: typeof SpreadsheetApp;
 
   constructor(
-    defaultModel?: DocumentLogWorkbookSpec,
-    defaultViewSpec?: DocumentLogWorkbookViewSpec
+    workbookSpec: DocumentLogWorkbookSpec,
+    viewSpec: DocumentLogWorkbookViewSpec,
+    optionsOrSpreadsheetApp?: SheetValidationAndProtectionAdapterOptions | typeof SpreadsheetApp
   ) {
-    this.defaultModel = defaultModel;
-    this.defaultViewSpec = defaultViewSpec;
+    if (!workbookSpec) {
+      throw new Error("DocumentLogWorkbookSpec is required for SheetValidationAndProtectionAdapter");
+    }
+    if (!viewSpec) {
+      throw new Error("DocumentLogWorkbookViewSpec is required for SheetValidationAndProtectionAdapter");
+    }
+    this.workbookSpec = workbookSpec;
+    this.viewSpec = viewSpec;
+
+    if (optionsOrSpreadsheetApp && typeof (optionsOrSpreadsheetApp as any).newDataValidation === "function") {
+      this.spreadsheetApp = optionsOrSpreadsheetApp as typeof SpreadsheetApp;
+    } else if (optionsOrSpreadsheetApp && (optionsOrSpreadsheetApp as SheetValidationAndProtectionAdapterOptions).spreadsheetApp) {
+      this.spreadsheetApp = (optionsOrSpreadsheetApp as SheetValidationAndProtectionAdapterOptions).spreadsheetApp;
+    } else if (typeof SpreadsheetApp !== "undefined") {
+      this.spreadsheetApp = SpreadsheetApp;
+    }
   }
 
-  private getLogTabContexts(
-    spreadsheet: any,
-    spec: DocumentLogWorkbookSpec,
-    viewSpec?: DocumentLogWorkbookViewSpec
-  ): LogTabContext[] {
-    if (!spreadsheet || !spec || !spec.tabs) return [];
+  private getLogTabContexts(spreadsheet: any): LogTabContext[] {
+    if (!spreadsheet || !this.workbookSpec || !this.workbookSpec.tabs) return [];
 
-    const effectiveViewSpec = viewSpec || this.defaultViewSpec;
-    const firstDataRow = effectiveViewSpec?.offsets?.FIRST_DATA_ROW_INDEX || 6;
+    const firstDataRow = this.viewSpec.offsets.FIRST_DATA_ROW_INDEX;
     const results: LogTabContext[] = [];
 
-    for (const tab of spec.tabs) {
+    for (const tab of this.workbookSpec.tabs) {
       if (!tab.isLogTab || !tab.columns || tab.columns.length === 0) {
         continue;
       }
@@ -56,20 +71,13 @@ class SheetValidationAndProtectionAdapter {
   /**
    * Applies DataValidation rules to picklist columns linked to target single-column Named Ranges.
    */
-  public applyValidationRules(
-    spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet,
-    spec?: DocumentLogWorkbookSpec,
-    viewSpec?: DocumentLogWorkbookViewSpec
-  ): void {
-    const effectiveSpec = spec || this.defaultModel;
-    if (!effectiveSpec) {
-      throw new Error("DocumentLogWorkbookSpec is required for applyValidationRules");
-    }
-    const spreadsheetApp = (globalThis as any).SpreadsheetApp;
-    const contexts = this.getLogTabContexts(spreadsheet, effectiveSpec, viewSpec);
+  public applyValidationRules(spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet): void {
+    if (!spreadsheet) return;
+    const spreadsheetApp = this.spreadsheetApp || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp : undefined);
+    const contexts = this.getLogTabContexts(spreadsheet);
 
     for (const { tab, sheet, firstDataRow, numRows } of contexts) {
-      tab.columns.forEach((colSpec: any, idx: number) => {
+      tab.columns.forEach((colSpec: ColumnSpec, idx: number) => {
         const ruleSpec = colSpec.validationRule;
         if (ruleSpec && ruleSpec.type === "LIST_FROM_RANGE" && ruleSpec.targetNamedRange) {
           const targetRange = typeof spreadsheet.getRangeByName === "function"
@@ -107,21 +115,15 @@ class SheetValidationAndProtectionAdapter {
    * Tier 3: CALCULATED_COLUMN_PROTECTION on calculated column ranges across data rows.
    * Data entry cells remain strictly unprotected.
    */
-  public applyRangeProtections(
-    spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet | any,
-    spec?: DocumentLogWorkbookSpec,
-    viewSpec?: DocumentLogWorkbookViewSpec
-  ): void {
-    const effectiveSpec = spec || this.defaultModel;
-    if (!spreadsheet || !effectiveSpec || !effectiveSpec.tabs) return;
+  public applyRangeProtections(spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet | any): void {
+    if (!spreadsheet || !this.workbookSpec || !this.workbookSpec.tabs) return;
 
-    const effectiveViewSpec = viewSpec || this.defaultViewSpec;
-    const firstDataRow = effectiveViewSpec?.offsets?.FIRST_DATA_ROW_INDEX || 6;
+    const firstDataRow = this.viewSpec.offsets.FIRST_DATA_ROW_INDEX;
     const sysTier = PROTECTION_TIER_SPECS?.SYSTEM_TAB_PROTECTION || { warningOnly: true };
     const headerTier = PROTECTION_TIER_SPECS?.HEADER_AND_FORMULA_PROTECTION || { warningOnly: true };
     const calcTier = PROTECTION_TIER_SPECS?.CALCULATED_COLUMN_PROTECTION || { warningOnly: true };
 
-    for (const tab of effectiveSpec.tabs) {
+    for (const tab of this.workbookSpec.tabs) {
       const sheet = typeof spreadsheet.getSheetByName === "function" ? spreadsheet.getSheetByName(tab.name) : null;
       if (!sheet) continue;
 
@@ -178,19 +180,12 @@ class SheetValidationAndProtectionAdapter {
     }
   }
 
-  public applyNumberFormats(
-    spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet | any,
-    spec?: DocumentLogWorkbookSpec,
-    viewSpec?: DocumentLogWorkbookViewSpec
-  ): void {
-    const effectiveSpec = spec || this.defaultModel;
-    if (!effectiveSpec) {
-      throw new Error("DocumentLogWorkbookSpec is required for applyNumberFormats");
-    }
-    const contexts = this.getLogTabContexts(spreadsheet, effectiveSpec, viewSpec);
+  public applyNumberFormats(spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet | any): void {
+    if (!spreadsheet) return;
+    const contexts = this.getLogTabContexts(spreadsheet);
 
     for (const { tab, sheet, firstDataRow, numRows } of contexts) {
-      tab.columns.forEach((colSpec: any, idx: number) => {
+      tab.columns.forEach((colSpec: ColumnSpec, idx: number) => {
         if (colSpec.numberFormat) {
           const colIdx = idx + 1;
           const range = typeof sheet.getRange === "function" ? sheet.getRange(firstDataRow, colIdx, numRows, 1) : null;
@@ -203,21 +198,16 @@ class SheetValidationAndProtectionAdapter {
   }
 }
 
-const defaultSheetValidationAndProtectionAdapter = new SheetValidationAndProtectionAdapter();
-
 export {
-  SheetValidationAndProtectionAdapter,
-  defaultSheetValidationAndProtectionAdapter
+  SheetValidationAndProtectionAdapter
 };
 
 declare let module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    SheetValidationAndProtectionAdapter,
-    defaultSheetValidationAndProtectionAdapter
+    SheetValidationAndProtectionAdapter
   };
 }
 
 (globalThis as any).SheetValidationAndProtectionAdapter = SheetValidationAndProtectionAdapter;
-(globalThis as any).defaultSheetValidationAndProtectionAdapter = defaultSheetValidationAndProtectionAdapter;

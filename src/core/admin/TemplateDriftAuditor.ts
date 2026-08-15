@@ -708,7 +708,12 @@ class TemplateDriftPatcher {
     if (TemplateDriftAuditor.getDefaultValidationAndProtectionAdapter()) return TemplateDriftAuditor.getDefaultValidationAndProtectionAdapter();
     const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
     if (g.defaultSheetValidationAndProtectionAdapter) return g.defaultSheetValidationAndProtectionAdapter;
-    if (g.SheetValidationAndProtectionAdapter) return new g.SheetValidationAndProtectionAdapter();
+    if (g.SheetValidationAndProtectionAdapter && this.spec) {
+      const viewSpec = g.DOCUMENT_LOG_WORKBOOK_VIEW_SPEC || (typeof DOCUMENT_LOG_WORKBOOK_VIEW_SPEC !== "undefined" ? DOCUMENT_LOG_WORKBOOK_VIEW_SPEC : undefined);
+      if (viewSpec) {
+        return new g.SheetValidationAndProtectionAdapter(this.spec, viewSpec);
+      }
+    }
     return null;
   }
 
@@ -874,7 +879,7 @@ class TemplateDriftPatcher {
         const spec = this.spec;
         if (typeof valProtAdapter.applyValidationRules === "function") {
           try {
-            valProtAdapter.applyValidationRules(seam, spec);
+            valProtAdapter.applyValidationRules(seam);
             repairsApplied.push("Restored missing cell validation rules across log tabs");
           } catch (e) {
             
@@ -882,13 +887,13 @@ class TemplateDriftPatcher {
         }
         if (typeof valProtAdapter.applyRangeProtections === "function") {
           try {
-            valProtAdapter.applyRangeProtections(seam, spec);
+            valProtAdapter.applyRangeProtections(seam);
             repairsApplied.push("Restored soft warning range protections across system tabs, headers, and calculated columns");
           } catch (e) {}
         }
         if (typeof valProtAdapter.applyNumberFormats === "function") {
           try {
-            valProtAdapter.applyNumberFormats(seam, spec);
+            valProtAdapter.applyNumberFormats(seam);
             repairsApplied.push("Applied cell number formats across log tabs");
           } catch (e) {}
         }

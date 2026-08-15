@@ -9,7 +9,7 @@
 
 import { GoogleSheetsStorageAdapter } from "./SheetStorageAdapter";
 import { LogEngine } from "./core/log/LogEngine";
-import { defaultSheetValidationAndProtectionAdapter } from "./adapters/gas/SheetValidationAndProtectionAdapter";
+import { SheetValidationAndProtectionAdapter } from "./adapters/gas/SheetValidationAndProtectionAdapter";
 import { defaultDocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
 
 function getGoogleSheetsStorageAdapterClass(): any {
@@ -20,8 +20,8 @@ function getLogEngineClass(): any {
   return LogEngine;
 }
 
-function getDefaultSheetValidationAndProtectionAdapter(): any {
-  return defaultSheetValidationAndProtectionAdapter;
+function getSheetValidationAndProtectionAdapterClass(): any {
+  return SheetValidationAndProtectionAdapter;
 }
 
 class GoogleSheetsLogRepository implements LogRepository {
@@ -308,7 +308,8 @@ class GoogleSheetsLogRepository implements LogRepository {
     }
 
     try {
-      const adapter = getDefaultSheetValidationAndProtectionAdapter();
+      const AdapterClass = getSheetValidationAndProtectionAdapterClass();
+      const adapter = (globalThis as any).defaultSheetValidationAndProtectionAdapter;
       if (adapter && typeof adapter.applyNumberFormats === "function") {
         adapter.applyNumberFormats(ss);
         if (typeof adapter.applyRangeProtections === "function") adapter.applyRangeProtections(ss);
