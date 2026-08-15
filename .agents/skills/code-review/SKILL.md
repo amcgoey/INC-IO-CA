@@ -60,7 +60,7 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Spawn both sub-agents in parallel
 
-Use the `invoke_subagent` tool to spawn both sub-agents in a single tool call. Set the `Model` argument to `pro` for both to ensure they use the latest Pro model with High thinking.
+Use the `invoke_subagent` tool to spawn both sub-agents in a single tool call. Set the `Model` argument to `pro` for both to ensure they use the **Pro 3.1 High** model.
 
 **Standards sub-agent prompt** — include:
 
