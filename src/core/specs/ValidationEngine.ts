@@ -299,14 +299,6 @@ export class ValidationEngine {
       const rawVal = raw[field.key];
       const strVal = rawVal !== undefined && rawVal !== null ? String(rawVal).trim() : '';
 
-      if (field.key === 'incomingRouting') {
-        const actionVal = String(raw.action || '').trim().toLowerCase();
-        if (actionVal === 'received' && strVal === '') {
-          missingFields.push(field.label || 'Incoming Routing');
-        }
-        continue;
-      }
-
       if (field.required && strVal === '') {
         missingFields.push(field.label || field.key);
       }
@@ -427,13 +419,15 @@ export class ValidationEngine {
           }
 
           if (missingRequiredPrompt && !isBypassed) {
-            let interactionType = 'ADD_ITEM';
-            if (Array.isArray(dataset.dynamicPrompts) && typeof dataset.dynamicPrompts[0] === 'string' && dataset.dynamicPrompts[0].startsWith('ADD_')) {
-              interactionType = dataset.dynamicPrompts[0];
-            } else if (dataset.key.toLowerCase().includes('vendor')) {
-              interactionType = 'ADD_VENDOR';
-            } else if (dataset.key.toLowerCase().includes('tag')) {
-              interactionType = 'ADD_TAG';
+            let interactionType = dataset.interactionType || 'ADD_ITEM';
+            if (!dataset.interactionType) {
+              if (Array.isArray(dataset.dynamicPrompts) && typeof dataset.dynamicPrompts[0] === 'string' && dataset.dynamicPrompts[0].startsWith('ADD_')) {
+                interactionType = dataset.dynamicPrompts[0];
+              } else if (dataset.key.toLowerCase().includes('vendor')) {
+                interactionType = 'ADD_VENDOR';
+              } else if (dataset.key.toLowerCase().includes('tag')) {
+                interactionType = 'ADD_TAG';
+              }
             }
 
             return {

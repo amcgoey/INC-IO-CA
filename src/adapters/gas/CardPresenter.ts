@@ -81,73 +81,76 @@ export class CardPresenter implements UserInterfacePresenter {
   ): GoogleAppsScript.Card_Service.Widget | null {
     if (!widgetVm) return null;
 
-    if (widgetVm.type === "dropdown" || widgetVm.type === "multi_select") {
-      const drop = CardService.newSelectionInput()
+    const widgetType = widgetVm.widgetType || widgetVm.type;
+
+    switch (widgetType) {
+      case "dropdown":
+      case "multi_select":
+        return this.renderSelectionInput(widgetVm, widgetType === "multi_select");
+      case "date_picker":
+        return this.renderDatePicker(widgetVm);
+      case "multiline":
+        return this.renderTextInput(widgetVm, true);
+      case "text":
+      default:
+        return this.renderTextInput(widgetVm, false);
+    }
+  }
+
+  private renderSelectionInput(
+    widgetVm: DocumentWidgetViewModel,
+    isMultiSelect: boolean
+  ): GoogleAppsScript.Card_Service.SelectionInput {
+    const drop = CardService.newSelectionInput()
+      .setTitle(widgetVm.displayTitle)
+      .setFieldName(widgetVm.key);
+
+    if (isMultiSelect) {
+      drop.setType(CardService.SelectionInputType.MULTI_SELECT);
+    } else {
+      drop.setType(CardService.SelectionInputType.DROPDOWN);
+    }
+
+    if (widgetVm.options && widgetVm.options.length > 0) {
+      widgetVm.options.forEach(opt => {
+        drop.addItem(opt.label, opt.value, Boolean(opt.isSelected));
+      });
+    }
+
+    this.applyHintAndAction(drop, widgetVm);
+    return drop;
+  }
+
+  private renderDatePicker(
+    widgetVm: DocumentWidgetViewModel
+  ): GoogleAppsScript.Card_Service.Widget {
+    if (typeof (CardService as any).newDatePicker === "function") {
+      const picker = (CardService as any)
+        .newDatePicker()
         .setTitle(widgetVm.displayTitle)
         .setFieldName(widgetVm.key);
 
-      if (widgetVm.type === "multi_select") {
-        drop.setType(CardService.SelectionInputType.MULTI_SELECT);
-      } else {
-        drop.setType(CardService.SelectionInputType.DROPDOWN);
+      if (widgetVm.epochMs !== undefined && typeof (picker as any).setValueInMsSinceEpoch === "function") {
+        (picker as any).setValueInMsSinceEpoch(widgetVm.epochMs);
       }
 
-      if (widgetVm.options && widgetVm.options.length > 0) {
-        widgetVm.options.forEach(opt => {
-          drop.addItem(opt.label, opt.value, Boolean(opt.isSelected));
-        });
-      }
-
-      this.applyHintAndAction(drop, widgetVm);
-      return drop;
+      this.applyHintAndAction(picker, widgetVm);
+      return picker;
     }
 
-    if (widgetVm.type === "date_picker") {
-      if (typeof (CardService as any).newDatePicker === "function") {
-        const picker = (CardService as any)
-          .newDatePicker()
-          .setTitle(widgetVm.displayTitle)
-          .setFieldName(widgetVm.key);
+    return this.renderTextInput(widgetVm, false);
+  }
 
-        if (widgetVm.value) {
-          let epochMs: number | null = null;
-          if (typeof widgetVm.value === "number") {
-            epochMs = widgetVm.value;
-          } else if (typeof widgetVm.value === "string") {
-            if (/^\d{6}$/.test(widgetVm.value)) {
-              const yy = parseInt(widgetVm.value.slice(0, 2), 10);
-              const mm = parseInt(widgetVm.value.slice(2, 4), 10) - 1;
-              const dd = parseInt(widgetVm.value.slice(4, 6), 10);
-              const year = 2000 + yy;
-              epochMs = new Date(year, mm, dd).getTime();
-            } else if (!isNaN(Date.parse(widgetVm.value))) {
-              epochMs = Date.parse(widgetVm.value);
-            }
-          }
-          if (epochMs !== null && typeof (picker as any).setValueInMsSinceEpoch === "function") {
-            (picker as any).setValueInMsSinceEpoch(epochMs);
-          }
-        }
-
-        this.applyHintAndAction(picker, widgetVm);
-        return picker;
-      } else {
-        const input = CardService.newTextInput()
-          .setTitle(widgetVm.displayTitle)
-          .setFieldName(widgetVm.key)
-          .setValue(String(widgetVm.value || ""));
-
-        this.applyHintAndAction(input, widgetVm);
-        return input;
-      }
-    }
-
+  private renderTextInput(
+    widgetVm: DocumentWidgetViewModel,
+    isMultiline: boolean
+  ): GoogleAppsScript.Card_Service.TextInput {
     const input = CardService.newTextInput()
       .setTitle(widgetVm.displayTitle)
       .setFieldName(widgetVm.key)
       .setValue(String(widgetVm.value ?? ""));
 
-    if (widgetVm.type === "multiline") {
+    if (isMultiline) {
       input.setMultiline(true);
     }
 

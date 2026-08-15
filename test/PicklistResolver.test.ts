@@ -454,6 +454,37 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
       assert.deepEqual(result.options[1], { value: "CAT2", label: "Category 2" });
       assert.deepEqual(result.options[2], { value: "CAT3", label: "CAT3" });
     });
+
+    it("should handle multi_select draft values cleanly by splitting compound tokens without duplicate entries", () => {
+      const context = {
+        fieldSpec: {
+          key: "tags",
+          type: "multi_select",
+          options: [
+            { value: "TAG_A", label: "Tag A" },
+            { value: "TAG_B", label: "Tag B" }
+          ]
+        }
+      };
+
+      // Case 1: Known tags compound string -> no fallback options added
+      const resKnown = PicklistResolver.resolve(undefined, context, "TAG_A, TAG_B");
+      assert.equal(resKnown.options.length, 2);
+      assert.deepEqual(resKnown.options[0], { value: "TAG_A", label: "Tag A" });
+      assert.deepEqual(resKnown.options[1], { value: "TAG_B", label: "Tag B" });
+
+      // Case 2: Compound string containing unknown tag -> only unknown tag appended
+      const resMixed = PicklistResolver.resolve(undefined, context, "TAG_A, TAG_NEW");
+      assert.equal(resMixed.options.length, 3);
+      assert.deepEqual(resMixed.options[0], { value: "TAG_A", label: "Tag A" });
+      assert.deepEqual(resMixed.options[1], { value: "TAG_B", label: "Tag B" });
+      assert.deepEqual(resMixed.options[2], { value: "TAG_NEW", label: "TAG_NEW" });
+
+      // Case 3: Array draft values
+      const resArray = PicklistResolver.resolve(undefined, context, ["TAG_A", "TAG_ARRAY"]);
+      assert.equal(resArray.options.length, 3);
+      assert.deepEqual(resArray.options[2], { value: "TAG_ARRAY", label: "TAG_ARRAY" });
+    });
   });
 
 

@@ -7,13 +7,14 @@
 import { DocumentFieldSpec, DocumentTypeSpec } from "./DocumentTypeSpec";
 import { PicklistResolver, PicklistOption, PicklistResolutionContext } from "../config/PicklistResolver";
 
-export type WidgetInputType =
+export type WidgetType =
   | "text"
   | "multiline"
   | "dropdown"
   | "multi_select"
-  | "date"
   | "date_picker";
+
+export type WidgetInputType = WidgetType | "date";
 
 export interface WidgetOptionViewModel {
   value: string;
@@ -24,6 +25,7 @@ export interface WidgetOptionViewModel {
 export interface DocumentWidgetViewModel {
   key: string;
   type: WidgetInputType;
+  widgetType: WidgetType;
   displayTitle: string;
   hintText: string;
   value: any;
@@ -230,17 +232,23 @@ export class DocumentTypeWidgetFactory {
     if (field.type === "multi_select") {
       const resolved = PicklistResolver.resolve(field.picklistSource, resolutionContext, hydratedValue);
       const optionsList = resolved.options || [];
-      const selectedStr = String(hydratedValue || "");
+      const selectedTokens = (Array.isArray(hydratedValue)
+        ? hydratedValue.map((v: any) => String(v).trim())
+        : String(hydratedValue || "").split(",").map((v: string) => v.trim())
+      ).filter((v: string) => v !== "");
+
+      const selectedSet = new Set(selectedTokens);
 
       const options: WidgetOptionViewModel[] = optionsList.map((opt: PicklistOption) => ({
         label: opt.label || opt.value,
         value: opt.value,
-        isSelected: selectedStr.includes(opt.value) || selectedStr === opt.value
+        isSelected: selectedSet.has(opt.value) || selectedSet.has(opt.label)
       }));
 
       return {
         key: field.key,
         type: "multi_select",
+        widgetType: "multi_select",
         displayTitle,
         hintText,
         value: hydratedValue,
@@ -292,6 +300,7 @@ export class DocumentTypeWidgetFactory {
       return {
         key: field.key,
         type: "dropdown",
+        widgetType: "dropdown",
         displayTitle,
         hintText,
         value: hydratedValue,
@@ -327,6 +336,7 @@ export class DocumentTypeWidgetFactory {
       return {
         key: field.key,
         type: "date_picker",
+        widgetType: "date_picker",
         displayTitle: displayTitle || "Date",
         hintText: hintText || "Date (YYMMDD)",
         value: hydratedValue,
@@ -345,6 +355,7 @@ export class DocumentTypeWidgetFactory {
       return {
         key: field.key,
         type: "multiline",
+        widgetType: "multiline",
         displayTitle,
         hintText,
         value: hydratedValue,
@@ -369,6 +380,7 @@ export class DocumentTypeWidgetFactory {
     return {
       key: field.key,
       type: "text",
+      widgetType: "text",
       displayTitle,
       hintText,
       value: hydratedValue,

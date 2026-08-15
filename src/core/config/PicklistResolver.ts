@@ -28,6 +28,7 @@ export interface PicklistResolveResult {
 
 export interface MinimalFieldSpec {
   key: string;
+  type?: string;
   label?: string;
   optionsRange?: string;
   options?: PicklistOption[];
@@ -106,38 +107,33 @@ export class PicklistResolver {
       }
     }
 
-    // 2. Resolve from context.spreadsheet via named range matching supportDataKey
-    if (!isSuccess && supportDataKey && context?.spreadsheet) {
-      const docTypeKey = context.docTypeKey || context.spec?.key || 'Submittal_Arch';
-      const activeSheetName = context.activeSheetName || context.spec?.label || context.spec?.name || 'Submittal Arch';
-      const rangeResult = PicklistResolver.resolvePicklistOptionsRange(
-        supportDataKey,
-        context.spreadsheet,
-        docTypeKey,
-        activeSheetName,
-        field
-      );
-      if (rangeResult && rangeResult.options && rangeResult.options.length > 0 && rangeResult.success) {
-        resolvedOptions = rangeResult.options;
-        isSuccess = true;
+    // Helper for spreadsheet named range resolution (DRY)
+    const trySpreadsheetRange = (rangeName?: string) => {
+      if (!isSuccess && rangeName && context?.spreadsheet) {
+        const docTypeKey = context.docTypeKey || context.spec?.key || 'Submittal_Arch';
+        const activeSheetName = context.activeSheetName || context.spec?.label || context.spec?.name || 'Submittal Arch';
+        const rangeResult = PicklistResolver.resolvePicklistOptionsRange(
+          rangeName,
+          context.spreadsheet,
+          docTypeKey,
+          activeSheetName,
+          field
+        );
+        if (rangeResult && rangeResult.options && rangeResult.options.length > 0 && rangeResult.success) {
+          resolvedOptions = rangeResult.options;
+          isSuccess = true;
+        }
       }
+    };
+
+    // 2. Resolve from context.spreadsheet via named range matching supportDataKey
+    if (supportDataKey) {
+      trySpreadsheetRange(supportDataKey);
     }
 
     // 3. Resolve from field.optionsRange if defined
-    if (!isSuccess && field?.optionsRange && context?.spreadsheet) {
-      const docTypeKey = context.docTypeKey || context.spec?.key || 'Submittal_Arch';
-      const activeSheetName = context.activeSheetName || context.spec?.label || context.spec?.name || 'Submittal Arch';
-      const rangeResult = PicklistResolver.resolvePicklistOptionsRange(
-        field.optionsRange,
-        context.spreadsheet,
-        docTypeKey,
-        activeSheetName,
-        field
-      );
-      if (rangeResult && rangeResult.options && rangeResult.options.length > 0 && rangeResult.success) {
-        resolvedOptions = rangeResult.options;
-        isSuccess = true;
-      }
+    if (field?.optionsRange) {
+      trySpreadsheetRange(field.optionsRange);
     }
 
     // 4. Fallback to field.options if defined
@@ -156,15 +152,26 @@ export class PicklistResolver {
     // 5. Draft Value Fallback Injection:
     // If a hydrated draftValue is not present in the resolved options list, dynamically append it as a fallback option
     if (draftValue !== undefined && draftValue !== null) {
-      const draftValStr = String(draftValue).trim();
-      if (draftValStr !== '') {
+      const tokens: string[] = [];
+      if (Array.isArray(draftValue)) {
+        tokens.push(...draftValue.map(v => String(v).trim()).filter(Boolean));
+      } else if (typeof draftValue === 'string' && field?.type === 'multi_select') {
+        tokens.push(...draftValue.split(',').map(s => s.trim()).filter(Boolean));
+      } else {
+        const single = String(draftValue).trim();
+        if (single !== '') {
+          tokens.push(single);
+        }
+      }
+
+      for (const token of tokens) {
         const exists = resolvedOptions.some(
-          opt => opt.value === draftValStr || opt.label === draftValStr
+          opt => opt.value === token || opt.label === token
         );
         if (!exists) {
           resolvedOptions.push({
-            value: draftValStr,
-            label: draftValStr
+            value: token,
+            label: token
           });
         }
       }

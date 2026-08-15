@@ -733,3 +733,54 @@ test("CardPresenter - renderDocumentSection returns null when sectionVm is null 
   assert.equal(presenter.renderDocumentSection(null as any), null);
   assert.equal(presenter.renderDocumentSection({ visible: false } as any), null);
 });
+
+test("CardPresenter - renderWidget translates date_picker DocumentWidgetViewModel using epochMs directly", () => {
+  const presenter = new CardPresenter();
+  const testEpochMs = new Date(2026, 7, 15).getTime();
+  const dateVm: any = {
+    key: "date",
+    type: "date_picker",
+    widgetType: "date_picker",
+    displayTitle: "Date",
+    hintText: "Date (YYMMDD)",
+    value: "260815",
+    epochMs: testEpochMs,
+    required: true,
+    onStateActionName: "onStateChange"
+  };
+
+  const widget = presenter.renderWidget(dateVm) as any;
+  assert.ok(widget);
+  assert.equal(widget.fieldName, "date");
+  assert.equal(widget.title, "Date");
+  assert.equal(widget.valueInMsSinceEpoch, testEpochMs);
+  assert.equal(widget.hint, "Date (YYMMDD)");
+  assert.equal(widget.onChangeAction?.functionName, "onStateChange");
+});
+
+test("CardPresenter - renderWidget translates multi_select DocumentWidgetViewModel into MULTI_SELECT widget", () => {
+  const presenter = new CardPresenter();
+  const multiVm: any = {
+    key: "tags",
+    type: "multi_select",
+    widgetType: "multi_select",
+    displayTitle: "Related Tags",
+    hintText: "Select tags",
+    value: "TAG1, TAG2",
+    required: false,
+    options: [
+      { label: "Tag 1", value: "TAG1", isSelected: true },
+      { label: "Tag 2", value: "TAG2", isSelected: true },
+      { label: "Tag 3", value: "TAG3", isSelected: false }
+    ]
+  };
+
+  const widget = presenter.renderWidget(multiVm) as any;
+  assert.ok(widget);
+  assert.equal(widget.fieldName, "tags");
+  assert.equal(widget.type, "MULTI_SELECT");
+  assert.equal(widget.items?.length, 3);
+  assert.equal(widget.items?.[0].selected, true);
+  assert.equal(widget.items?.[1].selected, true);
+  assert.equal(widget.items?.[2].selected, false);
+});

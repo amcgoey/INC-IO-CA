@@ -40,6 +40,7 @@ export interface SupportDataSpec {
   isShared?: boolean;
   allowDynamicAddition?: boolean;
   dynamicPrompts?: Array<string | DynamicPromptConfig>;
+  interactionType?: string;
   items?: Array<Record<string, any>>;
 }
 

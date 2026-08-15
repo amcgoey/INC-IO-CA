@@ -419,5 +419,120 @@ describe("DocumentTypeWidgetFactory (Tier 1 Pure Core)", () => {
         isSelected: true
       });
     });
+
+    it("correctly handles multi_select draft values without duplicating compound strings or falsely matching substrings", () => {
+      const multiSelectSpec: DocumentTypeSpec = {
+        key: "SUBMITTAL_MULTI",
+        name: "Submittal Multi",
+        label: "Submittal Multi",
+        identity: {
+          format: "${tags}",
+          groupFormat: "${tags}",
+          revisionGroupFormat: "${tags}"
+        },
+        fields: [
+          {
+            key: "tags",
+            label: "Tags",
+            type: "multi_select",
+            picklistSource: {
+              supportDataKey: "Tags",
+              valueColumnKey: "code",
+              displayColumnKey: "name"
+            }
+          }
+        ],
+        storage: [{ type: "drive", rootFolderSearchTerms: ["Multi"], closedRootFolderName: "Closed" }],
+        workflows: [{ context: "intake", sequence: ["LogMulti"] }],
+        supportData: {
+          Tags: {
+            key: "Tags",
+            columns: [
+              { key: "code", type: "string", isPrimaryKey: true },
+              { key: "name", type: "string", isDisplayLabel: true }
+            ],
+            items: [
+              { code: "MAC", name: "Machinery" },
+              { code: "C", name: "Concrete" },
+              { code: "ELEC", name: "Electrical" }
+            ]
+          }
+        }
+      };
+
+      // Substring match check: "MAC" is selected, "C" should NOT be selected even though "C" is a substring of "MAC"
+      const result1 = DocumentTypeWidgetFactory.buildSectionViewModel(multiSelectSpec, {
+        hydrationContext: {
+          formInput: {
+            tags: "MAC"
+          }
+        }
+      });
+
+      expect(result1).not.toBeNull();
+      const tagsField1 = result1!.fields.find(f => f.key === "tags");
+      expect(tagsField1).toBeDefined();
+      expect(tagsField1!.widgetType).toBe("multi_select");
+      expect(tagsField1!.options).toHaveLength(3);
+      expect(tagsField1!.options!.find(o => o.value === "MAC")?.isSelected).toBe(true);
+      expect(tagsField1!.options!.find(o => o.value === "C")?.isSelected).toBe(false);
+      expect(tagsField1!.options!.find(o => o.value === "ELEC")?.isSelected).toBe(false);
+
+      // Compound string draft value with known and unknown options: "MAC, CUSTOM_TAG"
+      const result2 = DocumentTypeWidgetFactory.buildSectionViewModel(multiSelectSpec, {
+        hydrationContext: {
+          formInput: {
+            tags: "MAC, CUSTOM_TAG"
+          }
+        }
+      });
+
+      expect(result2).not.toBeNull();
+      const tagsField2 = result2!.fields.find(f => f.key === "tags");
+      expect(tagsField2).toBeDefined();
+      // Should have 3 spec options + 1 fallback option ("CUSTOM_TAG"), NOT "MAC, CUSTOM_TAG" as a single option
+      expect(tagsField2!.options).toHaveLength(4);
+      expect(tagsField2!.options!.find(o => o.value === "MAC")?.isSelected).toBe(true);
+      expect(tagsField2!.options!.find(o => o.value === "CUSTOM_TAG")?.isSelected).toBe(true);
+      expect(tagsField2!.options!.find(o => o.value === "C")?.isSelected).toBe(false);
+      expect(tagsField2!.options!.find(o => o.value === "MAC, CUSTOM_TAG")).toBeUndefined();
+    });
+
+    it("populates explicit widgetType on all widget view models", () => {
+      const allTypesSpec: DocumentTypeSpec = {
+        key: "ALL_TYPES",
+        name: "All Types",
+        label: "All Types",
+        identity: { format: "${f1}", groupFormat: "${f1}", revisionGroupFormat: "${f1}" },
+        fields: [
+          { key: "fText", label: "Text", type: "string" },
+          { key: "fMultiLine", label: "MultiLine", type: "multiline" },
+          { key: "fEnum", label: "Enum", type: "enum", options: [{ value: "A", label: "A" }] },
+          { key: "fMultiSelect", label: "MultiSelect", type: "multi_select", options: [{ value: "B", label: "B" }] },
+          { key: "fDate", label: "Date", type: "date" }
+        ],
+        storage: [{ type: "drive", rootFolderSearchTerms: ["All"], closedRootFolderName: "Closed" }],
+        workflows: [{ context: "intake", sequence: ["LogAll"] }]
+      };
+
+      const result = DocumentTypeWidgetFactory.buildSectionViewModel(allTypesSpec, {
+        hydrationContext: {
+          formInput: {
+            fDate: "260815"
+          }
+        }
+      });
+
+      expect(result).not.toBeNull();
+      const fields = result!.fields;
+      expect(fields.find(f => f.key === "fText")?.widgetType).toBe("text");
+      expect(fields.find(f => f.key === "fMultiLine")?.widgetType).toBe("multiline");
+      expect(fields.find(f => f.key === "fEnum")?.widgetType).toBe("dropdown");
+      expect(fields.find(f => f.key === "fMultiSelect")?.widgetType).toBe("multi_select");
+      const dateField = fields.find(f => f.key === "fDate");
+      expect(dateField?.widgetType).toBe("date_picker");
+      expect(dateField?.epochMs).toBeDefined();
+      expect(typeof dateField?.epochMs).toBe("number");
+    });
   });
 });

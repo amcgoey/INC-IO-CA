@@ -234,4 +234,46 @@ describe('ValidationEngine - Submission & Dynamic Prompt Intercept', () => {
       expect(result.data.vendor).toBe('Brand New Vendor Inc');
     }
   });
+
+  it('remains purely generic: does not enforce unconfigured or non-required incomingRouting field', () => {
+    const formInputWithoutRouting = {
+      specTag: 'FB101',
+      vendor: 'Herman Miller',
+      specTitle: 'Task Chair',
+      date: '260815',
+      action: 'Received', // action is Received but incomingRouting is not required in ffeSpec
+      contact: 'INT',
+    };
+
+    const result = ValidationEngine.validateSubmission(ffeSpec, formInputWithoutRouting);
+    expect(result.status).toBe('valid');
+  });
+
+  it('respects explicit interactionType configured directly on SupportDataSpec', () => {
+    const customSpec: DocumentTypeSpec = {
+      ...ffeSpec,
+      supportData: {
+        ...ffeSpec.supportData,
+        Vendors: {
+          ...ffeSpec.supportData!.Vendors,
+          interactionType: 'CUSTOM_ADD_VENDOR_PROMPT',
+        }
+      }
+    };
+
+    const formInput = {
+      specTag: 'FB101',
+      vendor: 'Unseen Vendor Corp',
+      specTitle: 'Task Chair',
+      date: '260815',
+      action: 'Received',
+      contact: 'INT',
+    };
+
+    const result = ValidationEngine.validateSubmission(customSpec, formInput);
+    expect(result.status).toBe('interaction_required');
+    if (result.status === 'interaction_required') {
+      expect(result.interactionType).toBe('CUSTOM_ADD_VENDOR_PROMPT');
+    }
+  });
 });
