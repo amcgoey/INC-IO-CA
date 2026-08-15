@@ -24,8 +24,8 @@ We establish the unified `DocumentTypeSpec` module architecture and 4-step verti
   - `src/adapters/gas/CardPresenter.ts`: Generates Workspace Add-on card UI elements dynamically from `DocumentTypeSpec` UI presenter bindings.
   - *Tier 2 Rule*: GAS V8 target runtime (`clasp`). Zero Node.js built-in imports.
 - **Tier 3: Host Tooling & CLI (Node.js Only)**
-  - `src/specs/*.json`: Canonical source specification files.
-  - `scripts/sync-specs.ts`: Node.js CLI script for disk I/O, validation, template compilation, and bidirectional sync (`npm run sync:specs`).
+  - `src/specs/*.json`: Canonical source specification files (`workbook_base.json`, `workbook_view.json`, `submittal_arch.json`).
+  - `scripts/template/deploy-live.ts`: Node.js CLI script for loading serialized JSON configuration, validating, and compiling the workbook templates (`npm run deploy:live`).
   - *Tier 3 Rule*: Host/CLI environment only. Never imported into `src/` runtime code.
 
 ### 2. Interface Seams & Data Flow
@@ -64,4 +64,4 @@ Runtime Pipelines & UI
 ## Consequences
 - `DocumentTypeSpec` is 100% testable in pure Vitest (<1s) without GAS mocks or runtime dependencies.
 - Non-technical spreadsheet admins can safely edit picklists, field labels, and template format strings in `_Config` tabs without breaking code.
-- Bidirectional CLI sync (`npm run sync:specs`) eliminates configuration drift between source JSON files and production spreadsheets.
+- Bidirectional synchronization is handled asynchronously: Spreadsheet edits are saved to Canonical JSON via the "Save to JSON Configuration" button in the Admin Foldout, and deployed to new workbooks via `deploy-live.ts`, eliminating configuration drift.
