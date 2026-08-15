@@ -38,6 +38,13 @@ const DATA_ROW_START_INDEX = 4;
 const DEFAULT_LOG_TAB_ROW_COUNT = 25;
 const DEFAULT_LOG_TAB_MIN_COLUMN_COUNT = 26;
 
+/** Internal context bundle for parsing _Config tab tables */
+interface ConfigTabContext {
+  rows: any[][];
+  namedRanges: NamedRangePayload[];
+  scanIdx: number;
+}
+
 /**
  * Converts a 0-based column index to A1 column letters (e.g. 0 -> 'A', 25 -> 'Z', 26 -> 'AA').
  */
@@ -146,6 +153,43 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   }
 
   /**
+   * Extracts typed primitive from ExtendedValue cell object.
+   */
+  private static extractCellValue(uev?: any): string | number | boolean {
+    if (!uev) return '';
+    if (uev.stringValue !== undefined) return uev.stringValue;
+    if (uev.numberValue !== undefined) return uev.numberValue;
+    if (uev.boolValue !== undefined) return uev.boolValue;
+    if (uev.formulaValue !== undefined) return uev.formulaValue;
+    return '';
+  }
+
+  /**
+   * Safely gets trimmed string from row index.
+   */
+  private static getCellString(row: any[] | undefined, colIdx: number): string {
+    if (!row || row[colIdx] === undefined || row[colIdx] === null) return '';
+    return String(row[colIdx]).trim();
+  }
+
+  /**
+   * Safely gets boolean value from row index.
+   */
+  private static getCellBoolean(row: any[] | undefined, colIdx: number): boolean {
+    if (!row || row[colIdx] === undefined || row[colIdx] === null) return false;
+    return row[colIdx] === true || String(row[colIdx]).trim().toUpperCase() === 'TRUE';
+  }
+
+  /**
+   * Safely gets comma-separated string list from row index.
+   */
+  private static getCellStringList(row: any[] | undefined, colIdx: number): string[] {
+    const raw = this.getCellString(row, colIdx);
+    if (!raw) return [];
+    return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+
+  /**
    * Normalizes SheetPayload grid data into a 2D array of primitives.
    */
   private static extractGridRows(sheet?: SheetPayload): any[][] {
@@ -165,16 +209,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
         if (rowData && rowData.values) {
           rowData.values.forEach((cell, cIdx) => {
             const colNum = startCol + cIdx;
-            if (!cell || !cell.userEnteredValue) {
-              rows[rowNum][colNum] = '';
-              return;
-            }
-            const uev = cell.userEnteredValue;
-            if (uev.stringValue !== undefined) rows[rowNum][colNum] = uev.stringValue;
-            else if (uev.numberValue !== undefined) rows[rowNum][colNum] = uev.numberValue;
-            else if (uev.boolValue !== undefined) rows[rowNum][colNum] = uev.boolValue;
-            else if (uev.formulaValue !== undefined) rows[rowNum][colNum] = uev.formulaValue;
-            else rows[rowNum][colNum] = '';
+            rows[rowNum][colNum] = this.extractCellValue(cell?.userEnteredValue);
           });
         }
       });
@@ -233,7 +268,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
 
           const columns: SupportDataColumnSpec[] = [];
           for (let c = startCol; c < endCol && c < headerRow.length; c++) {
-            const colKey = String(headerRow[c] || '').trim();
+            const colKey = this.getCellString(headerRow, c);
             if (colKey) {
               columns.push({
                 key: colKey,
@@ -291,7 +326,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
           const columns: SupportDataColumnSpec[] = [];
           for (let c = blockStart; c < blockEnd; c++) {
             columns.push({
-              key: String(headerRow[c]).trim(),
+              key: this.getCellString(headerRow, c),
               type: 'string',
             });
           }
@@ -347,45 +382,43 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   private static resolveSubtable(
     nrName: string,
     headerIdentifier: string,
-    configRows: any[][],
-    namedRanges: NamedRangePayload[],
-    scanIdx: { val: number }
+    ctx: ConfigTabContext
   ): any[][] {
-    const nr = namedRanges.find((r) => r.name === nrName);
+    const nr = ctx.namedRanges.find((r) => r.name === nrName);
     if (nr && nr.range) {
       const startRow = nr.range.startRowIndex ?? 0;
-      const endRow = nr.range.endRowIndex ?? configRows.length;
+      const endRow = nr.range.endRowIndex ?? ctx.rows.length;
       const startCol = nr.range.startColumnIndex ?? 0;
-      const endCol = nr.range.endColumnIndex ?? (configRows[0]?.length || 20);
+      const endCol = nr.range.endColumnIndex ?? (ctx.rows[0]?.length || 20);
 
       const rows: any[][] = [];
-      for (let r = startRow; r < endRow && r < configRows.length; r++) {
-        const row = configRows[r];
+      for (let r = startRow; r < endRow && r < ctx.rows.length; r++) {
+        const row = ctx.rows[r];
         if (!row) continue;
         rows.push(row.slice(startCol, endCol));
       }
       if (rows.length > 0) {
-        if (String(rows[0]?.[0] || '').trim().toLowerCase() === headerIdentifier.toLowerCase()) {
+        if (this.getCellString(rows[0], 0).toLowerCase() === headerIdentifier.toLowerCase()) {
           return rows.slice(1);
         }
         return rows;
       }
     }
 
-    for (let r = scanIdx.val; r < configRows.length; r++) {
-      const row = configRows[r];
+    for (let r = ctx.scanIdx; r < ctx.rows.length; r++) {
+      const row = ctx.rows[r];
       if (!row) continue;
-      const cell0 = String(row[0] || '').trim().toLowerCase();
+      const cell0 = this.getCellString(row, 0).toLowerCase();
       if (cell0 === headerIdentifier.toLowerCase()) {
         const subRows: any[][] = [];
-        for (let nextR = r + 1; nextR < configRows.length; nextR++) {
-          const nextRow = configRows[nextR];
+        for (let nextR = r + 1; nextR < ctx.rows.length; nextR++) {
+          const nextRow = ctx.rows[nextR];
           if (!nextRow || nextRow.every((c: any) => c === undefined || c === null || String(c).trim() === '')) {
             break;
           }
           subRows.push(nextRow);
         }
-        scanIdx.val = r + 1;
+        ctx.scanIdx = r + 1;
         return subRows;
       }
     }
@@ -396,16 +429,12 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   /**
    * Parses Table 1 (Manifest) on _Config tab.
    */
-  private static parseManifestSubtable(
-    configRows: any[][],
-    namedRanges: NamedRangePayload[],
-    scanIdx: { val: number }
-  ): Record<string, string> {
-    const rows = this.resolveSubtable('Config_Manifest', 'Key', configRows, namedRanges, scanIdx);
+  private static parseManifestSubtable(ctx: ConfigTabContext): Record<string, string> {
+    const rows = this.resolveSubtable('Config_Manifest', 'Key', ctx);
     const manifest: Record<string, string> = {};
     for (const r of rows) {
-      const k = String(r[0] || '').trim();
-      const v = String(r[1] || '').trim();
+      const k = this.getCellString(r, 0);
+      const v = this.getCellString(r, 1);
       if (k) manifest[k] = v;
     }
     return manifest;
@@ -415,23 +444,21 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
    * Parses Table 2 (DocTypes) on _Config tab.
    */
   private static parseDocTypesSubtable(
-    configRows: any[][],
-    namedRanges: NamedRangePayload[],
-    scanIdx: { val: number }
+    ctx: ConfigTabContext
   ): Array<{ key: string; name: string; prefix: string; label: string }> {
-    let rows = this.resolveSubtable('Config_DocTypes', 'DocTypeKey', configRows, namedRanges, scanIdx);
+    let rows = this.resolveSubtable('Config_DocTypes', 'DocTypeKey', ctx);
     if (rows.length === 0) {
-      rows = this.resolveSubtable('_Config_Doc_Types', 'DocTypeKey', configRows, namedRanges, scanIdx);
+      rows = this.resolveSubtable('_Config_Doc_Types', 'DocTypeKey', ctx);
     }
     const docTypes: Array<{ key: string; name: string; prefix: string; label: string }> = [];
     for (const r of rows) {
-      const key = String(r[0] || '').trim();
+      const key = this.getCellString(r, 0);
       if (key) {
         docTypes.push({
           key,
-          name: String(r[1] || key).trim(),
-          prefix: String(r[2] || '').trim(),
-          label: String(r[3] || r[1] || key).trim(),
+          name: this.getCellString(r, 1) || key,
+          prefix: this.getCellString(r, 2),
+          label: this.getCellString(r, 3) || this.getCellString(r, 1) || key,
         });
       }
     }
@@ -444,9 +471,9 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   private static parseIdentitySubtable(rows: any[][]): DocumentIdentitySpec {
     const r = rows[0] || [];
     return {
-      format: String(r[0] || '').trim(),
-      groupFormat: String(r[1] || '').trim(),
-      revisionGroupFormat: String(r[2] || '').trim(),
+      format: this.getCellString(r, 0),
+      groupFormat: this.getCellString(r, 1),
+      revisionGroupFormat: this.getCellString(r, 2),
     };
   }
 
@@ -456,22 +483,22 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   private static parseStorageSubtable(rows: any[][]): PolymorphicStorageSpec[] {
     const storage: PolymorphicStorageSpec[] = [];
     for (const r of rows) {
-      const type = String(r[0] || '').trim().toLowerCase();
+      const type = this.getCellString(r, 0).toLowerCase();
       if (!type) continue;
       if (type === 'drive') {
-        const rootTerms = r[1] ? String(r[1]).split(',').map((s) => s.trim()).filter(Boolean) : [];
-        const projTerms = r[2] ? String(r[2]).split(',').map((s) => s.trim()).filter(Boolean) : undefined;
-        const closedRoot = String(r[3] || '').trim();
-        const closedSub = r[4] ? String(r[4]).trim() : undefined;
-        const prefix = r[5] ? String(r[5]).trim() : undefined;
-        const filenameFmt = r[6] ? String(r[6]).trim() : undefined;
-        const coverPageId = r[7] ? String(r[7]).trim() : undefined;
+        const rootTerms = this.getCellStringList(r, 1);
+        const projTerms = this.getCellStringList(r, 2);
+        const closedRoot = this.getCellString(r, 3);
+        const closedSub = this.getCellString(r, 4);
+        const prefix = this.getCellString(r, 5);
+        const filenameFmt = this.getCellString(r, 6);
+        const coverPageId = this.getCellString(r, 7);
 
         const driveSt: DriveStorageSpec = {
           type: 'drive',
           rootFolderSearchTerms: rootTerms,
           closedRootFolderName: closedRoot,
-          ...(projTerms && projTerms.length > 0 ? { projectSearchTerms: projTerms } : {}),
+          ...(projTerms.length > 0 ? { projectSearchTerms: projTerms } : {}),
           ...(closedSub ? { closedSubfolderFormat: closedSub } : {}),
           ...(prefix ? { filenamePrefix: prefix } : {}),
           ...(filenameFmt ? { filenameFormat: filenameFmt } : {}),
@@ -491,17 +518,19 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   private static parseWorkflowsSubtable(rows: any[][]): WorkflowSpec[] {
     const workflows: WorkflowSpec[] = [];
     for (const r of rows) {
-      const context = String(r[0] || '').trim();
+      const context = this.getCellString(r, 0);
       if (!context) continue;
       let fieldMatches: FieldMatchRule[] | undefined = undefined;
-      if (r[1] && String(r[1]).trim()) {
+      const rawMatches = this.getCellString(r, 1);
+      if (rawMatches) {
         try {
-          fieldMatches = JSON.parse(String(r[1]));
+          fieldMatches = JSON.parse(rawMatches);
         } catch {
-          // Ignore invalid JSON in fieldMatches
+          // Preserve malformed JSON error so validation engine surfaces it
+          fieldMatches = [{ field: `__INVALID_JSON__: ${rawMatches}`, value: '' }];
         }
       }
-      const sequence = r[2] ? String(r[2]).split(',').map((s) => s.trim()).filter(Boolean) : [];
+      const sequence = this.getCellStringList(r, 2);
       workflows.push({
         context,
         sequence,
@@ -517,20 +546,20 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   private static parseFieldsSubtable(rows: any[][]): DocumentFieldSpec[] {
     const fields: DocumentFieldSpec[] = [];
     for (const r of rows) {
-      const key = String(r[0] || '').trim();
+      const key = this.getCellString(r, 0);
       if (!key) continue;
 
-      const header = r[1] ? String(r[1]).trim() : undefined;
-      const label = String(r[2] || header || key).trim();
-      const type = (String(r[3] || 'string').trim().toLowerCase()) as DocumentFieldSpec['type'];
-      const isCalculated = r[4] === true || String(r[4]).trim().toUpperCase() === 'TRUE';
-      const rawFormula = r[5] !== undefined && r[5] !== null ? String(r[5]).trim() : '';
-      const optionsRange = r[6] ? String(r[6]).trim() : undefined;
-      const required = r[7] === true || String(r[7]).trim().toUpperCase() === 'TRUE';
-      const description = r[8] ? String(r[8]).trim() : undefined;
+      const header = this.getCellString(r, 1);
+      const label = this.getCellString(r, 2) || header || key;
+      const type = (this.getCellString(r, 3).toLowerCase() || 'string') as DocumentFieldSpec['type'];
+      const isCalculated = this.getCellBoolean(r, 4);
+      const rawFormula = this.getCellString(r, 5);
+      const optionsRange = this.getCellString(r, 6);
+      const required = this.getCellBoolean(r, 7);
+      const description = this.getCellString(r, 8);
       const defaultValue = r[9] !== undefined && r[9] !== null && String(r[9]).trim() !== '' ? r[9] : undefined;
-      const keyNorm = r[10] ? (String(r[10]).trim().toLowerCase() as 'picklist' | 'code' | 'exact') : undefined;
-      const numFmt = r[11] ? String(r[11]).trim() : undefined;
+      const keyNorm = this.getCellString(r, 10).toLowerCase() as 'picklist' | 'code' | 'exact' | '';
+      const numFmt = this.getCellString(r, 11);
 
       const field: DocumentFieldSpec = {
         key,
@@ -572,13 +601,17 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
     typeSupportMap: Map<string, Record<string, SupportDataSpec>>
   ): Partial<DocumentTypeSpec>[] {
     const specs: Partial<DocumentTypeSpec>[] = [];
-    const scanIdx = { val: 0 };
+    const ctx: ConfigTabContext = {
+      rows: configRows,
+      namedRanges,
+      scanIdx: 0,
+    };
 
     // Parse Manifest (Table 1)
-    const _manifest = this.parseManifestSubtable(configRows, namedRanges, scanIdx);
+    const _manifest = this.parseManifestSubtable(ctx);
 
     // Parse DocTypes (Table 2)
-    const docTypes = this.parseDocTypesSubtable(configRows, namedRanges, scanIdx);
+    const docTypes = this.parseDocTypesSubtable(ctx);
     if (docTypes.length === 0) {
       return [];
     }
@@ -587,19 +620,19 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       const specKey = dt.key;
 
       // Identity Subtable (Table 3)
-      const identityRows = this.resolveSubtable(`Config_${specKey}_Identity`, 'Format', configRows, namedRanges, scanIdx);
+      const identityRows = this.resolveSubtable(`Config_${specKey}_Identity`, 'Format', ctx);
       const identity = this.parseIdentitySubtable(identityRows);
 
       // Storage Subtable (Table 4)
-      const storageRows = this.resolveSubtable(`Config_${specKey}_Storage`, 'Type', configRows, namedRanges, scanIdx);
+      const storageRows = this.resolveSubtable(`Config_${specKey}_Storage`, 'Type', ctx);
       const storage = this.parseStorageSubtable(storageRows);
 
       // Workflows Subtable (Table 5)
-      const workflowRows = this.resolveSubtable(`Config_${specKey}_Workflows`, 'Context', configRows, namedRanges, scanIdx);
+      const workflowRows = this.resolveSubtable(`Config_${specKey}_Workflows`, 'Context', ctx);
       const workflows = this.parseWorkflowsSubtable(workflowRows);
 
       // Fields Subtable (Table 6)
-      const fieldRows = this.resolveSubtable(`Config_${specKey}_Fields`, 'Key', configRows, namedRanges, scanIdx);
+      const fieldRows = this.resolveSubtable(`Config_${specKey}_Fields`, 'Key', ctx);
       const fields = this.parseFieldsSubtable(fieldRows);
 
       // Attach Support Data
