@@ -5,6 +5,14 @@
  * delegating intake parsing to DocumentPipeline and rendering the main user interface.
  */
 
+import { ActionRegistry } from "./core/workflow/ActionRegistry";
+import { WriteLogAction } from "./WriteLogAction";
+import { ReadLogAction } from "./ReadLogAction";
+import { MoveDocumentAction } from "./core/workflow/MoveDocumentAction";
+import { DuplicateDocumentAction } from "./core/workflow/DuplicateDocumentAction";
+import { ExtractPagesAction } from "./core/workflow/ExtractPagesAction";
+import { InsertPagesAction } from "./InsertPagesAction";
+import { RenameDocumentAction } from "./core/workflow/WorkflowRunner";
 import { defaultTriageDocumentAction } from "./TriageDocumentAction";
 import { defaultAnalyzeDocumentAction } from "./AnalyzeDocumentAction";
 import { BatchMigrationEngine } from "./core/log/BatchMigrationEngine";
@@ -367,6 +375,18 @@ function repairCrossLogReferences(batchId?: string): any {
 }
 
 
+
+import { defaultActionRegistry } from "./core/workflow/ActionRegistry";`nconst actionRegistry = defaultActionRegistry;
+actionRegistry.register("WriteLog", new WriteLogAction());
+actionRegistry.register("ReadLog", new ReadLogAction());
+actionRegistry.register("MoveDocument", new MoveDocumentAction());
+actionRegistry.register("DuplicateDocument", new DuplicateDocumentAction());
+actionRegistry.register("ExtractPages", new ExtractPagesAction());
+actionRegistry.register("InsertPages", new InsertPagesAction());
+actionRegistry.register("RenameDocument", new RenameDocumentAction());
+if (defaultTriageDocumentAction) actionRegistry.register("TriageDocument", defaultTriageDocumentAction);
+if (defaultAnalyzeDocumentAction) actionRegistry.register("AnalyzeDocument", defaultAnalyzeDocumentAction);
+
 const globalScope = typeof globalThis !== "undefined" ? globalThis : this;
 const g = globalScope as any;
 
@@ -405,6 +425,7 @@ g.BatchMigrationEngine = BatchMigrationEngine;
 g.GoogleSheetsStorageAdapter = GoogleSheetsStorageAdapter;
 g.GasSpreadsheetLockAdapter = GasSpreadsheetLockAdapter;
 g.GasTimeoutBudget = GasTimeoutBudget;
+g.actionRegistry = actionRegistry;
 
 export {
   onDriveItemsSelected,
@@ -430,4 +451,8 @@ export {
   checkAiModelHealth,
   buildIntakeCard
 };
+
+
+
+
 

@@ -7,6 +7,9 @@ import { DocumentPipeline } from "./core/intake/DocumentPipeline";
 import { DeclarativeDocumentLogStrategy } from "./core/logging/DeclarativeDocumentLogStrategy";
 import { defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
 import { DocumentWorkflowModule, getActionPolicy } from "./core/workflow/DocumentWorkflowModule";
+import { PipelineBuilder } from "./core/workflow/PipelineBuilder";
+import { WorkflowRunner } from "./core/workflow/WorkflowRunner";
+import { defaultActionRegistry } from "./core/workflow/ActionRegistry";
 import { defaultLogRepository } from "./GoogleSheetsLogRepository";
 import { defaultDriveFilingRepository } from "./DriveFilingRepository";
 
@@ -28,7 +31,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     // Ensures users don't skip the "Fetch" step when using external URLs.
     if (form.fileSource && form.fileSource.startsWith("http") && form.fileSource !== form.driveFileUrl) {
       return CardService.newActionResponseBuilder()
-        .setNotification(CardService.newNotification().setText("⚠️ Please click 'Fetch & Save to Drive' before logging."))
+        .setNotification(CardService.newNotification().setText("Ã¢Å¡Â Ã¯Â¸Â Please click 'Fetch & Save to Drive' before logging."))
         .build();
     }
 
@@ -90,6 +93,14 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
     const logRepository = (globalThis as any).defaultLogRepository || defaultLogRepository;
     const driveFilingRepository = (globalThis as any).defaultDriveFilingRepository || defaultDriveFilingRepository;
 
+    const configRegistry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== "undefined" ? defaultDocumentTypeConfigRegistry : null);
+    let config: any = null;
+    let isDeclarative = false;
+    if (configRegistry && configRegistry.hasConfig(validatedDoc.documentType || disc)) {
+      config = configRegistry.getConfig(validatedDoc.documentType || disc);
+      isDeclarative = config.logStrategy && config.logStrategy.spec && config.logStrategy.spec.workflows && config.logStrategy.spec.workflows.length > 0;
+    }
+
     const input: DocumentWorkflowInput = {
       validatedDoc,
       logFileId: p.logFileId,
@@ -108,9 +119,68 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
       driveFilingRepository
     };
 
-    const dwm = (globalThis as any).DocumentWorkflowModule || DocumentWorkflowModule;
+    let result: DocumentWorkflowResult;
+    let finalAction = "";
+
+    if (isDeclarative) {
+      const registry = defaultActionRegistry;
+      if (!registry) throw new Error("ActionRegistry not found. Cannot run declarative workflow.");
+      
+      const PipelineBuilderCtor = PipelineBuilder;
+      const builder = new PipelineBuilderCtor(registry);
+      
+      const ctx = {
+        triggerContext: form.action,
+        fieldValues: { ...validatedDoc, action: form.action }
+      };
+      const actions = builder.buildPipeline(config.logStrategy.spec.workflows, ctx);
+      
+      if (actions.length === 0) {
+        throw new Error(`No declarative workflow trigger matched for action: ${form.action}`);
+      }
+
+      const initialContext: DocumentActionContext = {
+        ...input,
+        fileId: p.driveFileId || form.driveFileId || "",
+        document: validatedDoc,
+        config: config,
+        spreadsheetId: p.logFileId,
+        sheetId: logSheetId,
+        strategy: config.logStrategy,
+        adapters: {
+          logRepository,
+          driveFilingRepository
+        }
+      };
+
+      const WorkflowRunnerClass = WorkflowRunner;
+      const finalContext = await WorkflowRunnerClass.run(actions, initialContext);
+
+      finalAction = form.action;
+      result = {
+        success: true,
+        action: finalAction,
+        newFileName: finalContext.newFileName || "",
+        url: finalContext.url || finalContext.driveFileUrl || "",
+        groupKey: "",
+        previousRowSheetIndex: null,
+        revGroupKey: "",
+        targetKey: finalContext.targetKey || "",
+        fileId: finalContext.fileId || finalContext.driveFileId || initialContext.fileId || "",
+        title: finalContext.title || validatedDoc.title || "",
+        projectAbbr: p.projectAbbr || "",
+        directRowUrl: finalContext.directRowUrl || "",
+        failedColumns: finalContext.failedColumns || [],
+        emptyFallbacks: finalContext.emptyFallbacks || emptyFallbacks || [],
+        localPath: finalContext.localPath || "",
+      };
+    } else {
+      const dwm = (globalThis as any).DocumentWorkflowModule || DocumentWorkflowModule;
+      result = await dwm.executeWorkflow(input);
+      finalAction = result.action;
+    }
     const policyFn = (globalThis as any).getActionPolicy || getActionPolicy;
-    const result: DocumentWorkflowResult = await dwm.executeWorkflow(input);
+    const policy = policyFn(finalAction);
     try {
       const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
       if (userCache) {
@@ -214,3 +284,7 @@ export {
   processSubmission,
   moveSubmittalToClosed
 };
+
+
+
+

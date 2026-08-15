@@ -79,6 +79,7 @@ export type PolymorphicStorageSpec = DriveStorageSpec | SqlStorageSpec | Generic
 export interface WorkflowTriggerSpec {
   context: string;
   fieldMatches?: Record<string, any>;
+  isDefault?: boolean;
   sequence: string[];
 }
 
@@ -104,3 +105,4 @@ export interface DocumentTypeSpec {
   ui?: DocumentUiSpec;
   validationHookKey?: string;
 }
+
