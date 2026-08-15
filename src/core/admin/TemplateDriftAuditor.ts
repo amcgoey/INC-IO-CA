@@ -952,7 +952,7 @@ class TemplateDriftPatcher {
 }
 
 
-declare var module: any;
+declare let module: any;
 if (typeof module !== "undefined" && module.exports) {
   (globalThis as any).TemplateDriftAuditor = TemplateDriftAuditor;
   module.exports = {

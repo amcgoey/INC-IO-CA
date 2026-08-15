@@ -84,7 +84,7 @@ export class TransientOverrideLogger {
   }
 }
 
-declare var module: any;
+declare let module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {

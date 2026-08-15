@@ -1,4 +1,4 @@
-/// <reference path="../src/types.ts" />
+﻿/// <reference path="../src/types.ts" />
 /**
  * @file WorkflowRunner.test.ts
  * @description Unit tests for WorkflowRunner pipeline engine, MoveDocumentAction, and RenameDocumentAction.
@@ -35,6 +35,38 @@ test('WorkflowRunner - executes actions sequentially passing modified context', 
   assert.equal(finalContext.step1, true);
   assert.equal(finalContext.step2, true);
   assert.equal(finalContext.fileId, 'doc-101');
+});
+
+test('WorkflowRunner - passes policy directly to action context during execution', async () => {
+  const receivedPolicies: any[] = [];
+  const action1 = {
+    name: 'Action1',
+    async execute(context: any) {
+      receivedPolicies.push(context.policy);
+      return { ...context, step1: true };
+    }
+  };
+  const action2 = {
+    name: 'Action2',
+    async execute(context: any) {
+      receivedPolicies.push(context.policy);
+      return { ...context, step2: true };
+    }
+  };
+
+  const policy: WorkflowPolicySpec = {
+    direction: 'incoming',
+    stampPdf: true,
+    updatePreviousStatus: false
+  };
+
+  const initialContext = { fileId: 'doc-policy-test' };
+  const finalContext = await WorkflowRunner.run([action1, action2], initialContext, policy);
+
+  assert.equal(receivedPolicies.length, 2);
+  assert.deepEqual(receivedPolicies[0], policy);
+  assert.deepEqual(receivedPolicies[1], policy);
+  assert.deepEqual(finalContext.policy, policy);
 });
 
 test('MoveDocumentAction - files document via DriveFilingRepository without renaming', async () => {

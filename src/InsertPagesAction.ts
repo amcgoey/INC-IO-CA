@@ -7,7 +7,7 @@
  * Adheres to execute(context: DocumentActionContext): Promise<DocumentActionContext>.
  */
 
-declare var defaultPdfDocumentService: PdfDocumentService;
+declare let defaultPdfDocumentService: PdfDocumentService;
 
 /**
  * Primitive workflow action that prepends CoverPageDocument onto a PDF blob
@@ -98,13 +98,13 @@ class InsertPagesAction implements DocumentAction<DocumentActionContext> {
 }
 
 /** Global default instance seam for InsertPagesAction. */
-var defaultInsertPagesAction: InsertPagesAction = new InsertPagesAction();
+const defaultInsertPagesAction: InsertPagesAction = new InsertPagesAction();
 
 if (typeof (globalThis as any).defaultInsertPagesAction === "undefined") {
   (globalThis as any).defaultInsertPagesAction = defaultInsertPagesAction;
 }
 
-declare var module: any;
+declare let module: any;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     InsertPagesAction,

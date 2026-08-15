@@ -68,12 +68,12 @@ class DuplicateDocumentAction implements DocumentAction<DocumentActionContext, D
 }
 
 /** Global default instance seam for DuplicateDocumentAction. */
-var defaultDuplicateDocumentAction: DuplicateDocumentAction = new DuplicateDocumentAction();
+const defaultDuplicateDocumentAction: DuplicateDocumentAction = new DuplicateDocumentAction();
 if (typeof (globalThis as any).defaultDuplicateDocumentAction === 'undefined') {
   (globalThis as any).defaultDuplicateDocumentAction = defaultDuplicateDocumentAction;
 }
 
-declare var module: any;
+declare let module: any;
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {

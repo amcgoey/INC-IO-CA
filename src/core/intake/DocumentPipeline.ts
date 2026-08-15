@@ -272,7 +272,7 @@ class DriveFilenameIntakeParser {
 
 function validateDocFn(raw: RawDocument, context?: ValidationContext): ValidationResult {
   const rawDoc = FormIntakeParser.parse(raw, context);
-  let registry: DocumentTypeConfigRegistry | undefined = defaultDocumentTypeConfigRegistry;
+  const registry: DocumentTypeConfigRegistry | undefined = defaultDocumentTypeConfigRegistry;
 
   let config: DocumentTypeConfig | undefined;
   if (registry) {

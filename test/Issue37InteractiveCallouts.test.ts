@@ -1,8 +1,9 @@
-import test from "node:test";
+﻿import test from "node:test";
 import assert from "node:assert";
 import { DocumentPipeline } from "../src/core/intake/DocumentPipeline";
 import { processSubmission } from "../src/Process";
 import { GasMockHarness } from "./harness/GasMockHarness";
+import { defaultLogRepository } from "../src/GoogleSheetsLogRepository";
 
 test.beforeEach(() => {
   GasMockHarness.install();
@@ -76,14 +77,14 @@ test("DocumentPipeline.processFormIntake - returns interaction_required ADD_VEND
     contact: "Jane Smith",
     action: "Approved",
     specTag: "CH-01",
-    specTitle: "Dining Chair",
-    vendor: "Unknown Design Co"
+    specTitle: "Special Chair",
+    vendor: "Unknown Vendor"
   };
 
   const context = {
     ffeTags: {
       tags: ["CH-01", "CH-02"],
-      vendors: ["Herman Miller", "Knoll"]
+      vendors: ["Herman Miller", "Steelcase"]
     }
   };
 
@@ -92,11 +93,11 @@ test("DocumentPipeline.processFormIntake - returns interaction_required ADD_VEND
   assert.strictEqual(result.status, "interaction_required");
   if (result.status === "interaction_required") {
     assert.strictEqual(result.interactionType, "ADD_VENDOR");
-    assert.match(result.message, /Vendor "Unknown Design Co" is not in the Tag List/);
+    assert.match(result.message, /Vendor "Unknown Vendor" is not in the Tag List/);
   }
 });
 
-test("DocumentPipeline.processFormIntake - bypasses tag validation when bypassTagValidation is set", () => {
+test("DocumentPipeline.processFormIntake - bypasses tag validation when bypassTagValidation is true", () => {
   const formInput = {
     discipline: "FF&E",
     date: "2026-07-25",
@@ -109,7 +110,7 @@ test("DocumentPipeline.processFormIntake - bypasses tag validation when bypassTa
 
   const context = {
     ffeTags: {
-      tags: ["CH-01"],
+      tags: ["CH-01", "CH-02"],
       vendors: ["Herman Miller"]
     },
     bypassTagValidation: true
@@ -120,20 +121,20 @@ test("DocumentPipeline.processFormIntake - bypasses tag validation when bypassTa
   assert.strictEqual(result.status, "success");
 });
 
-test("DocumentPipeline.processFormIntake - bypasses vendor validation when bypassVendorValidation is set", () => {
+test("DocumentPipeline.processFormIntake - bypasses vendor validation when bypassVendorValidation is true", () => {
   const formInput = {
     discipline: "FF&E",
     date: "2026-07-25",
     contact: "Jane Smith",
     action: "Approved",
     specTag: "CH-01",
-    specTitle: "Dining Chair",
-    vendor: "Unknown Design Co"
+    specTitle: "Special Chair",
+    vendor: "Unknown Vendor"
   };
 
   const context = {
     ffeTags: {
-      tags: ["CH-01"],
+      tags: ["CH-01", "CH-02"],
       vendors: ["Herman Miller"]
     },
     bypassVendorValidation: true
@@ -149,7 +150,7 @@ test("processSubmission handles interaction_required ADD_TAG by updating main ca
   (globalThis as any).SpreadsheetApp = {
     openById: () => ({ getSheetByName: () => fakeSheet })
   };
-  (globalThis as any).defaultLogRepository = {
+  const mockRepo = {
     verifyAndFormatLogSheet: () => ["Spec Tag", "Spec Title", "Vendor"],
     getLogSettings: () => ({
       logFileId: "log-1",
@@ -158,6 +159,8 @@ test("processSubmission handles interaction_required ADD_TAG by updating main ca
       ffeTags: { tags: ["CH-01"], vendors: ["Herman Miller"] }
     })
   };
+  defaultLogRepository.verifyAndFormatLogSheet = mockRepo.verifyAndFormatLogSheet as any;
+  defaultLogRepository.getLogSettings = mockRepo.getLogSettings as any;
 
   const event = {
     formInput: {
@@ -182,7 +185,7 @@ test("processSubmission handles interaction_required ADD_VENDOR by updating main
   (globalThis as any).SpreadsheetApp = {
     openById: () => ({ getSheetByName: () => fakeSheet })
   };
-  (globalThis as any).defaultLogRepository = {
+  const mockRepo = {
     verifyAndFormatLogSheet: () => ["Spec Tag", "Spec Title", "Vendor"],
     getLogSettings: () => ({
       logFileId: "log-1",
@@ -191,6 +194,8 @@ test("processSubmission handles interaction_required ADD_VENDOR by updating main
       ffeTags: { tags: ["CH-01"], vendors: ["Herman Miller"] }
     })
   };
+  defaultLogRepository.verifyAndFormatLogSheet = mockRepo.verifyAndFormatLogSheet as any;
+  defaultLogRepository.getLogSettings = mockRepo.getLogSettings as any;
 
   const event = {
     formInput: {

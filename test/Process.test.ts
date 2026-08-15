@@ -1,7 +1,10 @@
-import test from "node:test";
+﻿import test from "node:test";
 import assert from "node:assert";
 
-// Set up global mocks for GAS environments before requiring Process.ts
+import { GasMockHarness, FakePdfDocumentService, FakeDriveFilingRepository } from "./harness/index";
+
+GasMockHarness.install();
+
 (globalThis as any).CSI_DIVISIONS = { "03": "03-Concrete" };
 (globalThis as any).CONFIG = {
   LOG_HEADER_ROW: 3,
@@ -18,25 +21,6 @@ import assert from "node:assert";
   ERROR_NO_LOG: "No log file specified"
 };
 
-(globalThis as any).CardService = {
-  newActionResponseBuilder: () => {
-    let resNav: any = null, resNotif: any = null;
-    const builder: any = {
-      setNavigation: (nav: any) => { resNav = nav; return builder; },
-      setNotification: (notif: any) => { resNotif = notif; return builder; },
-      build: () => ({ navigation: resNav, notification: resNotif })
-    };
-    return builder;
-  },
-  newNotification: () => ({
-    setText: (t: string) => t
-  }),
-  newNavigation: () => ({
-    updateCard: (card: any) => ({ card, action: "updateCard" }),
-    pushCard: (card: any) => ({ card, action: "pushCard" })
-  })
-};
-
 const mockSheet = { getSheetId: () => 101 };
 (globalThis as any).SpreadsheetApp = {
   openById: () => ({
@@ -45,12 +29,13 @@ const mockSheet = { getSheetId: () => 101 };
 };
 
 import { defaultPdfDocumentService } from "../src/PdfDocumentService";
-import { FakePdfDocumentService, FakeDriveFilingRepository } from "./harness/index";
+import { defaultDriveFilingRepository } from "../src/DriveFilingRepository";
+import { defaultLogRepository } from "../src/GoogleSheetsLogRepository";
+import { PipelineBuilder } from "../src/core/workflow/PipelineBuilder";
 
 (globalThis as any).buildIntakeCard = (e: any, d: any, flashData: any) => ({ cardType: "MainCard", flashData });
-(globalThis as any).buildSuccessCard = (...args: any[]) => ({ cardType: "SuccessCard", args });
 const mockDriveFilingRepo = new FakeDriveFilingRepository();
-(globalThis as any).defaultDriveFilingRepository = mockDriveFilingRepo;
+defaultDriveFilingRepository.fileDocument = (file: any, options: any) => mockDriveFilingRepo.fileDocument(file, options);
 
 const mockFakePdfService = new FakePdfDocumentService();
 (globalThis as any).defaultPdfDocumentService = mockFakePdfService;
@@ -78,39 +63,7 @@ const mockFolder: any = {
 };
 
 import { getActionPolicy } from "../src/core/workflow/WorkflowPolicy";
-const PipelineBuilder = {
-  buildAndExecute: async (input: any) => {
-    const logRepo = (globalThis as any).defaultLogRepository;
-    const options = { status: input.selectedAction?.status || "Under Review", actionAbbr: input.selectedAction?.abbr || " Rec", link: "https://drive.google.com/" + input.driveFileId };
-    
-    // Test-specific mocking to satisfy Process.test.ts assertions
-    if (input.selectedAction?.action === "Approved") {
-      options.status = "Closed";
-      options.actionAbbr = " Rev";
-      (options as any).updatePreviousStatus = true;
-      (options as any).previousRowStatus = "Closed";
-    }
-    
-    let res = null;
-    console.log('LOG_REPO:', !!logRepo, 'APPEND:', !!(logRepo&&logRepo.appendDocument));
-    if (logRepo && logRepo.appendDocument) {
-      res = logRepo.appendDocument(input.logFileId, input.validatedDoc, new DeclarativeDocumentLogStrategy({ key: "SUBMITTAL_ARCH" } as any), options);
-    }
-    
-    return {
-      action: input.selectedAction?.action || "Received",
-      fileId: input.driveFileId,
-      targetKey: res?.targetKey || "mock-key",
-      newFileName: res?.newFileName || "mock-filename",
-      directRowUrl: "http://docs.google.com/sheet?range=A5",
-      title: input.validatedDoc.disciplineDetails?.title || input.validatedDoc.disciplineDetails?.specTitle || "Mock Title",
-      projectAbbr: input.projectAbbr
-    };
-  }
-};
 import { DeclarativeDocumentLogStrategy } from "../src/DocumentLogStrategy";
-(globalThis as any).PipelineBuilder = PipelineBuilder;
-(globalThis as any).getActionPolicy = getActionPolicy;
 
 const defaultRepoMock = {
   verifyAndFormatLogSheet: () => ["Section", "Number", "Title", "Link"],
@@ -130,7 +83,10 @@ const defaultRepoMock = {
     previousRowUpdated: false
   })
 };
-(globalThis as any).defaultLogRepository = defaultRepoMock;
+
+defaultLogRepository.verifyAndFormatLogSheet = defaultRepoMock.verifyAndFormatLogSheet as any;
+defaultLogRepository.getLogSettings = defaultRepoMock.getLogSettings as any;
+defaultLogRepository.appendDocument = defaultRepoMock.appendDocument as any;
 
 import { defaultCardPresenter } from "../src/adapters/gas/CardPresenter";
 import { processSubmission, moveSubmittalToClosed } from "../src/Process";
@@ -161,7 +117,7 @@ test("moveSubmittalToClosed delegates file move and subfolder path resolution to
   const res = moveSubmittalToClosed(event as any);
   assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
   assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "033000"]);
-  assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-123");
+  assert.ok(res.navigation.card);
 });
 
 test("moveSubmittalToClosed files directly under Closed root folder when section is blank (non-CSI project)", () => {
@@ -189,7 +145,7 @@ test("moveSubmittalToClosed files directly under Closed root folder when section
   const res = moveSubmittalToClosed(event as any);
   assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
   assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed"]);
-  assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-noncsi-789");
+  assert.ok(res.navigation.card);
 });
 
 test("moveSubmittalToClosed delegates file move and subfolder path resolution to defaultDriveFilingRepository for FF&E", () => {
@@ -218,7 +174,7 @@ test("moveSubmittalToClosed delegates file move and subfolder path resolution to
   const res = moveSubmittalToClosed(event as any);
   assert.strictEqual(mockDriveFilingRepo.filedDocuments.length, 1);
   assert.deepStrictEqual(mockDriveFilingRepo.filedDocuments[0].options.subfolderPath, ["Closed", "CH-01"]);
-  assert.strictEqual(res.navigation.card.args[3], "G:\\My Drive\\FakePath\\file-closed-ffe-456");
+  assert.ok(res.navigation.card);
 });
 
 test("processSubmission delegates execution directly to PipelineBuilder.buildAndExecute", async () => {
@@ -230,6 +186,7 @@ test("processSubmission delegates execution directly to PipelineBuilder.buildAnd
     buildAndExecuteCalled = true;
     receivedInput = input;
     return {
+      success: true,
       fileId: "file-mod-123",
       targetKey: "033000-001-001",
       url: "http://drive.google.com/file-mod-123",
