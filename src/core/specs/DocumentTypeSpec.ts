@@ -16,6 +16,15 @@ export interface DynamicPromptConfig {
   required: boolean;
 }
 
+export interface DynamicPromptPayload {
+  supportDataKey: string;
+  fieldKey: string;
+  userValue: string;
+  dynamicPrompts: DynamicPromptConfig[];
+  message?: string;
+  interactionType?: string;
+}
+
 export interface SupportDataColumnSpec {
   key: string;
   type: 'string' | 'number' | 'boolean' | 'date';

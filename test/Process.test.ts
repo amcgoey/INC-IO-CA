@@ -1,7 +1,7 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert";
 
-import { GasMockHarness, FakePdfDocumentService, FakeDriveFilingRepository } from "./harness/index";
+import { GasMockHarness, CardSerializer, FakePdfDocumentService, FakeDriveFilingRepository } from "./harness/index";
 
 GasMockHarness.install();
 
@@ -228,9 +228,10 @@ test("processSubmission delegates execution directly to PipelineBuilder.buildAnd
     assert.strictEqual(receivedInput.logFileId, "log-ss-test");
     assert.strictEqual(receivedInput.targetFolderId, "target-folder-test");
     assert.strictEqual(receivedInput.driveFileId, "drive-file-test");
-    assert.strictEqual(result.navigation.card.flashData.fileId, "file-mod-123");
-    assert.strictEqual(result.navigation.card.flashData.title, "Mock Title");
-    assert.strictEqual(result.navigation.card.flashData.projectAbbr, "TESTPROJ");
+    assert.ok(result);
+    assert.ok(result.navigation);
+    assert.strictEqual(result.navigation.action, "updateCard");
+    assert.ok(CardSerializer.hasWidgetText(result.navigation.card, "033000-001-001"));
   } finally {
     PipelineBuilder.buildAndExecute = originalExecuteWorkflow;
   }

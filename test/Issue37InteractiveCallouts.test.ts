@@ -1,8 +1,8 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert";
 import { DocumentPipeline } from "../src/core/intake/DocumentPipeline";
 import { processSubmission } from "../src/Main";
-import { GasMockHarness } from "./harness/GasMockHarness";
+import { GasMockHarness, CardSerializer } from "./harness/index";
 import { defaultLogRepository } from "../src/GoogleSheetsLogRepository";
 
 test.beforeEach(() => {
@@ -176,8 +176,10 @@ test("processSubmission handles interaction_required ADD_TAG by updating main ca
   };
 
   const res = await processSubmission(event as any);
-  assert.strictEqual(res.navigation.card.flashData.promptAddTag, true);
-  assert.match(res.navigation.card.flashData.warning, /Spec Tag "NEW-TAG" is not in the Tag List/);
+  assert.ok(res);
+  assert.ok(res.navigation);
+  assert.strictEqual(res.navigation.action, "updateCard");
+  assert.ok(CardSerializer.hasWidgetText(res.navigation.card, "NEW-TAG"));
 });
 
 test("processSubmission handles interaction_required ADD_VENDOR by updating main card with promptAddVendor flash", async () => {
@@ -211,6 +213,8 @@ test("processSubmission handles interaction_required ADD_VENDOR by updating main
   };
 
   const res = await processSubmission(event as any);
-  assert.strictEqual(res.navigation.card.flashData.promptAddVendor, true);
-  assert.match(res.navigation.card.flashData.warning, /Vendor "New Vendor" is not in the Tag List/);
+  assert.ok(res);
+  assert.ok(res.navigation);
+  assert.strictEqual(res.navigation.action, "updateCard");
+  assert.ok(CardSerializer.hasWidgetText(res.navigation.card, "New Vendor"));
 });

@@ -275,11 +275,6 @@
               "title": "Action",
               "items": [
                 {
-                  "text": "",
-                  "value": "",
-                  "selected": true
-                },
-                {
                   "text": "Received",
                   "value": "Received",
                   "selected": false
@@ -312,6 +307,49 @@
                 {
                   "text": "Returned",
                   "value": "Returned",
+                  "selected": false
+                }
+              ],
+              "onChangeAction": {
+                "functionName": "onStateChange",
+                "parameters": {
+                  "project": "",
+                  "documentType": "SUBMITTAL_ARCH",
+                  "discipline": "Architecture",
+                  "messageId": "msg-test-123",
+                  "fileSource": "Google Drive URL"
+                }
+              }
+            },
+            {
+              "type": "SelectionInput",
+              "inputType": "DROPDOWN",
+              "fieldName": "incomingRouting",
+              "title": "Incoming Routing",
+              "items": [
+                {
+                  "text": "Architect",
+                  "value": "ARCH",
+                  "selected": false
+                },
+                {
+                  "text": "General Contractor",
+                  "value": "GC",
+                  "selected": false
+                },
+                {
+                  "text": "MEP Engineer",
+                  "value": "MEP",
+                  "selected": false
+                },
+                {
+                  "text": "Structural Engineer",
+                  "value": "STR",
+                  "selected": false
+                },
+                {
+                  "text": "Owner",
+                  "value": "OWN",
                   "selected": false
                 }
               ],

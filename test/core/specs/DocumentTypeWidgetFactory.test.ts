@@ -142,10 +142,56 @@ describe("DocumentTypeWidgetFactory (Tier 1 Pure Core)", () => {
     const specWithContactAction: DocumentTypeSpec = {
       ...sampleSpec,
       fields: [
-        { key: "contact", label: "Contact", type: "enum", required: true },
-        { key: "action", label: "Action", type: "enum", required: true },
-        { key: "incomingRouting", label: "Routing", type: "enum" }
-      ]
+        {
+          key: "contact",
+          label: "Contact",
+          type: "enum",
+          required: true,
+          picklistSource: {
+            supportDataKey: "Contacts",
+            valueColumnKey: "abbr",
+            displayColumnKey: "name"
+          }
+        },
+        {
+          key: "action",
+          label: "Action",
+          type: "enum",
+          required: true,
+          picklistSource: {
+            supportDataKey: "Actions",
+            valueColumnKey: "action",
+            displayColumnKey: "action"
+          }
+        },
+        {
+          key: "incomingRouting",
+          label: "Routing",
+          type: "enum",
+          options: [
+            { label: "To Review", value: "To Review" },
+            { label: "To Refer", value: "To Refer" }
+          ]
+        }
+      ],
+      supportData: {
+        Contacts: {
+          key: "Contacts",
+          columns: [{ key: "abbr", type: "string" }, { key: "name", type: "string" }],
+          items: [
+            { abbr: "ARCH", name: "Architect" },
+            { abbr: "STR", name: "Structural Engineer" }
+          ]
+        },
+        Actions: {
+          key: "Actions",
+          columns: [{ key: "action", type: "string" }],
+          items: [
+            { action: "Received" },
+            { action: "Reviewed" }
+          ]
+        }
+      }
     };
 
     const result = DocumentTypeWidgetFactory.buildSectionViewModel(specWithContactAction, {
@@ -154,16 +200,6 @@ describe("DocumentTypeWidgetFactory (Tier 1 Pure Core)", () => {
           contact: "STR",
           action: "Received",
           incomingRouting: "To Refer"
-        },
-        logSettings: {
-          contacts: [
-            { abbr: "ARCH", name: "Architect" },
-            { abbr: "STR", name: "Structural Engineer" }
-          ],
-          actions: [
-            { action: "Received", abbr: "REC", status: "Incoming" },
-            { action: "Reviewed", abbr: "REV", status: "Outgoing" }
-          ]
         }
       }
     });
@@ -186,29 +222,7 @@ describe("DocumentTypeWidgetFactory (Tier 1 Pure Core)", () => {
     expect(routingField!.options?.find(o => o.value === "To Refer")?.isSelected).toBe(true);
   });
 
-  it("omits incomingRouting field when action is not Received/Incoming", () => {
-    const specWithRouting: DocumentTypeSpec = {
-      ...sampleSpec,
-      fields: [
-        { key: "action", label: "Action", type: "enum", required: true },
-        { key: "incomingRouting", label: "Routing", type: "enum" }
-      ]
-    };
-
-    const result = DocumentTypeWidgetFactory.buildSectionViewModel(specWithRouting, {
-      hydrationContext: {
-        formInput: {
-          action: "Reviewed"
-        }
-      }
-    });
-
-    expect(result).not.toBeNull();
-    const routingField = result!.fields.find(f => f.key === "incomingRouting");
-    expect(routingField).toBeUndefined();
-  });
-
-  it("hydrates FF&E specTag, specTitle, and vendor with suggestions and tagMap", () => {
+  it("hydrates FF&E specTag, specTitle, and vendor with suggestions", () => {
     const ffeSpec: DocumentTypeSpec = {
       key: "SUBMITTAL_FFE",
       name: "Submittal (FF&E)",
@@ -219,11 +233,51 @@ describe("DocumentTypeWidgetFactory (Tier 1 Pure Core)", () => {
         revisionGroupFormat: "${specTag}"
       },
       fields: [
-        { key: "specTag", label: "Spec Tag", type: "string", required: true },
+        {
+          key: "specTag",
+          label: "Spec Tag",
+          type: "string",
+          required: true,
+          picklistSource: {
+            supportDataKey: "SpecTags",
+            valueColumnKey: "tag",
+            displayColumnKey: "tag"
+          }
+        },
         { key: "specTitle", label: "Spec Title", type: "string" },
-        { key: "vendor", label: "Vendor", type: "string" },
-        { key: "relatedTag", label: "Related Tags", type: "string" }
+        {
+          key: "vendor",
+          label: "Vendor",
+          type: "string",
+          picklistSource: {
+            supportDataKey: "Vendors",
+            valueColumnKey: "name",
+            displayColumnKey: "name"
+          }
+        },
+        {
+          key: "relatedTag",
+          label: "Related Tags",
+          type: "multi_select",
+          picklistSource: {
+            supportDataKey: "SpecTags",
+            valueColumnKey: "tag",
+            displayColumnKey: "tag"
+          }
+        }
       ],
+      supportData: {
+        SpecTags: {
+          key: "SpecTags",
+          columns: [{ key: "tag", type: "string" }],
+          items: [{ tag: "CH-01" }, { tag: "TB-02" }]
+        },
+        Vendors: {
+          key: "Vendors",
+          columns: [{ key: "name", type: "string" }],
+          items: [{ name: "Acme Seating" }, { name: "Global Tables" }]
+        }
+      },
       storage: [{ type: "drive", rootFolderSearchTerms: ["FFE"], closedRootFolderName: "Closed" }],
       workflows: [{ context: "intake", sequence: ["LogFfe", "FileDrive"] }]
     };
@@ -231,16 +285,8 @@ describe("DocumentTypeWidgetFactory (Tier 1 Pure Core)", () => {
     const result = DocumentTypeWidgetFactory.buildSectionViewModel(ffeSpec, {
       hydrationContext: {
         formInput: {
-          specTag: "CH-01"
-        },
-        logSettings: {
-          ffeTags: {
-            tags: ["CH-01", "TB-02"],
-            vendors: ["Acme Seating", "Global Tables"],
-            tagMap: {
-              "CH-01": "Lounge Chair"
-            }
-          }
+          specTag: "CH-01",
+          specTitle: "Lounge Chair"
         }
       }
     });

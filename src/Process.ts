@@ -35,16 +35,14 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
     let form = e.formInput || {};
     const p = e.parameters || {};
 
+    const bypassDatasets: string[] = [];
     if (p.resumedFromDynamicPrompt === "true" && p.originalFormInput) {
       try {
         const original = JSON.parse(p.originalFormInput);
         form = { ...original, ...form };
         e.formInput = form;
-        if (p.promptSupportDataKey === "SpecTags" || p.promptFieldKey === "specTag") {
-          p.bypassTagValidation = "true";
-        }
-        if (p.promptSupportDataKey === "Vendors" || p.promptFieldKey === "vendor") {
-          p.bypassVendorValidation = "true";
+        if (p.promptSupportDataKey) {
+          bypassDatasets.push(p.promptSupportDataKey);
         }
       } catch (_e) {}
     }
@@ -71,8 +69,9 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
     // Validate form inputs using pure validation module
     const validationContext: ValidationContext = {
       ffeTags: settings.ffeTags,
-      bypassTagValidation: p.bypassTagValidation === "true",
-      bypassVendorValidation: p.bypassVendorValidation === "true"
+      bypassTagValidation: p.bypassTagValidation === "true" || bypassDatasets.includes("SpecTags"),
+      bypassVendorValidation: p.bypassVendorValidation === "true" || bypassDatasets.includes("Vendors"),
+      bypassDatasets
     };
 
     const initialAi = (e as any).aiResult || (p && p.aiResult ? JSON.parse(p.aiResult) : null) || null;
@@ -92,7 +91,7 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
 
     if (validationResult.status === "interaction_required") {
       if (validationResult.dynamicPrompts && validationResult.dynamicPrompts.length > 0 && deps.cardPresenter.presentDynamicPromptCard) {
-        return deps.cardPresenter.presentDynamicPromptCard(e, validationResult as any);
+        return deps.cardPresenter.presentDynamicPromptCard(e, validationResult);
       }
       const promptType = (validationResult.interactionType === "ADD_VENDOR" ? "ADD_VENDOR" : "ADD_TAG");
       return deps.cardPresenter.presentInteractionPrompt(

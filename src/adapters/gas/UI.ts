@@ -1,4 +1,3 @@
-
 import { defaultAnalyzeDocumentAction } from "../../AnalyzeDocumentAction";
 import { defaultDocumentTypeConfigRegistry, resolve5TierFieldValue } from "../../DocumentTypeConfigRegistry";
 import { MESSAGES, CONFIG } from "../../Config";
@@ -9,13 +8,13 @@ import { FieldConfidenceThreshold } from "../../core/interfaces/AiAnalysisServic
 import { PicklistResolver, PicklistOption } from "../../core/config/PicklistResolver";
 import { DocumentTypeWidgetFactory } from "../../core/specs/DocumentTypeWidgetFactory";
 import { defaultDocumentTypeSpecRegistry } from "../../core/specs/DocumentTypeSpecRegistry";
-import type { DynamicPromptConfig } from "../../core/specs/DocumentTypeSpec";
+import type { DynamicPromptConfig, DynamicPromptPayload } from "../../core/specs/DocumentTypeSpec";
 
 /**
  * Helper to append ⚠ Check Value label indicator when field confidence is below threshold (< 0.85).
  */
 function getWidgetTitle(key: string, baseTitle: string, fieldConfidence: Record<string, number> = {}): string {
-  const threshold = typeof FieldConfidenceThreshold !== "undefined" ? FieldConfidenceThreshold : 0.85;
+  const threshold = FieldConfidenceThreshold;
   const conf = fieldConfidence ? fieldConfidence[key] : undefined;
   if (conf !== undefined && conf < threshold) {
     return baseTitle.includes("Check Value") ? baseTitle : baseTitle + " ⚠ Check Value";
@@ -26,12 +25,9 @@ function getWidgetTitle(key: string, baseTitle: string, fieldConfidence: Record<
 
 function formatGasDate(d: any): string {
   try {
-    const tz = (typeof Session !== "undefined" && Session.getScriptTimeZone) ? Session.getScriptTimeZone() : ((globalThis as any).Session?.getScriptTimeZone() || "America/New_York");
-    if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+    const tz = Session.getScriptTimeZone ? Session.getScriptTimeZone() : "America/New_York";
+    if (Utilities.formatDate) {
       return Utilities.formatDate(d, tz, "yyMMdd");
-    }
-    if ((globalThis as any).Utilities?.formatDate) {
-      return (globalThis as any).Utilities.formatDate(d, tz, "yyMMdd");
     }
   } catch (e) {}
   return d && d.toISOString ? d.toISOString().slice(2, 10).replace(/-/g, "") : "260726";
@@ -60,7 +56,7 @@ function renderDynamicFormFields(
 
   const { missingFields = [], fieldConfidence = {}, onStateActionName = "onStateChange", actionParams = {} } = validationContext;
 
-  const resolveValue = (globalThis as any).resolve5TierFieldValue || resolve5TierFieldValue;
+  const resolveValue = resolve5TierFieldValue;
 
   fields.forEach(field => {
     // Rule 1: Exclude calculated fields
@@ -72,7 +68,7 @@ function renderDynamicFormFields(
     const hydratedValue = resolveValue ? resolveValue(field, hydrationContext) : (field.defaultValue !== undefined ? field.defaultValue : '');
 
     // Rule 5: Formatting title and hints
-    const cp = (globalThis as any).defaultCardPresenter || (typeof defaultCardPresenter !== "undefined" ? defaultCardPresenter : null);
+    const cp = defaultCardPresenter;
     let displayTitle = field.label || field.key;
     let hintText = field.description || "";
 
@@ -83,7 +79,7 @@ function renderDynamicFormFields(
     } else {
       const isMissing = field.required && missingFields.includes(field.key);
       const confidence = fieldConfidence[field.key];
-      const threshold = typeof FieldConfidenceThreshold !== "undefined" ? FieldConfidenceThreshold : 0.85;
+      const threshold = FieldConfidenceThreshold;
       const isLowConfidence = confidence !== undefined && confidence < threshold;
 
       if (isMissing) {
@@ -535,7 +531,7 @@ async function handleDeepAnalysis(e: GoogleAppsScriptEvent): Promise<GoogleAppsS
      } catch (err) {}
   }
 
-  const logRepo = (globalThis as any).defaultLogRepository || defaultLogRepository;
+  const logRepo = defaultLogRepository;
   const logSettings = logRepo.getLogSettings(p.logFileId, p.discipline);
   const contextObj = { contacts: logSettings.contacts, actions: logSettings.actions };
   const analyzeAction = defaultAnalyzeDocumentAction;
@@ -699,13 +695,13 @@ function onSpecTagChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servic
 function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};
-    const logRepo = (globalThis as any).defaultLogRepository || defaultLogRepository;
+    const logRepo = defaultLogRepository;
     logRepo.addNewTagToTagList(p.logFileId, p.newTag, p.newTitle);
     e.parameters = e.parameters || {};
     e.parameters.bypassTagValidation = "true";
     return processSubmission(e);
   } catch (err: any) {
-    const cp = (globalThis as any).defaultCardPresenter || defaultCardPresenter;
+    const cp = defaultCardPresenter;
     return cp.presentNotification("Error adding tag: " + err.message);
   }
 }
@@ -719,13 +715,13 @@ function processSubmissionWithNewTag(e: GoogleAppsScriptEvent): any {
 function processSubmissionWithNewVendor(e: GoogleAppsScriptEvent): any {
   try {
     const p = e.parameters || {};
-    const logRepo = (globalThis as any).defaultLogRepository || defaultLogRepository;
+    const logRepo = defaultLogRepository;
     logRepo.addNewVendorToTagList(p.logFileId, p.newVendor);
     e.parameters = e.parameters || {};
     e.parameters.bypassVendorValidation = "true";
     return processSubmission(e);
   } catch (err: any) {
-    const cp = (globalThis as any).defaultCardPresenter || defaultCardPresenter;
+    const cp = defaultCardPresenter;
     return cp.presentNotification("Error adding vendor: " + err.message);
   }
 }
@@ -770,7 +766,7 @@ function buildIntakeCard(
     }
   }
 
-  const threshold = typeof FieldConfidenceThreshold !== "undefined" ? FieldConfidenceThreshold : 0.85;
+  const threshold = FieldConfidenceThreshold;
   const lowConfidenceKeys = Object.keys(fieldConfidence).filter(k => fieldConfidence[k] < threshold);
   const isOverallLowConfidence = overallConfidence !== undefined && overallConfidence < threshold;
   const hasLowConfidence = lowConfidenceKeys.length > 0 || isOverallLowConfidence;
@@ -780,7 +776,7 @@ function buildIntakeCard(
   const messageId = (e && e.gmail && e.gmail.messageId) || p.messageId || null;
   const driveFileId = p.driveFileId || formInput.driveFileId || (flashMessage && flashMessage.newDriveFileId) || "";
 
-  const registry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== "undefined" ? defaultDocumentTypeConfigRegistry : null);
+  const registry = defaultDocumentTypeConfigRegistry;
   const resolvedDocType =
     formInput.documentType !== undefined
       ? formInput.documentType
@@ -810,7 +806,7 @@ function buildIntakeCard(
     notes: formInput.notes || ""
   };
 
-  const driveProvider = (globalThis as any).defaultDriveNameProvider || defaultDriveNameProvider;
+  const driveProvider = defaultDriveNameProvider;
   let drives: Array<{ id: string; name: string }> = [];
   if (driveProvider && typeof driveProvider.getSharedDrives === "function") {
     try {
@@ -836,7 +832,7 @@ function buildIntakeCard(
 
     if (discoveredLogs.length === 0) {
       try {
-        const logSearchTerm = (typeof CONFIG !== "undefined" && CONFIG.LOG_FILE_SEARCH_TERM) ? CONFIG.LOG_FILE_SEARCH_TERM : "Document Log";
+        const logSearchTerm = CONFIG.LOG_FILE_SEARCH_TERM || "Document Log";
         if (typeof Drive !== "undefined" && (Drive as any).Files) {
           const resp = (Drive as any).Files.list({
             q: `title contains '${logSearchTerm}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`,
@@ -861,7 +857,7 @@ function buildIntakeCard(
   }
 
   const discipline = state.documentType === "SUBMITTAL_FFE" ? "FF&E" : "Architecture";
-  const logRepo = (globalThis as any).defaultLogRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
+  const logRepo = defaultLogRepository;
   const logSettings = (logRepo && candidateLogFileId && typeof logRepo.getLogSettings === "function")
     ? logRepo.getLogSettings(candidateLogFileId, discipline)
     : { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null, targetFolderId: p.targetFolderId || "", logFileId: candidateLogFileId, sheetGids: {} };
@@ -880,7 +876,7 @@ function buildIntakeCard(
         const parents = logFile.getParents();
         if (parents.hasNext()) {
           const parent = parents.next();
-          const targetFolderName = (typeof CONFIG !== "undefined" && CONFIG.TARGET_FOLDER_NAME) ? CONFIG.TARGET_FOLDER_NAME : "Submittals";
+          const targetFolderName = CONFIG.TARGET_FOLDER_NAME || "Submittals";
           const sub = parent.getFoldersByName(targetFolderName);
           targetFolderId = sub.hasNext() ? sub.next().getId() : parent.getId();
         }
@@ -915,8 +911,8 @@ function buildIntakeCard(
     );
   }
 
-  if (flashMessage && (flashMessage.error || flashMessage.warning)) {
-    const msgText = flashMessage.error ? `⚠️ ${flashMessage.error}` : `⚠️ ${flashMessage.warning}`;
+  if (flashMessage && (flashMessage.error || flashMessage.warning || flashMessage.debugPhase2)) {
+    const msgText = flashMessage.error ? `⚠️ ${flashMessage.error}` : flashMessage.warning ? `⚠️ ${flashMessage.warning}` : flashMessage.debugPhase2;
     card.addSection(
       CardService.newCardSection().addWidget(
         CardService.newTextParagraph().setText(msgText)
@@ -1289,14 +1285,7 @@ function buildIntakeCard(
  */
 function buildDynamicSupportDataCard(
   e: GoogleAppsScriptEvent,
-  payload: {
-    supportDataKey: string;
-    fieldKey: string;
-    userValue: string;
-    dynamicPrompts: DynamicPromptConfig[];
-    message?: string;
-    interactionType?: string;
-  }
+  payload: DynamicPromptPayload
 ): GoogleAppsScript.Card_Service.Card {
   const form = (e && e.formInput) || {};
   const params = (e && e.parameters) || {};

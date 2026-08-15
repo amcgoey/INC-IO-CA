@@ -85,6 +85,8 @@ test.afterEach(() => {
   ERROR_AI_BUSY: "⚠️ AI Busy."
 };
 
+import { MESSAGES } from "../src/Config";
+import { defaultLogRepository } from "../src/GoogleSheetsLogRepository";
 import { CardPresenter, defaultCardPresenter } from "../src/adapters/gas/CardPresenter";
 import {
   onStateChange,
@@ -322,7 +324,7 @@ test("CardPresenter - presentMoveToClosedSuccess updates card with toast notific
 
   assert.ok(response);
   assert.equal(resJson.navigation?.action, "updateCard");
-  assert.equal(CardSerializer.getNotificationText(response), "Moved to Closed/Concrete");
+  assert.equal(CardSerializer.getNotificationText(response), MESSAGES.SUCCESS_MOVED("Closed/Concrete"));
 });
 
 test("UI.ts - handleRefreshCache invalidates cache and delegates response to defaultCardPresenter.presentCacheRefresh", () => {
@@ -456,7 +458,7 @@ test("CardPresenter - presentDeepAnalysisResult returns error notification toast
 
   assert.ok(response);
   assert.equal(response.navigation, undefined);
-  assert.equal(CardSerializer.getNotificationText(response), "⚠️ AI Busy.");
+  assert.equal(CardSerializer.getNotificationText(response), MESSAGES.ERROR_AI_BUSY);
 });
 
 test("CardPresenter - presentDraftEmailSuccess returns updateCard with updated success card and SUCCESS_DRAFT_CREATED notification", () => {
@@ -577,16 +579,16 @@ test("UI.ts - createDraftEmail delegates presentational response to defaultCardP
 test("UI.ts - processSubmissionWithNewTag / processSubmissionWithNewVendor delegate errors to defaultCardPresenter.presentNotification", () => {
   let notificationCalledWith: string | null = null;
   const originalPresentNotification = defaultCardPresenter.presentNotification;
+  const originalAddNewTag = defaultLogRepository.addNewTagToTagList;
+  const originalAddNewVendor = defaultLogRepository.addNewVendorToTagList;
 
   defaultCardPresenter.presentNotification = (text: string) => {
     notificationCalledWith = text;
     return { mockResponse: "presentNotification" } as any;
   };
 
-  (globalThis as any).defaultLogRepository = {
-    addNewTagToTagList: () => { throw new Error("Tag fail"); },
-    addNewVendorToTagList: () => { throw new Error("Vendor fail"); }
-  };
+  defaultLogRepository.addNewTagToTagList = () => { throw new Error("Tag fail"); };
+  defaultLogRepository.addNewVendorToTagList = () => { throw new Error("Vendor fail"); };
 
   try {
     const mockEventTag = EventFactory.createCardSubmitEvent({}, { parameters: { logFileId: "l1", newTag: "t1", newTitle: "n1" } });
@@ -600,6 +602,8 @@ test("UI.ts - processSubmissionWithNewTag / processSubmissionWithNewVendor deleg
     assert.deepEqual(resVendor, { mockResponse: "presentNotification" });
   } finally {
     defaultCardPresenter.presentNotification = originalPresentNotification;
+    defaultLogRepository.addNewTagToTagList = originalAddNewTag;
+    defaultLogRepository.addNewVendorToTagList = originalAddNewVendor;
   }
 });
 

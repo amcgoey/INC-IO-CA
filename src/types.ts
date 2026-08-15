@@ -1,5 +1,5 @@
-import type { DynamicPromptConfig } from "./core/specs/DocumentTypeSpec";
-﻿/** Fixed numerical confidence threshold (< 0.85) for triggering visual low-confidence warning indicators. */
+import type { DynamicPromptConfig, DynamicPromptPayload } from "./core/specs/DocumentTypeSpec";
+/** Fixed numerical confidence threshold (< 0.85) for triggering visual low-confidence warning indicators. */
 const FieldConfidenceThreshold: number = 0.85;
 
 /** Extracted field confidence object from 1-pass AI classification. */
@@ -319,6 +319,7 @@ interface ValidationContext {
   };
   bypassTagValidation?: boolean;
   bypassVendorValidation?: boolean;
+  bypassDatasets?: string[];
   contacts?: ContactSetting[];
   actions?: ActionSetting[];
   logSettings?: LogSettings;

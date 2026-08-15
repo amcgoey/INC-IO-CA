@@ -4,7 +4,7 @@ import { GasMockHarness } from "../../harness/GasMockHarness";
 import { CardSerializer } from "../../harness/CardSerializer";
 import { FakeDriveFilingRepository } from "../../harness/fakes/FakeDriveFilingRepository";
 import { FakePdfDocumentService } from "../../harness/fakes/FakePdfDocumentService";
-import { GoogleSheetsLogRepository } from "../../../src/GoogleSheetsLogRepository";
+import { GoogleSheetsLogRepository, defaultLogRepository } from "../../../src/GoogleSheetsLogRepository";
 import { defaultDocumentTypeConfigRegistry, DEFAULT_RFI_CONFIG, DEFAULT_ASI_CONFIG } from "../../../src/DocumentTypeConfigRegistry";
 import * as UI from "../../../src/adapters/gas/UI";
 import * as Process from "../../../src/Main";
@@ -393,7 +393,7 @@ test("IntakeCard - DocumentType change updates Open Submittal Log tab GID and hy
   const mockLogRepo = {
     getLogSettings: (_spreadsheetId: string, _discipline: string) => mockSettings
   };
-  (globalThis as any).defaultLogRepository = mockLogRepo;
+  defaultLogRepository.getLogSettings = mockLogRepo.getLogSettings as any;
 
   const archEvent = {
     formInput: { project: "PROJ", documentType: "SUBMITTAL_ARCH" },

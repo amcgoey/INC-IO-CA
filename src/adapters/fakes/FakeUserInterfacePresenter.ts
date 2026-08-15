@@ -1,7 +1,5 @@
-/**
- * @file FakeUserInterfacePresenter.ts
- * @description In-memory fake implementation of `UserInterfacePresenter` recording UI presentation outcomes for unit tests.
- */
+import type { UserInterfacePresenter } from "../../core/interfaces/UserInterfacePresenter";
+import type { DynamicPromptPayload } from "../../core/specs/DocumentTypeSpec";
 
 export class FakeUserInterfacePresenter implements UserInterfacePresenter {
   public calls: Array<{ method: string; args: any[] }> = [];
@@ -15,6 +13,12 @@ export class FakeUserInterfacePresenter implements UserInterfacePresenter {
   presentInteractionPrompt(event: GoogleAppsScriptEvent, promptType: "ADD_TAG" | "ADD_VENDOR", warningMessage: string): unknown {
     const payload = { method: "presentInteractionPrompt", event, promptType, warningMessage };
     this.calls.push({ method: "presentInteractionPrompt", args: [event, promptType, warningMessage] });
+    return payload;
+  }
+
+  presentDynamicPromptCard(event: GoogleAppsScriptEvent, promptPayload: DynamicPromptPayload): unknown {
+    const payload = { method: "presentDynamicPromptCard", event, payload: promptPayload };
+    this.calls.push({ method: "presentDynamicPromptCard", args: [event, promptPayload] });
     return payload;
   }
 
@@ -42,7 +46,6 @@ export class FakeUserInterfacePresenter implements UserInterfacePresenter {
     return payload;
   }
 
-  
   presentError(error: Error | string): unknown {
     const payload = { method: "presentError", error };
     this.calls.push({ method: "presentError", args: [error] });
@@ -60,12 +63,4 @@ export class FakeUserInterfacePresenter implements UserInterfacePresenter {
     this.calls.push({ method: "presentNotification", args: [notificationText] });
     return payload;
   }
-}
-
-declare let module: { exports?: unknown };
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    FakeUserInterfacePresenter
-  };
 }

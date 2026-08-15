@@ -373,7 +373,16 @@ export class ValidationEngine {
           let missingRequiredPrompt = false;
 
           if (!isBypassed) {
+            const blankSubmittedPrompts: string[] = [];
+
             for (const prompt of dynamicPrompts) {
+              const hasPromptKey =
+                prompt.columnKey in raw ||
+                `${field.key}_${prompt.columnKey}` in raw ||
+                `${dataset.key}_${prompt.columnKey}` in raw ||
+                raw.resumedFromDynamicPrompt === 'true' ||
+                options?.resumedFromDynamicPrompt === true;
+
               const promptVal =
                 raw[prompt.columnKey] ??
                 raw[`${field.key}_${prompt.columnKey}`] ??
@@ -384,12 +393,14 @@ export class ValidationEngine {
 
               if (prompt.required) {
                 if (promptValStr === '') {
-                  // If prompt is valueColumnKey and userVal is identical to displayColumnKey, check if action prompt requires confirmation
-                  if (
+                  if (hasPromptKey) {
+                    blankSubmittedPrompts.push(prompt.uiLabel);
+                  } else if (
                     prompt.columnKey === valueColumnKey &&
                     valueColumnKey === displayColumnKey &&
                     userVal !== '' &&
-                    (!Array.isArray(dataset.dynamicPrompts) || !dataset.dynamicPrompts.some((p) => typeof p === 'string' && p.startsWith('ADD_')))
+                    (!Array.isArray(dataset.dynamicPrompts) ||
+                      !dataset.dynamicPrompts.some((p) => typeof p === 'string' && p.startsWith('ADD_')))
                   ) {
                     sanitizedData[prompt.columnKey] = userVal;
                   } else {
@@ -402,6 +413,16 @@ export class ValidationEngine {
                 // Unprompted or skipped optional columns default to implicit blanks ("")
                 sanitizedData[prompt.columnKey] = promptValStr;
               }
+            }
+
+            if (blankSubmittedPrompts.length > 0) {
+              return {
+                status: 'invalid',
+                errors: [
+                  `Missing required support data field${blankSubmittedPrompts.length > 1 ? 's' : ''}: ${blankSubmittedPrompts.join(', ')}`,
+                ],
+                missingFields: blankSubmittedPrompts,
+              };
             }
           }
 

@@ -193,4 +193,45 @@ describe('ValidationEngine - Submission & Dynamic Prompt Intercept', () => {
       expect(result.data.notes).toBe(''); // Seamless empty string fallback
     }
   });
+
+  it('should emit invalid status with error when a user submits a required dynamic prompt with a blank value', () => {
+    const formInput = {
+      specTag: 'FB101',
+      vendor: 'Brand New Vendor Inc',
+      code: '   ', // Blank value submitted for required prompt
+      specTitle: 'Task Chair',
+      date: '260815',
+      action: 'Received',
+      contact: 'INT',
+      incomingRouting: 'To Review',
+      resumedFromDynamicPrompt: 'true',
+    };
+
+    const result = ValidationEngine.validateSubmission(ffeSpec, formInput);
+    expect(result.status).toBe('invalid');
+    if (result.status === 'invalid') {
+      expect(result.errors).toEqual(["Missing required support data field: Vendor Code"]);
+      expect(result.missingFields).toEqual(["Vendor Code"]);
+    }
+  });
+
+  it('should respect generic bypassDatasets option and validate cleanly', () => {
+    const formInput = {
+      specTag: 'FB101',
+      vendor: 'Brand New Vendor Inc',
+      specTitle: 'Task Chair',
+      date: '260815',
+      action: 'Received',
+      contact: 'INT',
+      incomingRouting: 'To Review',
+    };
+
+    const result = ValidationEngine.validateSubmission(ffeSpec, formInput, {
+      bypassDatasets: ['Vendors'],
+    });
+    expect(result.status).toBe('valid');
+    if (result.status === 'valid') {
+      expect(result.data.vendor).toBe('Brand New Vendor Inc');
+    }
+  });
 });

@@ -60,25 +60,10 @@ export interface SpreadsheetLike {
   getSheetByName(name: string): SpreadsheetSheetLike | null;
 }
 
-const DEFAULT_CONTACTS_LIST = [
-  { abbr: "ARCH", name: "Architect" },
-  { abbr: "GC", name: "General Contractor" },
-  { abbr: "CLIENT", name: "Client" },
-  { abbr: "MEP", name: "MEP Engineer" },
-  { abbr: "STR", name: "Structural Engineer" }
-];
-
-const DEFAULT_ACTIONS_LIST = [
-  { action: "Received", abbr: "REC", status: "Incoming" },
-  { action: "Reviewed", abbr: "REV", status: "Outgoing" },
-  { action: "Referred", abbr: "REF", status: "Outgoing" },
-  { action: "Rejected", abbr: "REJ", status: "Outgoing" }
-];
-
 export class PicklistResolver {
   /**
    * Generic resolution seam for picklist options based on configuration.
-   * Resolves options from supportData, spreadsheet named ranges, or logSettings,
+   * Resolves options from supportData, spreadsheet named ranges, or field options,
    * dynamically appending hydrated draftValue as a fallback option when missing to prevent data loss.
    */
   public static resolve(
@@ -155,51 +140,7 @@ export class PicklistResolver {
       }
     }
 
-    // 4. Resolve from context.logSettings
-    if (!isSuccess && context?.logSettings) {
-      const logSettings = context.logSettings;
-      const keyLower = (supportDataKey || field?.key || '').toLowerCase();
-
-      if (keyLower.includes('contact')) {
-        const contacts = logSettings.contacts && logSettings.contacts.length > 0
-          ? logSettings.contacts
-          : DEFAULT_CONTACTS_LIST;
-        resolvedOptions = contacts.map((c: any) => ({
-          value: String(c.abbr || c.code || c.value || ''),
-          label: c.name ? `${c.abbr || c.code} - ${c.name}` : String(c.abbr || c.code || '')
-        })).filter((o: PicklistOption) => o.value !== '');
-        if (resolvedOptions.length > 0) isSuccess = true;
-      } else if (keyLower.includes('action')) {
-        const actions = logSettings.actions && logSettings.actions.length > 0
-          ? logSettings.actions
-          : DEFAULT_ACTIONS_LIST;
-        resolvedOptions = actions.map((a: any) => ({
-          value: String(a.action || a.code || a.value || ''),
-          label: String(a.action || a.name || a.label || a.value || '')
-        })).filter((o: PicklistOption) => o.value !== '');
-        if (resolvedOptions.length > 0) isSuccess = true;
-      } else if (keyLower.includes('vendor')) {
-        const vendors = logSettings.ffeTags?.vendors;
-        if (Array.isArray(vendors) && vendors.length > 0) {
-          resolvedOptions = vendors.map((v: string) => ({
-            value: String(v),
-            label: String(v)
-          }));
-          if (resolvedOptions.length > 0) isSuccess = true;
-        }
-      } else if (keyLower.includes('spectag') || keyLower.includes('tag')) {
-        const tags = logSettings.ffeTags?.tags;
-        if (Array.isArray(tags) && tags.length > 0) {
-          resolvedOptions = tags.map((t: string) => ({
-            value: String(t),
-            label: String(t)
-          }));
-          if (resolvedOptions.length > 0) isSuccess = true;
-        }
-      }
-    }
-
-    // 5. Fallback to field.options if defined
+    // 4. Fallback to field.options if defined
     if (!isSuccess && field?.options && Array.isArray(field.options) && field.options.length > 0) {
       resolvedOptions = field.options.map((opt: any) => ({
         value: String(opt.value ?? ''),
@@ -212,7 +153,7 @@ export class PicklistResolver {
       isFallback = true;
     }
 
-    // 6. Draft Value Fallback Injection:
+    // 5. Draft Value Fallback Injection:
     // If a hydrated draftValue is not present in the resolved options list, dynamically append it as a fallback option
     if (draftValue !== undefined && draftValue !== null) {
       const draftValStr = String(draftValue).trim();
@@ -436,11 +377,4 @@ export class PicklistResolver {
 
     return rawVal.toUpperCase();
   }
-}
-
-declare let module: { exports?: unknown };
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    PicklistResolver
-  };
 }

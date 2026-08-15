@@ -5,7 +5,7 @@
  */
 
 import { DocumentFieldSpec, DocumentTypeSpec } from "./DocumentTypeSpec";
-import { PicklistResolver, PicklistOption } from "../config/PicklistResolver";
+import { PicklistResolver, PicklistOption, PicklistResolutionContext } from "../config/PicklistResolver";
 
 export type WidgetInputType =
   | "text"
@@ -46,27 +46,41 @@ export interface DocumentSectionViewModel {
   visible: boolean;
 }
 
+export interface ValidationUIContext {
+  missingFields?: string[];
+  fieldConfidence?: Record<string, number>;
+  onStateActionName?: string;
+  actionParams?: Record<string, string>;
+  [key: string]: any;
+}
+
+export interface HydrationContext {
+  formInput?: Record<string, any>;
+  state?: Record<string, any>;
+  userCacheDraft?: Record<string, any>;
+  parserResult?: Record<string, any>;
+  aiMetadata?: Record<string, any>;
+  logSettings?: Record<string, any>;
+  spreadsheet?: any;
+  docTypeKey?: string;
+  activeSheetName?: string;
+  spec?: DocumentTypeSpec | null;
+  supportData?: Record<string, any>;
+  [key: string]: any;
+}
+
 export interface WidgetFactoryOptions {
-  hydrationContext?: {
-    formInput?: Record<string, any>;
-    state?: Record<string, any>;
-    userCacheDraft?: Record<string, any>;
-    parserResult?: Record<string, any>;
-    aiMetadata?: Record<string, any>;
-    logSettings?: Record<string, any>;
-    spreadsheet?: any;
-    docTypeKey?: string;
-    activeSheetName?: string;
-    [key: string]: any;
-  };
-  validationContext?: {
-    missingFields?: string[];
-    fieldConfidence?: Record<string, number>;
-    onStateActionName?: string;
-    actionParams?: Record<string, string>;
-    [key: string]: any;
-  };
+  hydrationContext?: HydrationContext;
+  validationContext?: ValidationUIContext;
   confidenceThreshold?: number;
+}
+
+export interface FieldBuildContext {
+  field: DocumentFieldSpec;
+  hydration?: HydrationContext;
+  validation?: ValidationUIContext;
+  threshold?: number;
+  spec?: DocumentTypeSpec | null;
 }
 
 const DEFAULT_CONFIDENCE_THRESHOLD = 0.85;
@@ -91,11 +105,6 @@ export class DocumentTypeWidgetFactory {
     const validation = options?.validationContext || {};
     const threshold = options?.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
 
-    const missingFields = validation.missingFields || [];
-    const fieldConfidence = validation.fieldConfidence || {};
-    const onStateActionName = validation.onStateActionName || "onStateChange";
-    const actionParams = validation.actionParams || {};
-
     const displayName = spec.label || spec.name || spec.key;
     const header = `3. Document Attributes (${displayName})`;
 
@@ -108,16 +117,13 @@ export class DocumentTypeWidgetFactory {
         continue;
       }
 
-      const widgetVm = this.buildFieldViewModel(
+      const widgetVm = this.buildFieldViewModel({
         field,
         hydration,
-        missingFields,
-        fieldConfidence,
+        validation,
         threshold,
-        onStateActionName,
-        actionParams,
         spec
-      );
+      });
 
       if (widgetVm) {
         widgetViewModels.push(widgetVm);
@@ -138,7 +144,7 @@ export class DocumentTypeWidgetFactory {
    */
   private static resolveHydratedValue(
     field: DocumentFieldSpec,
-    hydration: Record<string, any>
+    hydration: HydrationContext
   ): any {
     const formInput = hydration.formInput || {};
     const state = hydration.state || {};
@@ -160,7 +166,7 @@ export class DocumentTypeWidgetFactory {
 
   /**
    * Formats the display title and diagnostic hint text applying formatting precedence:
-   * Missing required fields (?) take precedence over low AI confidence (??).
+   * Missing required fields (❌) take precedence over low AI confidence (⚠️).
    */
   public static formatFieldTitleAndHint(
     field: DocumentFieldSpec,
@@ -174,15 +180,15 @@ export class DocumentTypeWidgetFactory {
 
     let displayTitle = field.label || field.key;
     if (isMissing) {
-      displayTitle = "\u274C " + displayTitle;
+      displayTitle = "❌ " + displayTitle;
     } else if (isLowConfidence) {
-      displayTitle = "\u26A0\uFE0F " + displayTitle;
+      displayTitle = "⚠️ " + displayTitle;
     }
 
     let hintText = field.description || "";
     if (isLowConfidence && !isMissing) {
       const pct = Math.round(confidence * 100);
-      hintText = `Low AI confidence (${pct}%) \u2014 please verify`;
+      hintText = `Low AI confidence (${pct}%) — please verify`;
     }
 
     return {
@@ -195,63 +201,49 @@ export class DocumentTypeWidgetFactory {
   }
 
   /**
-   * Builds an individual DocumentWidgetViewModel for a field specification.
+   * Builds an individual DocumentWidgetViewModel for a field specification from a consolidated FieldBuildContext.
    */
-  private static buildFieldViewModel(
-    field: DocumentFieldSpec,
-    hydration: Record<string, any>,
-    missingFields: string[],
-    fieldConfidence: Record<string, number>,
-    threshold: number,
-    onStateActionName: string,
-    actionParams: Record<string, string>,
-    spec?: DocumentTypeSpec | null
-  ): DocumentWidgetViewModel | null {
+  public static buildFieldViewModel(context: FieldBuildContext): DocumentWidgetViewModel | null {
+    const { field, hydration = {}, validation = {}, threshold = DEFAULT_CONFIDENCE_THRESHOLD, spec } = context;
+
+    const missingFields = validation.missingFields || [];
+    const fieldConfidence = validation.fieldConfidence || {};
+    const onStateActionName = validation.onStateActionName || "onStateChange";
+    const actionParams = validation.actionParams || {};
+
     const hydratedValue = this.resolveHydratedValue(field, hydration);
     const { displayTitle, hintText, isMissing, isLowConfidence, confidence } =
       this.formatFieldTitleAndHint(field, missingFields, fieldConfidence, threshold);
 
-    const logSettings = hydration.logSettings || {};
+    // Common Resolution Context for Picklists and Suggestions
+    const resolutionContext: PicklistResolutionContext = {
+      spec: hydration.spec || spec,
+      supportData: spec?.supportData || hydration.supportData,
+      spreadsheet: hydration.spreadsheet || null,
+      docTypeKey: hydration.docTypeKey || spec?.key,
+      activeSheetName: hydration.activeSheetName || spec?.label || spec?.name,
+      logSettings: hydration.logSettings,
+      fieldSpec: field
+    };
 
-    // Special Field Handling for Incoming Routing (conditional on incoming/received action)
-    if (field.key === "incomingRouting") {
-      const currentAction =
-        hydration.formInput?.action ||
-        hydration.state?.action ||
-        hydration.userCacheDraft?.action ||
-        hydration.parserResult?.action ||
-        hydration.aiMetadata?.action ||
-        "";
+    // Multi-select dropdown
+    if (field.type === "multi_select") {
+      const resolved = PicklistResolver.resolve(field.picklistSource, resolutionContext, hydratedValue);
+      const optionsList = resolved.options || [];
+      const selectedStr = String(hydratedValue || "");
 
-      const actionsList =
-        logSettings.actions && logSettings.actions.length > 0
-          ? logSettings.actions
-          : [{ action: "Received", abbr: "REC", status: "Incoming" }];
-
-      const isIncomingAction =
-        currentAction === "Received" ||
-        actionsList.some(
-          (a: any) =>
-            (a.action === currentAction || a.abbr === currentAction) &&
-            a.action === "Received"
-        );
-
-      if (!isIncomingAction) {
-        return null; // Omit incomingRouting when action is not Incoming/Received
-      }
-
-      const isRefer = String(hydratedValue) === "To Refer";
-      const options: WidgetOptionViewModel[] = [
-        { label: "To Review", value: "To Review", isSelected: !isRefer },
-        { label: "To Refer", value: "To Refer", isSelected: isRefer }
-      ];
+      const options: WidgetOptionViewModel[] = optionsList.map((opt: PicklistOption) => ({
+        label: opt.label || opt.value,
+        value: opt.value,
+        isSelected: selectedStr.includes(opt.value) || selectedStr === opt.value
+      }));
 
       return {
-        key: "incomingRouting",
-        type: "dropdown",
+        key: field.key,
+        type: "multi_select",
         displayTitle,
         hintText,
-        value: hydratedValue || "To Review",
+        value: hydratedValue,
         required: Boolean(field.required),
         options,
         isMissing,
@@ -262,191 +254,22 @@ export class DocumentTypeWidgetFactory {
       };
     }
 
-    // Common Resolution Context for Picklists and Suggestions
-    const resolutionContext = {
-      spec: hydration.spec || spec,
-      supportData: spec?.supportData || hydration.supportData,
-      spreadsheet: hydration.spreadsheet || null,
-      docTypeKey: hydration.docTypeKey || spec?.key,
-      activeSheetName: hydration.activeSheetName || spec?.label || spec?.name,
-      logSettings: hydration.logSettings,
-      fieldSpec: field
-    };
-
-    // Special Field Handling for FF&E Spec Tag (when type is string / text)
-    if (
-      field.key === "specTag" &&
-      field.type !== "list" &&
-      field.type !== "enum"
-    ) {
-      let suggestions: string[] | undefined;
-      if (field.picklistSource) {
-        const resolved = PicklistResolver.resolve(field.picklistSource, resolutionContext);
-        if (resolved.options && resolved.options.length > 0) {
-          suggestions = resolved.options.map(o => o.value);
-        }
-      }
-      if (!suggestions || suggestions.length === 0) {
-        const ffeTags = logSettings.ffeTags && logSettings.ffeTags.tags ? logSettings.ffeTags.tags : [];
-        if (ffeTags.length > 0) suggestions = ffeTags;
-      }
-
-      return {
-        key: "specTag",
-        type: "text",
-        displayTitle,
-        hintText,
-        value: hydratedValue,
-        required: Boolean(field.required),
-        suggestions: suggestions && suggestions.length > 0 ? suggestions : undefined,
-        isMissing,
-        isLowConfidence,
-        confidence,
-        onStateActionName: "onSpecTagChange",
-        actionParams
-      };
-    }
-
-    // Special Field Handling for FF&E Related Tags (when type is string / text)
-    if (
-      field.key === "relatedTag" &&
-      field.type !== "list" &&
-      field.type !== "enum" &&
-      (!field.options || field.options.length === 0)
-    ) {
-      const ffeTags =
-        logSettings.ffeTags && logSettings.ffeTags.tags ? logSettings.ffeTags.tags : [];
-
-      if (ffeTags.length > 0) {
-        const selectedStr = String(hydratedValue || "");
-        const options: WidgetOptionViewModel[] = ffeTags.map((tag: string) => ({
-          label: tag,
-          value: tag,
-          isSelected: selectedStr.includes(tag)
-        }));
-
-        return {
-          key: "relatedTag",
-          type: "multi_select",
-          displayTitle,
-          hintText,
-          value: hydratedValue,
-          required: Boolean(field.required),
-          options,
-          isMissing,
-          isLowConfidence,
-          confidence,
-          onStateActionName,
-          actionParams
-        };
-      }
-
-      return {
-        key: "relatedTag",
-        type: "text",
-        displayTitle,
-        hintText,
-        value: hydratedValue,
-        required: Boolean(field.required),
-        isMissing,
-        isLowConfidence,
-        confidence,
-        onStateActionName,
-        actionParams
-      };
-    }
-
-    // Special Field Handling for FF&E Spec Title
-    if (
-      field.key === "specTitle" &&
-      field.type !== "list" &&
-      field.type !== "enum" &&
-      (!field.options || field.options.length === 0)
-    ) {
-      const currentSpecTag =
-        hydration.formInput?.specTag ||
-        hydration.state?.specTag ||
-        hydration.userCacheDraft?.specTag ||
-        hydration.parserResult?.specTag ||
-        hydration.aiMetadata?.specTag ||
-        "";
-
-      const tagMap =
-        logSettings.ffeTags && logSettings.ffeTags.tagMap
-          ? logSettings.ffeTags.tagMap
-          : {};
-
-      let titleVal = String(hydratedValue || "");
-      if (!titleVal && currentSpecTag && tagMap[currentSpecTag]) {
-        titleVal = tagMap[currentSpecTag];
-      }
-
-      return {
-        key: "specTitle",
-        type: "text",
-        displayTitle,
-        hintText,
-        value: titleVal,
-        required: Boolean(field.required),
-        isMissing,
-        isLowConfidence,
-        confidence,
-        onStateActionName,
-        actionParams
-      };
-    }
-
-    // Special Field Handling for FF&E Vendor (when type is string / text)
-    if (
-      field.key === "vendor" &&
-      field.type !== "list" &&
-      field.type !== "enum"
-    ) {
-      let suggestions: string[] | undefined;
-      if (field.picklistSource) {
-        const resolved = PicklistResolver.resolve(field.picklistSource, resolutionContext);
-        if (resolved.options && resolved.options.length > 0) {
-          suggestions = resolved.options.map(o => o.value);
-        }
-      }
-      if (!suggestions || suggestions.length === 0) {
-        const ffeVendors = logSettings.ffeTags && logSettings.ffeTags.vendors ? logSettings.ffeTags.vendors : [];
-        if (ffeVendors.length > 0) suggestions = ffeVendors;
-      }
-
-      return {
-        key: "vendor",
-        type: "text",
-        displayTitle,
-        hintText,
-        value: hydratedValue,
-        required: Boolean(field.required),
-        suggestions: suggestions && suggestions.length > 0 ? suggestions : undefined,
-        isMissing,
-        isLowConfidence,
-        confidence,
-        onStateActionName,
-        actionParams
-      };
-    }
-
-    // Dropdown fields (list, enum, or fields with picklistSource / contact / action)
+    // Dropdown fields (list, enum, or fields with picklistSource when not string/multiline/date/number/boolean)
     const isDropdown =
       field.type === "list" ||
       field.type === "enum" ||
-      (Boolean(field.picklistSource) && field.type !== "string" && field.type !== "multiline" && field.type !== "date" && field.type !== "number" && field.type !== "boolean") ||
-      field.key === "contact" ||
-      field.key === "action";
+      (Boolean(field.picklistSource) &&
+        field.type !== "string" &&
+        field.type !== "multiline" &&
+        field.type !== "date" &&
+        field.type !== "number" &&
+        field.type !== "boolean");
 
     if (isDropdown) {
       const resolved = PicklistResolver.resolve(field.picklistSource, resolutionContext, hydratedValue);
-      const optionsList = resolved.options;
+      const optionsList = resolved.options || [];
 
       const options: WidgetOptionViewModel[] = [];
-
-      if (field.key === "action" && !optionsList.some((o: PicklistOption) => o.value === "")) {
-        options.push({ label: "", value: "", isSelected: !hydratedValue });
-      }
 
       if (optionsList.length === 0) {
         options.push({ label: "-- None --", value: "", isSelected: true });
@@ -483,7 +306,7 @@ export class DocumentTypeWidgetFactory {
     }
 
     // Date field handling
-    if (field.key === "date" || field.type === "date") {
+    if (field.type === "date") {
       let epochMs: number | undefined;
       if (hydratedValue) {
         if (typeof hydratedValue === "number") {
@@ -503,7 +326,7 @@ export class DocumentTypeWidgetFactory {
 
       return {
         key: field.key,
-        type: field.type === "date" ? "date_picker" : "date",
+        type: "date_picker",
         displayTitle: displayTitle || "Date",
         hintText: hintText || "Date (YYMMDD)",
         value: hydratedValue,
@@ -534,7 +357,15 @@ export class DocumentTypeWidgetFactory {
       };
     }
 
-    // Default Single-Line Text
+    // Default Single-Line Text / String (with optional suggestions from picklistSource)
+    let suggestions: string[] | undefined;
+    if (field.picklistSource) {
+      const resolved = PicklistResolver.resolve(field.picklistSource, resolutionContext);
+      if (resolved.options && resolved.options.length > 0) {
+        suggestions = resolved.options.map(o => o.value);
+      }
+    }
+
     return {
       key: field.key,
       type: "text",
@@ -542,6 +373,7 @@ export class DocumentTypeWidgetFactory {
       hintText,
       value: hydratedValue,
       required: Boolean(field.required),
+      suggestions: suggestions && suggestions.length > 0 ? suggestions : undefined,
       isMissing,
       isLowConfidence,
       confidence,
