@@ -9,19 +9,41 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
   ) {}
 
   private extractRecord(doc: ValidatedDocument): Record<string, unknown> {
-    const record: Record<string, unknown> = { ...(doc as any) };
-    
-    if (doc && typeof doc === 'object') {
-      for (const [key, val] of Object.entries(doc as any)) {
-        if (val && typeof val === 'object') {
-          if ('storedValue' in val) {
-            record[key] = (val as { storedValue: unknown }).storedValue;
-          } else {
-            Object.assign(record, val);
-          }
+    const record: Record<string, unknown> = {};
+
+    if (!doc) {
+      return record;
+    }
+
+    record.documentType = doc.documentType;
+    record.date = doc.date;
+    record.contact = doc.contact;
+    record.action = doc.action;
+    if (doc.notes !== undefined) record.notes = doc.notes;
+    if (doc.incomingRouting !== undefined) record.incomingRouting = doc.incomingRouting;
+
+    if (doc.disciplineDetails) {
+      const details = doc.disciplineDetails as Record<string, unknown>;
+      for (const [k, v] of Object.entries(details)) {
+        if (v !== undefined) {
+          record[k] = v;
         }
       }
     }
+
+    if (doc.listFields) {
+      for (const [key, field] of Object.entries(doc.listFields)) {
+        record[key] = field.storedValue;
+      }
+    }
+
+    const docObj = doc as unknown as Record<string, unknown>;
+    for (const key of Object.keys(docObj)) {
+      if (key !== 'disciplineDetails' && key !== 'listFields' && !(key in record)) {
+        record[key] = docObj[key];
+      }
+    }
+
     return record;
   }
 
@@ -64,7 +86,7 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
         }
         continue;
       }
-      
+
       const val = record[field.key];
       if (val !== undefined && val !== null) {
         payload[header] = String(val);

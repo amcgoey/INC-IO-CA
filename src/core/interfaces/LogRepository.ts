@@ -60,7 +60,7 @@ export interface LogRepository {
   ): ReadLogResult;
 }
 
-declare var module: Record<string, unknown>;
+declare let module: Record<string, unknown>;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {};

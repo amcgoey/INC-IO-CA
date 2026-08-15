@@ -73,7 +73,7 @@ export class GoogleDriveNameProvider implements DriveNameProvider {
 }
 
 /** Global default instance seam for DriveNameProvider. */
-var defaultDriveNameProvider: DriveNameProvider = new GoogleDriveNameProvider();
+const defaultDriveNameProvider: DriveNameProvider = new GoogleDriveNameProvider();
 
 export { defaultDriveNameProvider };
 

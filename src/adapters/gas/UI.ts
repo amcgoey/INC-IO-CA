@@ -807,7 +807,7 @@ function buildIntakeCard(
   }
   drives.sort((a, b) => a.name.localeCompare(b.name));
 
-  let matchedDrive = drives.find(d => d.name === state.project || d.id === state.project);
+  const matchedDrive = drives.find(d => d.name === state.project || d.id === state.project);
   const selectedDriveId = matchedDrive ? matchedDrive.id : (initialData && (initialData as any).driveId ? (initialData as any).driveId : "");
 
   let candidateLogFileId = formInput.logFileId || p.logFileId || (initialData && (initialData as any).logFileId) || "";
@@ -850,7 +850,7 @@ function buildIntakeCard(
 
   const discipline = state.documentType === "SUBMITTAL_FFE" ? "FF&E" : "Architecture";
   const logRepo = (globalThis as any).defaultLogRepository || (typeof defaultLogRepository !== "undefined" ? defaultLogRepository : null);
-  let logSettings = (logRepo && candidateLogFileId && typeof logRepo.getLogSettings === "function")
+  const logSettings = (logRepo && candidateLogFileId && typeof logRepo.getLogSettings === "function")
     ? logRepo.getLogSettings(candidateLogFileId, discipline)
     : { contacts: [], actions: [], ffeTags: { tags: [], vendors: [], tagMap: {} }, projectAbbr: "", logSheetId: null, targetFolderId: p.targetFolderId || "", logFileId: candidateLogFileId, sheetGids: {} };
 
@@ -1030,7 +1030,7 @@ function buildIntakeCard(
   const fileSourceSec = CardService.newCardSection().setHeader("2. File Source");
 
   let pdfAttachments: any[] = [];
-  let extractedUrls: Array<{ url: string; text: string }> = [];
+  const extractedUrls: Array<{ url: string; text: string }> = [];
 
   try {
     if (messageId && typeof GmailApp !== "undefined" && GmailApp.getMessageById) {
@@ -1043,7 +1043,7 @@ function buildIntakeCard(
       const urlMap = new Map<string, string>();
 
       while ((match = linkRegex.exec(htmlBody)) !== null) {
-        let url = match[1];
+        const url = match[1];
         let label = match[2].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 
         if (!url.includes('schemas.') && !url.includes('w3.org') && !url.includes('google.com')) {
@@ -1060,7 +1060,7 @@ function buildIntakeCard(
       });
 
       urlMap.forEach((label, url) => {
-        let cleanLabel = label.length > 40 ? label.substring(0, 37) + "..." : label;
+        const cleanLabel = label.length > 40 ? label.substring(0, 37) + "..." : label;
         extractedUrls.push({ url: url, text: `🔗 ${cleanLabel}` });
       });
     }

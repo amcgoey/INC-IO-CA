@@ -353,7 +353,7 @@ export {
   DOCUMENT_LOG_WORKBOOK_SPEC
 };
 
-declare var module: any;
+declare let module: any;
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {

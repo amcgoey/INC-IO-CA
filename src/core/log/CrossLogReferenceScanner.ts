@@ -572,7 +572,7 @@ export function repairCrossLogReferences(
   return results;
 }
 
-declare var module: { exports?: unknown };
+declare let module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {

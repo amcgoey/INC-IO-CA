@@ -1,4 +1,4 @@
-/// <reference path="../../types.ts" />
+﻿/// <reference path="../../types.ts" />
 /**
  * @file WorkflowRunner.ts
  * @description Action pipeline engine and primitive document actions (MoveDocumentAction & RenameDocumentAction).
@@ -12,23 +12,33 @@ import { MoveDocumentAction } from './MoveDocumentAction';
 class WorkflowRunner {
   /**
    * Executes actions in order, threading and updating the context through each step.
-   * Preserves context.adapters across step executions and enriches step error propagation.
+   * Preserves context.adapters across step executions, injects policy into action context,
+   * and enriches step error propagation.
    *
    * @param actions - Array of DocumentAction instances to execute.
    * @param initialContext - Starting DocumentActionContext.
+   * @param policy - Optional WorkflowPolicySpec passed directly into DocumentActionContext.
    * @returns Resolves to final updated DocumentActionContext.
    */
   static async run(
     actions: DocumentAction[],
-    initialContext: DocumentActionContext
+    initialContext: DocumentActionContext,
+    policy?: WorkflowPolicySpec
   ): Promise<DocumentActionContext> {
-    let context = { ...initialContext };
+    let context: DocumentActionContext = {
+      ...initialContext,
+      ...(policy !== undefined ? { policy } : {})
+    };
     for (const action of actions) {
       try {
+        if (policy !== undefined) {
+          context.policy = policy;
+        }
         const nextContext = await action.execute(context);
         context = {
           ...nextContext,
-          adapters: nextContext.adapters || context.adapters
+          adapters: nextContext.adapters || context.adapters,
+          ...(policy !== undefined ? { policy } : (nextContext.policy !== undefined ? { policy: nextContext.policy } : {}))
         };
       } catch (error: any) {
         const actionName = action.name || action.constructor?.name || 'DocumentAction';
@@ -91,7 +101,7 @@ class RenameDocumentAction implements DocumentAction<DocumentActionContext, Docu
     }
 
     const finalName = context.newFileName;
-    const driveApp = context.driveApp || (typeof (globalThis as any).DriveApp !== 'undefined' ? (globalThis as any).DriveApp : null);
+    const driveApp = context.driveApp || (typeof globalThis !== 'undefined' ? (globalThis as any).DriveApp : null);
 
     if (context.fileId && driveApp) {
       const file = driveApp.getFileById(context.fileId);

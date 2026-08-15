@@ -1,15 +1,14 @@
-import { CONFIG, MESSAGES } from "./Config";
+﻿import { CONFIG, MESSAGES } from "./Config";
 import { CardDraftStateManager } from "./prototypes/CardDraftStateManager";
 import { TransientOverrideLogger } from "./core/logging/TransientOverrideLogger";
-import { buildIntakeCard } from "./adapters/gas/UI";
+import { buildIntakeCard, buildSuccessCard } from "./adapters/gas/UI";
 import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
 import { DocumentPipeline } from "./core/intake/DocumentPipeline";
 import { DeclarativeDocumentLogStrategy } from "./core/logging/DeclarativeDocumentLogStrategy";
 import { defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
+import { defaultDocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
 import { getActionPolicy } from "./core/workflow/WorkflowPolicy";
 import { PipelineBuilder } from "./core/workflow/PipelineBuilder";
-import { WorkflowRunner } from "./core/workflow/WorkflowRunner";
-import { defaultActionRegistry } from "./core/workflow/ActionRegistry";
 import { defaultLogRepository } from "./GoogleSheetsLogRepository";
 import { defaultDriveFilingRepository } from "./DriveFilingRepository";
 
@@ -42,7 +41,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const logSheet = openSs.getSheetByName(CONFIG.LOG_SHEET_NAME) || openSs.getSheetByName("Submittals Log") || openSs.getSheetByName("Submittal Arch") || (openSs.getSheets ? openSs.getSheets()[0] : null);  
     if (!logSheet) throw new Error("Log sheet not found in spreadsheet");
 
-    const logRepo = (globalThis as any).defaultLogRepository || defaultLogRepository;
+    const logRepo = defaultLogRepository;
     const settings = logRepo.getLogSettings(p.logFileId, disc);  
     const selectedAction = settings.actions.find(a => a.action === form.action) || { action: "", abbr: "", status: "" };
 
@@ -54,14 +53,11 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     };
 
     const initialAi = (e as any).aiResult || (p && p.aiResult ? JSON.parse(p.aiResult) : null) || null;
-if (initialAi) {
-    const LoggerClass = typeof (globalThis as any).TransientOverrideLogger !== "undefined" ? (globalThis as any).TransientOverrideLogger : (typeof TransientOverrideLogger !== "undefined" ? TransientOverrideLogger : null);
-    if (LoggerClass) {
-      new LoggerClass().logOverrides(initialAi, form);
+    if (initialAi) {
+      new TransientOverrideLogger().logOverrides(initialAi, form);
     }
-}
 
-const validationResult = DocumentPipeline.processFormIntake(form, validationContext);
+    const validationResult = DocumentPipeline.processFormIntake(form, validationContext);
 
     if (validationResult.status === "error") {
       return defaultCardPresenter.presentValidationError(
@@ -72,34 +68,24 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
     }
 
     if (validationResult.status === "interaction_required") {
-      const flash: FlashMessage = {};
-      if (validationResult.interactionType === "ADD_TAG") {
-        flash.promptAddTag = true;
-        flash.warning = validationResult.message;
-      } else if (validationResult.interactionType === "ADD_VENDOR") {
-        flash.promptAddVendor = true;
-        flash.warning = validationResult.message;
-      }
-      const builder = (globalThis as any).buildIntakeCard || buildIntakeCard;
-      return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(builder(e, null, flash)))
-        .build();
+      return defaultCardPresenter.presentInteractionPrompt(
+        e,
+        validationResult.interactionType,
+        validationResult.message
+      );
     }
 
     const validatedDoc = validationResult.data;
     const emptyFallbacks = validationResult.warnings;
     const logSheetId = logSheet && typeof logSheet.getSheetId === "function" ? logSheet.getSheetId() : undefined;
 
-    const logRepository = (globalThis as any).defaultLogRepository || defaultLogRepository;
-    const driveFilingRepository = (globalThis as any).defaultDriveFilingRepository || defaultDriveFilingRepository;
+    const logRepository = defaultLogRepository;
+    const driveFilingRepository = defaultDriveFilingRepository;
 
-    const configRegistry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== "undefined" ? defaultDocumentTypeConfigRegistry : null);
-    let config: any = null;
-    let isDeclarative = false;
-    if (configRegistry && configRegistry.hasConfig(validatedDoc.documentType || disc)) {
-      config = configRegistry.getConfig(validatedDoc.documentType || disc);
-      isDeclarative = config.logStrategy && config.logStrategy.spec && config.logStrategy.spec.workflows && config.logStrategy.spec.workflows.length > 0;
-    }
+    const docType = validatedDoc.documentType || disc;
+    const config = defaultDocumentTypeConfigRegistry.hasConfig(docType)
+      ? defaultDocumentTypeConfigRegistry.getConfig(docType)
+      : undefined;
 
     const input: DocumentWorkflowInput = {
       validatedDoc,
@@ -119,14 +105,12 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
       driveFilingRepository
     };
 
-    const PipelineBuilderClass = (globalThis as any).PipelineBuilder || PipelineBuilder;
-    const result: DocumentWorkflowResult = await PipelineBuilderClass.buildAndExecute(input);
+    const result: DocumentWorkflowResult = await PipelineBuilder.buildAndExecute(input);
 
-    const policyFn = (globalThis as any).getActionPolicy || getActionPolicy;
     try {
       const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
       if (userCache) {
-        const cdsm = typeof CardDraftStateManager !== "undefined" ? CardDraftStateManager : (globalThis as any).CardDraftStateManager;
+        const cdsm = CardDraftStateManager;
         const evictDraft = (key: string) => {
           const cacheKey = key.startsWith("CARD_DRAFT_V1_") ? key : `CARD_DRAFT_V1_${key}`;
           if (userCache && typeof userCache.remove === "function") {
@@ -149,17 +133,13 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
       }
     } catch (_err) {}
 
-    const policy = policyFn(result.action);
+    const policy = getActionPolicy(result.action);
 
     if (policy.direction === "incoming") {
-      const builder = (globalThis as any).buildIntakeCard || buildIntakeCard;
-      return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(builder(e, null, result)))
-        .build();
+      return defaultCardPresenter.presentIncomingSuccess(e, result);
     }
 
-    const cp = (globalThis as any).defaultCardPresenter || defaultCardPresenter;
-    return cp.presentOutgoingSuccess(e, result, p);
+    return defaultCardPresenter.presentOutgoingSuccess(e, result, p);
 
   } catch (err: any) {
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build();
@@ -203,7 +183,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
       ? strategy.getFilingSubfolders(doc)
       : [closedFolder];
 
-    const driveFilingRepo = (e && (e as any).driveFilingRepository) || (globalThis as any).defaultDriveFilingRepository || defaultDriveFilingRepository;
+    const driveFilingRepo = defaultDriveFilingRepository;
     const filingResult = driveFilingRepo.fileDocument(
       { fileId: p.fileId },
       { targetFolderId: p.targetFolderId, subfolderPath }
@@ -219,14 +199,12 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
       p.directRowUrl, failedCols, emptyFalls
     );
     return defaultCardPresenter.presentMoveToClosedSuccess(e, updated, destName);
-  } catch (err: any) { return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build(); }
+  } catch (err: any) {
+    return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build();
+  }
 }
 
 export {
   processSubmission,
   moveSubmittalToClosed
 };
-
-
-
-
