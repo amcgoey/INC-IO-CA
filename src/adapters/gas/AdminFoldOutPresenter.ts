@@ -71,6 +71,7 @@ export interface AdminFoldOutContextData {
   documentType?: string;
   tabName?: string;
   auditReport?: TemplateDriftReport;
+  specValidationReport?: SpecValidationResult[];
   lockContention?: boolean;
   error?: Error | SpreadsheetBatchReadException | unknown;
   [key: string]: any;
@@ -234,6 +235,27 @@ export class AdminFoldOutPresenter {
         )
       );
     }
+    // If an inline Spec Configuration Errors report is present, render it
+    const specReport: SpecValidationResult[] | undefined = contextData?.specValidationReport;
+    if (specReport && specReport.length > 0) {
+      const invalidSpecs = specReport.filter((r) => r.status === "invalid");
+      if (invalidSpecs.length > 0) {
+        const errorBullets = invalidSpecs
+          .flatMap((r) => (r.status === "invalid" ? r.errors : []))
+          .map((err) => "• " + err)
+          .join("<br/>");
+
+        section.addWidget(
+          CardService.newTextParagraph().setText(
+            "⚠️ <b>Spec Configuration Errors</b><br/>" +
+            "Domain schema violations were detected during configuration decompilation:<br/><br/>" +
+            (errorBullets || "• Unknown domain configuration violation.") +
+            "<br/><br/><i>Please correct the configuration values in the <b>_Config</b> and support tabs, then retry saving.</i>"
+          )
+        );
+      }
+    }
+
     // If an inline Schema Health Report is present, render it
     if (report) {
       const statusPillMap: Record<string, string> = {
@@ -635,11 +657,25 @@ export function onSaveToJsonConfiguration(
       .build();
   }
 
-  const errors = extractValidationErrors(validationResults);
-  if (errors.length > 0 || validationResults.length === 0) {
-    const errorSummary = errors.length > 0 ? errors.join("; ") : "No valid document type specifications found.";
+  let reportForCard = validationResults;
+  if (reportForCard.length === 0) {
+    reportForCard = [{ status: "invalid", errors: ["No valid document type specifications found in configuration tabs."] }];
+  }
+
+  const errors = extractValidationErrors(reportForCard);
+  if (errors.length > 0) {
+    const SheetsRootCardClass = getSheetsRootCardClass();
+    const sheetName = e?.sheetsContext?.sheetName || e?.parameters?.sheetName || undefined;
+
+    const updatedCard = SheetsRootCardClass.buildSheetsRootCard({
+      spreadsheetId,
+      sheetName,
+      specValidationReport: reportForCard
+    });
+
     return CardService.newActionResponseBuilder()
-      .setNotification(CardService.newNotification().setText("Decompilation failed: " + errorSummary))
+      .setNavigation(CardService.newNavigation().updateCard(updatedCard))
+      .setNotification(CardService.newNotification().setText("Decompilation failed: Domain configuration errors detected."))
       .build();
   }
 

@@ -23,6 +23,7 @@ export interface SheetsContextParams {
   sheetName?: string;
   sheetId?: number;
   auditReport?: TemplateDriftReport;
+  specValidationReport?: import("../../core/specs/ValidationEngine").SpecValidationResult[];
   lockContention?: boolean;
 }
 

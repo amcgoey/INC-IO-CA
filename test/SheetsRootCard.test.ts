@@ -130,4 +130,28 @@ describe("SheetsRootCard Header Layout & Context Refresh Action (Issue #219)", (
     assert.ok(CardSerializer.hasWidgetText(navCard, "Submittal Arch"));
     assert.ok(CardSerializer.hasWidgetText(navCard, "Log Tab"));
   });
+  it('renders Spec Configuration Errors when specValidationReport is passed to buildSheetsRootCard', () => {
+    const harness = GasMockHarness.install();
+    const ss = harness.sheetsService.openById('wb-log-spec-err');
+    ss.insertSheet('_Config', [['MANIFEST_SCHEMA_VERSION', '1.2.0']]);
+    ss.setNamedRange('MANIFEST_SCHEMA_VERSION', '_Config', 'A1:B1');
+    ss.insertSheet('Submittal Arch');
+
+    const invalidReport = [
+      {
+        status: 'invalid' as const,
+        errors: ["Duplicate field key 'section' detected"]
+      }
+    ];
+
+    const card = buildSheetsRootCard({
+      spreadsheetId: 'wb-log-spec-err',
+      sheetName: 'Submittal Arch',
+      specValidationReport: invalidReport
+    });
+    const cardJson = CardSerializer.toJSON(card);
+
+    assert.ok(CardSerializer.hasWidgetText(cardJson, 'Spec Configuration Errors'));
+    assert.ok(CardSerializer.hasWidgetText(cardJson, "Duplicate field key 'section' detected"));
+  });
 });

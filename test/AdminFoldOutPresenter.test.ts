@@ -241,8 +241,12 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
   });
 
   it('onSaveToJsonConfiguration handles decompilation validation errors gracefully without crashing', () => {
-    const parentFolder = (globalThis as any).DriveApp.getFolderById('parent-folder-888');
     const fileId = 'wb-invalid-spec';
+    const ss = harness.sheetsService.openById(fileId);
+    ss.insertSheet('_Config', [['MANIFEST_SCHEMA_VERSION', '1.2.0']]);
+    ss.setNamedRange('MANIFEST_SCHEMA_VERSION', '_Config', 'A1:B1');
+
+    const parentFolder = (globalThis as any).DriveApp.getFolderById('parent-folder-888');
     const virtualFile = (globalThis as any).DriveApp.getFileById(fileId);
     virtualFile.moveTo(parentFolder);
 
@@ -269,6 +273,9 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
     const actionJson = CardSerializer.actionResponseToJSON(response);
 
     assert.ok(actionJson.notification?.text?.includes('Decompilation failed'));
+    assert.ok(actionJson.navigation?.card, 'Expected updated card in navigation on validation error');
+    const navCard = CardSerializer.toJSON(actionJson.navigation?.card);
+    assert.ok(CardSerializer.hasWidgetText(navCard, 'Spec Configuration Errors'));
     const files = parentFolder.getFiles();
     const jsonFiles: any[] = [];
     while (files.hasNext()) {
@@ -367,4 +374,155 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
     assert.ok(String(row[5]).includes('submittal_ffe_spec_'));
   });
 
+  it("renders dedicated Spec Configuration Errors block in SheetAdminFoldOut when specValidationReport contains invalid specs", () => {
+    const invalidReport = [
+      {
+        status: 'invalid' as const,
+        errors: [
+          "Missing or empty required property 'key'",
+          "Duplicate field key 'status' detected",
+          "Calculated field 'calcTitle' must specify 'calcFormat' or 'formulaOrFunction'"
+        ]
+      }
+    ];
+
+    const sheetSection = AdminFoldOutPresenter.renderAdminSection('GoogleSheets', {
+      spreadsheetId: 'wb-errors-001',
+      specValidationReport: invalidReport
+    });
+    const sheetCard = CardService.newCardBuilder().addSection(sheetSection).build();
+    const sheetJson = CardSerializer.toJSON(sheetCard);
+
+    assert.ok(CardSerializer.hasWidgetText(sheetJson, 'Spec Configuration Errors'));
+    assert.ok(CardSerializer.hasWidgetText(sheetJson, "Missing or empty required property 'key'"));
+    assert.ok(CardSerializer.hasWidgetText(sheetJson, "Duplicate field key 'status' detected"));
+    assert.ok(CardSerializer.hasWidgetText(sheetJson, "Calculated field 'calcTitle' must specify 'calcFormat' or 'formulaOrFunction'"));
+    assert.ok(CardSerializer.hasWidgetText(sheetJson, '_Config'));
+  });
+
+  it('renders both Schema Health Report (drift) and Spec Configuration Errors (domain) concurrently without interference', () => {
+    const driftReport: TemplateDriftReport = {
+      status: 'MINOR_DRIFT',
+      codeSchemaVersion: '1.2.0',
+      liveSchemaVersion: '1.2.0',
+      issues: [
+        {
+          category: 'NAMED_RANGE',
+          severity: 'WARN',
+          description: 'Missing named range Vendors on _Shared tab',
+          autoPatchable: true
+        }
+      ],
+      canAutoPatch: true
+    };
+
+    const invalidReport = [
+      {
+        status: 'invalid' as const,
+        errors: ["Field 'status' picklistSource references non-existent supportDataKey 'Statuses'"]
+      }
+    ];
+
+    const sheetSection = AdminFoldOutPresenter.renderAdminSection('GoogleSheets', {
+      spreadsheetId: 'wb-dual-report-001',
+      auditReport: driftReport,
+      specValidationReport: invalidReport
+    });
+    const sheetCard = CardService.newCardBuilder().addSection(sheetSection).build();
+    const sheetJson = CardSerializer.toJSON(sheetCard);
+
+    assert.ok(CardSerializer.hasWidgetText(sheetJson, 'Schema Health Report'));
+    assert.ok(CardSerializer.hasWidgetText(sheetJson, 'MINOR_DRIFT'));
+    assert.ok(CardSerializer.hasWidgetText(sheetJson, 'Missing named range Vendors on _Shared tab'));
+    assert.ok(CardSerializer.findButton(sheetJson, 'Auto-Patch Workbook') || CardSerializer.findButton(sheetJson, '🛠️ Auto-Patch Workbook'));
+
+    assert.ok(CardSerializer.hasWidgetText(sheetJson, 'Spec Configuration Errors'));
+    assert.ok(CardSerializer.hasWidgetText(sheetJson, "Field 'status' picklistSource references non-existent supportDataKey 'Statuses'"));
+  });
+  it('onSaveToJsonConfiguration updates card UI with multi-error Spec Configuration Errors report when decompilation fails', () => {
+    const fileId = 'wb-multi-errors';
+    const ss = harness.sheetsService.openById(fileId);
+    ss.insertSheet('_Config', [['MANIFEST_SCHEMA_VERSION', '1.2.0']]);
+    ss.setNamedRange('MANIFEST_SCHEMA_VERSION', '_Config', 'A1:B1');
+
+    const multiErrorReport = [
+      {
+        status: 'invalid' as const,
+        errors: [
+          "Missing or empty required property 'key'",
+          "Duplicate field key 'status' detected",
+          "Calculated field 'calcTitle' must specify 'calcFormat' or 'formulaOrFunction'"
+        ]
+      }
+    ];
+
+    const batchReader = {
+      readWorkbookBatch: () => ({
+        spreadsheetId: fileId,
+        namedRanges: [],
+        sheets: []
+      })
+    } as any;
+
+    const originalDecompile = GoogleSheetsDocumentTypeSpecAdapter.decompile;
+    GoogleSheetsDocumentTypeSpecAdapter.decompile = () => multiErrorReport;
+
+    try {
+      const event = {
+        parameters: {
+          spreadsheetId: fileId
+        }
+      };
+
+      const response = onSaveToJsonConfiguration(event, { batchReader });
+      const actionJson = CardSerializer.actionResponseToJSON(response);
+
+      assert.ok(actionJson.notification?.text?.includes('Decompilation failed'));
+      assert.ok(actionJson.navigation?.card);
+      const navCard = CardSerializer.toJSON(actionJson.navigation?.card);
+      assert.ok(CardSerializer.hasWidgetText(navCard, 'Spec Configuration Errors'));
+      assert.ok(CardSerializer.hasWidgetText(navCard, "Missing or empty required property 'key'"));
+      assert.ok(CardSerializer.hasWidgetText(navCard, "Duplicate field key 'status' detected"));
+      assert.ok(CardSerializer.hasWidgetText(navCard, "Calculated field 'calcTitle' must specify 'calcFormat' or 'formulaOrFunction'"));
+    } finally {
+      GoogleSheetsDocumentTypeSpecAdapter.decompile = originalDecompile;
+    }
+  });
+
+  it('onSaveToJsonConfiguration handles empty decompilation results by presenting invalid error card', () => {
+    const fileId = 'wb-empty-specs';
+    const ss = harness.sheetsService.openById(fileId);
+    ss.insertSheet('_Config', [['MANIFEST_SCHEMA_VERSION', '1.2.0']]);
+    ss.setNamedRange('MANIFEST_SCHEMA_VERSION', '_Config', 'A1:B1');
+
+    const batchReader = {
+      readWorkbookBatch: () => ({
+        spreadsheetId: fileId,
+        namedRanges: [],
+        sheets: []
+      })
+    } as any;
+
+    const originalDecompile = GoogleSheetsDocumentTypeSpecAdapter.decompile;
+    GoogleSheetsDocumentTypeSpecAdapter.decompile = () => [];
+
+    try {
+      const event = {
+        parameters: {
+          spreadsheetId: fileId
+        }
+      };
+
+      const response = onSaveToJsonConfiguration(event, { batchReader });
+      const actionJson = CardSerializer.actionResponseToJSON(response);
+
+      assert.ok(actionJson.notification?.text?.includes('Decompilation failed'));
+      assert.ok(actionJson.navigation?.card);
+      const navCard = CardSerializer.toJSON(actionJson.navigation?.card);
+      assert.ok(CardSerializer.hasWidgetText(navCard, 'Spec Configuration Errors'));
+      assert.ok(CardSerializer.hasWidgetText(navCard, 'No valid document type specifications found in configuration tabs.'));
+    } finally {
+      GoogleSheetsDocumentTypeSpecAdapter.decompile = originalDecompile;
+    }
+  });
 });

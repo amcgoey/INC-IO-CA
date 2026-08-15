@@ -96,6 +96,7 @@ export class SheetsRootCard {
     const foldOutSection = AdminFoldOutPresenter.renderAdminSection("GoogleSheets", {
       spreadsheetId: context.spreadsheetId,
       auditReport: params?.auditReport,
+      specValidationReport: params?.specValidationReport,
       lockContention: params?.lockContention
     });
 
