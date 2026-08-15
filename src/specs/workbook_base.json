@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0.0",
+  "tabs": [
+    {
+      "name": "_AuditLog",
+      "title": "Audit Log",
+      "rowCount": 7,
+      "columnCount": 10,
+      "isAuditLogTab": true,
+      "columns": [
+        { "id": "timestamp", "header": "Timestamp" },
+        { "id": "category", "header": "Category" },
+        { "id": "eventType", "header": "EventType" },
+        { "id": "actor", "header": "Actor" },
+        { "id": "status", "header": "Status" },
+        { "id": "details", "header": "Details" }
+      ],
+      "seedRows": [
+        [
+          "2026-08-08T00:00:00.000Z",
+          "SYSTEM",
+          "SCHEMA_INIT",
+          "system",
+          "SUCCESS",
+          "Initial MVT Template Provisioning"
+        ]
+      ]
+    }
+  ],
+  "namedRanges": [
+    {
+      "name": "AuditLog_Events",
+      "tabName": "_AuditLog",
+      "rangeNotation": "A6:F7",
+      "scope": "Workbook"
+    }
+  ]
+}

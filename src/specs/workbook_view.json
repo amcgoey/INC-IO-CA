@@ -1,0 +1,110 @@
+{
+  "titleRowStyle": {
+    "fillHex": "#666666",
+    "fillRgb": { "red": 0.4, "green": 0.4, "blue": 0.4 },
+    "fontColorHex": "#FFFFFF",
+    "fontColorRgb": { "red": 1.0, "green": 1.0, "blue": 1.0 },
+    "bold": true,
+    "fontSize": 27,
+    "fontFamily": "Abril Fatface"
+  },
+  "dateRowStyle": {
+    "fillHex": "#666666",
+    "fillRgb": { "red": 0.4, "green": 0.4, "blue": 0.4 },
+    "fontColorHex": "#FFFFFF",
+    "fontColorRgb": { "red": 1.0, "green": 1.0, "blue": 1.0 },
+    "italic": true,
+    "fontSize": 10,
+    "fontFamily": "Raleway"
+  },
+  "headerStyle": {
+    "fillHex": "#666666",
+    "fillRgb": { "red": 0.4, "green": 0.4, "blue": 0.4 },
+    "fontColorHex": "#FFFFFF",
+    "fontColorRgb": { "red": 1.0, "green": 1.0, "blue": 1.0 },
+    "bold": true,
+    "fontSize": 11,
+    "fontFamily": "Raleway"
+  },
+  "formulaRowStyle": {
+    "fontColorHex": "#B7B7B7",
+    "fontColorRgb": { "red": 0.7176, "green": 0.7176, "blue": 0.7176 },
+    "fillHex": "#666666",
+    "fillRgb": { "red": 0.4, "green": 0.4, "blue": 0.4 },
+    "italic": true,
+    "fontSize": 7,
+    "fontFamily": "Raleway"
+  },
+  "offsets": {
+    "TITLE_ROW_INDEX": 1,
+    "DATE_ROW_INDEX": 2,
+    "HEADER_ROW_INDEX": 3,
+    "FORMULA_ROW_INDEX": 4,
+    "TOP_BUFFER_ROW_INDEX": 5,
+    "BUFFER_ROW_INDEX": 5,
+    "FIRST_DATA_ROW_INDEX": 6,
+    "FIRST_DATA_ROW_OFFSET": 5
+  },
+  "columnWidths": {
+    "section": 100,
+    "number": 100,
+    "title": 250,
+    "revision": 80,
+    "date": 100,
+    "contact": 180,
+    "action": 140,
+    "status": 120,
+    "notes": 250,
+    "link": 150,
+    "calcFileName": 250,
+    "calcNumber": 180,
+    "calcTitle": 250,
+    "calcContactChain": 200,
+    "calcSort": 150,
+    "specTag": 100,
+    "relatedTag": 110,
+    "specTitle": 250,
+    "vendor": 180
+  },
+  "defaultColumnWidth": 150,
+  "defaultFontFamily": "Raleway",
+  "namedRangeFills": {
+    "MANIFEST_SCHEMA_VERSION": { "red": 0.9451, "green": 0.9529, "blue": 0.9569 },
+    "Config_Manifest": { "red": 0.9451, "green": 0.9529, "blue": 0.9569 },
+    "Config_Submittal_Arch": { "red": 0.9098, "green": 0.9412, "blue": 0.9961 },
+    "Config_Submittal_FFE": { "red": 0.9098, "green": 0.9412, "blue": 0.9961 },
+    "Vendors": { "red": 0.9098, "green": 0.9412, "blue": 0.9961 },
+    "Shared_Contacts_Arch": { "red": 0.902, "green": 0.9569, "blue": 0.9176 },
+    "Shared_Contacts_FFE": { "red": 0.902, "green": 0.9569, "blue": 0.9176 },
+    "SpecTags": { "red": 0.902, "green": 0.9569, "blue": 0.9176 },
+    "Actions_Submittal": { "red": 0.9882, "green": 0.9098, "blue": 0.902 },
+    "Statuses_Submittal": { "red": 0.9098, "green": 0.9412, "blue": 0.9961 }
+  },
+  "settingHeaderRanges": {
+    "_Config": ["A1:B1", "A5:D5"],
+    "_Shared": ["A1:I1"],
+    "Submittal FFE Support": ["A1:D1"]
+  },
+  "statusColors": {
+    "Open": {
+      "hex": "#F4CCCC",
+      "rgb": { "red": 0.9569, "green": 0.8, "blue": 0.8 }
+    },
+    "Closed": {
+      "hex": "#D9D9D9",
+      "rgb": { "red": 0.851, "green": 0.851, "blue": 0.851 }
+    },
+    "Waiting": {
+      "hex": "#D9D2E9",
+      "rgb": { "red": 0.851, "green": 0.8235, "blue": 0.9137 }
+    },
+    "Manager": {
+      "hex": "#D0E0E3",
+      "rgb": { "red": 0.8157, "green": 0.8784, "blue": 0.8902 }
+    },
+    "Billed": {
+      "hex": "#D9D9D9",
+      "rgb": { "red": 0.851, "green": 0.851, "blue": 0.851 }
+    }
+  }
+}
