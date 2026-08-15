@@ -202,7 +202,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
     for (const sheet of sheets) {
       const title = sheet.properties?.title || '';
       const isShared = title === '_Shared';
-      const isSupport = title.endsWith(' Support');
+      const isSupport = title.endsWith(' Support') || title === 'Support';
 
       if (!isShared && !isSupport) continue;
 
@@ -342,19 +342,17 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   }
 
   /**
-   * Decompiles _Config tab subtables into candidate DocumentTypeSpec objects.
+   * Resolves subtable rows by Named Range first, falling back to sequential header scanning.
    */
-  private static decompileConfigTab(
+  private static resolveSubtable(
+    nrName: string,
+    headerIdentifier: string,
     configRows: any[][],
     namedRanges: NamedRangePayload[],
-    sharedSupportData: Record<string, SupportDataSpec>,
-    typeSupportMap: Map<string, Record<string, SupportDataSpec>>
-  ): Partial<DocumentTypeSpec>[] {
-    const specs: Partial<DocumentTypeSpec>[] = [];
-
-    const getRowsByNamedRange = (nrName: string): any[][] | null => {
-      const nr = namedRanges.find((r) => r.name === nrName);
-      if (!nr || !nr.range) return null;
+    scanIdx: { val: number }
+  ): any[][] {
+    const nr = namedRanges.find((r) => r.name === nrName);
+    if (nr && nr.range) {
       const startRow = nr.range.startRowIndex ?? 0;
       const endRow = nr.range.endRowIndex ?? configRows.length;
       const startCol = nr.range.startColumnIndex ?? 0;
@@ -364,244 +362,245 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       for (let r = startRow; r < endRow && r < configRows.length; r++) {
         const row = configRows[r];
         if (!row) continue;
-        const rowSlice = row.slice(startCol, endCol);
-        rows.push(rowSlice);
+        rows.push(row.slice(startCol, endCol));
       }
-      return rows;
-    };
-
-    // 1. Locate DocTypes Table
-    const docTypeRows: Array<{ key: string; name: string; prefix: string; label: string }> = [];
-    const docTypesNRRows = getRowsByNamedRange('Config_DocTypes') || getRowsByNamedRange('_Config_Doc_Types');
-
-    if (docTypesNRRows && docTypesNRRows.length > 0) {
-      const firstRowIsHeader = String(docTypesNRRows[0]?.[0] || '').toLowerCase() === 'doctypekey';
-      const dataRows = firstRowIsHeader ? docTypesNRRows.slice(1) : docTypesNRRows;
-      for (const row of dataRows) {
-        const key = String(row[0] || '').trim();
-        if (key) {
-          docTypeRows.push({
-            key,
-            name: String(row[1] || key).trim(),
-            prefix: String(row[2] || '').trim(),
-            label: String(row[3] || row[1] || key).trim(),
-          });
+      if (rows.length > 0) {
+        if (String(rows[0]?.[0] || '').trim().toLowerCase() === headerIdentifier.toLowerCase()) {
+          return rows.slice(1);
         }
-      }
-    } else {
-      let docTypesHeaderIdx = -1;
-      for (let i = 0; i < configRows.length; i++) {
-        const row0 = String(configRows[i]?.[0] || '').trim();
-        if (row0.toLowerCase() === 'doctypekey') {
-          docTypesHeaderIdx = i;
-          break;
-        }
-      }
-
-      if (docTypesHeaderIdx >= 0) {
-        for (let i = docTypesHeaderIdx + 1; i < configRows.length; i++) {
-          const row = configRows[i];
-          const key = String(row?.[0] || '').trim();
-          if (!key) break;
-          docTypeRows.push({
-            key,
-            name: String(row[1] || key).trim(),
-            prefix: String(row[2] || '').trim(),
-            label: String(row[3] || row[1] || key).trim(),
-          });
-        }
+        return rows;
       }
     }
 
-    if (docTypeRows.length === 0) {
+    for (let r = scanIdx.val; r < configRows.length; r++) {
+      const row = configRows[r];
+      if (!row) continue;
+      const cell0 = String(row[0] || '').trim().toLowerCase();
+      if (cell0 === headerIdentifier.toLowerCase()) {
+        const subRows: any[][] = [];
+        for (let nextR = r + 1; nextR < configRows.length; nextR++) {
+          const nextRow = configRows[nextR];
+          if (!nextRow || nextRow.every((c: any) => c === undefined || c === null || String(c).trim() === '')) {
+            break;
+          }
+          subRows.push(nextRow);
+        }
+        scanIdx.val = r + 1;
+        return subRows;
+      }
+    }
+
+    return [];
+  }
+
+  /**
+   * Parses Table 1 (Manifest) on _Config tab.
+   */
+  private static parseManifestSubtable(
+    configRows: any[][],
+    namedRanges: NamedRangePayload[],
+    scanIdx: { val: number }
+  ): Record<string, string> {
+    const rows = this.resolveSubtable('Config_Manifest', 'Key', configRows, namedRanges, scanIdx);
+    const manifest: Record<string, string> = {};
+    for (const r of rows) {
+      const k = String(r[0] || '').trim();
+      const v = String(r[1] || '').trim();
+      if (k) manifest[k] = v;
+    }
+    return manifest;
+  }
+
+  /**
+   * Parses Table 2 (DocTypes) on _Config tab.
+   */
+  private static parseDocTypesSubtable(
+    configRows: any[][],
+    namedRanges: NamedRangePayload[],
+    scanIdx: { val: number }
+  ): Array<{ key: string; name: string; prefix: string; label: string }> {
+    let rows = this.resolveSubtable('Config_DocTypes', 'DocTypeKey', configRows, namedRanges, scanIdx);
+    if (rows.length === 0) {
+      rows = this.resolveSubtable('_Config_Doc_Types', 'DocTypeKey', configRows, namedRanges, scanIdx);
+    }
+    const docTypes: Array<{ key: string; name: string; prefix: string; label: string }> = [];
+    for (const r of rows) {
+      const key = String(r[0] || '').trim();
+      if (key) {
+        docTypes.push({
+          key,
+          name: String(r[1] || key).trim(),
+          prefix: String(r[2] || '').trim(),
+          label: String(r[3] || r[1] || key).trim(),
+        });
+      }
+    }
+    return docTypes;
+  }
+
+  /**
+   * Parses Table 3 (Identity) on _Config tab.
+   */
+  private static parseIdentitySubtable(rows: any[][]): DocumentIdentitySpec {
+    const r = rows[0] || [];
+    return {
+      format: String(r[0] || '').trim(),
+      groupFormat: String(r[1] || '').trim(),
+      revisionGroupFormat: String(r[2] || '').trim(),
+    };
+  }
+
+  /**
+   * Parses Table 4 (Storage) on _Config tab.
+   */
+  private static parseStorageSubtable(rows: any[][]): PolymorphicStorageSpec[] {
+    const storage: PolymorphicStorageSpec[] = [];
+    for (const r of rows) {
+      const type = String(r[0] || '').trim().toLowerCase();
+      if (!type) continue;
+      if (type === 'drive') {
+        const rootTerms = r[1] ? String(r[1]).split(',').map((s) => s.trim()).filter(Boolean) : [];
+        const projTerms = r[2] ? String(r[2]).split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+        const closedRoot = String(r[3] || '').trim();
+        const closedSub = r[4] ? String(r[4]).trim() : undefined;
+        const prefix = r[5] ? String(r[5]).trim() : undefined;
+        const filenameFmt = r[6] ? String(r[6]).trim() : undefined;
+        const coverPageId = r[7] ? String(r[7]).trim() : undefined;
+
+        const driveSt: DriveStorageSpec = {
+          type: 'drive',
+          rootFolderSearchTerms: rootTerms,
+          closedRootFolderName: closedRoot,
+          ...(projTerms && projTerms.length > 0 ? { projectSearchTerms: projTerms } : {}),
+          ...(closedSub ? { closedSubfolderFormat: closedSub } : {}),
+          ...(prefix ? { filenamePrefix: prefix } : {}),
+          ...(filenameFmt ? { filenameFormat: filenameFmt } : {}),
+          ...(coverPageId ? { coverPageTemplateId: coverPageId } : {}),
+        };
+        storage.push(driveSt);
+      } else {
+        storage.push({ type });
+      }
+    }
+    return storage;
+  }
+
+  /**
+   * Parses Table 5 (Workflows) on _Config tab.
+   */
+  private static parseWorkflowsSubtable(rows: any[][]): WorkflowSpec[] {
+    const workflows: WorkflowSpec[] = [];
+    for (const r of rows) {
+      const context = String(r[0] || '').trim();
+      if (!context) continue;
+      let fieldMatches: FieldMatchRule[] | undefined = undefined;
+      if (r[1] && String(r[1]).trim()) {
+        try {
+          fieldMatches = JSON.parse(String(r[1]));
+        } catch {
+          // Ignore invalid JSON in fieldMatches
+        }
+      }
+      const sequence = r[2] ? String(r[2]).split(',').map((s) => s.trim()).filter(Boolean) : [];
+      workflows.push({
+        context,
+        sequence,
+        ...(fieldMatches ? { fieldMatches } : {}),
+      });
+    }
+    return workflows;
+  }
+
+  /**
+   * Parses Table 6 (Fields) on _Config tab.
+   */
+  private static parseFieldsSubtable(rows: any[][]): DocumentFieldSpec[] {
+    const fields: DocumentFieldSpec[] = [];
+    for (const r of rows) {
+      const key = String(r[0] || '').trim();
+      if (!key) continue;
+
+      const header = r[1] ? String(r[1]).trim() : undefined;
+      const label = String(r[2] || header || key).trim();
+      const type = (String(r[3] || 'string').trim().toLowerCase()) as DocumentFieldSpec['type'];
+      const isCalculated = r[4] === true || String(r[4]).trim().toUpperCase() === 'TRUE';
+      const rawFormula = r[5] !== undefined && r[5] !== null ? String(r[5]).trim() : '';
+      const optionsRange = r[6] ? String(r[6]).trim() : undefined;
+      const required = r[7] === true || String(r[7]).trim().toUpperCase() === 'TRUE';
+      const description = r[8] ? String(r[8]).trim() : undefined;
+      const defaultValue = r[9] !== undefined && r[9] !== null && String(r[9]).trim() !== '' ? r[9] : undefined;
+      const keyNorm = r[10] ? (String(r[10]).trim().toLowerCase() as 'picklist' | 'code' | 'exact') : undefined;
+      const numFmt = r[11] ? String(r[11]).trim() : undefined;
+
+      const field: DocumentFieldSpec = {
+        key,
+        label,
+        type,
+        ...(header ? { header } : {}),
+        ...(required ? { required: true } : {}),
+        ...(description ? { description } : {}),
+        ...(defaultValue !== undefined ? { defaultValue } : {}),
+        ...(keyNorm ? { keyNormalizationRule: keyNorm } : {}),
+        ...(numFmt ? { numberFormat: numFmt } : {}),
+      };
+
+      if (isCalculated) {
+        field.isCalculated = true;
+        if (rawFormula.startsWith('${') || (rawFormula.includes('${') && !rawFormula.startsWith('='))) {
+          field.calcFormat = rawFormula;
+        } else if (rawFormula) {
+          field.formulaOrFunction = rawFormula;
+        }
+      }
+
+      if (optionsRange) {
+        field.optionsRange = optionsRange;
+      }
+
+      fields.push(field);
+    }
+    return fields;
+  }
+
+  /**
+   * Decompiles _Config tab subtables into candidate DocumentTypeSpec objects.
+   */
+  private static decompileConfigTab(
+    configRows: any[][],
+    namedRanges: NamedRangePayload[],
+    sharedSupportData: Record<string, SupportDataSpec>,
+    typeSupportMap: Map<string, Record<string, SupportDataSpec>>
+  ): Partial<DocumentTypeSpec>[] {
+    const specs: Partial<DocumentTypeSpec>[] = [];
+    const scanIdx = { val: 0 };
+
+    // Parse Manifest (Table 1)
+    const _manifest = this.parseManifestSubtable(configRows, namedRanges, scanIdx);
+
+    // Parse DocTypes (Table 2)
+    const docTypes = this.parseDocTypesSubtable(configRows, namedRanges, scanIdx);
+    if (docTypes.length === 0) {
       return [];
     }
 
-    let currentIdx = 0;
-    const findNextSubtableAfter = (
-      startAfterRow: number,
-      headerIdentifier: string
-    ): { headerRowIdx: number; rows: any[][] } | null => {
-      for (let r = startAfterRow; r < configRows.length; r++) {
-        const row = configRows[r];
-        if (!row) continue;
-        const cell0 = String(row[0] || '').trim().toLowerCase();
-        if (cell0 === headerIdentifier.toLowerCase()) {
-          const subRows: any[][] = [];
-          for (let nextR = r + 1; nextR < configRows.length; nextR++) {
-            const nextRow = configRows[nextR];
-            if (!nextRow || nextRow.every((c: any) => c === undefined || c === null || String(c).trim() === '')) {
-              break;
-            }
-            subRows.push(nextRow);
-          }
-          return { headerRowIdx: r, rows: subRows };
-        }
-      }
-      return null;
-    };
-
-    for (const dt of docTypeRows) {
+    for (const dt of docTypes) {
       const specKey = dt.key;
 
-      // Identity Subtable
-      let identityRows = getRowsByNamedRange(`Config_${specKey}_Identity`);
-      if (identityRows && identityRows.length > 0 && String(identityRows[0]?.[0] || '').toLowerCase() === 'format') {
-        identityRows = identityRows.slice(1);
-      }
-      if (!identityRows || identityRows.length === 0) {
-        const found = findNextSubtableAfter(currentIdx, 'Format');
-        if (found) {
-          identityRows = found.rows;
-          currentIdx = found.headerRowIdx + 1;
-        }
-      }
+      // Identity Subtable (Table 3)
+      const identityRows = this.resolveSubtable(`Config_${specKey}_Identity`, 'Format', configRows, namedRanges, scanIdx);
+      const identity = this.parseIdentitySubtable(identityRows);
 
-      const idRow = identityRows?.[0] || [];
-      const identity: DocumentIdentitySpec = {
-        format: String(idRow[0] || '').trim(),
-        groupFormat: String(idRow[1] || '').trim(),
-        revisionGroupFormat: String(idRow[2] || '').trim(),
-      };
+      // Storage Subtable (Table 4)
+      const storageRows = this.resolveSubtable(`Config_${specKey}_Storage`, 'Type', configRows, namedRanges, scanIdx);
+      const storage = this.parseStorageSubtable(storageRows);
 
-      // Storage Subtable
-      let storageRows = getRowsByNamedRange(`Config_${specKey}_Storage`);
-      if (storageRows && storageRows.length > 0 && String(storageRows[0]?.[0] || '').toLowerCase() === 'type') {
-        storageRows = storageRows.slice(1);
-      }
-      if (!storageRows || storageRows.length === 0) {
-        const found = findNextSubtableAfter(currentIdx, 'Type');
-        if (found) {
-          storageRows = found.rows;
-          currentIdx = found.headerRowIdx + 1;
-        }
-      }
+      // Workflows Subtable (Table 5)
+      const workflowRows = this.resolveSubtable(`Config_${specKey}_Workflows`, 'Context', configRows, namedRanges, scanIdx);
+      const workflows = this.parseWorkflowsSubtable(workflowRows);
 
-      const storage: PolymorphicStorageSpec[] = [];
-      if (storageRows) {
-        for (const stRow of storageRows) {
-          const type = String(stRow[0] || '').trim().toLowerCase();
-          if (!type) continue;
-          if (type === 'drive') {
-            const rootTerms = stRow[1] ? String(stRow[1]).split(',').map((s) => s.trim()).filter(Boolean) : [];
-            const projTerms = stRow[2] ? String(stRow[2]).split(',').map((s) => s.trim()).filter(Boolean) : undefined;
-            const closedRoot = String(stRow[3] || '').trim();
-            const closedSub = stRow[4] ? String(stRow[4]).trim() : undefined;
-            const prefix = stRow[5] ? String(stRow[5]).trim() : undefined;
-            const filenameFmt = stRow[6] ? String(stRow[6]).trim() : undefined;
-            const coverPageId = stRow[7] ? String(stRow[7]).trim() : undefined;
-
-            const driveSt: DriveStorageSpec = {
-              type: 'drive',
-              rootFolderSearchTerms: rootTerms,
-              closedRootFolderName: closedRoot,
-              ...(projTerms && projTerms.length > 0 ? { projectSearchTerms: projTerms } : {}),
-              ...(closedSub ? { closedSubfolderFormat: closedSub } : {}),
-              ...(prefix ? { filenamePrefix: prefix } : {}),
-              ...(filenameFmt ? { filenameFormat: filenameFmt } : {}),
-              ...(coverPageId ? { coverPageTemplateId: coverPageId } : {}),
-            };
-            storage.push(driveSt);
-          } else {
-            storage.push({ type });
-          }
-        }
-      }
-
-      // Workflows Subtable
-      let workflowRows = getRowsByNamedRange(`Config_${specKey}_Workflows`);
-      if (workflowRows && workflowRows.length > 0 && String(workflowRows[0]?.[0] || '').toLowerCase() === 'context') {
-        workflowRows = workflowRows.slice(1);
-      }
-      if (!workflowRows || workflowRows.length === 0) {
-        const found = findNextSubtableAfter(currentIdx, 'Context');
-        if (found) {
-          workflowRows = found.rows;
-          currentIdx = found.headerRowIdx + 1;
-        }
-      }
-
-      const workflows: WorkflowSpec[] = [];
-      if (workflowRows) {
-        for (const wfRow of workflowRows) {
-          const context = String(wfRow[0] || '').trim();
-          if (!context) continue;
-          let fieldMatches: FieldMatchRule[] | undefined = undefined;
-          if (wfRow[1] && String(wfRow[1]).trim()) {
-            try {
-              fieldMatches = JSON.parse(String(wfRow[1]));
-            } catch {
-              // Ignore invalid JSON in fieldMatches
-            }
-          }
-          const sequence = wfRow[2] ? String(wfRow[2]).split(',').map((s) => s.trim()).filter(Boolean) : [];
-          workflows.push({
-            context,
-            sequence,
-            ...(fieldMatches ? { fieldMatches } : {}),
-          });
-        }
-      }
-
-      // Fields Subtable
-      let fieldRows = getRowsByNamedRange(`Config_${specKey}_Fields`);
-      if (fieldRows && fieldRows.length > 0 && String(fieldRows[0]?.[0] || '').toLowerCase() === 'key') {
-        fieldRows = fieldRows.slice(1);
-      }
-      if (!fieldRows || fieldRows.length === 0) {
-        const found = findNextSubtableAfter(currentIdx, 'Key');
-        if (found) {
-          fieldRows = found.rows;
-          currentIdx = found.headerRowIdx + 1;
-        }
-      }
-
-      const fields: DocumentFieldSpec[] = [];
-      if (fieldRows) {
-        for (const fRow of fieldRows) {
-          const key = String(fRow[0] || '').trim();
-          if (!key) continue;
-
-          const header = fRow[1] ? String(fRow[1]).trim() : undefined;
-          const label = String(fRow[2] || header || key).trim();
-          const type = (String(fRow[3] || 'string').trim().toLowerCase()) as DocumentFieldSpec['type'];
-          const isCalculated = fRow[4] === true || String(fRow[4]).trim().toUpperCase() === 'TRUE';
-          const rawFormula = fRow[5] !== undefined && fRow[5] !== null ? String(fRow[5]).trim() : '';
-          const optionsRange = fRow[6] ? String(fRow[6]).trim() : undefined;
-          const required = fRow[7] === true || String(fRow[7]).trim().toUpperCase() === 'TRUE';
-          const description = fRow[8] ? String(fRow[8]).trim() : undefined;
-          const defaultValue = fRow[9] !== undefined && fRow[9] !== null && String(fRow[9]).trim() !== '' ? fRow[9] : undefined;
-          const keyNorm = fRow[10] ? (String(fRow[10]).trim().toLowerCase() as 'picklist' | 'code' | 'exact') : undefined;
-          const numFmt = fRow[11] ? String(fRow[11]).trim() : undefined;
-
-          const field: DocumentFieldSpec = {
-            key,
-            label,
-            type,
-            ...(header ? { header } : {}),
-            ...(required ? { required: true } : {}),
-            ...(description ? { description } : {}),
-            ...(defaultValue !== undefined ? { defaultValue } : {}),
-            ...(keyNorm ? { keyNormalizationRule: keyNorm } : {}),
-            ...(numFmt ? { numberFormat: numFmt } : {}),
-          };
-
-          if (isCalculated) {
-            field.isCalculated = true;
-            if (rawFormula.startsWith('${') || (rawFormula.includes('${') && !rawFormula.startsWith('='))) {
-              field.calcFormat = rawFormula;
-            } else if (rawFormula) {
-              field.formulaOrFunction = rawFormula;
-            }
-          }
-
-          if (optionsRange) {
-            field.optionsRange = optionsRange;
-          }
-
-          fields.push(field);
-        }
-      }
+      // Fields Subtable (Table 6)
+      const fieldRows = this.resolveSubtable(`Config_${specKey}_Fields`, 'Key', configRows, namedRanges, scanIdx);
+      const fields = this.parseFieldsSubtable(fieldRows);
 
       // Attach Support Data
       const supportData: Record<string, SupportDataSpec> = {

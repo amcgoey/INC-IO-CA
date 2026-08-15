@@ -560,10 +560,13 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
   });
 
   describe('decompile', () => {
+    const ASCII_OFFSET_UPPERCASE = 64; // Character '@' preceding 'A' (charCode 65)
+    const ALPHABET_LENGTH = 26;
+
     function columnLetterToIndex(letter: string): number {
       let index = 0;
       for (let i = 0; i < letter.length; i++) {
-        index = index * 26 + (letter.charCodeAt(i) - 64);
+        index = index * ALPHABET_LENGTH + (letter.charCodeAt(i) - ASCII_OFFSET_UPPERCASE);
       }
       return index - 1;
     }
