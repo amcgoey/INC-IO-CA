@@ -1,16 +1,20 @@
-/**
+﻿/**
  * @file deploy-live.ts
  * @description Single-Pass API Batching & Rate-Limit Backoff Engine for live Google Sheets template deployment.
+ * Tier 3 Host Tooling reading declarative JSON specs from src/specs/.
  */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { DOCUMENT_LOG_WORKBOOK_SPEC, TEST_TEMPLATE_SPREADSHEET_TITLE, PROD_TEMPLATE_SPREADSHEET_TITLE } from "../../src/core/config/DocumentLogWorkbookSpec";
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../src/core/config/DocumentLogWorkbookViewSpec";
+import {
+  TEST_TEMPLATE_SPREADSHEET_TITLE,
+  PROD_TEMPLATE_SPREADSHEET_TITLE
+} from "../../src/core/config/DocumentLogWorkbookSpec";
 import {
   WorkbookTemplateViewModel,
   BatchUpdateRequestPayload
 } from "../../src/core/config/WorkbookTemplateViewModel";
+import { createWorkbookTemplateViewModel } from "./spec-loader";
 
 export interface DeployLiveOptions {
   spreadsheetId: string;
@@ -22,6 +26,7 @@ export interface DeployLiveOptions {
 export interface DeployDependencies {
   apiFetcher?: (url: string, init: RequestInit) => Promise<unknown>;
   authToken?: string;
+  viewModel?: WorkbookTemplateViewModel;
 }
 
 export interface RetryOptions {
@@ -173,13 +178,11 @@ export function parseDeployArgs(
 }
 
 export function buildDeploymentPayload(
-  viewModel: WorkbookTemplateViewModel = new WorkbookTemplateViewModel(
-    DOCUMENT_LOG_WORKBOOK_SPEC,
-    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC
-  ),
+  viewModel?: WorkbookTemplateViewModel,
   existingSheetsMap?: Map<string, number>
 ): BatchUpdateRequestPayload {
-  return viewModel.toBatchUpdateRequestPayload(existingSheetsMap);
+  const vm = viewModel || createWorkbookTemplateViewModel();
+  return vm.toBatchUpdateRequestPayload(existingSheetsMap);
 }
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -324,6 +327,9 @@ export async function deployLiveTemplate(
 ): Promise<DeployLiveResult> {
   console.log(`=== Deploying DocumentLogWorkbook Template [Target: ${options.target.toUpperCase()}] ===`);
 
+  const viewModel = deps.viewModel || createWorkbookTemplateViewModel();
+  const spec = viewModel.getSpec();
+
   const token = deps.authToken || (await resolveGoogleAuthToken());
   const fetcher = deps.apiFetcher || (async (url: string, init: any) => {
     const res = await fetch(url, init);
@@ -364,12 +370,12 @@ export async function deployLiveTemplate(
     try {
       console.log(`[QUERY] Inspecting existing sheet properties and named ranges for target spreadsheet...`);
       const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties,namedRanges`;
-      const metaRes = await executeWithRetry(async () => {
+      const metaRes = (await executeWithRetry(async () => {
         const res = await fetcher(metaUrl, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        return typeof res.json === "function" ? await res.json() : res;
-      });
+        return typeof (res as any)?.json === "function" ? await (res as any).json() : res;
+      })) as any;
       if (metaRes && metaRes.sheets && Array.isArray(metaRes.sheets)) {
         for (const s of metaRes.sheets) {
           if (s.properties?.title && s.properties?.sheetId !== undefined) {
@@ -391,11 +397,11 @@ export async function deployLiveTemplate(
     }
   }
 
-  const payload = buildDeploymentPayload(undefined, existingSheetsMap);
+  const payload = buildDeploymentPayload(viewModel, existingSheetsMap);
   if (existingNamedRangeDeletes.length > 0) {
     payload.requests.unshift(...existingNamedRangeDeletes);
   }
-  console.log(`[OK] Pre-pass data validation purge requests included for all ${DOCUMENT_LOG_WORKBOOK_SPEC.tabs.length} tab(s).`);
+  console.log(`[OK] Pre-pass data validation purge requests included for all ${spec.tabs.length} tab(s).`);
   const requestCount = payload.requests.length;
   console.log(`Single-Pass Batch Payload constructed with ${requestCount} batch update requests.`);
 
@@ -425,7 +431,7 @@ export async function deployLiveTemplate(
 
   const response = await executeWithRetry(async () => {
     const res = await fetcher(endpoint, init);
-    return typeof res.json === "function" ? await res.json() : res;
+    return typeof (res as any)?.json === "function" ? await (res as any).json() : res;
   });
 
   console.log(`[OK] Successfully deployed single-pass batch update to Google Sheet ${spreadsheetId}`);

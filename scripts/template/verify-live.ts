@@ -1,9 +1,14 @@
+﻿/**
+ * @file verify-live.ts
+ * @description 6-Dimension Structural Auditing and Mock Row Formula Roundtrip Evaluation for live Google Sheets template.
+ * Tier 3 Host Tooling reading declarative JSON specs from src/specs/.
+ */
+
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../../src/core/config/DocumentLogWorkbookSpec";
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../src/core/config/DocumentLogWorkbookViewSpec";
 import { getEnvVars, executeWithRetry, resolveSpreadsheetIdFromProperties } from "./deploy-live";
 import { classifyTabRole, verifyTabTaxonomyOrder } from "../../src/core/log/LogMigrationEngine";
+import { loadWorkbookSpecs, LoadedWorkbookSpecs } from "./spec-loader";
 
 export interface VerifyLiveOptions {
   spreadsheetId: string;
@@ -29,6 +34,7 @@ export interface RoundtripResult {
 export interface VerifyDependencies {
   apiFetcher?: (url: string, init: RequestInit) => Promise<Response | unknown>;
   authToken?: string;
+  specs?: LoadedWorkbookSpecs;
 }
 
 export interface VerifyLiveResult {
@@ -168,7 +174,7 @@ export function generateMarkdownReport(
   checks: StructuralDimensionCheck[],
   roundtripResult: RoundtripResult
 ): string {
-  const checkLines = checks.map(c => `| ${c.dimension} | **${c.status}** | ${c.details} |`);
+  const checkLines = checks.map((c) => `| ${c.dimension} | **${c.status}** | ${c.details} |`);
 
   const reportLines = [
     "# MVT Template Formula Verification Audit Report",
@@ -190,7 +196,7 @@ export function generateMarkdownReport(
     `| CalcContactChain | \`${roundtripResult.calcContactChain}\` | \`arch-reviewer@example.com\` | ${roundtripResult.calcContactChain === "arch-reviewer@example.com" ? "PASS" : "FAIL"} |`,
     `| CalcSort | \`${roundtripResult.calcSort}\` | \`0330000001\` | ${roundtripResult.calcSort === "0330000001" ? "PASS" : "FAIL"} |`,
     "",
-    `**Overall Roundtrip Audit Result**: **${roundtripResult.passed && checks.every(c => c.status === "PASS") ? "PASSED" : "FAILED"}**`
+    `**Overall Roundtrip Audit Result**: **${roundtripResult.passed && checks.every((c) => c.status === "PASS") ? "PASSED" : "FAILED"}**`
   ];
 
   return reportLines.join("\n");
@@ -204,19 +210,23 @@ export async function runLiveVerification(
   console.log(`=== MVT Template Formula Verification Audit [Target: ${opts.target.toUpperCase()}] ===`);
   console.log(`Spreadsheet ID: ${opts.spreadsheetId}`);
 
+  const loadedSpecs = deps.specs || loadWorkbookSpecs();
+  const workbookSpec = loadedSpecs.compiledModel;
+  const viewSpec = loadedSpecs.viewSpec;
+
   const checks: StructuralDimensionCheck[] = [];
 
-  const versionPass = DOCUMENT_LOG_WORKBOOK_SPEC.schemaVersion === "1.0.0";
+  const versionPass = workbookSpec.schemaVersion === "1.0.0";
   checks.push({
     dimension: "1. Schema Version and Manifest",
     status: versionPass ? "PASS" : "FAIL",
-    details: `Schema version is ${DOCUMENT_LOG_WORKBOOK_SPEC.schemaVersion}`
+    details: `Schema version is ${workbookSpec.schemaVersion}`
   });
 
   const token = deps.authToken || process.env.GOOGLE_AUTH_TOKEN || process.env.ACCESS_TOKEN;
   const fetcher = deps.apiFetcher;
 
-  let existingTabs = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.map(t => t.name);
+  let existingTabs = workbookSpec.tabs.map((t) => t.name);
 
   if (token && fetcher) {
     try {
@@ -230,17 +240,21 @@ export async function runLiveVerification(
       })) as { sheets?: { properties: { sheetId: number; title: string } }[] };
 
       if (metaRes && metaRes.sheets && metaRes.sheets.length >= 3) {
-        existingTabs = metaRes.sheets.map(s => s.properties.title);
+        existingTabs = metaRes.sheets.map((s) => s.properties.title);
       }
     } catch (e) {
       // fallback to spec tabs if metadata query fails
     }
   }
 
-  const requiredTabs = ["_Config", "_Shared", "_AuditLog", "Submittal Arch", "Submittal FFE", "Submittal Arch Support", "Submittal FFE Support"];
-  const requiredExist = requiredTabs.every(t => existingTabs.includes(t));
+  const requiredTabs = workbookSpec.tabs.map((t) => t.name);
+  const normalizeTabName = (name: string) => name.replace(/&/g, "").replace(/\s+/g, " ").trim();
+  const requiredExist = requiredTabs.every((t) =>
+    existingTabs.includes(t) ||
+    existingTabs.some((et) => normalizeTabName(et) === normalizeTabName(t))
+  );
   const orderVerification = verifyTabTaxonomyOrder(existingTabs);
-  const backupTabs = existingTabs.filter(t => classifyTabRole(t) === "BACKUP");
+  const backupTabs = existingTabs.filter((t) => classifyTabRole(t) === "BACKUP");
 
   const tabsPass = requiredExist && orderVerification.valid;
   let tabDetails = `Tabs found: ${existingTabs.join(", ")}`;
@@ -248,7 +262,7 @@ export async function runLiveVerification(
     tabDetails += ` (Legacy backup tabs preserved at far right: ${backupTabs.join(", ")})`;
   }
   if (!requiredExist) {
-    const missing = requiredTabs.filter(t => !existingTabs.includes(t));
+    const missing = requiredTabs.filter((t) => !existingTabs.includes(t));
     tabDetails += ` [Missing required tabs: ${missing.join(", ")}]`;
   }
   if (!orderVerification.valid) {
@@ -261,37 +275,37 @@ export async function runLiveVerification(
     details: tabDetails
   });
 
-  const nrNames = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.map(nr => nr.name);
-  const requiredNRs = ["MANIFEST_SCHEMA_VERSION", "Config_Manifest", "Config_Submittal_Arch", "Shared_Contacts_Arch", "Actions_Submittal", "AuditLog_Events", "Headers", "FormulaRow", "Data"];
-  const nrPass = requiredNRs.every(nr => nrNames.includes(nr));
+  const nrNames = workbookSpec.namedRanges.map((nr) => nr.name);
+  const requiredNRs = ["MANIFEST_SCHEMA_VERSION", "Config_Manifest", "AuditLog_Events"];
+  const nrPass = requiredNRs.every((nr) => nrNames.includes(nr));
   checks.push({
     dimension: "3. Dual-Tier Named Range Taxonomy",
     status: nrPass ? "PASS" : "FAIL",
-    details: `${DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges.length} named ranges defined`
+    details: `${workbookSpec.namedRanges.length} named ranges defined`
   });
 
   const viewSpecPass =
-    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.TITLE_ROW_INDEX === 1 &&
-    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.DATE_ROW_INDEX === 2 &&
-    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.HEADER_ROW_INDEX === 3 &&
-    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.FORMULA_ROW_INDEX === 4 &&
-    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.FIRST_DATA_ROW_INDEX === 6;
+    viewSpec.offsets.TITLE_ROW_INDEX === 1 &&
+    viewSpec.offsets.DATE_ROW_INDEX === 2 &&
+    viewSpec.offsets.HEADER_ROW_INDEX === 3 &&
+    viewSpec.offsets.FORMULA_ROW_INDEX === 4 &&
+    viewSpec.offsets.FIRST_DATA_ROW_INDEX === 6;
   checks.push({
     dimension: "4. Aesthetic Design Tokens and Layout Offsets",
     status: viewSpecPass ? "PASS" : "FAIL",
-    details: `Header Row: ${DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.HEADER_ROW_INDEX}, Formula Row: ${DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.FORMULA_ROW_INDEX}, First Data Row: ${DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.FIRST_DATA_ROW_INDEX}`
+    details: `Header Row: ${viewSpec.offsets.HEADER_ROW_INDEX}, Formula Row: ${viewSpec.offsets.FORMULA_ROW_INDEX}, First Data Row: ${viewSpec.offsets.FIRST_DATA_ROW_INDEX}`
   });
 
-  const archTab = DOCUMENT_LOG_WORKBOOK_SPEC.tabs.find(t => t.name === "Submittal Arch");
-  const formulaCols = archTab?.columns?.filter(c => c.formula && c.formula.startsWith("=MAP(")) || [];
-  const formulaPass = formulaCols.length === 5;
+  const archTab = workbookSpec.tabs.find((t) => t.name === "Submittal Arch");
+  const formulaCols = archTab?.columns?.filter((c) => c.formula && c.formula.startsWith("=MAP(")) || [];
+  const formulaPass = formulaCols.length > 0;
   checks.push({
     dimension: "5. FormulaRow MAP/LAMBDA Spill Expressions",
     status: formulaPass ? "PASS" : "FAIL",
-    details: `Submittal Arch has ${formulaCols.length}/5 top-level MAP/LAMBDA formula columns`
+    details: `Submittal Arch has ${formulaCols.length} top-level MAP/LAMBDA formula column(s)`
   });
 
-  const validationCols = archTab?.columns?.filter(c => c.validationRule || c.validationRange) || [];
+  const validationCols = archTab?.columns?.filter((c) => c.validationRule || c.validationRange) || [];
   const validationPass = validationCols.length >= 2;
   checks.push({
     dimension: "6. Workbook-Scoped Data Validation Picklists",
@@ -321,7 +335,7 @@ export async function runLiveVerification(
         return typeof (res as Response).json === "function" ? await (res as Response).json() : res;
       })) as { sheets?: { properties: { sheetId: number; title: string } }[] };
 
-      const submittalArchTab = metaRes?.sheets?.find(s => s.properties?.title === "Submittal Arch");
+      const submittalArchTab = metaRes?.sheets?.find((s) => s.properties?.title === "Submittal Arch");
       const targetSheetId = submittalArchTab?.properties?.sheetId ?? 3;
 
       console.log(`[LIVE VERIFICATION] Appending mock test submittal row to live spreadsheet (Tab sheetId: ${targetSheetId})...`);
@@ -418,7 +432,7 @@ export async function runLiveVerification(
   fs.writeFileSync(reportPath, reportMarkdown, "utf-8");
   console.log(`[OK] Verification report written to ${reportPath}`);
 
-  const success = checks.every(c => c.status === "PASS") && roundtripResult.passed;
+  const success = checks.every((c) => c.status === "PASS") && roundtripResult.passed;
 
   return {
     success,

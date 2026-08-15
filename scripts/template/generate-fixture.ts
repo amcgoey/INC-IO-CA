@@ -1,16 +1,34 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { DOCUMENT_LOG_WORKBOOK_SPEC } from '../../src/core/config/DocumentLogWorkbookSpec';
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from '../../src/core/config/DocumentLogWorkbookViewSpec';
-import { WorkbookTemplateViewModel } from '../../src/core/config/WorkbookTemplateViewModel';
+﻿/**
+ * @file generate-fixture.ts
+ * @description Generates the document log workbook template JSON fixture from declarative JSON specs.
+ */
 
-export function generateFixture(): void {
-  const viewModel = new WorkbookTemplateViewModel(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
-  const fixture = viewModel.toFixtureJson();
-  const outputPath = path.resolve(__dirname, '../../test/fixtures/document-log-workbook-template.json');
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { WorkbookTemplateViewModel } from "../../src/core/config/WorkbookTemplateViewModel";
+import { createWorkbookTemplateViewModel } from "./spec-loader";
 
-  fs.writeFileSync(outputPath, JSON.stringify(fixture, null, 2) + '\n', 'utf-8');
+export function generateFixture(
+  viewModel?: WorkbookTemplateViewModel,
+  customOutputPath?: string
+): string {
+  const vm = viewModel || createWorkbookTemplateViewModel();
+  const fixture = vm.toFixtureJson();
+  const outputPath =
+    customOutputPath ||
+    path.resolve(__dirname, "../../test/fixtures/document-log-workbook-template.json");
+
+  fs.writeFileSync(outputPath, JSON.stringify(fixture, null, 2) + "\n", "utf-8");
   console.log(`[OK] Successfully generated template fixture at ${outputPath}`);
+  return outputPath;
 }
 
-generateFixture();
+if (require.main === module) {
+  try {
+    generateFixture();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[ERROR] Failed to generate fixture: ${msg}`);
+    process.exit(1);
+  }
+}

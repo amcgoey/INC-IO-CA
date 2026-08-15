@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file GoogleSheetsDocumentTypeSpecAdapter.ts
  * @description Tier 2 GAS Infrastructure Adapter for DocumentTypeSpec.
  * Compiles DocumentTypeSpec[] into DocumentLogWorkbookSpec models and
@@ -124,17 +124,26 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
     specs: DocumentTypeSpec[],
     baseSpec?: Partial<DocumentLogWorkbookSpec>
   ): DocumentLogWorkbookSpec {
-    const tabs: TabSpec[] = baseSpec?.tabs ? [...baseSpec.tabs] : [];
+    const tabs: TabSpec[] = [];
     const namedRanges: NamedRangeSpec[] = baseSpec?.namedRanges ? [...baseSpec.namedRanges] : [];
 
     // 1. Process Log Tabs
     this.compileLogTabs(specs, tabs);
 
-    // 2. Process Support Tabs (_Shared and <Type> Support)
+    // 2. Process Support Tabs (<Type> Support and _Shared)
     this.compileSupportTabs(specs, tabs, namedRanges);
 
     // 3. Build centralized _Config Tab and register Named Ranges
     this.compileConfigTab(specs, baseSpec, tabs, namedRanges);
+
+    // 4. Append baseSpec tabs (e.g. _AuditLog)
+    if (baseSpec?.tabs) {
+      for (const baseTab of baseSpec.tabs) {
+        if (!tabs.some((t) => t.name === baseTab.name)) {
+          tabs.push(baseTab);
+        }
+      }
+    }
 
     return {
       schemaVersion: baseSpec?.schemaVersion || DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION,
@@ -963,35 +972,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       return { seedRows, tabRowCount, tabColumnCount };
     };
 
-    // 2. Compile _Shared tab
-    if (sharedDatasetsMap.size > 0) {
-      const sharedDatasets = Array.from(sharedDatasetsMap.values());
-      const { seedRows, tabRowCount, tabColumnCount } = buildSupportTabSeedRowsAndNamedRanges(
-        '_Shared',
-        sharedDatasets,
-        100
-      );
-
-      const existingSharedTabIdx = tabs.findIndex((t) => t.name === '_Shared');
-      const sharedTab: TabSpec = {
-        name: '_Shared',
-        rowCount: tabRowCount,
-        columnCount: Math.max(20, tabColumnCount),
-        isSharedTab: true,
-        seedRows,
-      };
-
-      if (existingSharedTabIdx >= 0) {
-        tabs[existingSharedTabIdx] = {
-          ...tabs[existingSharedTabIdx],
-          ...sharedTab,
-        };
-      } else {
-        tabs.push(sharedTab);
-      }
-    }
-
-    // 3. Compile per-spec <Type> Support tabs
+    // 2. Compile per-spec <Type> Support tabs
     for (const { tabName, datasets } of Array.from(specSupportMap.values())) {
       if (datasets.length === 0) continue;
       const { seedRows, tabRowCount, tabColumnCount } = buildSupportTabSeedRowsAndNamedRanges(
@@ -1016,6 +997,34 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
         };
       } else {
         tabs.push(supportTab);
+      }
+    }
+
+    // 3. Compile _Shared tab
+    if (sharedDatasetsMap.size > 0) {
+      const sharedDatasets = Array.from(sharedDatasetsMap.values());
+      const { seedRows, tabRowCount, tabColumnCount } = buildSupportTabSeedRowsAndNamedRanges(
+        '_Shared',
+        sharedDatasets,
+        100
+      );
+
+      const existingSharedTabIdx = tabs.findIndex((t) => t.name === '_Shared');
+      const sharedTab: TabSpec = {
+        name: '_Shared',
+        rowCount: tabRowCount,
+        columnCount: Math.max(20, tabColumnCount),
+        isSharedTab: true,
+        seedRows,
+      };
+
+      if (existingSharedTabIdx >= 0) {
+        tabs[existingSharedTabIdx] = {
+          ...tabs[existingSharedTabIdx],
+          ...sharedTab,
+        };
+      } else {
+        tabs.push(sharedTab);
       }
     }
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file deploy-live.test.ts
  * @description Unit tests for deploy-live.ts CLI argument parsing, single-pass batch update payload generation,
  * 3-retry exponential backoff rate-limit handling, target spreadsheet ID resolution, and deployment execution.
@@ -317,4 +317,56 @@ test("deployLiveTemplate - --create --target=prod provisions spreadsheet with ti
   assert.strictEqual(result.spreadsheetId, "NEWLY_CREATED_PROD_123");
   assert.strictEqual(calls[0].url, "https://www.googleapis.com/drive/v3/files");
   assert.strictEqual((calls[0].body as { name: string }).name, PROD_TEMPLATE_SPREADSHEET_TITLE);
+});
+
+test("buildDeploymentPayload - accepts custom injected ViewModel", () => {
+  const customVm = new WorkbookTemplateViewModel(
+    {
+      schemaVersion: "1.0.0",
+      tabs: [
+        { name: "Custom Tab", rowCount: 10, columnCount: 5, isLogTab: true, columns: [{ id: "c1", header: "Col 1" }] }
+      ],
+      namedRanges: []
+    },
+    {
+      titleRowStyle: { fillHex: "#000", fillRgb: { red: 0, green: 0, blue: 0 }, fontColorHex: "#FFF", fontColorRgb: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 10, fontFamily: "Arial" },
+      dateRowStyle: { fillHex: "#000", fillRgb: { red: 0, green: 0, blue: 0 }, fontColorHex: "#FFF", fontColorRgb: { red: 1, green: 1, blue: 1 }, italic: true, fontSize: 10, fontFamily: "Arial" },
+      headerStyle: { fillHex: "#000", fillRgb: { red: 0, green: 0, blue: 0 }, fontColorHex: "#FFF", fontColorRgb: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 10, fontFamily: "Arial" },
+      formulaRowStyle: { fillHex: "#000", fillRgb: { red: 0, green: 0, blue: 0 }, fontColorHex: "#FFF", fontColorRgb: { red: 1, green: 1, blue: 1 }, italic: true, fontSize: 10, fontFamily: "Arial" },
+      offsets: { TITLE_ROW_INDEX: 1, DATE_ROW_INDEX: 2, HEADER_ROW_INDEX: 3, FORMULA_ROW_INDEX: 4, TOP_BUFFER_ROW_INDEX: 5, BUFFER_ROW_INDEX: 5, FIRST_DATA_ROW_INDEX: 6, FIRST_DATA_ROW_OFFSET: 5 },
+      columnWidths: { c1: 100 },
+      defaultColumnWidth: 100
+    }
+  );
+
+  const payload = buildDeploymentPayload(customVm);
+  assert.ok(payload);
+  assert.ok(payload.requests.length > 0);
+});
+
+test("deployLiveTemplate - accepts custom injected ViewModel via deps", async () => {
+  const customVm = new WorkbookTemplateViewModel(
+    {
+      schemaVersion: "1.0.0",
+      tabs: [{ name: "Injected Tab", rowCount: 10, columnCount: 5, isLogTab: true, columns: [] }],
+      namedRanges: []
+    },
+    {
+      titleRowStyle: { fillHex: "#000", fillRgb: { red: 0, green: 0, blue: 0 }, fontColorHex: "#FFF", fontColorRgb: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 10, fontFamily: "Arial" },
+      dateRowStyle: { fillHex: "#000", fillRgb: { red: 0, green: 0, blue: 0 }, fontColorHex: "#FFF", fontColorRgb: { red: 1, green: 1, blue: 1 }, italic: true, fontSize: 10, fontFamily: "Arial" },
+      headerStyle: { fillHex: "#000", fillRgb: { red: 0, green: 0, blue: 0 }, fontColorHex: "#FFF", fontColorRgb: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 10, fontFamily: "Arial" },
+      formulaRowStyle: { fillHex: "#000", fillRgb: { red: 0, green: 0, blue: 0 }, fontColorHex: "#FFF", fontColorRgb: { red: 1, green: 1, blue: 1 }, italic: true, fontSize: 10, fontFamily: "Arial" },
+      offsets: { TITLE_ROW_INDEX: 1, DATE_ROW_INDEX: 2, HEADER_ROW_INDEX: 3, FORMULA_ROW_INDEX: 4, TOP_BUFFER_ROW_INDEX: 5, BUFFER_ROW_INDEX: 5, FIRST_DATA_ROW_INDEX: 6, FIRST_DATA_ROW_OFFSET: 5 },
+      columnWidths: {},
+      defaultColumnWidth: 100
+    }
+  );
+
+  const result = await deployLiveTemplate(
+    { spreadsheetId: "CUSTOM_INJECTED_ID", target: "test", dryRun: true },
+    { viewModel: customVm }
+  );
+
+  assert.strictEqual(result.success, true);
+  assert.strictEqual(result.spreadsheetId, "CUSTOM_INJECTED_ID");
 });
