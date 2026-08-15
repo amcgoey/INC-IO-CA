@@ -9,8 +9,11 @@ import assert from "node:assert/strict";
 
 import { deployLiveTemplate, buildDeploymentPayload } from "../scripts/template/deploy-live";
 import { runLiveVerification } from "../scripts/template/verify-live";
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../src/core/config/DocumentLogWorkbookViewSpec";
-import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../src/core/config/DocumentLogWorkbookSpec";
+import { loadWorkbookSpecs } from "../scripts/template/spec-loader";
+
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC, TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./fixtures/canonicalTestSpec";
+const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
+const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC;
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { DocumentWorkflowModule, WorkflowExecutionInput } from "../src/core/workflow/DocumentWorkflowModule";
 import { DeclarativeDocumentLogStrategy } from "../src/DocumentLogStrategy";

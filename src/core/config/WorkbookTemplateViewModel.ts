@@ -5,8 +5,8 @@
  * and Google Sheets API batchUpdate request payloads.
  */
 
-import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
-import { DocumentLogWorkbookViewSpec, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, HeaderStyleSpec, ColorRgb, StatusColors } from "./DocumentLogWorkbookViewSpec";
+import { DocumentLogWorkbookSpec, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
+import { DocumentLogWorkbookViewSpec, HeaderStyleSpec, ColorRgb, StatusColors } from "./DocumentLogWorkbookViewSpec";
 
 export interface FixtureTabSpec {
   name: string;
@@ -45,9 +45,15 @@ export class WorkbookTemplateViewModel {
   private viewSpec: DocumentLogWorkbookViewSpec;
 
   constructor(
-    model: DocumentLogWorkbookSpec = DOCUMENT_LOG_WORKBOOK_SPEC,
-    viewSpec: DocumentLogWorkbookViewSpec = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC
+    model: DocumentLogWorkbookSpec,
+    viewSpec: DocumentLogWorkbookViewSpec
   ) {
+    if (!model) {
+      throw new Error("DocumentLogWorkbookSpec model is required");
+    }
+    if (!viewSpec) {
+      throw new Error("DocumentLogWorkbookViewSpec viewSpec is required");
+    }
     this.model = model;
     this.viewSpec = viewSpec;
   }

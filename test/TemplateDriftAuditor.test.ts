@@ -4,17 +4,28 @@
  * Template Drift Auditor 7th & 8th Dimensions (PROTECTION_DRIFT & VALIDATION_DRIFT) & Auto-Patching.
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "vitest";
 import assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { TemplateDriftAuditor } from "../src/core/admin/TemplateDriftAuditor";
-import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../src/core/config/DocumentLogWorkbookSpec";
+
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC } from "./fixtures/canonicalTestSpec";
+const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
 import { SheetValidationAndProtectionAdapter } from "../src/adapters/gas/SheetValidationAndProtectionAdapter";
 import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
 
 describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)", () => {
+  beforeEach(() => {
+    TemplateDriftAuditor.setDefaultSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+    TemplateDriftAuditor.setDefaultValidationAndProtectionAdapter(new SheetValidationAndProtectionAdapter());
+  });
+
+  afterEach(() => {
+    TemplateDriftAuditor.setDefaultSpec(undefined);
+    TemplateDriftAuditor.setDefaultValidationAndProtectionAdapter(undefined);
+  });
   let harness: ReturnType<typeof GasMockHarness.install>;
 
   beforeEach(() => {

@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert";
 import { GasMockHarness } from "./GasMockHarness";
-import { DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, DOCUMENT_LOG_WORKBOOK_SPEC, TabSpec, NamedRangeSpec } from "../../src/core/config/DocumentLogWorkbookSpec";
+import { DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, TabSpec, NamedRangeSpec } from "../../src/core/config/DocumentLogWorkbookSpec";
+
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC } from "../fixtures/canonicalTestSpec";
+const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
 import { LogEngine } from "../../src/core/log/LogEngine";
 import { GoogleSheetsStorageAdapter } from "../../src/SheetStorageAdapter";
 import { DeclarativeDocumentLogStrategy } from "../../src/DocumentLogStrategy";

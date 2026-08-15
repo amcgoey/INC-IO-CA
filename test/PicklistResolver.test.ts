@@ -6,7 +6,10 @@ import { CardSerializer } from "./harness/CardSerializer";
 // Register globals and load modules
 import "../src/DocumentTypeConfigRegistry";
 import { PicklistResolver } from "../src/core/config/PicklistResolver";
-import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../src/core/config/DocumentLogWorkbookSpec";
+import { loadWorkbookSpecs } from "../scripts/template/spec-loader";
+
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC } from "./fixtures/canonicalTestSpec";
+const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
 import { renderDynamicFormFields } from "../src/adapters/gas/UI";
 
 describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
@@ -97,7 +100,9 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
         "Vendors",
         ss,
         "Submittal_FFE",
-        "Submittal FFE"
+        "Submittal FFE",
+        undefined,
+        DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges
       );
 
       assert.equal(result.success, true);

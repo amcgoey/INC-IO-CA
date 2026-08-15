@@ -1,6 +1,8 @@
 ﻿import { describe, it, expect, afterEach } from 'vitest';
 import { GasMockHarness } from '../harness/GasMockHarness';
-import { DOCUMENT_LOG_WORKBOOK_SPEC } from '../../src/core/config/DocumentLogWorkbookSpec';
+
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC } from '../fixtures/canonicalTestSpec';
+const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
 import { SheetValidationAndProtectionAdapter } from '../../src/adapters/gas/SheetValidationAndProtectionAdapter';
 
 describe('SheetValidationAndProtectionAdapter', () => {

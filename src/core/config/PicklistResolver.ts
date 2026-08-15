@@ -5,7 +5,7 @@
  * static JSON fallback defaults, and key normalization (normalizePicklistValue) adhering to ADR 0038.
  */
 
-import { DOCUMENT_LOG_WORKBOOK_SPEC, NamedRangeSpec } from "./DocumentLogWorkbookSpec";
+import { NamedRangeSpec, DocumentLogWorkbookSpec } from "./DocumentLogWorkbookSpec";
 import type { DocumentTypeSpec, PicklistSourceSpec, SupportDataSpec } from "../specs/DocumentTypeSpec";
 
 export interface PicklistOption {
@@ -244,7 +244,8 @@ export class PicklistResolver {
     spreadsheet: SpreadsheetLike | null | undefined,
     docTypeKey: string = 'Submittal_Arch',
     activeSheetName: string = 'Submittal Arch',
-    fieldSpec?: MinimalFieldSpec
+    fieldSpec?: MinimalFieldSpec,
+    namedRanges?: NamedRangeSpec[]
   ): PicklistResolveResult {
     const fallbackOptions: PicklistOption[] = (fieldSpec && Array.isArray(fieldSpec.options))
       ? fieldSpec.options
@@ -282,7 +283,7 @@ export class PicklistResolver {
     // Tier 2: Retry with sheet qualification from DocumentLogWorkbookSpec or active sheet
     const candidateTabNames: string[] = [];
 
-    const specRanges: NamedRangeSpec[] = DOCUMENT_LOG_WORKBOOK_SPEC.namedRanges || [];
+    const specRanges: NamedRangeSpec[] = namedRanges || [];
     const matchedSpec = specRanges.find(r => r.name === bareRangeName || r.name === cleanRangeStr);
     if (matchedSpec && matchedSpec.tabName) {
       candidateTabNames.push(matchedSpec.tabName);

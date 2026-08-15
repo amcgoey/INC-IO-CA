@@ -1,7 +1,11 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { GasMockHarness } from "./harness/GasMockHarness";
-import { DOCUMENT_LOG_WORKBOOK_SPEC, TabSpec, NamedRangeSpec } from "../src/core/config/DocumentLogWorkbookSpec";
+import { TabSpec, NamedRangeSpec } from "../src/core/config/DocumentLogWorkbookSpec";
+import { loadWorkbookSpecs } from "../scripts/template/spec-loader";
+
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC } from "./fixtures/canonicalTestSpec";
+const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
 import { PicklistResolver, PicklistOption } from "../src/core/config/PicklistResolver";
 import templateJson from "./fixtures/document-log-workbook-template.json";
 

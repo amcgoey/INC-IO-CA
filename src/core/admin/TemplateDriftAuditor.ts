@@ -1,11 +1,7 @@
 /// <reference path="../../types.ts" />
 
-import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../config/DocumentLogWorkbookSpec";
+import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION } from "../config/DocumentLogWorkbookSpec";
 import { LogEngine } from "../log/LogEngine";
-
-function getDocumentLogWorkbookSpec(): any {
-  return DOCUMENT_LOG_WORKBOOK_SPEC;
-}
 
 export type SchemaDriftStatus = "MATCH" | "MINOR_DRIFT" | "MAJOR_DRIFT" | "INCOMPATIBLE";
 export type IssueSeverity = "CRITICAL" | "WARNING" | "INFO";
@@ -106,8 +102,28 @@ export interface BatchPayload {
 export type StorageAdapterInput = BatchPayload | SheetStorageSeam | string;
 
 export class TemplateDriftAuditor {
+  private static defaultSpec?: DocumentLogWorkbookSpec;
+
+  public static setDefaultSpec(spec?: DocumentLogWorkbookSpec): void {
+    TemplateDriftAuditor.defaultSpec = spec;
+  }
+
+  public static getDefaultSpec(): DocumentLogWorkbookSpec | undefined {
+    return TemplateDriftAuditor.defaultSpec;
+  }
+
+  private static defaultValidationAndProtectionAdapter?: any;
+
+  public static setDefaultValidationAndProtectionAdapter(adapter?: any): void {
+    TemplateDriftAuditor.defaultValidationAndProtectionAdapter = adapter;
+  }
+
+  public static getDefaultValidationAndProtectionAdapter(): any {
+    return TemplateDriftAuditor.defaultValidationAndProtectionAdapter;
+  }
+
   public static get CODE_SCHEMA_VERSION(): string {
-    return getDocumentLogWorkbookSpec()?.schemaVersion || "1.0.0";
+    return this.spec?.schemaVersion || "1.0.0";
   }
 
   public static auditWorkbook(
@@ -130,6 +146,9 @@ export class TemplateDriftAuditor {
 }
 class TemplateDriftInspector {
   private spreadsheetId: string = "active-workbook";
+  private get spec(): DocumentLogWorkbookSpec | undefined {
+    return this.options?.spec || TemplateDriftAuditor.getDefaultSpec();
+  }
   private apiReadCount: number = 0;
   private inspectionStrategy: "ADVANCED_SHEETS_BATCH_V1" | "STORAGE_ADAPTER_LIVE" = "STORAGE_ADAPTER_LIVE";
   private batchData: BatchPayload | null = null;
@@ -326,7 +345,7 @@ class TemplateDriftInspector {
         }
       }
 
-      const expectedVersion = getDocumentLogWorkbookSpec()?.schemaVersion || TemplateDriftAuditor.CODE_SCHEMA_VERSION;
+      const expectedVersion = this.spec?.schemaVersion || TemplateDriftAuditor.CODE_SCHEMA_VERSION;
       if (!liveSchemaVersion) {
         issues.push({
           category: "VERSION",
@@ -372,7 +391,7 @@ class TemplateDriftInspector {
       });
     }
 
-    const specTabs = getDocumentLogWorkbookSpec()?.tabs || [];
+    const specTabs = this.spec?.tabs || [];
     for (const specTab of specTabs) {
       if (!liveSheetNames.includes(specTab.name)) {
         if (specTab.isLogTab) {
@@ -399,7 +418,7 @@ class TemplateDriftInspector {
   }
 
   private auditDimension3_NamedRanges(issues: TemplateDriftIssue[], liveSheetNames: string[]): void {
-    const namedRanges = getDocumentLogWorkbookSpec()?.namedRanges || [];
+    const namedRanges = this.spec?.namedRanges || [];
     for (const nrSpec of namedRanges) {
       if (!liveSheetNames.includes(nrSpec.tabName)) continue;
 
@@ -423,7 +442,7 @@ class TemplateDriftInspector {
   }
 
   private auditDimensions4_5_6_LogTabs(issues: TemplateDriftIssue[], liveSheetNames: string[]): void {
-    const specTabs = getDocumentLogWorkbookSpec()?.tabs || [];
+    const specTabs = this.spec?.tabs || [];
     for (const specTab of specTabs) {
       if (!specTab.isLogTab || !specTab.columns || !liveSheetNames.includes(specTab.name)) {
         continue;
@@ -545,7 +564,7 @@ class TemplateDriftInspector {
 
 
   private auditDimension7_Protections(issues: TemplateDriftIssue[], liveSheetNames: string[]): void {
-    const specTabs = getDocumentLogWorkbookSpec()?.tabs || [];
+    const specTabs = this.spec?.tabs || [];
     for (const specTab of specTabs) {
       if (!liveSheetNames.includes(specTab.name)) continue;
 
@@ -646,6 +665,9 @@ class TemplateDriftPatcher {
   private storageInput: StorageAdapterInput;
   private options: AutoPatchWorkbookOptions;
   private spreadsheetId: string = "active-workbook";
+  private get spec(): DocumentLogWorkbookSpec | undefined {
+    return this.options?.spec || TemplateDriftAuditor.getDefaultSpec();
+  }
 
   constructor(storageInput: StorageAdapterInput, options: AutoPatchWorkbookOptions) {
     this.storageInput = storageInput;
@@ -683,6 +705,7 @@ class TemplateDriftPatcher {
     applyNumberFormats?: (spreadsheet: any, spec?: any) => void;
   } | null {
     if (this.options.validationAndProtectionAdapter) return this.options.validationAndProtectionAdapter;
+    if (TemplateDriftAuditor.getDefaultValidationAndProtectionAdapter()) return TemplateDriftAuditor.getDefaultValidationAndProtectionAdapter();
     const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
     if (g.defaultSheetValidationAndProtectionAdapter) return g.defaultSheetValidationAndProtectionAdapter;
     if (g.SheetValidationAndProtectionAdapter) return new g.SheetValidationAndProtectionAdapter();
@@ -754,7 +777,7 @@ class TemplateDriftPatcher {
 
     try {
       // 1. Double-checked audit under lock
-      const initialReport = TemplateDriftAuditor.auditWorkbook(this.storageInput, { bypassCache: true });
+      const initialReport = TemplateDriftAuditor.auditWorkbook(this.storageInput, { bypassCache: true, spec: this.spec });
 
       if (initialReport.status === "MATCH") {
         return {
@@ -801,7 +824,7 @@ class TemplateDriftPatcher {
       }
 
       // Repair B: Sheet-scoped Named Ranges (Headers, FormulaRow, Data) on log tabs
-      const specTabs = getDocumentLogWorkbookSpec()?.tabs || [];
+      const specTabs = this.spec?.tabs || [];
       for (const specTab of specTabs) {
         if (!specTab.isLogTab || !sheetNames.includes(specTab.name)) continue;
 
@@ -848,12 +871,14 @@ class TemplateDriftPatcher {
       // Repair D: Restore missing validation rules, range protections, and number formats via SheetValidationAndProtectionAdapter
       const valProtAdapter = this.resolveValidationAndProtectionAdapter();
       if (valProtAdapter) {
-        const spec = getDocumentLogWorkbookSpec();
+        const spec = this.spec;
         if (typeof valProtAdapter.applyValidationRules === "function") {
           try {
             valProtAdapter.applyValidationRules(seam, spec);
             repairsApplied.push("Restored missing cell validation rules across log tabs");
-          } catch (e) {}
+          } catch (e) {
+            
+          }
         }
         if (typeof valProtAdapter.applyRangeProtections === "function") {
           try {
@@ -876,7 +901,7 @@ class TemplateDriftPatcher {
       this.writeTelemetryEvents(seam, repairsApplied);
 
       // 5. Re-run post-repair audit
-      const finalReport = TemplateDriftAuditor.auditWorkbook(this.storageInput, { bypassCache: true });
+      const finalReport = TemplateDriftAuditor.auditWorkbook(this.storageInput, { bypassCache: true, spec: this.spec });
 
       return {
         success: true,

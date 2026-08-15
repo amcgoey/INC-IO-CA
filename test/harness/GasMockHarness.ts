@@ -117,7 +117,6 @@ export class MockDataValidationBuilder {
   }
 }
 import { ColumnSpec, DocumentLogWorkbookSpec } from "../../src/core/config/DocumentLogWorkbookSpec";
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../src/core/config/DocumentLogWorkbookViewSpec";
 import { MockDriveState, MockDriveApp } from "./MockDrive";
 import { MockCardService } from "./CardServiceMocks";
 import { CardSerializer, ButtonJson } from "./CardSerializer";
@@ -746,7 +745,7 @@ export class MockSpreadsheet {
           sheet.setGridSlice(1, 1, tabDef.seedRows);
         }
         if (tabDef.columns && tabDef.columns.length > 0) {
-          const offsets = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets;
+          const offsets = { TITLE_ROW_INDEX: 1, DATE_ROW_INDEX: 2, HEADER_ROW_INDEX: 3, FORMULA_ROW_INDEX: 4, FIRST_DATA_ROW_INDEX: 6 };
           sheet.setGridSlice(offsets.TITLE_ROW_INDEX, 1, [[tabDef.title || tabDef.name]]);
           sheet.setGridSlice(offsets.DATE_ROW_INDEX, 1, [["=TODAY()"]]);
           const headers = tabDef.columns.map((c: ColumnSpec) => c.header);

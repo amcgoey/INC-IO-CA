@@ -2,8 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../src/core/config/DocumentLogWorkbookSpec";
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../src/core/config/DocumentLogWorkbookViewSpec";
+
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC, TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./fixtures/canonicalTestSpec";
+const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
+const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC;
 import { WorkbookTemplateViewModel } from "../src/core/config/WorkbookTemplateViewModel";
 import { GasMockHarness } from "./harness/GasMockHarness";
 

@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, PROTECTION_TIER_SPECS } from '../src/core/config/DocumentLogWorkbookSpec';
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, ThemeColors, VisualStyleSpec } from '../src/core/config/DocumentLogWorkbookViewSpec';
+import { DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION, PROTECTION_TIER_SPECS } from '../src/core/config/DocumentLogWorkbookSpec';
+import { loadWorkbookSpecs } from '../scripts/template/spec-loader';
+
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC, TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from './fixtures/canonicalTestSpec';
+const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
+const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC;
+const VisualStyleSpec = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC;
+import { ThemeColors } from '../src/core/config/DocumentLogWorkbookViewSpec';
 import { WorkbookTemplateViewModel } from '../src/core/config/WorkbookTemplateViewModel';
 
 test('DocumentLogWorkbookSpec - defines Submittal Arch tab with 1000x26 layout', () => {

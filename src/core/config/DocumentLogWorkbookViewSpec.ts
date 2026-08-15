@@ -1,6 +1,6 @@
 /**
  * @file DocumentLogWorkbookViewSpec.ts
- * @description MVVM View specification tokenizing aesthetic presentation rules
+ * @description MVVM View specification interfaces and design tokens tokenizing aesthetic presentation rules
  * (header fill colors #666666, font typography, layout offsets, column widths,
  * and date/number format strings) derived from reference submittal log templates.
  */
@@ -127,103 +127,9 @@ const StatusColors: Record<string, { hex: string; rgb: ColorRgb }> = {
   Billed: { hex: '#D9D9D9', rgb: hexToRgb('#D9D9D9') }
 };
 
-const VisualStyleSpec: DocumentLogWorkbookViewSpec = {
-  titleRowStyle: {
-    fillHex: ThemeColors.HEADER_FILL_HEX,
-    fillRgb: ThemeColors.HEADER_FILL_RGB,
-    fontColorHex: ThemeColors.HEADER_TEXT_HEX,
-    fontColorRgb: ThemeColors.HEADER_TEXT_RGB,
-    bold: true,
-    fontSize: 27,
-    fontFamily: 'Abril Fatface'
-  },
-  dateRowStyle: {
-    fillHex: ThemeColors.HEADER_FILL_HEX,
-    fillRgb: ThemeColors.HEADER_FILL_RGB,
-    fontColorHex: ThemeColors.HEADER_TEXT_HEX,
-    fontColorRgb: ThemeColors.HEADER_TEXT_RGB,
-    italic: true,
-    fontSize: 10,
-    fontFamily: 'Raleway'
-  },
-  headerStyle: {
-    fillHex: ThemeColors.HEADER_FILL_HEX,
-    fillRgb: ThemeColors.HEADER_FILL_RGB,
-    fontColorHex: ThemeColors.HEADER_TEXT_HEX,
-    fontColorRgb: ThemeColors.HEADER_TEXT_RGB,
-    bold: true,
-    fontSize: 11,
-    fontFamily: 'Raleway'
-  },
-  formulaRowStyle: {
-    fontColorHex: ThemeColors.FORMULA_ROW_FONT_HEX,
-    fontColorRgb: ThemeColors.FORMULA_ROW_FONT_RGB,
-    fillHex: ThemeColors.FORMULA_ROW_FILL_HEX,
-    fillRgb: ThemeColors.FORMULA_ROW_FILL_RGB,
-    italic: true,
-    fontSize: 7,
-    fontFamily: 'Raleway'
-  },
-  offsets: {
-    TITLE_ROW_INDEX: 1,
-    DATE_ROW_INDEX: 2,
-    HEADER_ROW_INDEX: 3,
-    FORMULA_ROW_INDEX: 4,
-    TOP_BUFFER_ROW_INDEX: 5,
-    BUFFER_ROW_INDEX: 5,
-    FIRST_DATA_ROW_INDEX: 6,
-    FIRST_DATA_ROW_OFFSET: 5
-  },
-  columnWidths: {
-    section: 100,
-    number: 100,
-    title: 250,
-    revision: 80,
-    date: 100,
-    contact: 180,
-    action: 140,
-    status: 120,
-    notes: 250,
-    link: 150,
-    calcFileName: 250,
-    calcNumber: 180,
-    calcTitle: 250,
-    calcContactChain: 200,
-    calcSort: 150,
-    specTag: 100,
-    relatedTag: 110,
-    specTitle: 250,
-    vendor: 180
-  },
-  defaultColumnWidth: 150,
-  defaultFontFamily: 'Raleway',
-  namedRangeFills: {
-    MANIFEST_SCHEMA_VERSION: ThemeColors.PALE_GRAY_RGB,
-    Config_Manifest: ThemeColors.PALE_GRAY_RGB,
-    Config_Submittal_Arch: ThemeColors.PALE_BLUE_RGB,
-    Config_Submittal_FFE: ThemeColors.PALE_BLUE_RGB,
-    Vendors: ThemeColors.PALE_BLUE_RGB,
-    Shared_Contacts_Arch: ThemeColors.PALE_GREEN_RGB,
-    Shared_Contacts_FFE: ThemeColors.PALE_GREEN_RGB,
-    SpecTags: ThemeColors.PALE_GREEN_RGB,
-    Actions_Submittal: ThemeColors.PALE_RED_RGB,
-    Statuses_Submittal: ThemeColors.PALE_BLUE_RGB
-  },
-  settingHeaderRanges: {
-    _Config: ['A1:B1', 'A5:D5'],
-    _Shared: ['A1:I1'],
-    'Submittal FFE Support': ['A1:D1']
-  },
-  statusColors: StatusColors
-};
-
-const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC: DocumentLogWorkbookViewSpec = VisualStyleSpec;
-
 export {
   ThemeColors,
-  StatusColors,
-  VisualStyleSpec,
-  DOCUMENT_LOG_WORKBOOK_VIEW_SPEC
+  StatusColors
 };
 
 declare let module: { exports?: unknown };
@@ -232,8 +138,6 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     hexToRgb,
     ThemeColors,
-    VisualStyleSpec,
-    DOCUMENT_LOG_WORKBOOK_VIEW_SPEC,
     StatusColors
   };
 }
@@ -241,5 +145,3 @@ if (typeof module !== 'undefined' && module.exports) {
 (globalThis as any).hexToRgb = hexToRgb;
 (globalThis as any).ThemeColors = ThemeColors;
 (globalThis as any).StatusColors = StatusColors;
-(globalThis as any).VisualStyleSpec = VisualStyleSpec;
-(globalThis as any).DOCUMENT_LOG_WORKBOOK_VIEW_SPEC = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC;

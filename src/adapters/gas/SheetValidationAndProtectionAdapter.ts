@@ -4,8 +4,8 @@
  * Implements declarative cell formatting (applyNumberFormats) and data validation rules (applyValidationRules) across data columns during workbook provisioning and patching.
  */
 
-import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SPEC, PROTECTION_TIER_SPECS, ColumnSpec } from "../../core/config/DocumentLogWorkbookSpec";
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "../../core/config/DocumentLogWorkbookViewSpec";
+import { DocumentLogWorkbookSpec, PROTECTION_TIER_SPECS, ColumnSpec } from "../../core/config/DocumentLogWorkbookSpec";
+import { DocumentLogWorkbookViewSpec } from "../../core/config/DocumentLogWorkbookViewSpec";
 
 export interface LogTabContext {
   tab: any;
@@ -15,13 +15,26 @@ export interface LogTabContext {
 }
 
 class SheetValidationAndProtectionAdapter {
+  private defaultModel?: DocumentLogWorkbookSpec;
+  private defaultViewSpec?: DocumentLogWorkbookViewSpec;
+
+  constructor(
+    defaultModel?: DocumentLogWorkbookSpec,
+    defaultViewSpec?: DocumentLogWorkbookViewSpec
+  ) {
+    this.defaultModel = defaultModel;
+    this.defaultViewSpec = defaultViewSpec;
+  }
+
   private getLogTabContexts(
     spreadsheet: any,
-    spec: DocumentLogWorkbookSpec
+    spec: DocumentLogWorkbookSpec,
+    viewSpec?: DocumentLogWorkbookViewSpec
   ): LogTabContext[] {
     if (!spreadsheet || !spec || !spec.tabs) return [];
 
-    const firstDataRow = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC?.offsets?.FIRST_DATA_ROW_INDEX || 6;
+    const effectiveViewSpec = viewSpec || this.defaultViewSpec;
+    const firstDataRow = effectiveViewSpec?.offsets?.FIRST_DATA_ROW_INDEX || 6;
     const results: LogTabContext[] = [];
 
     for (const tab of spec.tabs) {
@@ -45,10 +58,15 @@ class SheetValidationAndProtectionAdapter {
    */
   public applyValidationRules(
     spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet,
-    spec: DocumentLogWorkbookSpec = DOCUMENT_LOG_WORKBOOK_SPEC
+    spec?: DocumentLogWorkbookSpec,
+    viewSpec?: DocumentLogWorkbookViewSpec
   ): void {
+    const effectiveSpec = spec || this.defaultModel;
+    if (!effectiveSpec) {
+      throw new Error("DocumentLogWorkbookSpec is required for applyValidationRules");
+    }
     const spreadsheetApp = (globalThis as any).SpreadsheetApp;
-    const contexts = this.getLogTabContexts(spreadsheet, spec);
+    const contexts = this.getLogTabContexts(spreadsheet, effectiveSpec, viewSpec);
 
     for (const { tab, sheet, firstDataRow, numRows } of contexts) {
       tab.columns.forEach((colSpec: any, idx: number) => {
@@ -83,10 +101,6 @@ class SheetValidationAndProtectionAdapter {
   }
 
   /**
-   * Applies declarative numberFormat strings to data columns across log tabs.
-   */
-
-  /**
    * Configures soft warning-based range and sheet protections across all 3 tiers using PROTECTION_TIER_SPECS.
    * Tier 1: SYSTEM_TAB_PROTECTION on system tabs (_Config, _AuditLog, etc.).
    * Tier 2: HEADER_AND_FORMULA_PROTECTION on header stack (Rows 1..firstDataRow-1) named LOCK_HEADERS_<TabName>.
@@ -95,16 +109,19 @@ class SheetValidationAndProtectionAdapter {
    */
   public applyRangeProtections(
     spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet | any,
-    spec: DocumentLogWorkbookSpec = DOCUMENT_LOG_WORKBOOK_SPEC
+    spec?: DocumentLogWorkbookSpec,
+    viewSpec?: DocumentLogWorkbookViewSpec
   ): void {
-    if (!spreadsheet || !spec || !spec.tabs) return;
+    const effectiveSpec = spec || this.defaultModel;
+    if (!spreadsheet || !effectiveSpec || !effectiveSpec.tabs) return;
 
-    const firstDataRow = DOCUMENT_LOG_WORKBOOK_VIEW_SPEC?.offsets?.FIRST_DATA_ROW_INDEX || 6;
+    const effectiveViewSpec = viewSpec || this.defaultViewSpec;
+    const firstDataRow = effectiveViewSpec?.offsets?.FIRST_DATA_ROW_INDEX || 6;
     const sysTier = PROTECTION_TIER_SPECS?.SYSTEM_TAB_PROTECTION || { warningOnly: true };
     const headerTier = PROTECTION_TIER_SPECS?.HEADER_AND_FORMULA_PROTECTION || { warningOnly: true };
     const calcTier = PROTECTION_TIER_SPECS?.CALCULATED_COLUMN_PROTECTION || { warningOnly: true };
 
-    for (const tab of spec.tabs) {
+    for (const tab of effectiveSpec.tabs) {
       const sheet = typeof spreadsheet.getSheetByName === "function" ? spreadsheet.getSheetByName(tab.name) : null;
       if (!sheet) continue;
 
@@ -163,9 +180,14 @@ class SheetValidationAndProtectionAdapter {
 
   public applyNumberFormats(
     spreadsheet: GoogleAppsScript.Spreadsheet.Spreadsheet | any,
-    spec: DocumentLogWorkbookSpec = DOCUMENT_LOG_WORKBOOK_SPEC
+    spec?: DocumentLogWorkbookSpec,
+    viewSpec?: DocumentLogWorkbookViewSpec
   ): void {
-    const contexts = this.getLogTabContexts(spreadsheet, spec);
+    const effectiveSpec = spec || this.defaultModel;
+    if (!effectiveSpec) {
+      throw new Error("DocumentLogWorkbookSpec is required for applyNumberFormats");
+    }
+    const contexts = this.getLogTabContexts(spreadsheet, effectiveSpec, viewSpec);
 
     for (const { tab, sheet, firstDataRow, numRows } of contexts) {
       tab.columns.forEach((colSpec: any, idx: number) => {

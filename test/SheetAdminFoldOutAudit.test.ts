@@ -4,18 +4,28 @@
  * Verifies TemplateDriftAuditor execution, inline report card rendering, toast notifications, and _AuditLog logging under GasMockHarness.
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "vitest";
 import assert from "node:assert";
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { CardSerializer } from "./harness/CardSerializer";
 import { TemplateDriftAuditor } from "../src/core/admin/TemplateDriftAuditor";
-import { DOCUMENT_LOG_WORKBOOK_SPEC } from "../src/core/config/DocumentLogWorkbookSpec";
+import { loadWorkbookSpecs } from "../scripts/template/spec-loader";
+
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC } from "./fixtures/canonicalTestSpec";
+const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
 import { SheetValidationAndProtectionAdapter } from "../src/adapters/gas/SheetValidationAndProtectionAdapter";
 import { AdminFoldOutPresenter, onRunSchemaDriftAudit, onAutoPatchWorkbook } from "../src/adapters/gas/AdminFoldOutPresenter";
 import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
 import { FakeCacheAdapter } from "../src/adapters/fakes/FakeCacheAdapter";
 
 describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", () => {
+  beforeEach(() => {
+    TemplateDriftAuditor.setDefaultSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
+  });
+
+  afterEach(() => {
+    TemplateDriftAuditor.setDefaultSpec(undefined);
+  });
   let harness: ReturnType<typeof GasMockHarness.install>;
 
   beforeEach(() => {

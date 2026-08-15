@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert";
-import {
-  DOCUMENT_LOG_WORKBOOK_SPEC,
-  TabSpec,
-  NamedRangeSpec
-} from "../src/core/config/DocumentLogWorkbookSpec";
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC, ThemeColors, StatusColors } from "../src/core/config/DocumentLogWorkbookViewSpec";
+import { TabSpec, NamedRangeSpec } from "../src/core/config/DocumentLogWorkbookSpec";
+
+import { TEST_DOCUMENT_LOG_WORKBOOK_SPEC, TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./fixtures/canonicalTestSpec";
+const DOCUMENT_LOG_WORKBOOK_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_SPEC;
+const DOCUMENT_LOG_WORKBOOK_VIEW_SPEC = TEST_DOCUMENT_LOG_WORKBOOK_VIEW_SPEC;
+import { ThemeColors, StatusColors } from "../src/core/config/DocumentLogWorkbookViewSpec";
 import { WorkbookTemplateViewModel, indexToColLetter } from "../src/core/config/WorkbookTemplateViewModel";
 
 interface RepeatCellReq {
@@ -561,4 +561,9 @@ test("WorkbookTemplateViewModel toBatchUpdateRequestPayload emits pre-pass setDa
       "All pre-pass purge requests must precede column-level data validation rules"
     );
   }
+});
+
+test("WorkbookTemplateViewModel - constructor throws if model or viewSpec is missing", () => {
+  assert.throws(() => new (WorkbookTemplateViewModel as any)(null, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC), /DocumentLogWorkbookSpec model is required/);
+  assert.throws(() => new (WorkbookTemplateViewModel as any)(DOCUMENT_LOG_WORKBOOK_SPEC, null), /DocumentLogWorkbookViewSpec viewSpec is required/);
 });
