@@ -212,9 +212,9 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
 
     const compiledWorkbook = GoogleSheetsDocumentTypeSpecAdapter.compileWorkbookSpec([mockSpec]);
     const batchData = convertWorkbookSpecToBatchData(compiledWorkbook, fileId);
-    (globalThis as any).defaultSpreadsheetBatchReaderAdapter = {
+    const batchReader = {
       readWorkbookBatch: () => batchData
-    };
+    } as any;
 
     const event = {
       parameters: {
@@ -222,7 +222,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
       }
     };
 
-    const response = onSaveToJsonConfiguration(event);
+    const response = onSaveToJsonConfiguration(event, { batchReader });
     const actionJson = CardSerializer.actionResponseToJSON(response);
 
     assert.ok(actionJson.notification?.text?.includes('Saved 1 configuration file(s) to Google Drive'));
@@ -246,7 +246,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
     const virtualFile = (globalThis as any).DriveApp.getFileById(fileId);
     virtualFile.moveTo(parentFolder);
 
-    (globalThis as any).defaultSpreadsheetBatchReaderAdapter = {
+    const batchReader = {
       readWorkbookBatch: () => ({
         spreadsheetId: fileId,
         namedRanges: [],
@@ -257,7 +257,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
           }
         ]
       })
-    };
+    } as any;
 
     const event = {
       parameters: {
@@ -265,7 +265,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
       }
     };
 
-    const response = onSaveToJsonConfiguration(event);
+    const response = onSaveToJsonConfiguration(event, { batchReader });
     const actionJson = CardSerializer.actionResponseToJSON(response);
 
     assert.ok(actionJson.notification?.text?.includes('Decompilation failed'));
@@ -282,11 +282,11 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
 
   it('onSaveToJsonConfiguration dispatches dedicated Error State Card when SpreadsheetBatchReadException occurs', () => {
     const fileId = 'wb-batch-error';
-    (globalThis as any).defaultSpreadsheetBatchReaderAdapter = {
+    const batchReader = {
       readWorkbookBatch: () => {
         throw new SpreadsheetBatchReadException('Advanced Sheets API disabled', fileId);
       }
-    };
+    } as any;
 
     const event = {
       parameters: {
@@ -294,7 +294,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
       }
     };
 
-    const response = onSaveToJsonConfiguration(event);
+    const response = onSaveToJsonConfiguration(event, { batchReader });
     const actionJson = CardSerializer.actionResponseToJSON(response);
 
     assert.ok(actionJson.notification?.text?.includes('Advanced Sheets API Unavailable'));
@@ -342,9 +342,9 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
 
     const compiledWorkbook = GoogleSheetsDocumentTypeSpecAdapter.compileWorkbookSpec([mockSpec]);
     const batchData = convertWorkbookSpecToBatchData(compiledWorkbook, 'wb-telemetry-123');
-    (globalThis as any).defaultSpreadsheetBatchReaderAdapter = {
+    const batchReader = {
       readWorkbookBatch: () => batchData
-    };
+    } as any;
 
     const event = {
       parameters: {
@@ -352,7 +352,7 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
       }
     };
 
-    onSaveToJsonConfiguration(event);
+    onSaveToJsonConfiguration(event, { batchReader });
 
     const auditSheet = ss.getSheetByName('_AuditLog');
     assert.ok(auditSheet);

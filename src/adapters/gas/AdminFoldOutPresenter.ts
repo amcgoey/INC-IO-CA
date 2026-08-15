@@ -554,6 +554,37 @@ function extractValidationErrors(results: SpecValidationResult[]): string[] {
   return errors;
 }
 
+/**
+ * Saves serialized DocumentTypeSpec JSON payloads to the workbook's parent Drive folder.
+ */
+function saveSpecsToDrive(
+  spreadsheetId: string,
+  specs: DocumentTypeSpec[]
+): { success: boolean; savedFileNames: string[]; error?: string } {
+  try {
+    const file = DriveApp.getFileById(spreadsheetId);
+    const parents = file.getParents();
+    if (!parents || !parents.hasNext()) {
+      return { success: false, savedFileNames: [], error: "Could not resolve parent Google Drive folder for workbook." };
+    }
+    const parentFolder = parents.next();
+    const timestamp = Date.now();
+    const savedFileNames: string[] = [];
+
+    for (const spec of specs) {
+      const jsonContent = JsonDocumentTypeSpecAdapter.stringify(spec, { space: 2 });
+      const fileName = `${spec.key.toLowerCase()}_spec_${timestamp}.json`;
+      parentFolder.createFile(fileName, jsonContent, "application/json");
+      savedFileNames.push(fileName);
+    }
+
+    return { success: true, savedFileNames };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, savedFileNames: [], error: msg };
+  }
+}
+
 export interface SaveToJsonOptions {
   batchReader?: SpreadsheetBatchReaderAdapter;
 }
@@ -576,19 +607,14 @@ export function onSaveToJsonConfiguration(
       .build();
   }
 
-  const BatchReaderClass = getSpreadsheetBatchReaderAdapterClass();
-  const batchReader: SpreadsheetBatchReaderAdapter =
-    options?.batchReader || (globalThis as any).defaultSpreadsheetBatchReaderAdapter || new BatchReaderClass();
-
-  const DocTypeSpecAdapterClass = getGoogleSheetsDocumentTypeSpecAdapterClass();
-  const JsonAdapterClass = getJsonDocumentTypeSpecAdapterClass();
+  const batchReader: SpreadsheetBatchReaderAdapter = options?.batchReader || new SpreadsheetBatchReaderAdapter();
 
   let validationResults: SpecValidationResult[] = [];
   let batchReadError: unknown = undefined;
 
   try {
     const batchData = batchReader.readWorkbookBatch(spreadsheetId);
-    validationResults = DocTypeSpecAdapterClass.decompile(batchData);
+    validationResults = GoogleSheetsDocumentTypeSpecAdapter.decompile(batchData);
   } catch (err: unknown) {
     if (
       err instanceof SpreadsheetBatchReadException ||
@@ -624,25 +650,15 @@ export function onSaveToJsonConfiguration(
     }
   }
 
-  // Resolve parent folder in Drive using DriveApp
-  const file = DriveApp.getFileById(spreadsheetId);
-  const parents = file.getParents();
-  if (!parents || !parents.hasNext()) {
+  // Save specs to Drive
+  const saveResult = saveSpecsToDrive(spreadsheetId, validSpecs);
+  if (!saveResult.success) {
     return CardService.newActionResponseBuilder()
-      .setNotification(CardService.newNotification().setText("Error: Could not resolve parent Google Drive folder for workbook."))
+      .setNotification(CardService.newNotification().setText("Error: " + (saveResult.error || "Failed to save to Drive.")))
       .build();
   }
-  const parentFolder = parents.next();
 
-  const timestamp = Date.now();
-  const savedFileNames: string[] = [];
-
-  for (const spec of validSpecs) {
-    const jsonContent = JsonAdapterClass.stringify(spec, { space: 2 });
-    const fileName = `${spec.key.toLowerCase()}_spec_${timestamp}.json`;
-    parentFolder.createFile(fileName, jsonContent, "application/json");
-    savedFileNames.push(fileName);
-  }
+  const savedFileNames = saveResult.savedFileNames;
 
   // Telemetry event logging to _AuditLog
   try {
