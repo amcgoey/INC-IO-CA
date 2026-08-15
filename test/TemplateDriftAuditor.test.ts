@@ -18,19 +18,17 @@ import { SheetValidationAndProtectionAdapter } from "../src/adapters/gas/SheetVa
 import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadsheetLockAdapter";
 
 describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)", () => {
-  beforeEach(() => {
-    TemplateDriftAuditor.setDefaultSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
-    TemplateDriftAuditor.setDefaultValidationAndProtectionAdapter(new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC));
-  });
-
-  afterEach(() => {
-    TemplateDriftAuditor.setDefaultSpec(undefined);
-    TemplateDriftAuditor.setDefaultValidationAndProtectionAdapter(undefined);
-  });
   let harness: ReturnType<typeof GasMockHarness.install>;
+  let auditor: TemplateDriftAuditor;
+  let valProtAdapter: SheetValidationAndProtectionAdapter;
 
   beforeEach(() => {
     harness = GasMockHarness.install();
+    valProtAdapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+    auditor = new TemplateDriftAuditor({
+      spec: DOCUMENT_LOG_WORKBOOK_SPEC,
+      validationAndProtectionAdapter: valProtAdapter
+    });
   });
 
   afterEach(() => {
@@ -46,7 +44,7 @@ describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)
     adapter.applyValidationRules(ss as any);
     adapter.applyRangeProtections(ss as any);
 
-    const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
+    const report = auditor.auditWorkbook(ss, { bypassCache: true });
 
     assert.strictEqual(report.status, "MATCH");
     assert.strictEqual(report.canAutoPatch, true);
@@ -61,7 +59,7 @@ describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)
     const adapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
     adapter.applyValidationRules(ss as any);
 
-    const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
+    const report = auditor.auditWorkbook(ss, { bypassCache: true });
 
     assert.strictEqual(report.status, "MINOR_DRIFT");
     assert.strictEqual(report.canAutoPatch, true);
@@ -88,7 +86,7 @@ describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)
     const adapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
     adapter.applyRangeProtections(ss as any);
 
-    const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
+    const report = auditor.auditWorkbook(ss, { bypassCache: true });
 
     assert.strictEqual(report.status, "MINOR_DRIFT");
     assert.strictEqual(report.canAutoPatch, true);
@@ -109,7 +107,7 @@ describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)
     // Unpatched state: zero validations, zero protections
 
     const lockAdapter = new FakeSpreadsheetLockAdapter();
-    const result = TemplateDriftAuditor.autoPatchWorkbook(ss, { lockAdapter });
+    const result = auditor.autoPatchWorkbook(ss, { lockAdapter });
 
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.status, "PATCHED");
@@ -141,7 +139,7 @@ describe("TemplateDriftAuditor 7th & 8th Dimensions & Auto-Patching (Issue #244)
     adapter.applyValidationRules(ss as any);
     adapter.applyRangeProtections(ss as any);
 
-    const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
+    const report = auditor.auditWorkbook(ss, { bypassCache: true });
 
     assert.strictEqual(report.status, "MATCH", "Template workbook fixture audit must report MATCH");
     assert.strictEqual(report.canAutoPatch, true);

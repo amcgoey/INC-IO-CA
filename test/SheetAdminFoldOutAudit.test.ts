@@ -20,33 +20,31 @@ import { FakeSpreadsheetLockAdapter } from "../src/adapters/fakes/FakeSpreadshee
 import { FakeCacheAdapter } from "../src/adapters/fakes/FakeCacheAdapter";
 
 describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", () => {
-  beforeEach(() => {
-    TemplateDriftAuditor.setDefaultSpec(DOCUMENT_LOG_WORKBOOK_SPEC);
-    TemplateDriftAuditor.setDefaultValidationAndProtectionAdapter(new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC));
-  });
-
-  afterEach(() => {
-    TemplateDriftAuditor.setDefaultSpec(undefined);
-    TemplateDriftAuditor.setDefaultValidationAndProtectionAdapter(undefined);
-  });
   let harness: ReturnType<typeof GasMockHarness.install>;
+  let auditor: TemplateDriftAuditor;
+  let valProtAdapter: SheetValidationAndProtectionAdapter;
 
   beforeEach(() => {
     harness = GasMockHarness.install();
+    valProtAdapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
+    auditor = new TemplateDriftAuditor({
+      spec: DOCUMENT_LOG_WORKBOOK_SPEC,
+      validationAndProtectionAdapter: valProtAdapter
+    });
   });
 
   afterEach(() => {
     GasMockHarness.uninstall();
   });
 
-  it("executes TemplateDriftAuditor.auditWorkbook in read-only mode without modifying sheet structure", () => {
+  it("executes auditor.auditWorkbook in read-only mode without modifying sheet structure", () => {
     const ss = harness.sheetsService.openById("wb-audit-clean");
     ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
     const valProtAdapter = new SheetValidationAndProtectionAdapter(DOCUMENT_LOG_WORKBOOK_SPEC, DOCUMENT_LOG_WORKBOOK_VIEW_SPEC);
     valProtAdapter.applyValidationRules(ss as any);
     valProtAdapter.applyRangeProtections(ss as any);
 
-    const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
+    const report = auditor.auditWorkbook(ss, { bypassCache: true });
 
     assert.strictEqual(report.spreadsheetId, "wb-audit-clean");
     assert.strictEqual(report.status, "MATCH");
@@ -66,7 +64,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     cfgMinor.setGridSlice(2, 1, [["MANIFEST_SCHEMA_VERSION", "1.1.0"]]);
     ssMinor.setNamedRange("MANIFEST_SCHEMA_VERSION", "_Config", "B2");
 
-    const reportMinor = TemplateDriftAuditor.auditWorkbook(ssMinor, { bypassCache: true });
+    const reportMinor = auditor.auditWorkbook(ssMinor, { bypassCache: true });
     assert.strictEqual(reportMinor.status, "MINOR_DRIFT");
     assert.strictEqual(reportMinor.canAutoPatch, true);
     assert.ok(reportMinor.issues.some(i => i.category === "VERSION" && i.severity === "WARNING"));
@@ -77,7 +75,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     cfgMajor.setGridSlice(2, 1, [["MANIFEST_SCHEMA_VERSION", "2.0.0"]]);
     ssMajor.setNamedRange("MANIFEST_SCHEMA_VERSION", "_Config", "B2");
 
-    const reportMajor = TemplateDriftAuditor.auditWorkbook(ssMajor, { bypassCache: true });
+    const reportMajor = auditor.auditWorkbook(ssMajor, { bypassCache: true });
     assert.strictEqual(reportMajor.status, "MAJOR_DRIFT");
     assert.strictEqual(reportMajor.canAutoPatch, false);
     assert.ok(reportMajor.issues.some(i => i.category === "VERSION" && i.severity === "CRITICAL"));
@@ -87,7 +85,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     const ssMissingConfig = harness.sheetsService.openById("wb-no-config");
     ssMissingConfig.insertSheet("Submittal Arch");
 
-    const reportNoConfig = TemplateDriftAuditor.auditWorkbook(ssMissingConfig, { bypassCache: true });
+    const reportNoConfig = auditor.auditWorkbook(ssMissingConfig, { bypassCache: true });
     assert.strictEqual(reportNoConfig.status, "INCOMPATIBLE");
     assert.strictEqual(reportNoConfig.canAutoPatch, false);
     assert.ok(reportNoConfig.issues.some(i => i.category === "TAB" && i.description.includes("_Config")));
@@ -98,7 +96,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     ssMissingLog.insertSheet("_AuditLog");
     // Missing "Submittal Arch" log tab
 
-    const reportNoLog = TemplateDriftAuditor.auditWorkbook(ssMissingLog, { bypassCache: true });
+    const reportNoLog = auditor.auditWorkbook(ssMissingLog, { bypassCache: true });
     assert.strictEqual(reportNoLog.status, "MAJOR_DRIFT");
     assert.strictEqual(reportNoLog.canAutoPatch, false);
     assert.ok(reportNoLog.issues.some(i => i.category === "TAB" && i.severity === "CRITICAL"));
@@ -112,7 +110,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     (ss as any).namedRanges.delete("Headers");
     (ss as any).namedRanges.delete("Submittal_Arch_Headers");
 
-    const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
+    const report = auditor.auditWorkbook(ss, { bypassCache: true });
     assert.strictEqual(report.status, "MINOR_DRIFT");
     assert.strictEqual(report.canAutoPatch, true);
     assert.ok(report.issues.some(i => i.category === "NAMED_RANGE" && i.description.includes("Headers")));
@@ -127,7 +125,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     // Alter header at column 3 (Number -> Doc No)
     archSheet.getRange(3, 3).setValue("Doc No");
 
-    const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
+    const report = auditor.auditWorkbook(ss, { bypassCache: true });
     assert.strictEqual(report.status, "MINOR_DRIFT");
     assert.strictEqual(report.canAutoPatch, true);
     assert.ok(report.issues.some(i => i.category === "HEADER" && i.description.includes("Doc No")));
@@ -141,7 +139,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     // Overwrite Row 2 (FormulaRow) calculated column formula with static string
     archSheet.getRange(4, 11).setValue("STATIC_OVERWRITE");
 
-    const reportOverwritten = TemplateDriftAuditor.auditWorkbook(ssOverwritten, { bypassCache: true });
+    const reportOverwritten = auditor.auditWorkbook(ssOverwritten, { bypassCache: true });
     assert.strictEqual(reportOverwritten.status, "MAJOR_DRIFT");
     assert.strictEqual(reportOverwritten.canAutoPatch, false);
     assert.ok(reportOverwritten.issues.some(i => i.category === "FORMULA" && i.severity === "CRITICAL"));
@@ -152,7 +150,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     const archSheet2 = ssRefError.getSheetByName("Submittal Arch")!;
     archSheet2.getRange(4, 11).setValue("=#REF!");
 
-    const reportRefError = TemplateDriftAuditor.auditWorkbook(ssRefError, { bypassCache: true });
+    const reportRefError = auditor.auditWorkbook(ssRefError, { bypassCache: true });
     assert.strictEqual(reportRefError.status, "MAJOR_DRIFT");
     assert.strictEqual(reportRefError.canAutoPatch, false);
     assert.ok(reportRefError.issues.some(i => i.category === "FORMULA" && i.description.includes("#REF!")));
@@ -162,7 +160,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     const ss = harness.sheetsService.openById("wb-validation-drift");
     ss.loadWorkbookSpec(DOCUMENT_LOG_WORKBOOK_SPEC as any);
 
-    const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
+    const report = auditor.auditWorkbook(ss, { bypassCache: true });
     assert.ok(report);
     assert.ok(report.telemetry);
     assert.ok(typeof report.telemetry.auditDurationMs === "number");
@@ -176,7 +174,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     // Remove _AuditLog tab to simulate non-critical minor drift
     (ss as any).sheets.delete("_AuditLog");
 
-    const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
+    const report = auditor.auditWorkbook(ss, { bypassCache: true });
 
     assert.strictEqual(report.status, "MINOR_DRIFT");
     assert.strictEqual(report.canAutoPatch, true);
@@ -187,7 +185,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
     const ss = harness.sheetsService.openById("wb-audit-incompatible");
     // Missing _Config tab entirely
 
-    const report = TemplateDriftAuditor.auditWorkbook(ss, { bypassCache: true });
+    const report = auditor.auditWorkbook(ss, { bypassCache: true });
 
     assert.strictEqual(report.canAutoPatch, false);
     assert.ok(report.status === "MAJOR_DRIFT" || report.status === "INCOMPATIBLE");
@@ -208,7 +206,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
       }
     };
 
-    const response = onRunSchemaDriftAudit(event);
+    const response = onRunSchemaDriftAudit(event, { auditor });
     const actionJson = CardSerializer.actionResponseToJSON(response);
 
     // Verify toast notification
@@ -243,7 +241,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
       }
     };
 
-    onRunSchemaDriftAudit(event);
+    onRunSchemaDriftAudit(event, { auditor });
 
     const auditSheet = ss.getSheetByName("_AuditLog");
     assert.ok(auditSheet);
@@ -269,7 +267,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
 
       let logged = false;
       const logger = (msg: string) => { logged = true; assert.ok(msg.includes("LOCK_CONTENTION")); };
-      const result = TemplateDriftAuditor.autoPatchWorkbook(ss, { lockAdapter, logger });
+      const result = auditor.autoPatchWorkbook(ss, { lockAdapter, logger });
       assert.ok(logged);
 
       assert.strictEqual(result.success, false);
@@ -288,7 +286,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
       const lockAdapter = new FakeSpreadsheetLockAdapter();
       const cacheAdapter = new FakeCacheAdapter();
 
-      const result = TemplateDriftAuditor.autoPatchWorkbook(ss, { lockAdapter, cacheAdapter });
+      const result = auditor.autoPatchWorkbook(ss, { lockAdapter, cacheAdapter });
 
       assert.strictEqual(result.success, true);
       assert.strictEqual(result.status, "NO_OP");
@@ -306,7 +304,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
       const lockAdapter = new FakeSpreadsheetLockAdapter();
       const cacheAdapter = new FakeCacheAdapter();
 
-      const result = TemplateDriftAuditor.autoPatchWorkbook(ss, { lockAdapter, cacheAdapter });
+      const result = auditor.autoPatchWorkbook(ss, { lockAdapter, cacheAdapter });
 
       assert.strictEqual(result.success, true);
       assert.strictEqual(result.status, "PATCHED");
@@ -327,7 +325,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
       const ss = harness.sheetsService.openById("wb-autopatch-incompatible");
 
       const lockAdapter = new FakeSpreadsheetLockAdapter();
-      const result = TemplateDriftAuditor.autoPatchWorkbook(ss, { lockAdapter });
+      const result = auditor.autoPatchWorkbook(ss, { lockAdapter });
 
       assert.strictEqual(result.success, false);
       assert.strictEqual(result.status, "UNPATCHABLE");
@@ -354,13 +352,13 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
         },
         getNamedRanges: () => ss.getNamedRanges(),
         getRangeByName: (n: string) => ss.getRangeByName(n),
-        getSheetValues: (n: string) => ss.getSheetValues(n)
+        getSheetValues: (n: string) => (ss as any).getSheetValues(n)
       };
 
       const lockAdapter = new FakeSpreadsheetLockAdapter();
       const cacheAdapter = new FakeCacheAdapter();
 
-      const result = TemplateDriftAuditor.autoPatchWorkbook(faultySeam as any, { lockAdapter, cacheAdapter });
+      const result = auditor.autoPatchWorkbook(faultySeam as any, { lockAdapter, cacheAdapter });
 
       assert.strictEqual(result.success, false);
       assert.strictEqual(result.status, "REPAIR_FAILED");
@@ -380,7 +378,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
         }
       };
 
-      const response = onAutoPatchWorkbook(event);
+      const response = onAutoPatchWorkbook(event, { auditor });
       const actionJson = CardSerializer.actionResponseToJSON(response);
 
       assert.ok(actionJson.notification?.text?.includes("Auto-patch complete:") || actionJson.notification?.text?.includes("Auto-patch"));
@@ -396,6 +394,8 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
         codeSchemaVersion: "1.2.0",
         liveSchemaVersion: "1.1.0",
         canAutoPatch: true,
+        summary: "Test summary",
+        timestamp: new Date().toISOString(),
         issues: [
           { category: "VERSION" as const, description: "Schema version mismatch", severity: "WARNING" as const }
         ]
@@ -427,6 +427,8 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
           codeSchemaVersion: "1.2.0",
           liveSchemaVersion: "1.2.0",
           canAutoPatch: true,
+        summary: "Test summary",
+        timestamp: new Date().toISOString(),
           issues: []
         }
       });
@@ -444,6 +446,8 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
           codeSchemaVersion: "1.2.0",
           liveSchemaVersion: "1.2.0",
           canAutoPatch: false,
+        summary: "Test summary",
+        timestamp: new Date().toISOString(),
           issues: [
             { category: "TAB", description: "Missing log tab Submittal Arch", severity: "CRITICAL" }
           ]
@@ -465,6 +469,8 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
           codeSchemaVersion: "1.2.0",
           liveSchemaVersion: "1.2.0",
           canAutoPatch: true,
+        summary: "Test summary",
+        timestamp: new Date().toISOString(),
           issues: []
         }
       });
@@ -493,7 +499,7 @@ describe("SheetAdminFoldOut Audit & Inline Schema Health Report (Issue #221)", (
       };
 
       try {
-        const response = onAutoPatchWorkbook(event);
+        const response = onAutoPatchWorkbook(event, { auditor });
         const actionJson = CardSerializer.actionResponseToJSON(response);
 
         assert.ok(actionJson.notification?.text?.includes("Workbook lock currently held by another process"));

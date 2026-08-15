@@ -6,7 +6,7 @@
  * without requiring native key listing or regex matching from underlying storage adapters.
  */
 
-class PrefixCacheManager {
+export class PrefixCacheManager {
   private static readonly DEFAULT_INDEX_TTL_SECONDS = 21600;
   private cacheAdapter: CacheAdapter;
 
