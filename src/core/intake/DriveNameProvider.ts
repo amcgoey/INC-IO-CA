@@ -8,7 +8,7 @@
 
 export type { DriveNameProvider, SharedDriveInfo } from '../interfaces/DriveNameProvider';
 
-declare let module: any;
+declare let module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {};

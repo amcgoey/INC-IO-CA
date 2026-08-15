@@ -26,7 +26,9 @@ import { defaultAiAnalysisService, checkAiModelHealth } from "./AiAnalysisServic
 import { GasSpreadsheetLockAdapter } from "./adapters/gas/GasSpreadsheetLockAdapter";
 import { GasTimeoutBudget } from "./core/log/GasTimeoutBudget";
 import { CONFIG, MESSAGES } from "./Config";
-import { processSubmission, moveSubmittalToClosed } from "./Process";
+import { processSubmission as runProcessSubmission, moveSubmittalToClosed as runMoveSubmittalToClosed, ProcessDependencies } from "./Process";
+import { defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
+import { defaultDocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
 import {
   buildIntakeCard,
   handleRefreshCache,
@@ -375,6 +377,30 @@ function repairCrossLogReferences(batchId?: string): any {
 }
 
 
+
+
+const defaultProcessDependencies: ProcessDependencies = {
+  actionRegistry: defaultActionRegistry,
+  specRegistry: defaultDocumentTypeSpecRegistry,
+  configRegistry: defaultDocumentTypeConfigRegistry,
+  logRepository: defaultLogRepository,
+  driveFilingRepository: defaultDriveFilingRepository,
+  cardPresenter: defaultCardPresenter
+};
+
+async function processSubmission(
+  e: GoogleAppsScriptEvent,
+  deps: ProcessDependencies = defaultProcessDependencies
+): Promise<any> {
+  return runProcessSubmission(e, deps);
+}
+
+function moveSubmittalToClosed(
+  e: GoogleAppsScriptEvent,
+  deps: ProcessDependencies = defaultProcessDependencies
+): any {
+  return runMoveSubmittalToClosed(e, deps);
+}
 
 const actionRegistry = defaultActionRegistry;
 actionRegistry.register("WriteLog", new WriteLogAction());

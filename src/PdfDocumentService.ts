@@ -279,7 +279,7 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
 /** Global default instance seam for PDF document service. */
 const defaultPdfDocumentService: PdfDocumentService = new GoogleAppsScriptPdfDocumentService();
 
-declare let module: any;
+declare let module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {

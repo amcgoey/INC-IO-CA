@@ -676,7 +676,7 @@ export function parseA1ToGridRange(rangeStr: string, sheetId: number): GridRange
   return { sheetId };
 }
 
-declare let module: any;
+declare let module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {

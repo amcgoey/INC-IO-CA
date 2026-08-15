@@ -90,7 +90,7 @@ export function isBatchFinished(manifest: MigrationBatchManifestData): boolean {
     manifest.entries.every(e => e.status === "COMPLETED" || e.status === "FAILED");
 }
 
-declare let module: any;
+declare let module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {

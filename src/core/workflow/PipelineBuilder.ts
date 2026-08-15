@@ -4,14 +4,14 @@
  * @description Builds execution pipelines by scanning WorkflowSpec[] and mapping strings to actions.
  */
 
-import { ActionRegistry, defaultActionRegistry } from './ActionRegistry';
+import { ActionRegistry } from './ActionRegistry';
 import { WorkflowTriggerMatcher, MatcherContext } from './WorkflowTriggerMatcher';
 import { WorkflowSpec } from '../specs/DocumentTypeSpec';
 import { DocumentAction } from '../../types';
 import { WorkflowRunner } from './WorkflowRunner';
 import { getActionPolicy, getDocumentTitle, buildDirectRowUrl } from './WorkflowPolicy';
-import { defaultDocumentTypeSpecRegistry } from '../specs/DocumentTypeSpecRegistry';
-import { defaultDocumentTypeConfigRegistry } from '../../DocumentTypeConfigRegistry';
+import { DocumentTypeSpecRegistry } from '../specs/DocumentTypeSpecRegistry';
+import { DocumentTypeConfigRegistry } from '../../DocumentTypeConfigRegistry';
 
 export class PipelineBuilder {
   private registry: ActionRegistry;
@@ -38,7 +38,9 @@ export class PipelineBuilder {
    */
   public static async buildAndExecute(
     input: DocumentWorkflowInput,
-    registry: ActionRegistry = defaultActionRegistry
+    registry: ActionRegistry,
+    specRegistry: DocumentTypeSpecRegistry,
+    configRegistry: DocumentTypeConfigRegistry
   ): Promise<DocumentWorkflowResult> {
     const builder = new PipelineBuilder(registry);
 
@@ -54,11 +56,11 @@ export class PipelineBuilder {
     };
 
     const docType = doc?.documentType || doc?.disciplineDetails?.discipline || 'SUBMITTAL_ARCH';
-    const config = defaultDocumentTypeConfigRegistry.hasConfig(docType)
-      ? defaultDocumentTypeConfigRegistry.getConfig(docType)
+    const config = configRegistry.hasConfig(docType)
+      ? configRegistry.getConfig(docType)
       : undefined;
 
-    const spec = defaultDocumentTypeSpecRegistry.getSpec(docType);
+    const spec = specRegistry.getSpec(docType);
     const workflows = spec?.workflows || [];
 
     const actions = builder.buildPipeline(workflows, ctx);

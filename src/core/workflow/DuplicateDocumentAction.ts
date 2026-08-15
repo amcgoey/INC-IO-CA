@@ -73,7 +73,7 @@ if (typeof (globalThis as any).defaultDuplicateDocumentAction === 'undefined') {
   (globalThis as any).defaultDuplicateDocumentAction = defaultDuplicateDocumentAction;
 }
 
-declare let module: any;
+declare let module: { exports?: unknown };
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {

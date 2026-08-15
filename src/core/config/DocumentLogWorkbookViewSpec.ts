@@ -226,7 +226,7 @@ export {
   DOCUMENT_LOG_WORKBOOK_VIEW_SPEC
 };
 
-declare let module: any;
+declare let module: { exports?: unknown };
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {

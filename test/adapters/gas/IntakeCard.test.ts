@@ -7,7 +7,7 @@ import { FakePdfDocumentService } from "../../harness/fakes/FakePdfDocumentServi
 import { GoogleSheetsLogRepository } from "../../../src/GoogleSheetsLogRepository";
 import { defaultDocumentTypeConfigRegistry, DEFAULT_RFI_CONFIG, DEFAULT_ASI_CONFIG } from "../../../src/DocumentTypeConfigRegistry";
 import * as UI from "../../../src/adapters/gas/UI";
-import * as Process from "../../../src/Process";
+import * as Process from "../../../src/Main";
 
 test.beforeEach(() => {
   GasMockHarness.install();

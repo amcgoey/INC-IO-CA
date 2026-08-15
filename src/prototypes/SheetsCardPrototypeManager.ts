@@ -365,7 +365,7 @@ export class SheetsCardPrototypeManager {
 
 export { MOCK_SPREADSHEETS };
 
-declare let module: any;
+declare let module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {

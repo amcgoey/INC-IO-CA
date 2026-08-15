@@ -47,7 +47,7 @@ export function createTestContext(options?: TestContextOptions): TestContext {
   return new TestContext(options);
 }
 
-declare let module: any;
+declare let module: { exports?: unknown };
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TestContext,

@@ -128,7 +128,7 @@ import { CardSerializer, ButtonJson } from "./CardSerializer";
  */
 
 /// <reference path="../../src/Config.ts" />
-declare let CONFIG: any;
+declare let CONFIG: typeof ConfigConst | Record<string, unknown>;
 
 const DEFAULT_CONFIG: Record<string, unknown> = { ...(ConfigConst as Record<string, unknown>) };
 

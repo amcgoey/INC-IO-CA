@@ -15,7 +15,7 @@ export { FieldConfidenceThreshold };
 
 (globalThis as any).FieldConfidenceThreshold = FieldConfidenceThreshold;
 
-declare let module: any;
+declare let module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {

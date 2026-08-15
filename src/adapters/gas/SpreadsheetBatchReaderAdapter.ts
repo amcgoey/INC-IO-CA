@@ -129,7 +129,7 @@ export class SpreadsheetBatchReaderAdapter {
   }
 }
 
-declare let module: any;
+declare let module: { exports?: unknown };
 if (typeof module !== "undefined" && module.exports) {
   (globalThis as any).SpreadsheetBatchReadException = (globalThis as any).SpreadsheetBatchReadException || SpreadsheetBatchReadException;
   (globalThis as any).SpreadsheetBatchReaderAdapter = (globalThis as any).SpreadsheetBatchReaderAdapter || SpreadsheetBatchReaderAdapter;

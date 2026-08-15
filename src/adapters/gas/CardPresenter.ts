@@ -369,7 +369,7 @@ class CardPresenter implements UserInterfacePresenter {
 /** Global default instance seam for CardPresenter. */
 const defaultCardPresenter: CardPresenter = new CardPresenter();
 
-declare const module: any;
+declare const module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   (globalThis as any).defaultCardPresenter = defaultCardPresenter;

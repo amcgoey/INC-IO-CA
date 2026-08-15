@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { PipelineBuilder } from '../../../src/core/workflow/PipelineBuilder';
 import { ActionRegistry } from '../../../src/core/workflow/ActionRegistry';
+import { DocumentTypeSpecRegistry } from '../../../src/core/specs/DocumentTypeSpecRegistry';
+import { DocumentTypeConfigRegistry } from '../../../src/DocumentTypeConfigRegistry';
 import { WorkflowSpec } from '../../../src/core/specs/DocumentTypeSpec';
 
 describe('PipelineBuilder', () => {
@@ -94,7 +96,9 @@ describe('PipelineBuilder', () => {
       selectedAction: { action: 'GoogleDrive', abbr: 'REC', status: 'Received' }
     };
 
-    const result = await PipelineBuilder.buildAndExecute(input, customRegistry);
+    const specRegistry = new DocumentTypeSpecRegistry();
+    const configRegistry = new DocumentTypeConfigRegistry(specRegistry);
+    const result = await PipelineBuilder.buildAndExecute(input, customRegistry, specRegistry, configRegistry);
     expect(result.success).toBe(true);
     expect(actionExecuted).toBe(true);
   });

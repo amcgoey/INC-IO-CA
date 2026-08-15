@@ -36,7 +36,7 @@ export class FakeDriveNameProvider implements DriveNameProvider {
   }
 }
 
-declare let module: any;
+declare let module: { exports?: unknown };
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     FakeDriveNameProvider

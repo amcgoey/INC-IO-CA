@@ -89,7 +89,7 @@ defaultLogRepository.getLogSettings = defaultRepoMock.getLogSettings as any;
 defaultLogRepository.appendDocument = defaultRepoMock.appendDocument as any;
 
 import { defaultCardPresenter } from "../src/adapters/gas/CardPresenter";
-import { processSubmission, moveSubmittalToClosed } from "../src/Process";
+import { processSubmission, moveSubmittalToClosed } from "../src/Main";
 
 test("moveSubmittalToClosed delegates file move and subfolder path resolution to defaultDriveFilingRepository for Architecture", () => {
   mockDriveFilingRepo.filedDocuments = [];

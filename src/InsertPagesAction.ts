@@ -104,7 +104,7 @@ if (typeof (globalThis as any).defaultInsertPagesAction === "undefined") {
   (globalThis as any).defaultInsertPagesAction = defaultInsertPagesAction;
 }
 
-declare let module: any;
+declare let module: { exports?: unknown };
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     InsertPagesAction,

@@ -37,7 +37,7 @@ interface SpreadsheetLockAdapter {
   isLocked(spreadsheetId: string): boolean;
 }
 
-declare let module: any;
+declare let module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {};

@@ -1,7 +1,7 @@
 ﻿import test from "node:test";
 import assert from "node:assert";
 import { DocumentPipeline } from "../src/core/intake/DocumentPipeline";
-import { processSubmission } from "../src/Process";
+import { processSubmission } from "../src/Main";
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { defaultLogRepository } from "../src/GoogleSheetsLogRepository";
 

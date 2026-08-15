@@ -1,17 +1,26 @@
-﻿import { CONFIG, MESSAGES } from "./Config";
+import { CONFIG, MESSAGES } from "./Config";
 import { CardDraftStateManager } from "./prototypes/CardDraftStateManager";
 import { TransientOverrideLogger } from "./core/logging/TransientOverrideLogger";
-import { buildIntakeCard, buildSuccessCard } from "./adapters/gas/UI";
-import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
+import { buildSuccessCard } from "./adapters/gas/UI";
 import { DocumentPipeline } from "./core/intake/DocumentPipeline";
 import { DeclarativeDocumentLogStrategy } from "./core/logging/DeclarativeDocumentLogStrategy";
-import { defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
-import { defaultDocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
+import { DocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
+import { DocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
 import { getActionPolicy } from "./core/workflow/WorkflowPolicy";
 import { PipelineBuilder } from "./core/workflow/PipelineBuilder";
-import { defaultActionRegistry } from "./core/workflow/ActionRegistry";
-import { defaultLogRepository } from "./GoogleSheetsLogRepository";
-import { defaultDriveFilingRepository } from "./DriveFilingRepository";
+import { ActionRegistry } from "./core/workflow/ActionRegistry";
+import { LogRepository } from "./core/interfaces/LogRepository";
+import { DriveFilingRepository } from "./core/interfaces/DriveFilingRepository";
+import { CardPresenter } from "./core/interfaces/UserInterfacePresenter";
+
+export interface ProcessDependencies {
+  actionRegistry: ActionRegistry;
+  specRegistry: DocumentTypeSpecRegistry;
+  configRegistry: DocumentTypeConfigRegistry;
+  logRepository: LogRepository;
+  driveFilingRepository: DriveFilingRepository;
+  cardPresenter: CardPresenter;
+}
 
 /**
  * Primary action handler executed when the user clicks "File & Log" in the add-on interface.
@@ -20,9 +29,10 @@ import { defaultDriveFilingRepository } from "./DriveFilingRepository";
  * handles interaction prompts for new tags or vendors, executes the submittal workflow, and renders the result card.
  *
  * @param e - Google Apps Script event object containing form values and execution parameters.
+ * @param deps - Injected dependencies including action, spec, config registries, repositories, and UI presenter.
  * @returns A Promise resolving to an `ActionResponse` with card navigation or error toast notifications.
  */
-async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
+async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependencies): Promise<any> {
   try {
     const form = e.formInput || {};
     const p = e.parameters || {};
@@ -42,7 +52,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const logSheet = openSs.getSheetByName(CONFIG.LOG_SHEET_NAME) || openSs.getSheetByName("Submittals Log") || openSs.getSheetByName("Submittal Arch") || (openSs.getSheets ? openSs.getSheets()[0] : null);  
     if (!logSheet) throw new Error("Log sheet not found in spreadsheet");
 
-    const logRepo = defaultLogRepository;
+    const logRepo = deps.logRepository;
     const settings = logRepo.getLogSettings(p.logFileId, disc);  
     const selectedAction = settings.actions.find(a => a.action === form.action) || { action: "", abbr: "", status: "" };
 
@@ -61,7 +71,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const validationResult = DocumentPipeline.processFormIntake(form, validationContext);
 
     if (validationResult.status === "error") {
-      return defaultCardPresenter.presentValidationError(
+      return deps.cardPresenter.presentValidationError(
         e,
         validationResult.errors,
         validationResult.missingFields
@@ -69,7 +79,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     }
 
     if (validationResult.status === "interaction_required") {
-      return defaultCardPresenter.presentInteractionPrompt(
+      return deps.cardPresenter.presentInteractionPrompt(
         e,
         validationResult.interactionType,
         validationResult.message
@@ -80,12 +90,12 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const emptyFallbacks = validationResult.warnings;
     const logSheetId = logSheet && typeof logSheet.getSheetId === "function" ? logSheet.getSheetId() : undefined;
 
-    const logRepository = defaultLogRepository;
-    const driveFilingRepository = defaultDriveFilingRepository;
+    const logRepository = deps.logRepository;
+    const driveFilingRepository = deps.driveFilingRepository;
 
     const docType = validatedDoc.documentType || disc;
-    const config = defaultDocumentTypeConfigRegistry.hasConfig(docType)
-      ? defaultDocumentTypeConfigRegistry.getConfig(docType)
+    const config = deps.configRegistry.hasConfig(docType)
+      ? deps.configRegistry.getConfig(docType)
       : undefined;
 
     const input: DocumentWorkflowInput = {
@@ -106,7 +116,12 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
       driveFilingRepository
     };
 
-    const result: DocumentWorkflowResult = await PipelineBuilder.buildAndExecute(input, defaultActionRegistry);
+    const result: DocumentWorkflowResult = await PipelineBuilder.buildAndExecute(
+      input,
+      deps.actionRegistry,
+      deps.specRegistry,
+      deps.configRegistry
+    );
 
     try {
       const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
@@ -137,10 +152,10 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     const policy = getActionPolicy(result.action);
 
     if (policy.direction === "incoming") {
-      return defaultCardPresenter.presentIncomingSuccess(e, result);
+      return deps.cardPresenter.presentIncomingSuccess(e, result);
     }
 
-    return defaultCardPresenter.presentOutgoingSuccess(e, result, p);
+    return deps.cardPresenter.presentOutgoingSuccess(e, result, p);
 
   } catch (err: any) {
     console.error("IntakeCard error:", err);
@@ -154,13 +169,14 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
  * Uses `DriveFilingRepository` to determine the target folder structure and file the document.
  *
  * @param e - Google Apps Script event object containing document parameters (file ID, discipline, section/tag).
+ * @param deps - Injected process dependencies.
  * @returns ActionResponse updating the card with filing confirmation.
  */
-function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
+function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps: ProcessDependencies): any {
   const p = e.parameters || {};
   try {
-    const docTypeKey = p.documentType || (p.discipline ? (defaultDocumentTypeSpecRegistry.findSpecKey(p.discipline) || (p.discipline === "Architecture" ? "SUBMITTAL_ARCH" : "SUBMITTAL_FFE")) : "SUBMITTAL_ARCH");
-    const spec = defaultDocumentTypeSpecRegistry.getSpec(docTypeKey);
+    const docTypeKey = p.documentType || (p.discipline ? (deps.specRegistry.findSpecKey(p.discipline) || (p.discipline === "Architecture" ? "SUBMITTAL_ARCH" : "SUBMITTAL_FFE")) : "SUBMITTAL_ARCH");
+    const spec = deps.specRegistry.getSpec(docTypeKey);
     const strategy: DocumentLogStrategy = new DeclarativeDocumentLogStrategy(spec);
 
     const doc: ValidatedDocument = {
@@ -186,7 +202,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
       ? strategy.getFilingSubfolders(doc)
       : [closedFolder];
 
-    const driveFilingRepo = defaultDriveFilingRepository;
+    const driveFilingRepo = deps.driveFilingRepository;
     const filingResult = driveFilingRepo.fileDocument(
       { fileId: p.fileId },
       { targetFolderId: p.targetFolderId, subfolderPath }
@@ -201,7 +217,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
       p.targetFolderId, p.logFileId, true, p.projectAbbr, p.action, p.incomingRouting, null,
       p.directRowUrl, failedCols, emptyFalls
     );
-    return defaultCardPresenter.presentMoveToClosedSuccess(e, updated, destName);
+    return deps.cardPresenter.presentMoveToClosedSuccess(e, updated, destName);
   } catch (err: any) {
     console.error("IntakeCard error:", err);
     

@@ -150,7 +150,7 @@ const defaultDriveFilingRepository: DriveFilingRepository = new GoogleDriveFilin
 
 export { defaultDriveFilingRepository };
 
-declare let module: any;
+declare let module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {

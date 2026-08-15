@@ -65,7 +65,7 @@ class GoogleScriptCacheAdapter implements CacheAdapter {
 /** Global default cache adapter instance seam. */
 const defaultCacheAdapter: CacheAdapter = new GoogleScriptCacheAdapter();
 
-declare let module: any;
+declare let module: { exports?: unknown };
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
