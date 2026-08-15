@@ -8,7 +8,7 @@
 /**
  * Interface defining user interface presentation operations.
  */
-interface UserInterfacePresenter {
+export interface UserInterfacePresenter {
   presentValidationError(event: any, errors: string[], missingFields?: string[]): unknown;
   presentInteractionPrompt(event: any, promptType: "ADD_TAG" | "ADD_VENDOR", warningMessage: string): unknown;
   presentIncomingSuccess(event: any, result: any): unknown;
@@ -16,6 +16,8 @@ interface UserInterfacePresenter {
   presentCardReload(event: any, isTagChange?: boolean): unknown;
   presentIntakeCard(event: any, initialData?: any, flashMessage?: any): unknown;
   presentNotification(notificationText: string): unknown;
+  presentError(error: Error | string): unknown;
+  presentMoveToClosedSuccess?(event: any, updatedCard: any, destName: string): unknown;
 }
 
 declare let module: { exports?: unknown };

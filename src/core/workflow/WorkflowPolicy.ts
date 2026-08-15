@@ -4,14 +4,15 @@
  * @description Helper functions for document strategy resolution, title extraction, and sheet URL generation.
  */
 
-import { DeclarativeDocumentLogStrategy } from '../logging/DeclarativeDocumentLogStrategy';
+import { DynamicDocumentLogStrategy } from '../strategy/DynamicDocumentLogStrategy';
+import { TemplateFormatCompiler } from '../specs/TemplateFormatCompiler';
 import { defaultDocumentTypeSpecRegistry } from '../specs/DocumentTypeSpecRegistry';
 
 /**
  * Factory function returning the appropriate DocumentLogStrategy implementation for a given document.
  *
  * @param doc - The ValidatedDocument instance.
- * @returns DeclarativeDocumentLogStrategy for the document type spec.
+ * @returns DynamicDocumentLogStrategy for the document type spec.
  */
 export function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrategy {
   const details = doc ? doc.disciplineDetails : null;
@@ -19,7 +20,7 @@ export function getDocumentLogStrategy(doc: ValidatedDocument): DocumentLogStrat
     ? "SUBMITTAL_FFE"
     : (doc?.docTypeKey || "SUBMITTAL_ARCH");
   const spec = defaultDocumentTypeSpecRegistry.getSpec(docTypeKey);
-  return new DeclarativeDocumentLogStrategy(spec);
+  return new DynamicDocumentLogStrategy(spec, TemplateFormatCompiler);
 }
 
 /**

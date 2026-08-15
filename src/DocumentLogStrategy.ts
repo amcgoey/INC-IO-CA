@@ -2,10 +2,20 @@
 /**
  * @file DocumentLogStrategy.ts
  * @description Strategy design pattern exports for document identity, sorting, tabular row formatting, and filing rules.
- * Re-exports DeclarativeDocumentLogStrategy for spec-driven execution across all document types.
+ * Re-exports DynamicDocumentLogStrategy for spec-driven execution across all document types.
  */
 
+import { DynamicDocumentLogStrategy } from './core/strategy/DynamicDocumentLogStrategy';
+import { TemplateFormatCompiler } from './core/specs/TemplateFormatCompiler';
+import type { DocumentTypeSpec } from './core/specs/DocumentTypeSpec';
+
+export class DynamicLogStrategyFactory extends DynamicDocumentLogStrategy {
+  constructor(spec: DocumentTypeSpec) {
+    super(spec, TemplateFormatCompiler);
+  }
+}
+
 export {
-  DeclarativeDocumentLogStrategy,
-  formatDateStr
-} from './core/logging/DeclarativeDocumentLogStrategy';
+  DynamicDocumentLogStrategy,
+  DynamicLogStrategyFactory as DeclarativeDocumentLogStrategy
+};

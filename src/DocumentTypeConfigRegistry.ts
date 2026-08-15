@@ -282,7 +282,7 @@ class DocumentTypeConfigRegistry {
         };
       }
 
-      (finalConfig as any).logStrategy = logStrategy;
+      finalConfig.logStrategy = logStrategy;
       this.projectedCache.set(lower, finalConfig);
       this.projectedCache.set(finalConfig.documentType, finalConfig);
       this.projectedCache.set(specKey, finalConfig);

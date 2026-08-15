@@ -1,47 +1,66 @@
-﻿/// <reference path="../../types.ts" />
+/// <reference path="../../types.ts" />
 import type { DocumentTypeSpec, DriveStorageSpec } from '../specs/DocumentTypeSpec';
 import { TemplateFormatCompiler } from '../specs/TemplateFormatCompiler';
+import { getRowGroupKey, getRowSortKey } from '../../RowPositionCalculator';
+
+/**
+ * Formats a Date object or raw date string into a standard 6-to-8 digit string.
+ */
+export function formatDateStr(rawDate: unknown): string {
+  if (rawDate instanceof Date) {
+    if (isNaN(rawDate.getTime())) return '';
+    const yyyy = String(rawDate.getFullYear());
+    const mm = String(rawDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(rawDate.getDate()).padStart(2, '0');
+    return yyyy + mm + dd;
+  }
+  return String(rawDate || '').replace(/\D/g, '').padStart(6, '0');
+}
+
+/**
+ * Safely pads a numeric or string value with leading zeros to the specified target length.
+ */
+function safePadNum(val: unknown, len: number): string {
+  if (typeof (globalThis as Record<string, unknown>).padNum === 'function') {
+    return ((globalThis as Record<string, unknown>).padNum as (v: unknown, l: number) => string)(val, len);
+  }
+  return String(val || '').trim().padStart(len, '0');
+}
 
 export class DynamicDocumentLogStrategy implements DocumentLogStrategy<ValidatedDocument> {
   constructor(
     public readonly spec: DocumentTypeSpec,
-    private readonly compiler: typeof TemplateFormatCompiler
+    private readonly compiler: typeof TemplateFormatCompiler = TemplateFormatCompiler
   ) {}
 
-  private extractRecord(doc: ValidatedDocument): Record<string, unknown> {
-    const record: Record<string, unknown> = {};
+  private extractRecord(doc: ValidatedDocument): Record<string, any> {
+    const details = (doc && typeof doc === 'object' && doc.disciplineDetails) || {};
+    const record: Record<string, any> = {
+      ...details,
+      ...doc,
+    };
 
-    if (!doc) {
-      return record;
-    }
-
-    record.documentType = doc.documentType;
-    record.date = doc.date;
-    record.contact = doc.contact;
-    record.action = doc.action;
-    if (doc.notes !== undefined) record.notes = doc.notes;
-    if (doc.incomingRouting !== undefined) record.incomingRouting = doc.incomingRouting;
-
-    if (doc.disciplineDetails) {
-      const details = doc.disciplineDetails as Record<string, unknown>;
-      for (const [k, v] of Object.entries(details)) {
-        if (v !== undefined) {
-          record[k] = v;
+    if (doc) {
+      if (doc.documentType !== undefined) record.documentType = doc.documentType;
+      if (doc.date !== undefined) record.date = doc.date;
+      if (doc.contact !== undefined) record.contact = doc.contact;
+      if (doc.action !== undefined) record.action = doc.action;
+      if (doc.notes !== undefined) record.notes = doc.notes;
+      if (doc.incomingRouting !== undefined) record.incomingRouting = doc.incomingRouting;
+      if (doc.listFields) {
+        for (const [key, field] of Object.entries(doc.listFields)) {
+          record[key] = field.storedValue;
         }
       }
     }
 
-    if (doc.listFields) {
-      for (const [key, field] of Object.entries(doc.listFields)) {
-        record[key] = field.storedValue;
-      }
+    if (record.section !== undefined && record.section !== null && String(record.section).trim() !== '') {
+      const secStr = String(record.section).trim();
+      record.section = /^\d+$/.test(secStr) ? safePadNum(secStr, 6) : secStr;
     }
-
-    const docObj = doc as unknown as Record<string, unknown>;
-    for (const key of Object.keys(docObj)) {
-      if (key !== 'disciplineDetails' && key !== 'listFields' && !(key in record)) {
-        record[key] = docObj[key];
-      }
+    if (record.number !== undefined && record.number !== null && String(record.number).trim() !== '') {
+      const numStr = String(record.number).trim();
+      record.number = /^\d+$/.test(numStr) ? safePadNum(numStr, 3) : numStr;
     }
 
     return record;
@@ -49,25 +68,30 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
 
   public getGroupKey(doc: ValidatedDocument): string {
     const record = this.extractRecord(doc);
-    return this.compiler.evaluate(this.spec.identity.groupFormat, record);
+    const groupKey = this.compiler.evaluate(this.spec.identity.groupFormat, record);
+    return groupKey.toLowerCase();
   }
 
   public getSortKey(doc: ValidatedDocument): string {
+    const groupKey = this.getGroupKey(doc);
     const record = this.extractRecord(doc);
-    return this.compiler.evaluate(this.spec.identity.revisionGroupFormat, record);
+    const revStr = record.revision !== undefined && record.revision !== null ? String(record.revision).trim() : '0';
+    const rev = /^\d+$/.test(revStr) ? safePadNum(revStr, 3) : revStr;
+    const dateStr = formatDateStr(record.date);
+    return `${groupKey}-${rev}-${dateStr}`;
   }
 
   public getTargetKey(doc: ValidatedDocument): string {
     const record = this.extractRecord(doc);
-    return this.compiler.evaluate(this.spec.identity.format, record);
+    const targetFormat = this.spec.identity.revisionGroupFormat || this.spec.identity.format;
+    return this.compiler.evaluate(targetFormat, record);
   }
 
   public getIdentityData(doc: ValidatedDocument): IdentityData {
-    const record = this.extractRecord(doc);
     return {
-      identityGroup: this.compiler.evaluate(this.spec.identity.groupFormat, record),
-      identityRevisionGroup: this.compiler.evaluate(this.spec.identity.revisionGroupFormat, record),
-      identity: this.compiler.evaluate(this.spec.identity.format, record),
+      identityGroup: this.getGroupKey(doc),
+      identityRevisionGroup: this.getSortKey(doc),
+      identity: this.getTargetKey(doc),
     };
   }
 
@@ -79,21 +103,22 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
     const payload: Record<string, string> = {};
 
     for (const field of this.spec.fields) {
-      const header = field.header || field.label;
       if (field.isCalculated) {
         if (field.calcFormat) {
-          payload[header] = this.compiler.evaluate(field.calcFormat, record);
+          payload[field.header || field.label] = this.compiler.evaluate(field.calcFormat, record);
         }
         continue;
       }
-
+      const header = field.header || field.label;
       const val = record[field.key];
       if (val !== undefined && val !== null) {
         payload[header] = String(val);
-      } else if (typeof field.defaultValue === 'string' && field.defaultValue.includes('${')) {
-        payload[header] = this.compiler.evaluate(field.defaultValue, record);
       } else if (field.defaultValue !== undefined) {
-        payload[header] = String(field.defaultValue);
+        if (typeof field.defaultValue === 'string' && field.defaultValue.includes('${')) {
+          payload[header] = this.compiler.evaluate(field.defaultValue, record);
+        } else {
+          payload[header] = String(field.defaultValue);
+        }
       } else {
         payload[header] = '';
       }
@@ -103,7 +128,7 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
     payload['Link'] = options.link;
     payload['Contact History'] = options.contactHistory;
     if (record.notes !== undefined) {
-      payload['Notes'] = String(record.notes || '');
+      payload['Notes'] = record.notes || '';
     }
 
     return payload;
@@ -130,10 +155,10 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
 
   public getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string {
     const record = this.extractRecord(doc);
-    const targetKey = this.compiler.evaluate(this.spec.identity.format, record);
+    const targetKey = this.getTargetKey(doc);
     const descriptor = String(record.title || (record.vendor ? record.vendor : (record.specTitle || '')));
     const suffix = actionAbbr ? actionAbbr : '';
-    const dateStr = String(record.date || '');
+    const dateStr = String(doc.date || record.date || '');
     return `${targetKey} ${descriptor} - ${dateStr} ${contactHistory}${suffix}`;
   }
 
@@ -151,14 +176,20 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
   }
 
   public getGroupKeyFromRow(row: unknown[], headers: string[]): string {
-    return this.compiler.evaluate(this.spec.identity.groupFormat, this.extractRowRecord(row, headers));
+    return getRowGroupKey(row, '', headers, this.spec.fields as any);
   }
 
   public getSortKeyFromRow(row: unknown[], headers: string[]): string {
-    return this.compiler.evaluate(this.spec.identity.revisionGroupFormat, this.extractRowRecord(row, headers));
+    return getRowSortKey(row, '', headers, this.spec.fields as any);
   }
 
   public getTargetKeyFromRow(row: unknown[], headers: string[]): string {
-    return this.compiler.evaluate(this.spec.identity.format, this.extractRowRecord(row, headers));
+    const rowRecord = this.extractRowRecord(row, headers);
+    const targetFormat = this.spec.identity.revisionGroupFormat || this.spec.identity.format;
+    return this.compiler.evaluate(targetFormat, rowRecord);
+  }
+
+  public getRevisionGroupKeyFromRow(row: unknown[], headers: string[]): string {
+    return this.getTargetKeyFromRow(row, headers);
   }
 }

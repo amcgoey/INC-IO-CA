@@ -776,7 +776,7 @@ interface DocumentTypeConfig {
   pdfAdapterKey?: string;
   aiAdapterKey?: string;
   fields?: DocumentFieldSpec[];
-    logStrategy?: any;
+    logStrategy?: DocumentLogStrategy;
   validateHook?: (rawDoc: RawDocument, context?: ValidationContext) => ValidationResult | void;
 }
 

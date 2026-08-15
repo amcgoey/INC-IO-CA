@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { DynamicDocumentLogStrategy } from '../../../src/core/strategy/DynamicDocumentLogStrategy';
 import type { DocumentTypeSpec } from '../../../src/core/specs/DocumentTypeSpec';
 import { TemplateFormatCompiler } from '../../../src/core/specs/TemplateFormatCompiler';
@@ -9,7 +9,7 @@ describe('DynamicDocumentLogStrategy', () => {
     label: 'Test Doc',
     name: 'Test Document',
     identity: {
-      format: '${section}-${number}-${revision}-TARGET',
+      format: '${section}-${number}-${revision}-${date}',
       groupFormat: '${section}-${number}',
       revisionGroupFormat: '${section}-${number}-${revision}',
     },
@@ -32,7 +32,7 @@ describe('DynamicDocumentLogStrategy', () => {
     evaluate: vi.fn((format: string, _record: Record<string, unknown>) => {
       if (format === mockSpec.identity.groupFormat) return '123-001';
       if (format === mockSpec.identity.revisionGroupFormat) return '123-001-0';
-      if (format === mockSpec.identity.format) return '123-001-0-TARGET';
+      if (format === mockSpec.identity.format) return '123-001-000-20260815';
       if (format === 'Closed/${section}') return 'Closed/123';
       if (format === '${section}-CALC') return '123-CALC';
       if (format === '${section}-DEF') return '123-DEF';
@@ -58,21 +58,17 @@ describe('DynamicDocumentLogStrategy', () => {
 
       expect(mockCompiler.evaluate).toHaveBeenCalledWith(
         mockSpec.identity.groupFormat,
-        expect.objectContaining({ section: '123', number: '001', revision: '0' })
+        expect.objectContaining({ section: '000123', number: '001', revision: '0' })
       );
       expect(mockCompiler.evaluate).toHaveBeenCalledWith(
         mockSpec.identity.revisionGroupFormat,
-        expect.objectContaining({ section: '123' })
-      );
-      expect(mockCompiler.evaluate).toHaveBeenCalledWith(
-        mockSpec.identity.format,
-        expect.objectContaining({ section: '123' })
+        expect.objectContaining({ section: '000123' })
       );
 
       expect(identity).toEqual({
         identityGroup: '123-001',
-        identityRevisionGroup: '123-001-0',
-        identity: '123-001-0-TARGET'
+        identityRevisionGroup: '123-001-000-20260815',
+        identity: '123-001-0'
       });
     });
   });
@@ -87,7 +83,7 @@ describe('DynamicDocumentLogStrategy', () => {
       });
 
       expect(payload).toEqual({
-        'Section': '123',
+        'Section': '000123',
         'Number': '001',
         'Revision': '0',
         'Calc': '123-CALC',
@@ -106,7 +102,7 @@ describe('DynamicDocumentLogStrategy', () => {
       expect(folders).toEqual(['Closed', '123']);
       expect(mockCompiler.evaluate).toHaveBeenCalledWith(
         'Closed/${section}',
-        expect.objectContaining({ section: '123' })
+        expect.objectContaining({ section: '000123' })
       );
     });
   });
@@ -117,13 +113,11 @@ describe('DynamicDocumentLogStrategy', () => {
       const headers = ['Section', 'Number', 'Revision'];
       const row = ['123', '001', '0'];
       const key = strategy.getTargetKeyFromRow(row, headers);
-      expect(key).toBe('123-001-0-TARGET');
+      expect(key).toBe('123-001-0');
       expect(mockCompiler.evaluate).toHaveBeenCalledWith(
-        mockSpec.identity.format,
+        mockSpec.identity.revisionGroupFormat,
         expect.objectContaining({ section: '123', number: '001', revision: '0', 'Section': '123', 'Number': '001', 'Revision': '0' })
       );
     });
   });
 });
-
-

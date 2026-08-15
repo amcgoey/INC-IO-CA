@@ -3,14 +3,13 @@ import { CardDraftStateManager } from "./prototypes/CardDraftStateManager";
 import { TransientOverrideLogger } from "./core/logging/TransientOverrideLogger";
 import { buildSuccessCard } from "./adapters/gas/UI";
 import { DocumentPipeline } from "./core/intake/DocumentPipeline";
-import { DeclarativeDocumentLogStrategy } from "./core/logging/DeclarativeDocumentLogStrategy";
 import { DocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
 import { DocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
 import { PipelineBuilder } from "./core/workflow/PipelineBuilder";
 import { ActionRegistry } from "./core/workflow/ActionRegistry";
 import { LogRepository } from "./core/interfaces/LogRepository";
 import { DriveFilingRepository } from "./core/interfaces/DriveFilingRepository";
-import { CardPresenter } from "./core/interfaces/UserInterfacePresenter";
+import { UserInterfacePresenter } from "./core/interfaces/UserInterfacePresenter";
 
 export interface ProcessDependencies {
   actionRegistry: ActionRegistry;
@@ -18,7 +17,7 @@ export interface ProcessDependencies {
   configRegistry: DocumentTypeConfigRegistry;
   logRepository: LogRepository;
   driveFilingRepository: DriveFilingRepository;
-  cardPresenter: CardPresenter;
+  cardPresenter: UserInterfacePresenter;
 }
 
 /**
@@ -174,17 +173,21 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
 function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps: ProcessDependencies): any {
   const p = e.parameters || {};
   try {
-    const docTypeKey = p.documentType || (p.discipline ? (deps.specRegistry.findSpecKey(p.discipline) || (p.discipline === "Architecture" ? "SUBMITTAL_ARCH" : "SUBMITTAL_FFE")) : "SUBMITTAL_ARCH");
-    const spec = deps.specRegistry.getSpec(docTypeKey);
-    const strategy: DocumentLogStrategy = new DeclarativeDocumentLogStrategy(spec);
+    const docType = p.documentType || p.discipline || "SUBMITTAL_ARCH";
+    const config = deps.configRegistry.hasConfig(docType)
+      ? deps.configRegistry.getConfig(docType)
+      : (deps.specRegistry.findSpecKey(docType) && deps.configRegistry.hasConfig(deps.specRegistry.findSpecKey(docType)!))
+        ? deps.configRegistry.getConfig(deps.specRegistry.findSpecKey(docType)!)
+        : deps.configRegistry.getConfig("SUBMITTAL_ARCH");
+    const strategy: DocumentLogStrategy | undefined = config.logStrategy;
 
     const doc: ValidatedDocument = {
-      documentType: spec.key,
+      documentType: config.documentType,
       date: p.date || "",
       contact: p.contact || "",
       action: p.action || "",
       disciplineDetails: {
-        discipline: p.discipline || spec.label,
+        discipline: p.discipline || config.displayName,
         section: p.section || "",
         specTag: p.specTag || "",
         number: p.number || "",
@@ -196,8 +199,8 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps: ProcessDependenci
       specTag: p.specTag || "",
     } as any;
 
-    const closedFolder = (typeof CONFIG !== "undefined" && CONFIG.CLOSED_FOLDER_NAME) ? CONFIG.CLOSED_FOLDER_NAME : "Closed";
-    const subfolderPath = strategy.getFilingSubfolders
+    const closedFolder = config.closedRootFolderName || ((typeof CONFIG !== "undefined" && CONFIG.CLOSED_FOLDER_NAME) ? CONFIG.CLOSED_FOLDER_NAME : "Closed");
+    const subfolderPath = strategy && strategy.getFilingSubfolders
       ? strategy.getFilingSubfolders(doc)
       : [closedFolder];
 
@@ -207,7 +210,8 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps: ProcessDependenci
       { targetFolderId: p.targetFolderId, subfolderPath }
     );
 
-    const destName = DriveApp.getFolderById(filingResult.folderId).getName();
+    const destFolder = typeof DriveApp !== "undefined" && DriveApp.getFolderById ? DriveApp.getFolderById(filingResult.folderId) : null;
+    const destName = destFolder && typeof destFolder.getName === "function" ? destFolder.getName() : "Closed";
     const failedCols = p.failedColumns ? JSON.parse(p.failedColumns) : [];
     const emptyFalls = p.emptyFallbacks ? JSON.parse(p.emptyFallbacks) : [];
 
@@ -216,11 +220,13 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps: ProcessDependenci
       p.targetFolderId, p.logFileId, true, p.projectAbbr, p.action, p.incomingRouting, null,
       p.directRowUrl, failedCols, emptyFalls
     );
-    return deps.cardPresenter.presentMoveToClosedSuccess(e, updated, destName);
+    if (deps.cardPresenter.presentMoveToClosedSuccess) {
+      return deps.cardPresenter.presentMoveToClosedSuccess(e, updated, destName);
+    }
+    return null;
   } catch (err: any) {
     console.error("IntakeCard error:", err);
-    
-    return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build();
+    return deps.cardPresenter.presentError(err);
   }
 }
 

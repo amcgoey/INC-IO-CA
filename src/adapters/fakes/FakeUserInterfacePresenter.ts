@@ -42,6 +42,19 @@ export class FakeUserInterfacePresenter implements UserInterfacePresenter {
     return payload;
   }
 
+  
+  presentError(error: Error | string): unknown {
+    const payload = { method: "presentError", error };
+    this.calls.push({ method: "presentError", args: [error] });
+    return payload;
+  }
+
+  presentMoveToClosedSuccess(event: any, updatedCard: any, destName: string): unknown {
+    const payload = { method: "presentMoveToClosedSuccess", event, updatedCard, destName };
+    this.calls.push({ method: "presentMoveToClosedSuccess", args: [event, updatedCard, destName] });
+    return payload;
+  }
+
   presentNotification(notificationText: string): unknown {
     const payload = { method: "presentNotification", notificationText };
     this.calls.push({ method: "presentNotification", args: [notificationText] });
