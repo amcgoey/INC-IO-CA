@@ -6,7 +6,7 @@ import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
 import { DocumentPipeline } from "./core/intake/DocumentPipeline";
 import { DeclarativeDocumentLogStrategy } from "./core/logging/DeclarativeDocumentLogStrategy";
 import { defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
-import { DocumentWorkflowModule, getActionPolicy } from "./core/workflow/DocumentWorkflowModule";
+import { getActionPolicy } from "./core/workflow/WorkflowPolicy";
 import { PipelineBuilder } from "./core/workflow/PipelineBuilder";
 import { WorkflowRunner } from "./core/workflow/WorkflowRunner";
 import { defaultActionRegistry } from "./core/workflow/ActionRegistry";
@@ -122,65 +122,60 @@ const validationResult = DocumentPipeline.processFormIntake(form, validationCont
     let result: DocumentWorkflowResult;
     let finalAction = "";
 
-    if (isDeclarative) {
-      const registry = defaultActionRegistry;
-      if (!registry) throw new Error("ActionRegistry not found. Cannot run declarative workflow.");
-      
-      const PipelineBuilderCtor = PipelineBuilder;
-      const builder = new PipelineBuilderCtor(registry);
-      
-      const ctx = {
-        triggerContext: form.action,
-        fieldValues: { ...validatedDoc, action: form.action }
-      };
-      const actions = builder.buildPipeline(config.logStrategy.spec.workflows, ctx);
-      
-      if (actions.length === 0) {
-        throw new Error(`No declarative workflow trigger matched for action: ${form.action}`);
-      }
-
-      const initialContext: DocumentActionContext = {
-        ...input,
-        fileId: p.driveFileId || form.driveFileId || "",
-        document: validatedDoc,
-        config: config,
-        spreadsheetId: p.logFileId,
-        sheetId: logSheetId,
-        strategy: config.logStrategy,
-        adapters: {
-          logRepository,
-          driveFilingRepository
-        }
-      };
-
-      const WorkflowRunnerClass = WorkflowRunner;
-      const finalContext = await WorkflowRunnerClass.run(actions, initialContext);
-
-      finalAction = form.action;
-      result = {
-        success: true,
-        action: finalAction,
-        newFileName: finalContext.newFileName || "",
-        url: finalContext.url || finalContext.driveFileUrl || "",
-        groupKey: "",
-        previousRowSheetIndex: null,
-        revGroupKey: "",
-        targetKey: finalContext.targetKey || "",
-        fileId: finalContext.fileId || finalContext.driveFileId || initialContext.fileId || "",
-        title: finalContext.title || validatedDoc.title || "",
-        projectAbbr: p.projectAbbr || "",
-        directRowUrl: finalContext.directRowUrl || "",
-        failedColumns: finalContext.failedColumns || [],
-        emptyFallbacks: finalContext.emptyFallbacks || emptyFallbacks || [],
-        localPath: finalContext.localPath || "",
-      };
-    } else {
-      const dwm = (globalThis as any).DocumentWorkflowModule || DocumentWorkflowModule;
-      result = await dwm.executeWorkflow(input);
-      finalAction = result.action;
+    const registry = defaultActionRegistry;
+    if (!registry) throw new Error("ActionRegistry not found. Cannot run declarative workflow.");
+    
+    const PipelineBuilderCtor = PipelineBuilder;
+    const builder = new PipelineBuilderCtor(registry);
+    
+    const ctx = {
+      triggerContext: form.action,
+      fieldValues: { ...validatedDoc, action: form.action }
+    };
+    const workflows = config?.logStrategy?.spec?.workflows || [];
+    const actions = builder.buildPipeline(workflows, ctx);
+    
+    if (actions.length === 0) {
+      throw new Error(`No declarative workflow trigger matched for action: ${form.action}`);
     }
+
+    const initialContext: DocumentActionContext = {
+      ...input,
+      fileId: p.driveFileId || form.driveFileId || "",
+      document: validatedDoc,
+      config: config,
+      spreadsheetId: p.logFileId,
+      sheetId: logSheetId,
+      strategy: config?.logStrategy,
+      adapters: {
+        logRepository,
+        driveFilingRepository
+      }
+    };
+
+    const WorkflowRunnerClass = WorkflowRunner;
+    const finalContext = await WorkflowRunnerClass.run(actions, initialContext);
+
+    finalAction = form.action;
+    result = {
+      success: true,
+      action: finalAction,
+      newFileName: finalContext.newFileName || "",
+      url: finalContext.url || finalContext.driveFileUrl || "",
+      groupKey: "",
+      previousRowSheetIndex: null,
+      revGroupKey: "",
+      targetKey: finalContext.targetKey || "",
+      fileId: finalContext.fileId || finalContext.driveFileId || initialContext.fileId || "",
+      title: finalContext.title || validatedDoc.title || "",
+      projectAbbr: p.projectAbbr || "",
+      directRowUrl: finalContext.directRowUrl || "",
+      failedColumns: finalContext.failedColumns || [],
+      emptyFallbacks: finalContext.emptyFallbacks || emptyFallbacks || [],
+      localPath: finalContext.localPath || "",
+    };
+
     const policyFn = (globalThis as any).getActionPolicy || getActionPolicy;
-    const policy = policyFn(finalAction);
     try {
       const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
       if (userCache) {
