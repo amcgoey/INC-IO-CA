@@ -45,7 +45,8 @@ import {
 import {
   onRunSchemaDriftAudit,
   onFlushScriptCache,
-  onAutoPatchWorkbook
+  onAutoPatchWorkbook,
+  onSaveToJsonConfiguration
 } from "./adapters/gas/AdminFoldOutPresenter";
 import { onSheetsContextRefresh } from "./adapters/gas/SheetsRootCard";
 
@@ -437,6 +438,7 @@ g.processSubmissionWithNewVendor = processSubmissionWithNewVendor;
 g.onRunSchemaDriftAudit = onRunSchemaDriftAudit;
 g.onFlushScriptCache = onFlushScriptCache;
 g.onAutoPatchWorkbook = onAutoPatchWorkbook;
+g.onSaveToJsonConfiguration = onSaveToJsonConfiguration;
 g.onSheetsContextRefresh = onSheetsContextRefresh;
 g.checkAiModelHealth = checkAiModelHealth;
 g.DocumentPipeline = DocumentPipeline;
@@ -477,6 +479,7 @@ export {
   onRunSchemaDriftAudit,
   onFlushScriptCache,
   onAutoPatchWorkbook,
+  onSaveToJsonConfiguration,
   onSheetsContextRefresh,
   checkAiModelHealth,
   buildIntakeCard

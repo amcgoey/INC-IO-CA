@@ -8,7 +8,11 @@
  */
 
 import { TemplateDriftReport, TemplateDriftIssue, AutoPatchResult } from "../../core/admin/TemplateDriftAuditor";
-import { SpreadsheetBatchReadException } from "./SpreadsheetBatchReaderAdapter";
+import { SpreadsheetBatchReadException, SpreadsheetBatchReaderAdapter } from "./SpreadsheetBatchReaderAdapter";
+import { GoogleSheetsDocumentTypeSpecAdapter } from "./GoogleSheetsDocumentTypeSpecAdapter";
+import { JsonDocumentTypeSpecAdapter } from "../../core/specs/JsonDocumentTypeSpecAdapter";
+import type { SpecValidationResult } from "../../core/specs/ValidationEngine";
+import type { DocumentTypeSpec } from "../../core/specs/DocumentTypeSpec";
 
 import { SheetsContextBinder } from "./SheetsContextBinder";
 import { GoogleSheetsStorageAdapter } from "../../SheetStorageAdapter";
@@ -44,6 +48,18 @@ function getGoogleScriptCacheAdapterClass(): any {
 
 function getPrefixCacheManagerClass(): any {
   return PrefixCacheManager;
+}
+
+function getGoogleSheetsDocumentTypeSpecAdapterClass(): any {
+  return GoogleSheetsDocumentTypeSpecAdapter;
+}
+
+function getJsonDocumentTypeSpecAdapterClass(): any {
+  return JsonDocumentTypeSpecAdapter;
+}
+
+function getSpreadsheetBatchReaderAdapterClass(): any {
+  return SpreadsheetBatchReaderAdapter;
 }
 
 export type AppContextType = "GoogleSheets" | "Gmail" | "GoogleDrive";
@@ -182,6 +198,15 @@ export class AdminFoldOutPresenter {
               .setOnClickAction(
                 CardService.newAction()
                   .setFunctionName("onFlushScriptCache")
+                  .setParameters({ spreadsheetId })
+              )
+          )
+          .addButton(
+            CardService.newTextButton()
+              .setText("💾 Save to JSON Configuration")
+              .setOnClickAction(
+                CardService.newAction()
+                  .setFunctionName("onSaveToJsonConfiguration")
                   .setParameters({ spreadsheetId })
               )
           )
@@ -516,5 +541,136 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
     .build();
 }
 
+/**
+ * Action Handler: Decompiles the active DocumentLogWorkbook configuration, serializes each valid
+ * DocumentTypeSpec to canonical JSON via JsonDocumentTypeSpecAdapter.stringify(), and saves timestamped
+ * JSON file(s) to the workbook's parent Google Drive folder via DriveApp (Issue #291).
+ */
+export function onSaveToJsonConfiguration(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
+  const BinderClass = getSheetsContextBinderClass();
+  const spreadsheetId = BinderClass.extractSpreadsheetId(e);
 
+  if (!spreadsheetId) {
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification().setText("Error: Missing active spreadsheet ID."))
+      .build();
+  }
+
+  const BatchReaderClass = getSpreadsheetBatchReaderAdapterClass();
+  const batchReader: SpreadsheetBatchReaderAdapter = (globalThis as any).defaultSpreadsheetBatchReaderAdapter || new BatchReaderClass();
+
+  const DocTypeSpecAdapterClass = getGoogleSheetsDocumentTypeSpecAdapterClass();
+  const JsonAdapterClass = getJsonDocumentTypeSpecAdapterClass();
+
+  let validationResults: SpecValidationResult[] = [];
+  let batchReadError: unknown = undefined;
+
+  try {
+    const batchData = batchReader.readWorkbookBatch(spreadsheetId);
+    validationResults = DocTypeSpecAdapterClass.decompile(batchData);
+  } catch (err: unknown) {
+    if (
+      err instanceof SpreadsheetBatchReadException ||
+      (err && typeof err === "object" && (err as { name?: string }).name === "SpreadsheetBatchReadException")
+    ) {
+      batchReadError = err;
+    } else {
+      throw err;
+    }
+  }
+
+  if (batchReadError) {
+    const errorSection = AdminFoldOutPresenter.renderAdminErrorSection(spreadsheetId, batchReadError);
+    const card = CardService.newCardBuilder().addSection(errorSection).build();
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card))
+      .setNotification(CardService.newNotification().setText("Advanced Sheets API Unavailable"))
+      .build();
+  }
+
+  const hasInvalid = validationResults.some((r: SpecValidationResult) => r.status === "invalid");
+  if (hasInvalid || validationResults.length === 0) {
+    const errors: string[] = [];
+    for (const res of validationResults) {
+      if (res.status === "invalid") {
+        errors.push(...res.errors);
+      }
+    }
+    const errorSummary = errors.length > 0 ? errors.join("; ") : "No valid document type specifications found.";
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification().setText("Decompilation failed: " + errorSummary))
+      .build();
+  }
+
+  const validSpecs: DocumentTypeSpec[] = [];
+  for (const res of validationResults) {
+    if (res.status === "valid") {
+      validSpecs.push(res.spec);
+    }
+  }
+
+  // Resolve parent folder in Drive
+  const driveApp = (globalThis as any).DriveApp || (typeof DriveApp !== "undefined" ? DriveApp : undefined);
+  if (!driveApp || typeof driveApp.getFileById !== "function") {
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification().setText("Error: Google DriveApp is unavailable."))
+      .build();
+  }
+
+  const file = driveApp.getFileById(spreadsheetId);
+  const parents = file.getParents();
+  if (!parents || !parents.hasNext()) {
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification().setText("Error: Could not resolve parent Google Drive folder for workbook."))
+      .build();
+  }
+  const parentFolder = parents.next();
+
+  const timestamp = Date.now();
+  const savedFileNames: string[] = [];
+
+  for (const spec of validSpecs) {
+    const jsonContent = JsonAdapterClass.stringify(spec, { space: 2 });
+    const fileName = `${spec.key.toLowerCase()}_spec_${timestamp}.json`;
+    parentFolder.createFile(fileName, jsonContent, "application/json");
+    savedFileNames.push(fileName);
+  }
+
+  // Telemetry event logging to _AuditLog
+  try {
+    const StorageAdapterClass = getGoogleSheetsStorageAdapterClass();
+    const LogEngineClass = getLogEngineClass();
+
+    const storageAdapter = new StorageAdapterClass(spreadsheetId);
+    const engine = new LogEngineClass(storageAdapter);
+
+    let actor = "GoogleAppsScript";
+    if (typeof Session !== "undefined" && (Session as any).getActiveUser) {
+      try {
+        const email = (Session as any).getActiveUser().getEmail();
+        if (email) actor = email;
+      } catch (err) {}
+    }
+
+    engine.logAuditEvent(spreadsheetId, {
+      category: "ADMIN_ACTION",
+      eventType: "SPEC_SAVED_TO_JSON",
+      actor: actor,
+      status: "SUCCESS",
+      details: {
+        spreadsheetId,
+        savedFiles: savedFileNames,
+        specCount: validSpecs.length
+      }
+    });
+  } catch (err) {
+    if (typeof console !== "undefined" && console.warn) {
+      console.warn("Audit log write warning during save JSON configuration:", err);
+    }
+  }
+
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification().setText("Saved " + savedFileNames.length + " configuration file(s) to Google Drive."))
+    .build();
+}
 
