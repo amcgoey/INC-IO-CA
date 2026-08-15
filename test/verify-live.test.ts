@@ -194,7 +194,7 @@ test("runLiveVerification - Dimension 2 validates tab order and legacy backup ta
     dryRun: true
   };
 
-  const fakeApiFetcher = async (url: string, _init: RequestInit): Promise<Response | unknown> => {
+  const fakeApiFetcher = async (url: string, init?: RequestInit): Promise<Response | unknown> => {
     if (url.includes("fields=sheets")) {
       return {
         ok: true,
@@ -233,7 +233,7 @@ test("runLiveVerification - Dimension 2 fails when legacy _Backup_* tab is mispl
     dryRun: true
   };
 
-  const fakeApiFetcher = async (url: string, _init: RequestInit): Promise<Response | unknown> => {
+  const fakeApiFetcher = async (url: string, init?: RequestInit): Promise<Response | unknown> => {
     if (url.includes("fields=sheets")) {
       return {
         ok: true,
@@ -312,7 +312,7 @@ test("runLiveVerification - live execution reports failure on live API error wit
     dryRun: false
   };
 
-  const fakeFailingApiFetcher = async (_url: string, _init: RequestInit): Promise<Response | unknown> => {
+  const fakeFailingApiFetcher = async (_url: string, init?: RequestInit): Promise<Response | unknown> => {
     throw new Error("HTTP 403 Forbidden: Insufficient Permissions");
   };
 

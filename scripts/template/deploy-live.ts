@@ -117,8 +117,9 @@ export async function resolveGoogleAuthToken(): Promise<string> {
         } else if (data.token?.access_token) {
           return data.token.access_token;
         }
-      } catch (err: any) {
-        console.warn(`[AUTH WARN] Could not parse ${clasprcPath}: ${err.message}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[AUTH WARN] Could not parse ${clasprcPath}: ${msg}`);
       }
     }
   }
@@ -331,11 +332,11 @@ export async function deployLiveTemplate(
   const spec = viewModel.getSpec();
 
   const token = deps.authToken || (await resolveGoogleAuthToken());
-  const fetcher = deps.apiFetcher || (async (url: string, init: any) => {
+  const fetcher = deps.apiFetcher || (async (url: string, init?: RequestInit) => {
     const res = await fetch(url, init);
     if (!res.ok) {
       const errText = await res.text();
-      const err: any = new Error(`Google Sheets API Error (${res.status}): ${errText}`);
+      const err: Error & { status?: number } = new Error(`Google Sheets API Error (${res.status}): ${errText}`);
       err.status = res.status;
       throw err;
     }
@@ -370,12 +371,23 @@ export async function deployLiveTemplate(
     try {
       console.log(`[QUERY] Inspecting existing sheet properties and named ranges for target spreadsheet...`);
       const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties,namedRanges`;
+      interface SpreadsheetMetadataResponse {
+        sheets?: Array<{
+          properties?: {
+            title?: string;
+            sheetId?: number;
+          };
+        }>;
+        namedRanges?: Array<{
+          namedRangeId?: string;
+        }>;
+      }
       const metaRes = (await executeWithRetry(async () => {
         const res = await fetcher(metaUrl, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        return typeof (res as any)?.json === "function" ? await (res as any).json() : res;
-      })) as any;
+        return typeof (res as Response)?.json === "function" ? await (res as Response).json() : res;
+      })) as SpreadsheetMetadataResponse;
       if (metaRes && metaRes.sheets && Array.isArray(metaRes.sheets)) {
         for (const s of metaRes.sheets) {
           if (s.properties?.title && s.properties?.sheetId !== undefined) {
@@ -385,15 +397,18 @@ export async function deployLiveTemplate(
         console.log(`[OK] Mapped ${existingSheetsMap.size} existing tab(s) in target spreadsheet.`);
       }
       if (metaRes && metaRes.namedRanges && Array.isArray(metaRes.namedRanges)) {
-        existingNamedRangeDeletes = metaRes.namedRanges.map((nr: any) => ({
+        existingNamedRangeDeletes = metaRes.namedRanges
+          .filter((nr): nr is { namedRangeId: string } => typeof nr.namedRangeId === "string")
+          .map((nr) => ({
           deleteNamedRange: {
             namedRangeId: nr.namedRangeId
           }
         }));
         console.log(`[OK] Found ${existingNamedRangeDeletes.length} existing named range(s) to purge before updating.`);
       }
-    } catch (err: any) {
-      console.warn(`[WARN] Could not query existing sheet properties: ${err.message}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[WARN] Could not query existing sheet properties: ${msg}`);
     }
   }
 
@@ -431,7 +446,7 @@ export async function deployLiveTemplate(
 
   const response = await executeWithRetry(async () => {
     const res = await fetcher(endpoint, init);
-    return typeof (res as any)?.json === "function" ? await (res as any).json() : res;
+    return typeof (res as Response)?.json === "function" ? await (res as Response).json() : res;
   });
 
   console.log(`[OK] Successfully deployed single-pass batch update to Google Sheet ${spreadsheetId}`);
@@ -457,8 +472,9 @@ if (require.main === module) {
         console.error(`[ERROR] Live template deployment failed:`, err);
         process.exit(1);
       });
-  } catch (err: any) {
-    console.error(`[CLI ERROR] ${err.message}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[CLI ERROR] ${msg}`);
     process.exit(1);
   }
 }

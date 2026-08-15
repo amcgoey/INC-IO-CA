@@ -71,13 +71,13 @@ test("buildDeploymentPayload - produces single-pass batch update request payload
   assert.ok(Array.isArray(payload.requests), "Payload requests must be an array");
   assert.ok(payload.requests.length > 0, "Requests array must contain batch requests");
 
-  const repeatCellReqs = payload.requests.filter((r: any) => r.repeatCell);
+  const repeatCellReqs = payload.requests.filter((r: { repeatCell?: unknown }) => r.repeatCell);
   assert.ok(repeatCellReqs.length >= 4, "Must include header and formula row repeatCell requests");
 
-  const validationReqs = payload.requests.filter((r: any) => r.setDataValidation);
+  const validationReqs = payload.requests.filter((r: { setDataValidation?: unknown }) => r.setDataValidation);
   assert.ok(validationReqs.length >= 2, "Must include setDataValidation requests");
 
-  const namedRangeReqs = payload.requests.filter((r: any) => r.addNamedRange);
+  const namedRangeReqs = payload.requests.filter((r: { addNamedRange?: unknown }) => r.addNamedRange);
   assert.ok(namedRangeReqs.length >= 5, "Must include addNamedRange requests");
 });
 
@@ -101,7 +101,7 @@ test("executeWithRetry - retries on 429 quota error and succeeds on 3rd attempt"
     async () => {
       calls++;
       if (calls < 3) {
-        const err: any = new Error("Rate limit exceeded: 429 Too Many Requests");
+        const err: Error & { status?: number } = new Error("Rate limit exceeded: 429 Too Many Requests");
         err.status = 429;
         throw err;
       }
@@ -124,7 +124,7 @@ test("executeWithRetry - retries on 503 Service Unavailable", async () => {
     async () => {
       calls++;
       if (calls === 1) {
-        const err: any = new Error("Service Unavailable");
+        const err: Error & { status?: number } = new Error("Service Unavailable");
         err.status = 503;
         throw err;
       }
@@ -147,16 +147,17 @@ test("executeWithRetry - throws after exhausting max retries on repeated 429 err
       await executeWithRetry(
         async () => {
           calls++;
-          const err: any = new Error("Quota exceeded 429");
+          const err: Error & { status?: number } = new Error("Quota exceeded 429");
           err.status = 429;
           throw err;
         },
         { maxRetries: 3, initialDelayMs: 10, useJitter: false, sleepFn: fakeSleep }
       );
     },
-    (err: any) => {
+    (err: unknown) => {
+      const e = err as Error;
       assert.strictEqual(calls, 4);
-      assert.ok(err.message.includes("Quota exceeded 429"));
+      assert.ok(e.message.includes("Quota exceeded 429"));
       return true;
     }
   );
@@ -171,16 +172,17 @@ test("executeWithRetry - throws immediately on non-retryable 400 Bad Request err
       await executeWithRetry(
         async () => {
           calls++;
-          const err: any = new Error("Bad Request: Invalid sheet ID");
+          const err: Error & { status?: number } = new Error("Bad Request: Invalid sheet ID");
           err.status = 400;
           throw err;
         },
         { maxRetries: 3, initialDelayMs: 10, useJitter: false, sleepFn: fakeSleep }
       );
     },
-    (err: any) => {
+    (err: unknown) => {
+      const e = err as Error & { status?: number };
       assert.strictEqual(calls, 1);
-      assert.strictEqual(err.status, 400);
+      assert.strictEqual(e.status, 400);
       return true;
     }
   );
@@ -228,12 +230,12 @@ test("deployLiveTemplate - --create flag invokes createSpreadsheet and provision
 
   const calls: { url: string; body?: unknown }[] = [];
   const fakeApiFetcher = async (url: string, init: RequestInit) => {
-    calls.push({ url, body: init.body ? JSON.parse(init.body) : undefined });
+    calls.push({ url, body: typeof init.body === "string" ? JSON.parse(init.body) : undefined });
     if (url === "https://www.googleapis.com/drive/v3/files") {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ id: "NEWLY_CREATED_SHEET_999", name: init.body ? JSON.parse(init.body).name : "", mimeType: "application/vnd.google-apps.spreadsheet" })
+        json: async () => ({ id: "NEWLY_CREATED_SHEET_999", name: typeof init.body === "string" ? JSON.parse(init.body).name : "", mimeType: "application/vnd.google-apps.spreadsheet" })
       };
     }
     return {
@@ -293,12 +295,12 @@ test("deployLiveTemplate - --create --target=prod provisions spreadsheet with ti
 
   const calls: { url: string; body?: unknown }[] = [];
   const fakeApiFetcher = async (url: string, init: RequestInit) => {
-    calls.push({ url, body: init.body ? JSON.parse(init.body) : undefined });
+    calls.push({ url, body: typeof init.body === "string" ? JSON.parse(init.body) : undefined });
     if (url === "https://www.googleapis.com/drive/v3/files") {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ id: "NEWLY_CREATED_PROD_123", name: init.body ? JSON.parse(init.body).name : "", mimeType: "application/vnd.google-apps.spreadsheet" })
+        json: async () => ({ id: "NEWLY_CREATED_PROD_123", name: typeof init.body === "string" ? JSON.parse(init.body).name : "", mimeType: "application/vnd.google-apps.spreadsheet" })
       };
     }
     return {
