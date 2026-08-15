@@ -1,34 +1,26 @@
 ﻿/// <reference path="../../types.ts" />
 import type { DocumentTypeSpec, DriveStorageSpec } from '../specs/DocumentTypeSpec';
-
-export interface IFormatCompiler {
-  evaluate(formatStr: string, record: Record<string, any>): string;
-}
+import { TemplateFormatCompiler } from '../specs/TemplateFormatCompiler';
 
 export class DynamicDocumentLogStrategy implements DocumentLogStrategy<ValidatedDocument> {
   constructor(
     public readonly spec: DocumentTypeSpec,
-    private readonly compiler: IFormatCompiler
+    private readonly compiler: typeof TemplateFormatCompiler
   ) {}
 
-  private extractRecord(doc: ValidatedDocument): Record<string, any> {
-    const details = (doc && typeof doc === 'object' && doc.disciplineDetails) || {};
-    const listFields = (doc && typeof doc === 'object' && doc.listFields) || {};
+  private extractRecord(doc: ValidatedDocument): Record<string, unknown> {
+    const record: Record<string, unknown> = { ...(doc as any) };
     
-    const record: Record<string, any> = { ...details, ...doc };
-    
-    // Flatten listFields by extracting storedValue
-    for (const [key, listField] of Object.entries(listFields)) {
-      if (listField && (listField as any).storedValue !== undefined) {
-        record[key] = (listField as any).storedValue;
+    if (doc && typeof doc === 'object') {
+      for (const [key, val] of Object.entries(doc as any)) {
+        if (val && typeof val === 'object') {
+          if ('storedValue' in val) {
+            record[key] = (val as { storedValue: unknown }).storedValue;
+          } else {
+            Object.assign(record, val);
+          }
+        }
       }
-    }
-    
-    if (doc) {
-      if (doc.date !== undefined) record.date = doc.date;
-      if (doc.contact !== undefined) record.contact = doc.contact;
-      if (doc.action !== undefined) record.action = doc.action;
-      if (doc.notes !== undefined) record.notes = doc.notes;
     }
     return record;
   }
@@ -49,10 +41,11 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
   }
 
   public getIdentityData(doc: ValidatedDocument): IdentityData {
+    const record = this.extractRecord(doc);
     return {
-      identityGroup: this.getGroupKey(doc),
-      identityRevisionGroup: this.getSortKey(doc),
-      identity: this.getTargetKey(doc),
+      identityGroup: this.compiler.evaluate(this.spec.identity.groupFormat, record),
+      identityRevisionGroup: this.compiler.evaluate(this.spec.identity.revisionGroupFormat, record),
+      identity: this.compiler.evaluate(this.spec.identity.format, record),
     };
   }
 
@@ -64,11 +57,19 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
     const payload: Record<string, string> = {};
 
     for (const field of this.spec.fields) {
-      if (field.isCalculated) continue;
       const header = field.header || field.label;
+      if (field.isCalculated) {
+        if (field.calcFormat) {
+          payload[header] = this.compiler.evaluate(field.calcFormat, record);
+        }
+        continue;
+      }
+      
       const val = record[field.key];
       if (val !== undefined && val !== null) {
         payload[header] = String(val);
+      } else if (typeof field.defaultValue === 'string' && field.defaultValue.includes('${')) {
+        payload[header] = this.compiler.evaluate(field.defaultValue, record);
       } else if (field.defaultValue !== undefined) {
         payload[header] = String(field.defaultValue);
       } else {
@@ -80,7 +81,7 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
     payload['Link'] = options.link;
     payload['Contact History'] = options.contactHistory;
     if (record.notes !== undefined) {
-      payload['Notes'] = record.notes || '';
+      payload['Notes'] = String(record.notes || '');
     }
 
     return payload;
@@ -107,21 +108,35 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
 
   public getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string {
     const record = this.extractRecord(doc);
-    const targetKey = this.getTargetKey(doc);
-    const descriptor = record.title || (record.vendor ? record.vendor : (record.specTitle || ''));
+    const targetKey = this.compiler.evaluate(this.spec.identity.format, record);
+    const descriptor = String(record.title || (record.vendor ? record.vendor : (record.specTitle || '')));
     const suffix = actionAbbr ? actionAbbr : '';
-    return `${targetKey} ${descriptor} - ${doc.date} ${contactHistory}${suffix}`;
+    const dateStr = String(record.date || '');
+    return `${targetKey} ${descriptor} - ${dateStr} ${contactHistory}${suffix}`;
+  }
+
+  private extractRowRecord(row: unknown[], headers: string[]): Record<string, unknown> {
+    const rowRecord: Record<string, unknown> = {};
+    for (let i = 0; i < headers.length; i++) {
+      const h = headers[i];
+      const field = this.spec.fields.find((f) => f.header === h || f.label === h);
+      if (field) {
+        rowRecord[field.key] = String(row[i] || '').trim();
+      }
+      rowRecord[h] = String(row[i] || '').trim();
+    }
+    return rowRecord;
   }
 
   public getGroupKeyFromRow(row: unknown[], headers: string[]): string {
-    return '';
+    return this.compiler.evaluate(this.spec.identity.groupFormat, this.extractRowRecord(row, headers));
   }
 
   public getSortKeyFromRow(row: unknown[], headers: string[]): string {
-    return '';
+    return this.compiler.evaluate(this.spec.identity.revisionGroupFormat, this.extractRowRecord(row, headers));
   }
 
   public getTargetKeyFromRow(row: unknown[], headers: string[]): string {
-    return '';
+    return this.compiler.evaluate(this.spec.identity.format, this.extractRowRecord(row, headers));
   }
 }
