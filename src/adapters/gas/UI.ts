@@ -9,6 +9,7 @@ import { FieldConfidenceThreshold } from "../../core/interfaces/AiAnalysisServic
 import { PicklistResolver, PicklistOption } from "../../core/config/PicklistResolver";
 import { DocumentTypeWidgetFactory } from "../../core/specs/DocumentTypeWidgetFactory";
 import { defaultDocumentTypeSpecRegistry } from "../../core/specs/DocumentTypeSpecRegistry";
+import type { DynamicPromptConfig } from "../../core/specs/DocumentTypeSpec";
 
 /**
  * Helper to append ⚠ Check Value label indicator when field confidence is below threshold (< 0.85).
@@ -1278,7 +1279,117 @@ function buildIntakeCard(
   return card.build();
 }
 
+
+/**
+ * Builds a dynamically generated support data entry card to collect missing required picklist columns.
+ *
+ * @param e - Google Apps Script event object.
+ * @param payload - Dynamic prompt payload containing supportDataKey, userValue, dynamicPrompts, and optional message.
+ * @returns Built CardService.Card instance.
+ */
+function buildDynamicSupportDataCard(
+  e: GoogleAppsScriptEvent,
+  payload: {
+    supportDataKey: string;
+    fieldKey: string;
+    userValue: string;
+    dynamicPrompts: DynamicPromptConfig[];
+    message?: string;
+    interactionType?: string;
+  }
+): GoogleAppsScript.Card_Service.Card {
+  const form = (e && e.formInput) || {};
+  const params = (e && e.parameters) || {};
+
+  const datasetTitle = payload.supportDataKey || "Support Data";
+  const userVal = payload.userValue || "";
+  const header = CardService.newCardHeader()
+    .setTitle(`Add ${datasetTitle}: ${userVal}`)
+    .setSubtitle("Complete required reference data before logging");
+
+  const card = CardService.newCardBuilder().setHeader(header);
+
+  const contextSection = CardService.newCardSection();
+  const noticeText =
+    payload.message ||
+    `The ${payload.fieldKey || "item"} "${userVal}" was not found in the ${datasetTitle} list. Please provide the required information below to add it and continue logging.`;
+  contextSection.addWidget(CardService.newTextParagraph().setText(`ℹ️ ${noticeText}`));
+  card.addSection(contextSection);
+
+  const inputSection = CardService.newCardSection().setHeader("Required & Optional Attributes");
+
+  const prompts = Array.isArray(payload.dynamicPrompts) ? payload.dynamicPrompts : [];
+  for (const prompt of prompts) {
+    const isRequired = Boolean(prompt.required);
+    const labelWithReq = `${prompt.uiLabel}${isRequired ? " *" : ""}`;
+    let prefill = "";
+    if (prompt.columnKey === "name" || prompt.columnKey === "tag" || prompt.columnKey === payload.fieldKey) {
+      prefill = userVal;
+    }
+
+    const input = CardService.newTextInput()
+      .setFieldName(prompt.columnKey)
+      .setTitle(labelWithReq)
+      .setValue(prefill);
+
+    if (isRequired) {
+      input.setHint("Required column for reference dataset");
+    } else {
+      input.setHint("Optional (defaults to blank)");
+    }
+
+    inputSection.addWidget(input);
+  }
+
+  const actionParams: Record<string, string> = {
+    ...params,
+    resumedFromDynamicPrompt: "true",
+    promptSupportDataKey: payload.supportDataKey,
+    promptFieldKey: payload.fieldKey,
+    promptUserValue: userVal,
+    originalFormInput: JSON.stringify(form)
+  };
+
+  const saveAction = CardService.newAction()
+    .setFunctionName("processSubmission")
+    .setParameters(actionParams);
+
+  const cancelAction = CardService.newAction()
+    .setFunctionName("onDynamicPromptCancel")
+    .setParameters(actionParams);
+
+  const buttonSet = CardService.newButtonSet()
+    .addButton(
+      CardService.newTextButton()
+        .setText("Save & Continue")
+        .setOnClickAction(saveAction)
+        .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    )
+    .addButton(
+      CardService.newTextButton()
+        .setText("Cancel")
+        .setOnClickAction(cancelAction)
+    );
+
+  inputSection.addWidget(buttonSet);
+  card.addSection(inputSection);
+
+  return card.build();
+}
+
+/**
+ * Action callback when canceling out of a dynamic prompt card.
+ * Pops the current card to return to the intake card.
+ */
+function onDynamicPromptCancel(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse {
+  return CardService.newActionResponseBuilder()
+    .setNavigation(CardService.newNavigation().popCard())
+    .build();
+}
+
 export {
+  buildDynamicSupportDataCard,
+  onDynamicPromptCancel,
   renderDynamicFormFields,
   buildIntakeCard,
   buildSuccessCard,

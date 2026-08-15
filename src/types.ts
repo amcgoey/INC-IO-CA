@@ -328,7 +328,7 @@ interface ValidationContext {
 type ValidationResult =
   | { status: "success"; data: ValidatedDocument; warnings: string[] }
   | { status: "error"; errors: string[]; missingFields?: string[] }
-  | { status: "interaction_required"; interactionType: "ADD_TAG" | "ADD_VENDOR"; message: string };
+  | { status: "interaction_required"; interactionType: "ADD_TAG" | "ADD_VENDOR" | string; message: string; supportDataKey?: string; fieldKey?: string; userValue?: string; dynamicPrompts?: any[]; };
 
 /** Function type for extracting group or sort keys from raw spreadsheet row arrays. */
 type RowKeyFn = (row: any[], headers: string[]) => string;

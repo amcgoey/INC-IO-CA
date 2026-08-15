@@ -1,10 +1,16 @@
 /**
  * @file ValidationEngine.ts
- * @description Pure Tier 1 validation engine for DocumentTypeSpec instances.
+ * @description Pure Tier 1 validation engine for DocumentTypeSpec instances and form submission validation.
  * Pure core logic: zero GAS globals, zero Node.js built-in imports.
  */
 
-import type { DocumentTypeSpec, DriveStorageSpec } from './DocumentTypeSpec';
+import type {
+  DocumentTypeSpec,
+  DriveStorageSpec,
+  DynamicPromptConfig,
+  SupportDataColumnSpec,
+  SupportDataSpec,
+} from './DocumentTypeSpec';
 import { TemplateFormatCompiler } from './TemplateFormatCompiler';
 import type { ValidationHookRegistry } from './ValidationHookRegistry';
 
@@ -17,6 +23,26 @@ export interface ValidationEngineOptions {
   requireRegisteredHook?: boolean;
 }
 
+export interface SubmissionValidationOptions {
+  bypassTagValidation?: boolean;
+  bypassVendorValidation?: boolean;
+  supportData?: Record<string, SupportDataSpec>;
+  [key: string]: any;
+}
+
+export type SubmissionValidationResult =
+  | { status: 'valid'; data: Record<string, any>; warnings?: string[] }
+  | { status: 'invalid'; errors: string[]; missingFields?: string[] }
+  | {
+      status: 'interaction_required';
+      interactionType?: 'ADD_TAG' | 'ADD_VENDOR' | string;
+      supportDataKey: string;
+      fieldKey: string;
+      userValue: string;
+      dynamicPrompts: DynamicPromptConfig[];
+      message: string;
+    };
+
 const STANDARD_BUILTIN_VARIABLES = new Set([
   'date',
   'timestamp',
@@ -27,6 +53,11 @@ const STANDARD_BUILTIN_VARIABLES = new Set([
   'identityRevisionGroup',
   'identity',
 ]);
+
+function capitalize(str: string): string {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
 
 export class ValidationEngine {
   /**
@@ -239,5 +270,212 @@ export class ValidationEngine {
     }
 
     return { status: 'valid', spec: spec as DocumentTypeSpec };
+  }
+
+  /**
+   * Validates form submission values against a DocumentTypeSpec and its SupportDataSpec definitions.
+   * Detects missing top-level required fields, verifies dynamic picklist entries, and emits
+   * `interaction_required` with `dynamicPrompts` when required support data columns are missing.
+   *
+   * @param spec - Declarative document type specification.
+   * @param formInput - Raw form submission key-value pairs.
+   * @param options - Additional validation options.
+   * @returns SubmissionValidationResult discriminated union.
+   */
+  public static validateSubmission(
+    spec: DocumentTypeSpec,
+    formInput: Record<string, any> = {},
+    options?: SubmissionValidationOptions
+  ): SubmissionValidationResult {
+    const raw = { ...formInput };
+    const missingFields: string[] = [];
+    const fields = spec.fields || [];
+
+    // Step 1: Check required top-level document fields
+    for (const field of fields) {
+      if (field.isCalculated) continue;
+
+      const rawVal = raw[field.key];
+      const strVal = rawVal !== undefined && rawVal !== null ? String(rawVal).trim() : '';
+
+      if (field.key === 'incomingRouting') {
+        const actionVal = String(raw.action || '').trim().toLowerCase();
+        if (actionVal === 'received' && strVal === '') {
+          missingFields.push(field.label || 'Incoming Routing');
+        }
+        continue;
+      }
+
+      if (field.required && strVal === '') {
+        missingFields.push(field.label || field.key);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      return {
+        status: 'invalid',
+        errors: [`Missing required fields: ${missingFields.join(', ')}`],
+        missingFields,
+      };
+    }
+
+    const sanitizedData: Record<string, any> = { ...raw };
+    const supportDatasets = options?.supportData || spec.supportData || {};
+
+    // Step 2: Validate picklist sources and detect dynamic additions
+    for (const field of fields) {
+      if (!field.picklistSource) continue;
+
+      const { supportDataKey, valueColumnKey, displayColumnKey } = field.picklistSource;
+      const dataset = supportDatasets[supportDataKey];
+      if (!dataset) continue;
+
+      const userVal = String(raw[field.key] ?? '').trim();
+      if (!userVal) continue;
+
+      const items = Array.isArray(dataset.items) ? dataset.items : [];
+      const userValLower = userVal.toLowerCase();
+
+      let matchedItem: Record<string, any> | undefined;
+      for (const item of items) {
+        const itemVal = item[valueColumnKey] !== undefined && item[valueColumnKey] !== null
+          ? String(item[valueColumnKey]).trim().toLowerCase()
+          : '';
+        const itemDisplay = item[displayColumnKey] !== undefined && item[displayColumnKey] !== null
+          ? String(item[displayColumnKey]).trim().toLowerCase()
+          : '';
+
+        if (itemVal === userValLower || itemDisplay === userValLower) {
+          matchedItem = item;
+          break;
+        }
+      }
+
+      if (matchedItem) {
+        // Normalize field to canonical valueColumnKey
+        sanitizedData[field.key] = matchedItem[valueColumnKey] || userVal;
+      } else {
+        // Unknown dynamic picklist value
+        if (dataset.allowDynamicAddition) {
+          const dynamicPrompts = this.resolveDynamicPrompts(dataset);
+
+          const isBypassed =
+            (options?.bypassTagValidation && dataset.key.toLowerCase().includes('tag')) ||
+            (options?.bypassVendorValidation && dataset.key.toLowerCase().includes('vendor'));
+
+          let missingRequiredPrompt = false;
+
+          if (!isBypassed) {
+            for (const prompt of dynamicPrompts) {
+              const promptVal =
+                raw[prompt.columnKey] ??
+                raw[`${field.key}_${prompt.columnKey}`] ??
+                raw[`${dataset.key}_${prompt.columnKey}`];
+
+              const promptValStr =
+                promptVal !== undefined && promptVal !== null ? String(promptVal).trim() : '';
+
+              if (prompt.required) {
+                if (promptValStr === '') {
+                  // If prompt is valueColumnKey and userVal is identical to displayColumnKey, check if action prompt requires confirmation
+                  if (
+                    prompt.columnKey === valueColumnKey &&
+                    valueColumnKey === displayColumnKey &&
+                    userVal !== '' &&
+                    (!Array.isArray(dataset.dynamicPrompts) || !dataset.dynamicPrompts.some((p) => typeof p === 'string' && p.startsWith('ADD_')))
+                  ) {
+                    sanitizedData[prompt.columnKey] = userVal;
+                  } else {
+                    missingRequiredPrompt = true;
+                  }
+                } else {
+                  sanitizedData[prompt.columnKey] = promptValStr;
+                }
+              } else {
+                // Unprompted or skipped optional columns default to implicit blanks ("")
+                sanitizedData[prompt.columnKey] = promptValStr;
+              }
+            }
+          }
+
+          if (missingRequiredPrompt && !isBypassed) {
+            let interactionType = 'ADD_ITEM';
+            if (Array.isArray(dataset.dynamicPrompts) && typeof dataset.dynamicPrompts[0] === 'string' && dataset.dynamicPrompts[0].startsWith('ADD_')) {
+              interactionType = dataset.dynamicPrompts[0];
+            } else if (dataset.key.toLowerCase().includes('vendor')) {
+              interactionType = 'ADD_VENDOR';
+            } else if (dataset.key.toLowerCase().includes('tag')) {
+              interactionType = 'ADD_TAG';
+            }
+
+            return {
+              status: 'interaction_required',
+              interactionType,
+              supportDataKey: dataset.key,
+              fieldKey: field.key,
+              userValue: userVal,
+              dynamicPrompts,
+              message: `Missing required support data columns for ${field.label || field.key}`,
+            };
+          }
+
+          // If all required prompts are satisfied, normalize the field value
+          const canonicalVal = sanitizedData[valueColumnKey] || userVal;
+          sanitizedData[field.key] = canonicalVal;
+        }
+      }
+    }
+
+    return {
+      status: 'valid',
+      data: sanitizedData,
+    };
+  }
+
+  /**
+   * Resolves the list of dynamic prompts from a SupportDataSpec definition.
+   */
+  public static resolveDynamicPrompts(dataset: SupportDataSpec): DynamicPromptConfig[] {
+    const columns = dataset.columns || [];
+    const colMap = new Map<string, SupportDataColumnSpec>();
+    for (const col of columns) {
+      colMap.set(col.key, col);
+    }
+
+    const configs: DynamicPromptConfig[] = [];
+
+    if (Array.isArray(dataset.dynamicPrompts) && dataset.dynamicPrompts.length > 0) {
+      for (const prompt of dataset.dynamicPrompts) {
+        if (typeof prompt === 'object' && prompt !== null && 'columnKey' in prompt) {
+          configs.push({
+            columnKey: prompt.columnKey,
+            uiLabel: prompt.uiLabel || colMap.get(prompt.columnKey)?.label || capitalize(prompt.columnKey),
+            required: Boolean(prompt.required),
+          });
+        } else if (typeof prompt === 'string') {
+          if (colMap.has(prompt)) {
+            const col = colMap.get(prompt)!;
+            configs.push({
+              columnKey: col.key,
+              uiLabel: col.label || capitalize(col.key),
+              required: Boolean(col.required || col.isPrimaryKey),
+            });
+          }
+        }
+      }
+    }
+
+    // If dynamicPrompts did not resolve any column configs, derive from dataset.columns
+    if (configs.length === 0) {
+      for (const col of columns) {
+        configs.push({
+          columnKey: col.key,
+          uiLabel: col.label || capitalize(col.key),
+          required: Boolean(col.required || col.isPrimaryKey),
+        });
+      }
+    }
+
+    return configs;
   }
 }

@@ -31,6 +31,8 @@ import { defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRe
 import { defaultDocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
 import {
   buildIntakeCard,
+  buildDynamicSupportDataCard,
+  onDynamicPromptCancel,
   handleRefreshCache,
   handleDeepAnalysis,
   handleFetchUrl,
@@ -439,6 +441,8 @@ g.onSheetsContextRefresh = onSheetsContextRefresh;
 g.checkAiModelHealth = checkAiModelHealth;
 g.DocumentPipeline = DocumentPipeline;
 g.buildIntakeCard = buildIntakeCard;
+g.buildDynamicSupportDataCard = buildDynamicSupportDataCard;
+g.onDynamicPromptCancel = onDynamicPromptCancel;
 g.defaultPdfDocumentService = defaultPdfDocumentService;
 g.defaultLogRepository = defaultLogRepository;
 g.defaultDriveFilingRepository = defaultDriveFilingRepository;

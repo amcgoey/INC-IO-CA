@@ -10,11 +10,19 @@ export interface PicklistSourceSpec {
   displayColumnKey: string;
 }
 
+export interface DynamicPromptConfig {
+  columnKey: string;
+  uiLabel: string;
+  required: boolean;
+}
+
 export interface SupportDataColumnSpec {
   key: string;
   type: 'string' | 'number' | 'boolean' | 'date';
   isPrimaryKey?: boolean;
   isDisplayLabel?: boolean;
+  label?: string;
+  required?: boolean;
 }
 
 export interface SupportDataSpec {
@@ -22,7 +30,7 @@ export interface SupportDataSpec {
   columns: SupportDataColumnSpec[];
   isShared?: boolean;
   allowDynamicAddition?: boolean;
-  dynamicPrompts?: string[];
+  dynamicPrompts?: Array<string | DynamicPromptConfig>;
   items?: Array<Record<string, any>>;
 }
 
@@ -125,4 +133,3 @@ export interface DocumentTypeSpec {
   ui?: DocumentUiSpec;
   validationHookKey?: string;
 }
-

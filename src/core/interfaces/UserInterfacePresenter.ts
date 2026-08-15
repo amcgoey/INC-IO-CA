@@ -5,12 +5,25 @@
  * Dual-compatible with Google Apps Script V8 and Node.js without GAS dependencies or Node built-in imports.
  */
 
+import type { DynamicPromptConfig } from '../specs/DocumentTypeSpec';
+
 /**
  * Interface defining user interface presentation operations.
  */
 export interface UserInterfacePresenter {
   presentValidationError(event: any, errors: string[], missingFields?: string[]): unknown;
   presentInteractionPrompt(event: any, promptType: "ADD_TAG" | "ADD_VENDOR", warningMessage: string): unknown;
+  presentDynamicPromptCard?(
+    event: any,
+    payload: {
+      supportDataKey: string;
+      fieldKey: string;
+      userValue: string;
+      dynamicPrompts: DynamicPromptConfig[];
+      message?: string;
+      interactionType?: string;
+    }
+  ): unknown;
   presentIncomingSuccess(event: any, result: any): unknown;
   presentOutgoingSuccess(event: any, result: any, eventParams: Record<string, string>): unknown;
   presentCardReload(event: any, isTagChange?: boolean): unknown;

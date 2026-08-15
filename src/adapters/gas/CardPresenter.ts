@@ -1,4 +1,5 @@
-import { buildSuccessCard, buildIntakeCard } from "./UI";
+import { buildSuccessCard, buildIntakeCard, buildDynamicSupportDataCard } from "./UI";
+import type { DynamicPromptConfig } from "../../core/specs/DocumentTypeSpec";
 import { DocumentFieldSpec } from "../../core/specs/DocumentTypeSpec";
 import {
   DocumentTypeWidgetFactory,
@@ -269,6 +270,30 @@ export class CardPresenter implements UserInterfacePresenter {
    *
    * @param e - Google Apps Script event object.
    * @param promptType - `"ADD_TAG"` or `"ADD_VENDOR"`.
+   * @param warningMessage - Warning message string.
+   * @returns ActionResponse updating main card with interactive prompt buttons.
+   */
+  presentDynamicPromptCard(
+    e: GoogleAppsScriptEvent,
+    payload: {
+      supportDataKey: string;
+      fieldKey: string;
+      userValue: string;
+      dynamicPrompts: DynamicPromptConfig[];
+      message?: string;
+      interactionType?: string;
+    }
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    const builder = (globalThis as any).buildDynamicSupportDataCard || buildDynamicSupportDataCard;
+    const card = builder(e, payload);
+    return this.buildPushCardResponse(card);
+  }
+
+  /**
+   * Presents an interaction prompt on the main card asking the user to add a missing tag or vendor.
+   *
+   * @param e - Google Apps Script event object.
+   * @param promptType - "ADD_TAG" | "ADD_VENDOR".
    * @param warningMessage - Warning message string.
    * @returns ActionResponse updating main card with interactive prompt buttons.
    */
