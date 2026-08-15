@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file verify-live.test.ts
  * @description Unit tests for verify-live.ts CLI argument parsing, 6-dimension structural auditing,
  * mock row formula evaluation roundtrip, tab taxonomy rules (Log -> Support -> System -> Backup), and markdown report generation.
@@ -271,8 +271,8 @@ test("runLiveVerification - live execution uses mock apiFetcher for sheetId quer
 
   const apiCalls: { url: string; method: string }[] = [];
 
-  const fakeApiFetcher = async (url: string, _init: RequestInit): Promise<Response | unknown> => {
-    apiCalls.push({ url, method: init.method || "GET" });
+  const fakeApiFetcher = async (url: string, init?: RequestInit): Promise<Response | unknown> => {
+    apiCalls.push({ url, method: init?.method || "GET" });
     if (url.includes("fields=sheets")) {
       return { ok: true, json: async () => ({ sheets: [{ properties: { title: "Submittal Arch", sheetId: 101 } }] }) };
     }
