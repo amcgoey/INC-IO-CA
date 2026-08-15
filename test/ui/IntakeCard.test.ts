@@ -71,15 +71,15 @@ test("IntakeCard - checks field-level confidence and appends Check Value warning
 
   const sectionWidget = findWidgetByFieldName(cardJson, "section");
   assert.ok(sectionWidget, "Section widget should exist");
-  assert.ok(sectionWidget.title.includes("Check Value"), "Section widget title should contain Check Value");
+  assert.ok(sectionWidget.title.includes("\u26A0\uFE0F") || sectionWidget.title.includes("Check Value"), "Section widget title should contain warning indicator");
 
   const titleWidget = findWidgetByFieldName(cardJson, "title");
   assert.ok(titleWidget, "Title widget should exist");
-  assert.ok(titleWidget.title.includes("Check Value"), "Title widget title should contain Check Value");
+  assert.ok(titleWidget.title.includes("\u26A0\uFE0F") || titleWidget.title.includes("Check Value"), "Title widget title should contain warning indicator");
 
   const numberWidget = findWidgetByFieldName(cardJson, "number");
   assert.ok(numberWidget, "Number widget should exist");
-  assert.equal(numberWidget.title.includes("Check Value"), false, "Number widget title should not contain Check Value");
+  assert.equal(numberWidget.title.includes("\u26A0\uFE0F") || numberWidget.title.includes("Check Value"), false, "Number widget title should not contain warning indicator");
 });
 
 test("IntakeCard - dynamically renders form input widgets for SUBMITTAL_ARCH without hardcoded checks", () => {
@@ -208,4 +208,24 @@ test("IntakeCard - dynamically renders form input widgets for ASI without hardco
 
   const calcWidget = findWidgetByFieldName(cardJson, "calcFileName");
   assert.equal(calcWidget, undefined, "Calculated fields must be excluded from UI widget generation");
+});
+
+test("IntakeCard - Document Attributes section is conditionally omitted when documentType is empty", () => {
+  const event = EventFactory.createCardSubmitEvent({
+    project: "PROJ",
+    documentType: ""
+  }, {
+    parameters: {
+      project: "PROJ",
+      documentType: ""
+    }
+  });
+
+  const card = buildIntakeCard(event);
+  const cardJson = CardSerializer.toJSON(card);
+
+  const attrSection = (cardJson.sections || []).find((s: any) =>
+    s.header && s.header.includes("Document Attributes")
+  );
+  assert.equal(attrSection, undefined, "Document Attributes section must be omitted when documentType is empty");
 });

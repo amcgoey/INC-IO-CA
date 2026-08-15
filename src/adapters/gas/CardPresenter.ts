@@ -1,4 +1,13 @@
 import { buildSuccessCard, buildIntakeCard } from "./UI";
+import { DocumentFieldSpec } from "../../core/specs/DocumentTypeSpec";
+import {
+  DocumentTypeWidgetFactory,
+  DocumentSectionViewModel,
+  DocumentWidgetViewModel
+} from "../../core/specs/DocumentTypeWidgetFactory";
+import { FieldConfidenceThreshold } from "../../core/interfaces/AiAnalysisService";
+import { MESSAGES, CONFIG } from "../../Config";
+
 /**
  * @file CardPresenter.ts
  * @description Presenter application service responsible for assembling Google Apps Script `CardService.ActionResponse` navigation and notification responses.
@@ -9,18 +18,11 @@ import { buildSuccessCard, buildIntakeCard } from "./UI";
 /**
  * Application presenter class creating standardized `ActionResponse` UI navigation outcomes.
  */
-class CardPresenter implements UserInterfacePresenter {
-  /**
-   * Helper constructing an `ActionResponse` updating the current active card with a new Card instance.
-   *
-   * @param card - Target `CardService.Card` instance.
-   * @returns ActionResponse updating the Card UI.
-   */
-
+export class CardPresenter implements UserInterfacePresenter {
   /**
    * Formats display title and diagnostic hint text for UI form fields.
-   * Required fields that fail submit validation are prefixed with '❌ '.
-   * AI fields with confidence < 0.85 are prefixed with '⚠️ ' and assigned diagnostic hint text.
+   * Required fields that fail submit validation are prefixed with '? '.
+   * AI fields with confidence < 0.85 are prefixed with '?? ' and assigned diagnostic hint text.
    *
    * @param field - Document field specification.
    * @param missingFields - List of missing field keys failing validation.
@@ -32,25 +34,193 @@ class CardPresenter implements UserInterfacePresenter {
     missingFields: string[] = [],
     fieldConfidence: Record<string, number> = {}
   ): { displayTitle: string; hintText: string } {
-    const isMissing = field.required && missingFields.includes(field.key);
-    const confidence = fieldConfidence[field.key];
-    const threshold = (typeof FieldConfidenceThreshold !== "undefined" ? FieldConfidenceThreshold : 0.85);
-    const isLowConfidence = confidence !== undefined && confidence < threshold;
+    const threshold =
+      typeof FieldConfidenceThreshold !== "undefined"
+        ? FieldConfidenceThreshold
+        : 0.85;
 
-    let displayTitle = field.label || field.key;
-    if (isMissing) {
-      displayTitle = "❌ " + displayTitle;
-    } else if (isLowConfidence) {
-      displayTitle = "⚠️ " + displayTitle;
+    const result = DocumentTypeWidgetFactory.formatFieldTitleAndHint(
+      field,
+      missingFields,
+      fieldConfidence,
+      threshold
+    );
+
+    return {
+      displayTitle: result.displayTitle,
+      hintText: result.hintText
+    };
+  }
+
+  /**
+   * Translates an abstract DocumentWidgetViewModel into a physical Google Apps Script CardService widget.
+   *
+   * @param widgetVm - Abstract widget view model.
+   * @returns CardService widget instance, or null if invalid.
+   */
+  renderWidget(
+    widgetVm: DocumentWidgetViewModel
+  ): GoogleAppsScript.Card_Service.Widget | null {
+    if (!widgetVm) return null;
+
+    if (widgetVm.type === "dropdown" || widgetVm.type === "multi_select") {
+      const drop = CardService.newSelectionInput()
+        .setTitle(widgetVm.displayTitle)
+        .setFieldName(widgetVm.key);
+
+      if (widgetVm.type === "multi_select") {
+        drop.setType(CardService.SelectionInputType.MULTI_SELECT);
+      } else {
+        drop.setType(CardService.SelectionInputType.DROPDOWN);
+      }
+
+      if (widgetVm.options && widgetVm.options.length > 0) {
+        widgetVm.options.forEach(opt => {
+          drop.addItem(opt.label, opt.value, Boolean(opt.isSelected));
+        });
+      }
+
+      if (widgetVm.onStateActionName) {
+        drop.setOnChangeAction(
+          CardService.newAction()
+            .setFunctionName(widgetVm.onStateActionName)
+            .setParameters(widgetVm.actionParams || {})
+        );
+      }
+
+      return drop;
     }
 
-    let hintText = field.description || "";
-    if (isLowConfidence && !isMissing) {
-      const pct = Math.round(confidence * 100);
-      hintText = "Low AI confidence (" + pct + "%) — please verify";
+    if (widgetVm.type === "date_picker") {
+      if (
+        typeof CardService !== "undefined" &&
+        typeof (CardService as any).newDatePicker === "function"
+      ) {
+        const picker = (CardService as any)
+          .newDatePicker()
+          .setTitle(widgetVm.displayTitle)
+          .setFieldName(widgetVm.key);
+
+        if (widgetVm.value) {
+          let epochMs: number | null = null;
+          if (typeof widgetVm.value === "number") {
+            epochMs = widgetVm.value;
+          } else if (typeof widgetVm.value === "string") {
+            if (/^\d{6}$/.test(widgetVm.value)) {
+              const yy = parseInt(widgetVm.value.slice(0, 2), 10);
+              const mm = parseInt(widgetVm.value.slice(2, 4), 10) - 1;
+              const dd = parseInt(widgetVm.value.slice(4, 6), 10);
+              const year = 2000 + yy;
+              epochMs = new Date(year, mm, dd).getTime();
+            } else if (!isNaN(Date.parse(widgetVm.value))) {
+              epochMs = Date.parse(widgetVm.value);
+            }
+          }
+          if (epochMs !== null && typeof (picker as any).setValueInMsSinceEpoch === "function") {
+            (picker as any).setValueInMsSinceEpoch(epochMs);
+          }
+        }
+
+        if (widgetVm.hintText && typeof (picker as any).setHint === "function") {
+          (picker as any).setHint(widgetVm.hintText);
+        }
+
+        if (
+          widgetVm.onStateActionName &&
+          typeof (picker as any).setOnChangeAction === "function"
+        ) {
+          (picker as any).setOnChangeAction(
+            CardService.newAction()
+              .setFunctionName(widgetVm.onStateActionName)
+              .setParameters(widgetVm.actionParams || {})
+          );
+        }
+
+        return picker;
+      } else {
+        const input = CardService.newTextInput()
+          .setTitle(widgetVm.displayTitle)
+          .setFieldName(widgetVm.key)
+          .setValue(String(widgetVm.value || ""));
+
+        if (widgetVm.hintText && typeof (input as any).setHint === "function") {
+          (input as any).setHint(widgetVm.hintText);
+        }
+
+        if (
+          widgetVm.onStateActionName &&
+          typeof (input as any).setOnChangeAction === "function"
+        ) {
+          (input as any).setOnChangeAction(
+            CardService.newAction()
+              .setFunctionName(widgetVm.onStateActionName)
+              .setParameters(widgetVm.actionParams || {})
+          );
+        }
+
+        return input;
+      }
     }
 
-    return { displayTitle, hintText };
+    const input = CardService.newTextInput()
+      .setTitle(widgetVm.displayTitle)
+      .setFieldName(widgetVm.key)
+      .setValue(String(widgetVm.value ?? ""));
+
+    if (widgetVm.type === "multiline") {
+      input.setMultiline(true);
+    }
+
+    if (widgetVm.suggestions && widgetVm.suggestions.length > 0) {
+      input.setSuggestions(
+        CardService.newSuggestions().addSuggestions(widgetVm.suggestions)
+      );
+    }
+
+    if (widgetVm.hintText && typeof (input as any).setHint === "function") {
+      (input as any).setHint(widgetVm.hintText);
+    }
+
+    if (
+      widgetVm.onStateActionName &&
+      typeof (input as any).setOnChangeAction === "function"
+    ) {
+      (input as any).setOnChangeAction(
+        CardService.newAction()
+          .setFunctionName(widgetVm.onStateActionName)
+          .setParameters(widgetVm.actionParams || {})
+      );
+    }
+
+    return input;
+  }
+
+  /**
+   * Renders a DocumentSectionViewModel into a Google Apps Script CardSection.
+   *
+   * @param sectionVm - Abstract section view model.
+   * @param targetSection - Optional existing section to populate.
+   * @returns Populated CardSection, or null if view model is invisible.
+   */
+  renderDocumentSection(
+    sectionVm: DocumentSectionViewModel | null | undefined,
+    targetSection?: GoogleAppsScript.Card_Service.CardSection
+  ): GoogleAppsScript.Card_Service.CardSection | null {
+    if (!sectionVm || !sectionVm.visible) {
+      return null;
+    }
+
+    const section =
+      targetSection || CardService.newCardSection().setHeader(sectionVm.header);
+
+    for (const widgetVm of sectionVm.fields) {
+      const widget = this.renderWidget(widgetVm);
+      if (widget) {
+        section.addWidget(widget);
+      }
+    }
+
+    return section;
   }
 
   buildUpdateCardResponse(card: GoogleAppsScript.Card_Service.Card | any): GoogleAppsScript.Card_Service.ActionResponse {
@@ -170,10 +340,9 @@ class CardPresenter implements UserInterfacePresenter {
   presentUnbiasedIntakeCard(
     e: GoogleAppsScriptEvent
   ): GoogleAppsScript.Card_Service.ActionResponse {
-    const card = buildIntakeCard(e);
+    const card = ((globalThis as any).buildIntakeCard || buildIntakeCard)(e);
     return this.buildUpdateCardResponse(card);
   }
-
 
   /**
    * Pushes a new outcome success card onto the navigation stack for outgoing submittals ("Reviewed", "Referred", etc).
@@ -190,14 +359,14 @@ class CardPresenter implements UserInterfacePresenter {
   ): GoogleAppsScript.Card_Service.ActionResponse {
     const form = (e && e.formInput) || {};
 
-    const discipline = form.discipline || eventParams.discipline || (typeof CONFIG !== "undefined" && CONFIG.DEFAULT_DISCIPLINE ? CONFIG.DEFAULT_DISCIPLINE : "Architecture");
+    const discipline = form.discipline || eventParams.discipline || (typeof CONFIG !== "undefined" && (CONFIG as any).DEFAULT_DISCIPLINE ? (CONFIG as any).DEFAULT_DISCIPLINE : "Architecture");
     const isArchitecture = discipline === "Architecture";
     const isFFE = discipline === "FF&E";
     const sectionVal = isArchitecture ? (form.section || eventParams.section || "") : "";
     const specTagVal = isFFE ? (form.specTag || eventParams.specTag || "") : "";
     const itemTitle = result.title || form.title || (isFFE ? form.specTitle : "") || eventParams.itemTitle || eventParams.title || "";
 
-    const builder = (globalThis as any).buildSuccessCard || buildSuccessCard;
+    const builder = buildSuccessCard;
     const card = builder(
       result.fileId,
       result.newFileName,
@@ -236,9 +405,11 @@ class CardPresenter implements UserInterfacePresenter {
     updatedCard: GoogleAppsScript.Card_Service.Card,
     destName: string
   ): GoogleAppsScript.Card_Service.ActionResponse {
+    const msg = (globalThis as any).MESSAGES || MESSAGES;
+    const movedText = msg.SUCCESS_MOVED ? msg.SUCCESS_MOVED(destName) : `Moved to ${destName}`;
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(updatedCard))
-      .setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_MOVED(destName)))
+      .setNotification(CardService.newNotification().setText(movedText))
       .build();
   }
 
@@ -255,7 +426,7 @@ class CardPresenter implements UserInterfacePresenter {
 
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(card))
-      .setNotification(CardService.newNotification().setText("✅ Cache cleared. Data reloaded."))
+      .setNotification(CardService.newNotification().setText("\u2705 Cache cleared. Data reloaded."))
       .build();
   }
 
@@ -284,7 +455,6 @@ class CardPresenter implements UserInterfacePresenter {
     return builder.build();
   }
 
-
   /**
    * Populates predicted AI analysis results into card form fields, reloads the main card, and displays an outcome toast.
    *
@@ -296,11 +466,13 @@ class CardPresenter implements UserInterfacePresenter {
     e: GoogleAppsScriptEvent,
     analysisResult?: DeepAnalysisResult | any
   ): GoogleAppsScript.Card_Service.ActionResponse {
+    
     if (analysisResult) {
       if (analysisResult.success === false) {
-        let notifyMsg = MESSAGES.ERROR_AI_GENERAL(analysisResult.error ? analysisResult.error.userMessage : "Unknown Error");
+        const msg = (globalThis as any).MESSAGES || MESSAGES;
+        let notifyMsg = msg.ERROR_AI_GENERAL ? msg.ERROR_AI_GENERAL(analysisResult.error ? analysisResult.error.userMessage : 'Unknown Error') : '\u274C AI Error';
         if (analysisResult.error && analysisResult.error.code === "RATE_LIMITED") {
-          notifyMsg = MESSAGES.ERROR_AI_BUSY;
+          notifyMsg = msg.ERROR_AI_BUSY ? msg.ERROR_AI_BUSY : '\u26A0\uFE0F AI Busy.';
         }
         return this.presentNotification(notifyMsg);
       }
@@ -328,9 +500,11 @@ class CardPresenter implements UserInterfacePresenter {
 
     const card = ((globalThis as any).buildIntakeCard || buildIntakeCard)(e);
 
+    const msg = (globalThis as any).MESSAGES || MESSAGES;
+    const successText = msg.SUCCESS_ANALYSIS ? msg.SUCCESS_ANALYSIS : '\u2705 Analysis complete!';
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(card))
-      .setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_ANALYSIS))
+      .setNotification(CardService.newNotification().setText(successText))
       .build();
   }
 
@@ -345,9 +519,12 @@ class CardPresenter implements UserInterfacePresenter {
     e: GoogleAppsScriptEvent,
     updatedSuccessCard: GoogleAppsScript.Card_Service.Card
   ): GoogleAppsScript.Card_Service.ActionResponse {
+    
+    const msg = (globalThis as any).MESSAGES || MESSAGES;
+    const draftText = msg.SUCCESS_DRAFT_CREATED ? msg.SUCCESS_DRAFT_CREATED : '\u2705 Draft created.';
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(updatedSuccessCard))
-      .setNotification(CardService.newNotification().setText(MESSAGES.SUCCESS_DRAFT_CREATED))
+      .setNotification(CardService.newNotification().setText(draftText))
       .build();
   }
 
@@ -367,14 +544,6 @@ class CardPresenter implements UserInterfacePresenter {
 }
 
 /** Global default instance seam for CardPresenter. */
-const defaultCardPresenter: CardPresenter = new CardPresenter();
+export const defaultCardPresenter: CardPresenter = new CardPresenter();
 
-declare const module: { exports?: unknown };
 
-if (typeof module !== "undefined" && module.exports) {
-  (globalThis as any).defaultCardPresenter = defaultCardPresenter;
-  module.exports = {
-    CardPresenter,
-    defaultCardPresenter
-  };
-}

@@ -647,3 +647,85 @@ test("CardPresenter - formatFieldTitleAndHint high AI confidence (>=0.85) render
   assert.equal(result.displayTitle, "Submittal Title");
   assert.equal(result.hintText, "Enter title");
 });
+
+test("CardPresenter - renderWidget translates dropdown and text DocumentWidgetViewModel into GAS widgets", () => {
+  const presenter = new CardPresenter();
+  const dropdownVm: any = {
+    key: "contact",
+    type: "dropdown",
+    displayTitle: "Contact",
+    hintText: "Select contact",
+    value: "ARCH",
+    required: true,
+    options: [
+      { label: "ARCH - Architect", value: "ARCH", isSelected: true },
+      { label: "STR - Structural", value: "STR", isSelected: false }
+    ],
+    onStateActionName: "onStateChange"
+  };
+
+  const widget = presenter.renderWidget(dropdownVm) as any;
+  assert.ok(widget);
+  assert.equal(widget.fieldName, "contact");
+  assert.equal(widget.title, "Contact");
+  assert.equal(widget.type, "DROPDOWN");
+  assert.equal(widget.items?.length, 2);
+  assert.equal(widget.onChangeAction?.functionName, "onStateChange");
+
+  const textVm: any = {
+    key: "specTag",
+    type: "text",
+    displayTitle: "Spec Tag",
+    hintText: "Enter tag",
+    value: "CH-01",
+    required: true,
+    suggestions: ["CH-01", "TB-02"]
+  };
+
+  const textWidget = presenter.renderWidget(textVm) as any;
+  assert.ok(textWidget);
+  assert.equal(textWidget.fieldName, "specTag");
+  assert.equal(textWidget.value, "CH-01");
+});
+
+test("CardPresenter - renderDocumentSection translates DocumentSectionViewModel into populated CardSection", () => {
+  const presenter = new CardPresenter();
+  const sectionVm: any = {
+    header: "3. Document Attributes (Submittal (Architecture))",
+    docTypeKey: "SUBMITTAL_ARCH",
+    displayName: "Submittal (Architecture)",
+    visible: true,
+    fields: [
+      {
+        key: "section",
+        type: "text",
+        displayTitle: "Spec Section",
+        hintText: "6-digit code",
+        value: "033000",
+        required: true
+      },
+      {
+        key: "notes",
+        type: "multiline",
+        displayTitle: "Notes",
+        hintText: "Remarks",
+        value: "Test note",
+        required: false
+      }
+    ]
+  };
+
+  const section = presenter.renderDocumentSection(sectionVm) as any;
+  assert.ok(section);
+  assert.equal(section.header, "3. Document Attributes (Submittal (Architecture))");
+  assert.equal(section.widgets.length, 2);
+  assert.equal(section.widgets[0].fieldName, "section");
+  assert.equal(section.widgets[1].fieldName, "notes");
+  assert.equal(section.widgets[1].multiline, true);
+});
+
+test("CardPresenter - renderDocumentSection returns null when sectionVm is null or invisible", () => {
+  const presenter = new CardPresenter();
+  assert.equal(presenter.renderDocumentSection(null as any), null);
+  assert.equal(presenter.renderDocumentSection({ visible: false } as any), null);
+});

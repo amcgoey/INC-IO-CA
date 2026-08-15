@@ -7,6 +7,8 @@ import { defaultCardPresenter } from "./CardPresenter";
 import { defaultDriveNameProvider } from "../../GoogleDriveNameProvider";
 import { FieldConfidenceThreshold } from "../../core/interfaces/AiAnalysisService";
 import { PicklistResolver, PicklistOption } from "../../core/config/PicklistResolver";
+import { DocumentTypeWidgetFactory } from "../../core/specs/DocumentTypeWidgetFactory";
+import { defaultDocumentTypeSpecRegistry } from "../../core/specs/DocumentTypeSpecRegistry";
 
 /**
  * Helper to append ⚠ Check Value label indicator when field confidence is below threshold (< 0.85).
@@ -778,7 +780,16 @@ function buildIntakeCard(
   const driveFileId = p.driveFileId || formInput.driveFileId || (flashMessage && flashMessage.newDriveFileId) || "";
 
   const registry = (globalThis as any).defaultDocumentTypeConfigRegistry || (typeof defaultDocumentTypeConfigRegistry !== "undefined" ? defaultDocumentTypeConfigRegistry : null);
-  const resolvedDocType = formInput.documentType || p.documentType || (initialData && ((initialData as any).documentType || (initialData.discipline === "FF&E" ? "SUBMITTAL_FFE" : "SUBMITTAL_ARCH"))) || "SUBMITTAL_ARCH";
+  const resolvedDocType =
+    formInput.documentType !== undefined
+      ? formInput.documentType
+      : p.documentType !== undefined
+      ? p.documentType
+      : initialData && (initialData as any).documentType !== undefined
+      ? (initialData as any).documentType
+      : initialData && initialData.discipline === "FF&E"
+      ? "SUBMITTAL_FFE"
+      : "SUBMITTAL_ARCH";
 
   // Resolved Cascading State
   const state = {
@@ -1143,71 +1154,105 @@ function buildIntakeCard(
 
   card.addSection(fileSourceSec);
 
-  // 3. Document Attributes Section
-  const config = registry ? registry.getConfig(state.documentType || "SUBMITTAL_ARCH") : { displayName: state.documentType, fields: [] };
-  const attrSecHeader = `3. Document Attributes (${config.displayName || state.documentType})`;
-  const attrSec = CardService.newCardSection().setHeader(attrSecHeader);
+  // 3. Document Attributes Section (Conditional Rendering when documentType is selected)
+  if (state.documentType) {
+    const config = registry ? registry.getConfig(state.documentType) : { displayName: state.documentType, fields: [] };
+    const spec = (defaultDocumentTypeSpecRegistry.hasSpec(state.documentType) ? defaultDocumentTypeSpecRegistry.getSpec(state.documentType) : null) || {
+      key: state.documentType,
+      name: config.displayName || state.documentType,
+      label: config.displayName || state.documentType,
+      identity: { format: "", groupFormat: "", revisionGroupFormat: "" },
+      fields: config.fields,
+      storage: [],
+      workflows: []
+    };
 
-  const showAiBtn = selectedFileSource === "Email Attachment" || selectedFileSource === "Google Drive URL" || selectedFileSource === "Selected Drive File" || driveFileId !== "";
-  if (showAiBtn) {
-    attrSec.addWidget(
-      CardService.newButtonSet().addButton(
-        CardService.newTextButton()
-          .setText(MESSAGES.BTN_ANALYZE)
-          .setOnClickAction(CardService.newAction().setFunctionName("handleDeepAnalysis").setParameters(getActionParams()))
-          .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-      )
-    );
-  }
+    const sectionVm = DocumentTypeWidgetFactory.buildSectionViewModel(spec, {
+      hydrationContext: {
+        formInput,
+        state,
+        initialData,
+        parserResult: initialData,
+        aiMetadata: aiClassification,
+        logSettings
+      },
+      validationContext: {
+        missingFields: flashMessage && flashMessage.missingFields ? flashMessage.missingFields : [],
+        fieldConfidence,
+        onStateActionName: "onStateChange",
+        actionParams: getActionParams()
+      },
+      confidenceThreshold: threshold
+    });
 
-  renderDynamicFormFields(
-    attrSec,
-    config.fields,
-    {
-      formInput,
-      state,
-      initialData,
-      parserResult: initialData,
-      aiMetadata: aiClassification,
-      logSettings
-    },
-    {
-      missingFields: flashMessage && flashMessage.missingFields ? flashMessage.missingFields : [],
-      fieldConfidence,
-      onStateActionName: "onStateChange",
-      actionParams: getActionParams()
+    const attrSecHeader = sectionVm ? sectionVm.header : `3. Document Attributes (${config.displayName || state.documentType})`;
+    const attrSec = CardService.newCardSection().setHeader(attrSecHeader);
+
+    const showAiBtn = selectedFileSource === "Email Attachment" || selectedFileSource === "Google Drive URL" || selectedFileSource === "Selected Drive File" || driveFileId !== "";
+    if (showAiBtn) {
+      attrSec.addWidget(
+        CardService.newButtonSet().addButton(
+          CardService.newTextButton()
+            .setText(MESSAGES.BTN_ANALYZE)
+            .setOnClickAction(CardService.newAction().setFunctionName("handleDeepAnalysis").setParameters(getActionParams()))
+            .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+        )
+      );
     }
-  );
 
-  const subBtnText = (state.documentType === "SUBMITTAL_ARCH" || state.documentType === "SUBMITTAL_FFE") ? "Process Document" : `File & Log ${config.displayName}`;
-  const buttonSet = CardService.newButtonSet();
-  buttonSet.addButton(
-    CardService.newTextButton()
-      .setText(subBtnText)
-      .setOnClickAction(CardService.newAction().setFunctionName("processSubmission").setParameters(getActionParams()))
-      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-  );
+    if (sectionVm) {
+      defaultCardPresenter.renderDocumentSection(sectionVm, attrSec);
+    } else {
+      renderDynamicFormFields(
+        attrSec,
+        config.fields,
+        {
+          formInput,
+          state,
+          initialData,
+          parserResult: initialData,
+          aiMetadata: aiClassification,
+          logSettings
+        },
+        {
+          missingFields: flashMessage && flashMessage.missingFields ? flashMessage.missingFields : [],
+          fieldConfidence,
+          onStateActionName: "onStateChange",
+          actionParams: getActionParams()
+        }
+      );
+    }
 
-  if (flashMessage && flashMessage.promptAddTag) {
-    const tagParams: Record<string, string> = { ...getActionParams(), newTag: formInput.specTag || state.specTag, newTitle: formInput.specTitle || state.specTitle };
+    const subBtnText = (state.documentType === "SUBMITTAL_ARCH" || state.documentType === "SUBMITTAL_FFE") ? "Process Document" : `File & Log ${config.displayName}`;
+    const buttonSet = CardService.newButtonSet();
     buttonSet.addButton(
       CardService.newTextButton()
-        .setText("Add New Tag, File & Log")
-        .setOnClickAction(CardService.newAction().setFunctionName("processSubmissionWithNewTag").setParameters(tagParams))
-        .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+        .setText(subBtnText)
+        .setOnClickAction(CardService.newAction().setFunctionName("processSubmission").setParameters(getActionParams()))
+        .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
     );
-  } else if (flashMessage && flashMessage.promptAddVendor) {
-    const vendorParams: Record<string, string> = { ...getActionParams(), newVendor: formInput.vendor || state.vendor };
-    buttonSet.addButton(
-      CardService.newTextButton()
-        .setText("Add New Vendor, File & Log")
-        .setOnClickAction(CardService.newAction().setFunctionName("processSubmissionWithNewVendor").setParameters(vendorParams))
-        .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
-    );
+
+    if (flashMessage && flashMessage.promptAddTag) {
+      const tagParams: Record<string, string> = { ...getActionParams(), newTag: formInput.specTag || state.specTag, newTitle: formInput.specTitle || state.specTitle };
+      buttonSet.addButton(
+        CardService.newTextButton()
+          .setText("Add New Tag, File & Log")
+          .setOnClickAction(CardService.newAction().setFunctionName("processSubmissionWithNewTag").setParameters(tagParams))
+          .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+      );
+    } else if (flashMessage && flashMessage.promptAddVendor) {
+      const vendorParams: Record<string, string> = { ...getActionParams(), newVendor: formInput.vendor || state.vendor };
+      buttonSet.addButton(
+        CardService.newTextButton()
+          .setText("Add New Vendor, File & Log")
+          .setOnClickAction(CardService.newAction().setFunctionName("processSubmissionWithNewVendor").setParameters(vendorParams))
+          .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+      );
+    }
+
+    attrSec.addWidget(buttonSet);
+    card.addSection(attrSec);
   }
-
-  attrSec.addWidget(buttonSet);
-  card.addSection(attrSec);
 
   // 4. Admin & Status Foldout Section
   const targetTab = state.documentType === "SUBMITTAL_FFE" ? "Submittal FFE" : state.documentType === "RFI" ? "RFI Log" : "Submittal Arch";
