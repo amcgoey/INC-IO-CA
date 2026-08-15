@@ -472,7 +472,7 @@ interface LogRepository {
   ): ReadLogResult;
   updateDocumentLink?(
     spreadsheetId: string,
-    options: { sheetName?: string; rowIndex: number; url: string }
+    options: { sheetName?: string; rowIndex: number; url: string; viewSpec?: DocumentLogWorkbookViewSpec }
   ): void;
 }
 

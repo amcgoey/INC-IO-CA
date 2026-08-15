@@ -5,6 +5,7 @@
  */
 
 import { LogRepository } from "../../core/interfaces/LogRepository";
+import { DocumentLogWorkbookViewSpec } from "../../core/config/DocumentLogWorkbookViewSpec";
 
 export class FakeLogRepository implements LogRepository {
   public calls: Array<{ method: string; args: unknown[] }> = [];
@@ -24,7 +25,7 @@ export class FakeLogRepository implements LogRepository {
 
   updateDocumentLink(
     spreadsheetId: string,
-    options: { sheetName?: string; rowIndex: number; url: string }
+    options: { sheetName?: string; rowIndex: number; url: string; viewSpec?: DocumentLogWorkbookViewSpec }
   ): void {
     this.calls.push({ method: "updateDocumentLink", args: [spreadsheetId, options] });
   }

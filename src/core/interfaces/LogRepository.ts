@@ -7,6 +7,7 @@
  */
 
 /// <reference path="../../types.ts" />
+import { DocumentLogWorkbookViewSpec } from "../config/DocumentLogWorkbookViewSpec";
 
 export interface LogRepository {
   /**
@@ -58,6 +59,14 @@ export interface LogRepository {
     strategy?: DocumentLogStrategy,
     options?: ReadLogOptions
   ): ReadLogResult;
+
+  /**
+   * Updates the document link in the target row.
+   */
+  updateDocumentLink?(
+    spreadsheetId: string,
+    options: { sheetName?: string; rowIndex: number; url: string; viewSpec?: DocumentLogWorkbookViewSpec }
+  ): void;
 }
 
 declare const module: { exports?: unknown };

@@ -11,6 +11,7 @@ import { GoogleSheetsStorageAdapter } from "./SheetStorageAdapter";
 import { LogEngine } from "./core/log/LogEngine";
 import { SheetValidationAndProtectionAdapter } from "./adapters/gas/SheetValidationAndProtectionAdapter";
 import { defaultDocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
+import { DocumentLogWorkbookViewSpec } from "./core/config/DocumentLogWorkbookViewSpec";
 
 function getGoogleSheetsStorageAdapterClass(): any {
   return GoogleSheetsStorageAdapter;
@@ -457,7 +458,7 @@ class GoogleSheetsLogRepository implements LogRepository {
   }
   updateDocumentLink(
     spreadsheetId: string,
-    options: { sheetName?: string; rowIndex: number; url: string }
+    options: { sheetName?: string; rowIndex: number; url: string; viewSpec?: DocumentLogWorkbookViewSpec }
   ): void {
     if (!spreadsheetId || !options.url || !options.rowIndex || options.rowIndex <= 0) return;
     const StorageAdapterClass = getGoogleSheetsStorageAdapterClass();
@@ -465,8 +466,8 @@ class GoogleSheetsLogRepository implements LogRepository {
     const sheetName = options.sheetName || "Submittal Arch";
     const grid = adapter.getSheetValues(sheetName);
     if (!grid || grid.length === 0) return;
-    const headerRowIdx = (typeof DOCUMENT_LOG_WORKBOOK_VIEW_SPEC !== "undefined" && DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets)
-      ? DOCUMENT_LOG_WORKBOOK_VIEW_SPEC.offsets.HEADER_ROW_INDEX - 1
+    const headerRowIdx = (options.viewSpec && options.viewSpec.offsets)
+      ? options.viewSpec.offsets.HEADER_ROW_INDEX - 1
       : 2;
     let linkColIdx = -1;
     if (grid.length > headerRowIdx) {
