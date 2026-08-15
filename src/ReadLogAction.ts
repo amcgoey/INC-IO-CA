@@ -6,7 +6,7 @@
  * Operates on DocumentActionContext and wraps LogRepository.readLog() into a primitive DocumentAction handler.
  */
 
-class ReadLogAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
+export class ReadLogAction implements DocumentAction<DocumentActionContext, DocumentActionContext> {
   name: string = 'ReadLog';
 
   /**
@@ -80,3 +80,4 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 (globalThis as any).ReadLogAction = ReadLogAction;
+

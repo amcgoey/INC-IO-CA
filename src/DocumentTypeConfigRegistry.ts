@@ -1,4 +1,4 @@
-﻿/// <reference path="./types.ts" />
+/// <reference path="./types.ts" />
 /**
  * @file DocumentTypeConfigRegistry.ts
  * @description Central application registry managing DocumentTypeConfig instances by document type name,
@@ -14,6 +14,8 @@ import {
 } from './core/specs/DocumentTypeSpecRegistry';
 import { specToConfigAdapter } from './core/specs/specToConfigAdapter';
 import { defaultValidationHookRegistry } from './core/specs/ValidationHookRegistry';
+import { DynamicDocumentLogStrategy } from './core/strategy/DynamicDocumentLogStrategy';
+import { TemplateFormatCompiler } from './core/specs/TemplateFormatCompiler';
 
 const DEFAULT_SUBMITTAL_FIELDS: DocumentFieldSpec[] = [
   { key: 'section', label: 'Section', type: 'string', required: false, description: 'CSI Section # (6 digits)', header: 'Section', keyNormalizationRule: 'code' },
@@ -246,6 +248,7 @@ class DocumentTypeConfigRegistry {
     if (specKey && this.specRegistry.hasSpec(specKey)) {
       const spec = this.specRegistry.getSpec(specKey);
       const projected = specToConfigAdapter(spec);
+      const logStrategy = new DynamicDocumentLogStrategy(spec, TemplateFormatCompiler);
 
       // Customize legacy alias presentation
       let finalConfig: DocumentTypeConfig = projected;
@@ -279,6 +282,7 @@ class DocumentTypeConfigRegistry {
         };
       }
 
+      (finalConfig as any).logStrategy = logStrategy;
       this.projectedCache.set(lower, finalConfig);
       this.projectedCache.set(finalConfig.documentType, finalConfig);
       this.projectedCache.set(specKey, finalConfig);
@@ -513,3 +517,4 @@ export {
   DEFAULT_ASI_CONFIG,
   ffeStrategyValidationHook
 };
+

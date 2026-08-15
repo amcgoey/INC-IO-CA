@@ -1,4 +1,4 @@
-/** Fixed numerical confidence threshold (< 0.85) for triggering visual low-confidence warning indicators. */
+﻿/** Fixed numerical confidence threshold (< 0.85) for triggering visual low-confidence warning indicators. */
 var FieldConfidenceThreshold: number = (typeof globalThis !== "undefined" && (globalThis as any).FieldConfidenceThreshold) || 0.85;
 
 /** Extracted field confidence object from 1-pass AI classification. */
@@ -776,6 +776,7 @@ interface DocumentTypeConfig {
   pdfAdapterKey?: string;
   aiAdapterKey?: string;
   fields?: DocumentFieldSpec[];
+    logStrategy?: any;
   validateHook?: (rawDoc: RawDocument, context?: ValidationContext) => ValidationResult | void;
 }
 
@@ -836,3 +837,4 @@ interface PicklistResolveResult {
   warningBanner?: string;
   auditEvent?: { eventType: string; details: string };
 }
+
