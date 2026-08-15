@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { GoogleSheetsDocumentTypeSpecAdapter } from '../../../src/adapters/gas/GoogleSheetsDocumentTypeSpecAdapter';
-import type { DocumentTypeSpec } from '../../../src/core/specs/DocumentTypeSpec';
+import type { DocumentTypeSpec, DriveStorageSpec } from '../../../src/core/specs/DocumentTypeSpec';
+import type { DocumentLogWorkbookSpec, TabSpec, NamedRangeSpec } from '../../../src/core/config/DocumentLogWorkbookSpec';
+import type {
+  SpreadsheetBatchData,
+  SpreadsheetBatchReaderAdapter,
+  SheetPayload,
+  NamedRangePayload,
+} from '../../../src/adapters/gas/SpreadsheetBatchReaderAdapter';
 
 describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
   const mockSubmittalArchSpec: DocumentTypeSpec = {
@@ -614,14 +621,14 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
       };
     }
 
-    function workbookSpecToBatchData(workbookSpec: any, omitNamedRanges = false): any {
+    function workbookSpecToBatchData(workbookSpec: DocumentLogWorkbookSpec, omitNamedRanges = false): SpreadsheetBatchData {
       const sheetMap = new Map<string, number>();
-      const sheets = workbookSpec.tabs.map((tab: any, idx: number) => {
+      const sheets: SheetPayload[] = workbookSpec.tabs.map((tab: TabSpec, idx: number) => {
         const sheetId = idx + 1;
         sheetMap.set(tab.name, sheetId);
 
-        const rowData = (tab.seedRows || []).map((row: any[]) => ({
-          values: row.map((val: any) => {
+        const rowData = (tab.seedRows || []).map((row: (string | number | boolean)[]) => ({
+          values: row.map((val: string | number | boolean) => {
             if (typeof val === 'number') {
               return { userEnteredValue: { numberValue: val } };
             }
@@ -651,9 +658,9 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
         };
       });
 
-      const namedRanges = omitNamedRanges
+      const namedRanges: NamedRangePayload[] = omitNamedRanges
         ? []
-        : workbookSpec.namedRanges.map((nr: any, idx: number) => {
+        : workbookSpec.namedRanges.map((nr: NamedRangeSpec, idx: number) => {
             const sheetId = sheetMap.get(nr.tabName) || 1;
             const rangeCoords = parseRangeNotation(nr.rangeNotation);
             return {
@@ -709,7 +716,7 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
         expect(calcCustom?.formulaOrFunction).toBe('=CUSTOM_FORMULA()');
 
         expect(res.spec.storage.length).toBe(1);
-        const driveStorage = res.spec.storage[0] as any;
+        const driveStorage = res.spec.storage[0] as DriveStorageSpec;
         expect(driveStorage.type).toBe('drive');
         expect(driveStorage.rootFolderSearchTerms).toEqual(['Submittals', 'Specs']);
         expect(driveStorage.projectSearchTerms).toEqual(['Project Alpha', 'Site 1']);
@@ -839,8 +846,8 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
       const compiled = GoogleSheetsDocumentTypeSpecAdapter.compileWorkbookSpec([mockSubmittalArchSpec]);
       const batchData = workbookSpecToBatchData(compiled);
 
-      const mockReader: any = {
-        readWorkbookBatch: (spreadsheetId: string) => {
+      const mockReader: SpreadsheetBatchReaderAdapter = {
+        readWorkbookBatch: (spreadsheetId: string): SpreadsheetBatchData => {
           expect(spreadsheetId).toBe('test-ss-456');
           return batchData;
         },
@@ -856,8 +863,8 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
       expect(missingIdResult[0].errors).toContain('Missing required spreadsheetId for SpreadsheetBatchReaderAdapter');
 
       // Throwing reader
-      const throwingReader: any = {
-        readWorkbookBatch: () => {
+      const throwingReader: SpreadsheetBatchReaderAdapter = {
+        readWorkbookBatch: (): SpreadsheetBatchData => {
           throw new Error('API quota exceeded');
         },
       };
@@ -867,23 +874,23 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
     });
 
     it('should return invalid status on null, missing, or corrupted batch data without crashing', () => {
-      const nullResult = GoogleSheetsDocumentTypeSpecAdapter.decompile(null as any);
+      const nullResult = GoogleSheetsDocumentTypeSpecAdapter.decompile(null as unknown as SpreadsheetBatchData);
       expect(nullResult[0].status).toBe('invalid');
       expect(nullResult[0].errors).toContain('Invalid or missing spreadsheet batch data');
 
-      const noSheetsResult = GoogleSheetsDocumentTypeSpecAdapter.decompile({ sheets: [] } as any);
+      const noSheetsResult = GoogleSheetsDocumentTypeSpecAdapter.decompile({ sheets: [] } as unknown as SpreadsheetBatchData);
       expect(noSheetsResult[0].status).toBe('invalid');
       expect(noSheetsResult[0].errors).toContain('Workbook is missing _Config tab');
 
       const noConfigResult = GoogleSheetsDocumentTypeSpecAdapter.decompile({
         sheets: [{ properties: { title: 'Log Tab' }, data: [] }],
-      } as any);
+      } as unknown as SpreadsheetBatchData);
       expect(noConfigResult[0].status).toBe('invalid');
       expect(noConfigResult[0].errors).toContain('Workbook is missing _Config tab');
     });
 
     it('should return validation errors when _Config tab contains invalid spec data', () => {
-      const invalidConfigTab = {
+      const invalidConfigTab: SheetPayload = {
         properties: { sheetId: 1, title: '_Config' },
         data: [
           {
@@ -901,7 +908,7 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
         ],
       };
 
-      const batchData: any = {
+      const batchData: SpreadsheetBatchData = {
         spreadsheetId: 'test-ss-err',
         namedRanges: [],
         sheets: [invalidConfigTab],

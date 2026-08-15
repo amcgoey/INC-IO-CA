@@ -275,6 +275,131 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   }
 
   /**
+   * Parses support datasets from sheet named ranges.
+   */
+  private static parseSupportDatasetsFromNamedRanges(
+    tabNamedRanges: NamedRangePayload[],
+    headerRow: GridRow,
+    gridRows: GridRow[],
+    isShared: boolean
+  ): SupportDataSpec[] {
+    const datasets: SupportDataSpec[] = [];
+
+    for (const nr of tabNamedRanges) {
+      const datasetKey = nr.name || '';
+      if (!datasetKey || datasetKey.startsWith('Config_') || datasetKey.startsWith('MANIFEST_')) continue;
+
+      const startCol = nr.range?.startColumnIndex ?? 0;
+      const endCol = nr.range?.endColumnIndex ?? headerRow.length;
+      const startRow = nr.range?.startRowIndex ?? 1;
+      const endRow = nr.range?.endRowIndex ?? gridRows.length;
+
+      const columns: SupportDataColumnSpec[] = [];
+      for (let c = startCol; c < endCol && c < headerRow.length; c++) {
+        const colKey = this.getCellString(headerRow, c);
+        if (colKey) {
+          columns.push({
+            key: colKey,
+            type: 'string',
+          });
+        }
+      }
+
+      if (columns.length === 0) continue;
+
+      const items: Array<Record<string, GridCellPrimitive>> = [];
+      for (let r = startRow; r < endRow && r < gridRows.length; r++) {
+        const row = gridRows[r];
+        if (!row) continue;
+
+        const item: Record<string, GridCellPrimitive> = {};
+        let hasValue = false;
+        columns.forEach((col, idx) => {
+          const val = row[startCol + idx];
+          if (val !== undefined && val !== null && String(val).trim() !== '') {
+            item[col.key] = val;
+            hasValue = true;
+          } else {
+            item[col.key] = '';
+          }
+        });
+
+        if (hasValue) {
+          items.push(item);
+        }
+      }
+
+      datasets.push({
+        key: datasetKey,
+        isShared,
+        columns,
+        items,
+      });
+    }
+
+    return datasets;
+  }
+
+  /**
+   * Fallback: Parses support datasets by scanning contiguous header column blocks.
+   */
+  private static parseSupportDatasetsFromColumns(
+    headerRow: GridRow,
+    gridRows: GridRow[],
+    isShared: boolean
+  ): SupportDataSpec[] {
+    const datasets: SupportDataSpec[] = [];
+    let colIdx = 0;
+
+    while (colIdx < headerRow.length) {
+      while (colIdx < headerRow.length && !headerRow[colIdx]) {
+        colIdx++;
+      }
+      if (colIdx >= headerRow.length) break;
+
+      const blockStart = colIdx;
+      while (colIdx < headerRow.length && headerRow[colIdx]) {
+        colIdx++;
+      }
+      const blockEnd = colIdx;
+
+      const columns: SupportDataColumnSpec[] = [];
+      for (let c = blockStart; c < blockEnd; c++) {
+        columns.push({
+          key: this.getCellString(headerRow, c),
+          type: 'string',
+        });
+      }
+
+      const datasetKey = columns[0]?.key || `Support_${blockStart}`;
+      const items: Array<Record<string, GridCellPrimitive>> = [];
+      for (let r = 1; r < gridRows.length; r++) {
+        const row = gridRows[r];
+        if (!row) continue;
+        const item: Record<string, GridCellPrimitive> = {};
+        let hasVal = false;
+        columns.forEach((col, idx) => {
+          const val = row[blockStart + idx];
+          if (val !== undefined && val !== null && String(val).trim() !== '') {
+            item[col.key] = val;
+            hasVal = true;
+          }
+        });
+        if (hasVal) items.push(item);
+      }
+
+      datasets.push({
+        key: datasetKey,
+        isShared,
+        columns,
+        items,
+      });
+    }
+
+    return datasets;
+  }
+
+  /**
    * Decompiles Support Tabs (_Shared and <Type> Support) into SupportDataSpec maps.
    */
   private static decompileSupportTabs(
@@ -307,108 +432,9 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
         return false;
       });
 
-      const processedDatasets: SupportDataSpec[] = [];
-
-      if (tabNamedRanges.length > 0) {
-        for (const nr of tabNamedRanges) {
-          const datasetKey = nr.name || '';
-          if (!datasetKey || datasetKey.startsWith('Config_') || datasetKey.startsWith('MANIFEST_')) continue;
-
-          const startCol = nr.range?.startColumnIndex ?? 0;
-          const endCol = nr.range?.endColumnIndex ?? headerRow.length;
-          const startRow = nr.range?.startRowIndex ?? 1;
-          const endRow = nr.range?.endRowIndex ?? gridRows.length;
-
-          const columns: SupportDataColumnSpec[] = [];
-          for (let c = startCol; c < endCol && c < headerRow.length; c++) {
-            const colKey = this.getCellString(headerRow, c);
-            if (colKey) {
-              columns.push({
-                key: colKey,
-                type: 'string',
-              });
-            }
-          }
-
-          if (columns.length === 0) continue;
-
-          const items: Array<Record<string, GridCellPrimitive>> = [];
-          for (let r = startRow; r < endRow && r < gridRows.length; r++) {
-            const row = gridRows[r];
-            if (!row) continue;
-
-            const item: Record<string, GridCellPrimitive> = {};
-            let hasValue = false;
-            columns.forEach((col, idx) => {
-              const val = row[startCol + idx];
-              if (val !== undefined && val !== null && String(val).trim() !== '') {
-                item[col.key] = val;
-                hasValue = true;
-              } else {
-                item[col.key] = '';
-              }
-            });
-
-            if (hasValue) {
-              items.push(item);
-            }
-          }
-
-          processedDatasets.push({
-            key: datasetKey,
-            isShared,
-            columns,
-            items,
-          });
-        }
-      } else {
-        // Fallback: contiguous column block scanning
-        let colIdx = 0;
-        while (colIdx < headerRow.length) {
-          while (colIdx < headerRow.length && !headerRow[colIdx]) {
-            colIdx++;
-          }
-          if (colIdx >= headerRow.length) break;
-
-          const blockStart = colIdx;
-          while (colIdx < headerRow.length && headerRow[colIdx]) {
-            colIdx++;
-          }
-          const blockEnd = colIdx;
-
-          const columns: SupportDataColumnSpec[] = [];
-          for (let c = blockStart; c < blockEnd; c++) {
-            columns.push({
-              key: this.getCellString(headerRow, c),
-              type: 'string',
-            });
-          }
-
-          const datasetKey = columns[0]?.key || `Support_${blockStart}`;
-          const items: Array<Record<string, GridCellPrimitive>> = [];
-          for (let r = 1; r < gridRows.length; r++) {
-            const row = gridRows[r];
-            if (!row) continue;
-            const item: Record<string, GridCellPrimitive> = {};
-            let hasVal = false;
-            columns.forEach((col, idx) => {
-              const val = row[blockStart + idx];
-              if (val !== undefined && val !== null && String(val).trim() !== '') {
-                item[col.key] = val;
-                hasVal = true;
-              }
-            });
-            if (hasVal) items.push(item);
-          }
-
-          processedDatasets.push({
-            key: datasetKey,
-            isShared,
-            columns,
-            items,
-          });
-        }
-      }
+      const processedDatasets = tabNamedRanges.length > 0
+        ? this.parseSupportDatasetsFromNamedRanges(tabNamedRanges, headerRow, gridRows, isShared)
+        : this.parseSupportDatasetsFromColumns(headerRow, gridRows, isShared);
 
       if (isShared) {
         for (const ds of processedDatasets) {
@@ -464,14 +490,15 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       const cell0 = this.getCellString(row, 0).toLowerCase();
       if (cell0 === headerIdentifier.toLowerCase()) {
         const subRows: GridRow[] = [];
-        for (let nextR = r + 1; nextR < ctx.rows.length; nextR++) {
+        let nextR = r + 1;
+        for (; nextR < ctx.rows.length; nextR++) {
           const nextRow = ctx.rows[nextR];
           if (!nextRow || nextRow.every((c: GridCellPrimitive) => c === undefined || c === null || String(c).trim() === '')) {
             break;
           }
           subRows.push(nextRow);
         }
-        ctx.scanIdx = r + 1;
+        ctx.scanIdx = nextR + 1;
         return subRows;
       }
     }
