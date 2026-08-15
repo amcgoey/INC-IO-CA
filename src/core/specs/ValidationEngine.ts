@@ -203,7 +203,7 @@ export class ValidationEngine {
 
     // 7. Validate Workflows
     if (!spec.workflows || !Array.isArray(spec.workflows) || spec.workflows.length === 0) {
-      errors.push("Property 'workflows' must be a non-empty array of WorkflowTriggerSpec");
+      errors.push("Property 'workflows' must be a non-empty array of WorkflowSpec");
     } else {
       spec.workflows.forEach((wf, idx) => {
         if (!wf || typeof wf !== 'object') {

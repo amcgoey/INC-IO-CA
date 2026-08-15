@@ -1,9 +1,9 @@
 /**
  * @file WorkflowTriggerMatcher.ts
- * @description Pure Tier 1 matcher evaluating WorkflowTriggerSpec against MatcherContext.
+ * @description Pure Tier 1 matcher evaluating WorkflowSpec against MatcherContext.
  */
 
-import { WorkflowTriggerSpec, FieldMatchRule } from '../specs/DocumentTypeSpec';
+import { WorkflowSpec, FieldMatchRule } from '../specs/DocumentTypeSpec';
 
 export interface MatcherContext {
   triggerContext: string;
@@ -12,10 +12,10 @@ export interface MatcherContext {
 
 export class WorkflowTriggerMatcher {
   /**
-   * Evaluates if a given WorkflowTriggerSpec matches the current context.
+   * Evaluates if a given WorkflowSpec matches the current context.
    * Evaluates context, fieldMatches (array of FieldMatchRule), and isDefault flags.
    */
-  public match(trigger: WorkflowTriggerSpec, context: MatcherContext): boolean {
+  public match(trigger: WorkflowSpec, context: MatcherContext): boolean {
     if (trigger.context !== context.triggerContext) {
       return false;
     }
@@ -33,11 +33,11 @@ export class WorkflowTriggerMatcher {
   }
 
   /**
-   * Finds the best matching WorkflowTriggerSpec from a list of triggers.
+   * Finds the best matching WorkflowSpec from a list of triggers.
    * Evaluates context, fieldMatches (array of FieldMatchRule), and isDefault fallback.
    */
-  public findMatch(triggers: WorkflowTriggerSpec[], context: MatcherContext): WorkflowTriggerSpec | null {
-    let defaultTrigger: WorkflowTriggerSpec | null = null;
+  public findMatch(triggers: WorkflowSpec[], context: MatcherContext): WorkflowSpec | null {
+    let defaultTrigger: WorkflowSpec | null = null;
 
     for (const trigger of triggers) {
       if (trigger.context !== context.triggerContext) {

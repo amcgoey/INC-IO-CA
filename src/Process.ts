@@ -9,6 +9,7 @@ import { defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRe
 import { defaultDocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
 import { getActionPolicy } from "./core/workflow/WorkflowPolicy";
 import { PipelineBuilder } from "./core/workflow/PipelineBuilder";
+import { defaultActionRegistry } from "./core/workflow/ActionRegistry";
 import { defaultLogRepository } from "./GoogleSheetsLogRepository";
 import { defaultDriveFilingRepository } from "./DriveFilingRepository";
 
@@ -105,7 +106,7 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
       driveFilingRepository
     };
 
-    const result: DocumentWorkflowResult = await PipelineBuilder.buildAndExecute(input);
+    const result: DocumentWorkflowResult = await PipelineBuilder.buildAndExecute(input, defaultActionRegistry);
 
     try {
       const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
@@ -142,6 +143,8 @@ async function processSubmission(e: GoogleAppsScriptEvent): Promise<any> {
     return defaultCardPresenter.presentOutgoingSuccess(e, result, p);
 
   } catch (err: any) {
+    console.error("IntakeCard error:", err);
+    
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build();
   }
 }
@@ -200,6 +203,8 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent): any {
     );
     return defaultCardPresenter.presentMoveToClosedSuccess(e, updated, destName);
   } catch (err: any) {
+    console.error("IntakeCard error:", err);
+    
     return CardService.newActionResponseBuilder().setNotification(CardService.newNotification().setText(MESSAGES.ERROR_GENERAL(err.message))).build();
   }
 }

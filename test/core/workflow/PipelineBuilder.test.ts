@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PipelineBuilder } from '../../../src/core/workflow/PipelineBuilder';
 import { ActionRegistry } from '../../../src/core/workflow/ActionRegistry';
-import { WorkflowTriggerSpec } from '../../../src/core/specs/DocumentTypeSpec';
+import { WorkflowSpec } from '../../../src/core/specs/DocumentTypeSpec';
 
 describe('PipelineBuilder', () => {
   it('builds a pipeline matching specific trigger over default', () => {
@@ -13,7 +13,7 @@ describe('PipelineBuilder', () => {
 
     const builder = new PipelineBuilder(registry);
 
-    const workflows: WorkflowTriggerSpec[] = [
+    const workflows: WorkflowSpec[] = [
       { context: 'intake_submit', isDefault: true, sequence: ['Action1'] },
       { context: 'intake_submit', fieldMatches: [{ field: 'role', value: 'admin' }], sequence: ['Action1', 'Action2'] }
     ];
@@ -31,7 +31,7 @@ describe('PipelineBuilder', () => {
 
     const builder = new PipelineBuilder(registry);
 
-    const workflows: WorkflowTriggerSpec[] = [
+    const workflows: WorkflowSpec[] = [
       { context: 'intake_submit', isDefault: true, sequence: ['Action1'] },
       { context: 'intake_submit', fieldMatches: [{ field: 'role', value: 'admin' }], sequence: ['Action1', 'Action1'] }
     ];
@@ -46,7 +46,7 @@ describe('PipelineBuilder', () => {
     const registry = new ActionRegistry();
     const builder = new PipelineBuilder(registry);
     
-    const workflows: WorkflowTriggerSpec[] = [
+    const workflows: WorkflowSpec[] = [
       { context: 'other_context', sequence: ['Action1'] }
     ];
 
@@ -60,12 +60,42 @@ describe('PipelineBuilder', () => {
     const registry = new ActionRegistry();
     const builder = new PipelineBuilder(registry);
 
-    const workflows: WorkflowTriggerSpec[] = [
+    const workflows: WorkflowSpec[] = [
       { context: 'intake_submit', sequence: ['UnknownAction'] }
     ];
 
     const ctx = { triggerContext: 'intake_submit', fieldValues: {} };
     
     expect(() => builder.buildPipeline(workflows, ctx)).toThrowError('Action not found for key: UnknownAction');
+  });
+
+  it('buildAndExecute executes pipeline using injected ActionRegistry', async () => {
+    const customRegistry = new ActionRegistry();
+    let actionExecuted = false;
+    const mockAction = {
+      execute: async (context: any) => {
+        actionExecuted = true;
+        return { ...context, newFileName: 'custom.pdf' };
+      }
+    };
+    customRegistry.register('MoveDocument', mockAction);
+    customRegistry.register('WriteLog', mockAction);
+    customRegistry.register('AnalyzeDocument', mockAction);
+
+    const input: any = {
+      validatedDoc: {
+        documentType: 'SUBMITTAL_ARCH',
+        action: 'GoogleDrive',
+        disciplineDetails: { discipline: 'SUBMITTAL_ARCH' }
+      },
+      logFileId: 'ss-123',
+      driveFileId: 'drive-123',
+      targetFolderId: 'folder-123',
+      selectedAction: { action: 'GoogleDrive', abbr: 'REC', status: 'Received' }
+    };
+
+    const result = await PipelineBuilder.buildAndExecute(input, customRegistry);
+    expect(result.success).toBe(true);
+    expect(actionExecuted).toBe(true);
   });
 });

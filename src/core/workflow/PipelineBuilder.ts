@@ -6,7 +6,7 @@
 
 import { ActionRegistry, defaultActionRegistry } from './ActionRegistry';
 import { WorkflowTriggerMatcher, MatcherContext } from './WorkflowTriggerMatcher';
-import { WorkflowTriggerSpec } from '../specs/DocumentTypeSpec';
+import { WorkflowSpec } from '../specs/DocumentTypeSpec';
 import { DocumentAction } from '../../types';
 import { WorkflowRunner } from './WorkflowRunner';
 import { getActionPolicy, getDocumentTitle, buildDirectRowUrl } from './WorkflowPolicy';
@@ -25,7 +25,7 @@ export class PipelineBuilder {
   /**
    * Scans workflows, resolves the matching trigger, and maps its sequence to an array of DocumentActions.
    */
-  public buildPipeline(workflows: WorkflowTriggerSpec[], context: MatcherContext): DocumentAction[] {
+  public buildPipeline(workflows: WorkflowSpec[], context: MatcherContext): DocumentAction[] {
     const matchedTrigger = this.matcher.findMatch(workflows, context);
     if (!matchedTrigger) {
       return [];
@@ -36,8 +36,10 @@ export class PipelineBuilder {
   /**
    * Builds and executes the workflow pipeline for the given DocumentWorkflowInput.
    */
-  public static async buildAndExecute(input: DocumentWorkflowInput): Promise<DocumentWorkflowResult> {
-    const registry = defaultActionRegistry;
+  public static async buildAndExecute(
+    input: DocumentWorkflowInput,
+    registry: ActionRegistry = defaultActionRegistry
+  ): Promise<DocumentWorkflowResult> {
     const builder = new PipelineBuilder(registry);
 
     const doc = input.validatedDoc;
@@ -68,6 +70,7 @@ export class PipelineBuilder {
       fileId: input.driveFileId || '',
       document: doc,
       config,
+      policy,
       spreadsheetId: input.logFileId,
       sheetId: input.logSheetId,
       strategy: config?.logStrategy,
@@ -77,7 +80,7 @@ export class PipelineBuilder {
       }
     };
 
-    const finalContext = await WorkflowRunner.run(actions, initialContext, policy);
+    const finalContext = await WorkflowRunner.run(actions, initialContext);
 
     return {
       success: true,

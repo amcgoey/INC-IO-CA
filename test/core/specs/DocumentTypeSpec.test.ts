@@ -3,7 +3,7 @@ import type {
   DocumentTypeSpec,
   DocumentFieldSpec,
   DriveStorageSpec,
-  WorkflowTriggerSpec,
+  WorkflowSpec,
   SupportDataSpec,
 } from '../../../src/core/specs/DocumentTypeSpec';
 
@@ -78,7 +78,7 @@ describe('DocumentTypeSpec Tier 1 Core Schema', () => {
       coverPageTemplateId: 'tpl_123',
     };
 
-    const archWorkflows: WorkflowTriggerSpec[] = [
+    const archWorkflows: WorkflowSpec[] = [
       {
         context: 'GoogleDrive',
         fieldMatches: [{ field: 'action', value: 'Received' }],

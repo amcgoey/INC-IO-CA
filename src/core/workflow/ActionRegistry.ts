@@ -1,9 +1,17 @@
-﻿/**
+/**
  * @file ActionRegistry.ts
  * @description Injectable registry for mapping string keys to DocumentAction instances.
  */
 
-
+import { WriteLogAction } from '../../WriteLogAction';
+import { ReadLogAction } from '../../ReadLogAction';
+import { MoveDocumentAction } from './MoveDocumentAction';
+import { DuplicateDocumentAction } from './DuplicateDocumentAction';
+import { ExtractPagesAction } from './ExtractPagesAction';
+import { InsertPagesAction } from '../../InsertPagesAction';
+import { RenameDocumentAction } from './WorkflowRunner';
+import { defaultTriageDocumentAction } from '../../TriageDocumentAction';
+import { defaultAnalyzeDocumentAction } from '../../AnalyzeDocumentAction';
 
 export class ActionRegistry {
   private actions = new Map<string, DocumentAction>();
@@ -32,5 +40,17 @@ export class ActionRegistry {
   }
 }
 
-export const defaultActionRegistry = new ActionRegistry();
+export function populateDefaultActionRegistry(registry: ActionRegistry): void {
+  registry.register("WriteLog", new WriteLogAction());
+  registry.register("ReadLog", new ReadLogAction());
+  registry.register("MoveDocument", new MoveDocumentAction());
+  registry.register("DuplicateDocument", new DuplicateDocumentAction());
+  registry.register("ExtractPages", new ExtractPagesAction());
+  registry.register("InsertPages", new InsertPagesAction());
+  registry.register("RenameDocument", new RenameDocumentAction());
+  if (defaultTriageDocumentAction) registry.register("TriageDocument", defaultTriageDocumentAction);
+  if (defaultAnalyzeDocumentAction) registry.register("AnalyzeDocument", defaultAnalyzeDocumentAction);
+}
 
+export const defaultActionRegistry = new ActionRegistry();
+populateDefaultActionRegistry(defaultActionRegistry);

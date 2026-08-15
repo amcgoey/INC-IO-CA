@@ -1,4 +1,4 @@
-﻿/// <reference path="../../types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file WorkflowRunner.ts
  * @description Action pipeline engine and primitive document actions (MoveDocumentAction & RenameDocumentAction).
@@ -17,28 +17,20 @@ class WorkflowRunner {
    *
    * @param actions - Array of DocumentAction instances to execute.
    * @param initialContext - Starting DocumentActionContext.
-   * @param policy - Optional WorkflowPolicySpec passed directly into DocumentActionContext.
    * @returns Resolves to final updated DocumentActionContext.
    */
   static async run(
     actions: DocumentAction[],
-    initialContext: DocumentActionContext,
-    policy?: WorkflowPolicySpec
+    initialContext: DocumentActionContext
   ): Promise<DocumentActionContext> {
-    let context: DocumentActionContext = {
-      ...initialContext,
-      ...(policy !== undefined ? { policy } : {})
-    };
+    let context: DocumentActionContext = { ...initialContext };
     for (const action of actions) {
       try {
-        if (policy !== undefined) {
-          context.policy = policy;
-        }
         const nextContext = await action.execute(context);
         context = {
           ...nextContext,
           adapters: nextContext.adapters || context.adapters,
-          ...(policy !== undefined ? { policy } : (nextContext.policy !== undefined ? { policy: nextContext.policy } : {}))
+          policy: nextContext.policy || context.policy
         };
       } catch (error: any) {
         const actionName = action.name || action.constructor?.name || 'DocumentAction';

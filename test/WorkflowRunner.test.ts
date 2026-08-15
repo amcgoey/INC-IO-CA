@@ -60,8 +60,8 @@ test('WorkflowRunner - passes policy directly to action context during execution
     updatePreviousStatus: false
   };
 
-  const initialContext = { fileId: 'doc-policy-test' };
-  const finalContext = await WorkflowRunner.run([action1, action2], initialContext, policy);
+  const initialContext = { fileId: 'doc-policy-test', policy };
+  const finalContext = await WorkflowRunner.run([action1, action2], initialContext);
 
   assert.equal(receivedPolicies.length, 2);
   assert.deepEqual(receivedPolicies[0], policy);

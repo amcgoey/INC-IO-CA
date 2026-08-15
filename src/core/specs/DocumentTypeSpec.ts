@@ -76,12 +76,19 @@ export interface GenericStorageSpec {
 
 export type PolymorphicStorageSpec = DriveStorageSpec | SqlStorageSpec | GenericStorageSpec;
 
-export interface WorkflowTriggerSpec {
+export interface FieldMatchRule {
+  field: string;
+  value: any;
+}
+
+export interface WorkflowSpec {
   context: string;
-  fieldMatches?: Record<string, any>;
+  fieldMatches?: FieldMatchRule[];
   isDefault?: boolean;
   sequence: string[];
 }
+
+export type WorkflowTriggerSpec = WorkflowSpec;
 
 export interface DocumentUiSectionSpec {
   title: string;
@@ -100,7 +107,7 @@ export interface DocumentTypeSpec {
   identity: DocumentIdentitySpec;
   fields: DocumentFieldSpec[];
   storage: PolymorphicStorageSpec[];
-  workflows: WorkflowTriggerSpec[];
+  workflows: WorkflowSpec[];
   supportData?: Record<string, SupportDataSpec>;
   ui?: DocumentUiSpec;
   validationHookKey?: string;
