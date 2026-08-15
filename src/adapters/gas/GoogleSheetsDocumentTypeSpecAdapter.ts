@@ -82,11 +82,17 @@ const FIELD_COL_DEFAULT_VALUE = 9;
 const FIELD_COL_KEY_NORM = 10;
 const FIELD_COL_NUMBER_FMT = 11;
 
-/** Internal context bundle for parsing _Config tab tables */
+/** Context bundle for parsing _Config tab tables */
 interface ConfigTabContext {
   rows: GridRow[];
   namedRanges: NamedRangePayload[];
   scanIdx: number;
+}
+
+/** Container for extracted support datasets */
+interface SupportDataCollection {
+  shared: Record<string, SupportDataSpec>;
+  perType: Map<string, Record<string, SupportDataSpec>>;
 }
 
 interface DecompileExtractionResult {
@@ -158,8 +164,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       try {
         batchData = input.readWorkbookBatch(spreadsheetId);
       } catch (err: unknown) {
-        const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : String(err);
-        return [{ status: 'invalid', errors: [`Spreadsheet batch read error: ${msg}`] }];
+        return [{ status: 'invalid', errors: [`Spreadsheet batch read error: ${this.getErrorMessage(err)}`] }];
       }
     } else {
       batchData = input as SpreadsheetBatchData;
@@ -180,7 +185,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
     }
 
     // 1. Decompile Support Tabs (_Shared and <Type> Support)
-    const { sharedSupportData, typeSupportMap } = this.decompileSupportTabs(
+    const supportDataCollection = this.decompileSupportTabs(
       batchData.sheets,
       batchData.namedRanges || []
     );
@@ -189,8 +194,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
     const { specs: candidateSpecs, errors: parseErrors } = this.decompileConfigTab(
       configRows,
       batchData.namedRanges || [],
-      sharedSupportData,
-      typeSupportMap
+      supportDataCollection
     );
 
     if (parseErrors.length > 0) {
@@ -203,6 +207,15 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
 
     // 3. Validate candidate specs through ValidationEngine
     return candidateSpecs.map((spec) => ValidationEngine.validateSpec(spec));
+  }
+
+  /**
+   * Extracts error message string from unknown error object.
+   */
+  private static getErrorMessage(err: unknown): string {
+    return err && typeof err === 'object' && 'message' in err
+      ? String((err as { message: unknown }).message)
+      : String(err);
   }
 
   /**
@@ -405,12 +418,9 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   private static decompileSupportTabs(
     sheets: SheetPayload[],
     namedRanges: NamedRangePayload[]
-  ): {
-    sharedSupportData: Record<string, SupportDataSpec>;
-    typeSupportMap: Map<string, Record<string, SupportDataSpec>>;
-  } {
-    const sharedSupportData: Record<string, SupportDataSpec> = {};
-    const typeSupportMap = new Map<string, Record<string, SupportDataSpec>>();
+  ): SupportDataCollection {
+    const shared: Record<string, SupportDataSpec> = {};
+    const perType = new Map<string, Record<string, SupportDataSpec>>();
 
     for (const sheet of sheets) {
       const title = sheet.properties?.title || '';
@@ -438,21 +448,21 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
 
       if (isShared) {
         for (const ds of processedDatasets) {
-          sharedSupportData[ds.key] = ds;
+          shared[ds.key] = ds;
         }
       } else if (isSupport) {
         const specNameOrLabel = title.replace(/\s+Support$/, '');
-        if (!typeSupportMap.has(specNameOrLabel)) {
-          typeSupportMap.set(specNameOrLabel, {});
+        if (!perType.has(specNameOrLabel)) {
+          perType.set(specNameOrLabel, {});
         }
-        const entry = typeSupportMap.get(specNameOrLabel)!;
+        const entry = perType.get(specNameOrLabel)!;
         for (const ds of processedDatasets) {
           entry[ds.key] = ds;
         }
       }
     }
 
-    return { sharedSupportData, typeSupportMap };
+    return { shared, perType };
   }
 
   /**
@@ -609,8 +619,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
         try {
           fieldMatches = JSON.parse(rawMatches);
         } catch (err: unknown) {
-          const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : String(err);
-          errors.push(`Malformed JSON in Workflows fieldMatches ('${rawMatches}'): ${msg}`);
+          errors.push(`Malformed JSON in Workflows fieldMatches ('${rawMatches}'): ${this.getErrorMessage(err)}`);
         }
       }
       const sequence = this.getCellStringList(r, WORKFLOW_COL_SEQUENCE);
@@ -680,8 +689,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
   private static decompileConfigTab(
     configRows: GridRow[],
     namedRanges: NamedRangePayload[],
-    sharedSupportData: Record<string, SupportDataSpec>,
-    typeSupportMap: Map<string, Record<string, SupportDataSpec>>
+    supportData: SupportDataCollection
   ): DecompileExtractionResult {
     const specs: Partial<DocumentTypeSpec>[] = [];
     const errors: string[] = [];
@@ -724,17 +732,17 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
       const fields = this.parseFieldsSubtable(fieldRows);
 
       // Attach Support Data
-      const supportData: Record<string, SupportDataSpec> = {
-        ...sharedSupportData,
-        ...(typeSupportMap.get(dt.label) || {}),
-        ...(typeSupportMap.get(dt.name) || {}),
-        ...(typeSupportMap.get(dt.key) || {}),
+      const specSupportData: Record<string, SupportDataSpec> = {
+        ...supportData.shared,
+        ...(supportData.perType.get(dt.label) || {}),
+        ...(supportData.perType.get(dt.name) || {}),
+        ...(supportData.perType.get(dt.key) || {}),
       };
 
       // Link picklistSource for fields if optionsRange matches a SupportData dataset
       fields.forEach((f) => {
-        if (f.optionsRange && supportData[f.optionsRange]) {
-          const ds = supportData[f.optionsRange];
+        if (f.optionsRange && specSupportData[f.optionsRange]) {
+          const ds = specSupportData[f.optionsRange];
           if (ds && ds.columns && ds.columns.length > 0 && !f.picklistSource) {
             const pkCol = ds.columns.find((c) => c.isPrimaryKey) || ds.columns[0];
             const dispCol = ds.columns.find((c) => c.isDisplayLabel) || ds.columns[1] || pkCol;
@@ -755,7 +763,7 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
         fields,
         storage,
         workflows,
-        ...(Object.keys(supportData).length > 0 ? { supportData } : {}),
+        ...(Object.keys(specSupportData).length > 0 ? { supportData: specSupportData } : {}),
       };
 
       specs.push(candidateSpec);
