@@ -26,6 +26,7 @@ export interface ValidationEngineOptions {
 export interface SubmissionValidationOptions {
   bypassTagValidation?: boolean;
   bypassVendorValidation?: boolean;
+  bypassDatasets?: Set<string> | string[];
   supportData?: Record<string, SupportDataSpec>;
   [key: string]: any;
 }
@@ -359,9 +360,15 @@ export class ValidationEngine {
         if (dataset.allowDynamicAddition) {
           const dynamicPrompts = this.resolveDynamicPrompts(dataset);
 
-          const isBypassed =
-            (options?.bypassTagValidation && dataset.key.toLowerCase().includes('tag')) ||
-            (options?.bypassVendorValidation && dataset.key.toLowerCase().includes('vendor'));
+          const isBypassed = Boolean(
+            (options?.bypassTagValidation && dataset.key === 'SpecTags') ||
+            (options?.bypassVendorValidation && dataset.key === 'Vendors') ||
+            (options?.bypassDatasets && (
+              Array.isArray(options.bypassDatasets)
+                ? options.bypassDatasets.includes(dataset.key)
+                : options.bypassDatasets.has(dataset.key)
+            ))
+          );
 
           let missingRequiredPrompt = false;
 

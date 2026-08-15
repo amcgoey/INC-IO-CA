@@ -40,10 +40,10 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
         const original = JSON.parse(p.originalFormInput);
         form = { ...original, ...form };
         e.formInput = form;
-        if (p.promptSupportDataKey?.toLowerCase().includes("tag") || p.promptFieldKey?.toLowerCase().includes("tag")) {
+        if (p.promptSupportDataKey === "SpecTags" || p.promptFieldKey === "specTag") {
           p.bypassTagValidation = "true";
         }
-        if (p.promptSupportDataKey?.toLowerCase().includes("vendor") || p.promptFieldKey?.toLowerCase().includes("vendor")) {
+        if (p.promptSupportDataKey === "Vendors" || p.promptFieldKey === "vendor") {
           p.bypassVendorValidation = "true";
         }
       } catch (_e) {}
@@ -91,12 +91,13 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
     }
 
     if (validationResult.status === "interaction_required") {
-      if ((validationResult as any).dynamicPrompts && (validationResult as any).dynamicPrompts.length > 0 && deps.cardPresenter.presentDynamicPromptCard) {
+      if (validationResult.dynamicPrompts && validationResult.dynamicPrompts.length > 0 && deps.cardPresenter.presentDynamicPromptCard) {
         return deps.cardPresenter.presentDynamicPromptCard(e, validationResult as any);
       }
+      const promptType = (validationResult.interactionType === "ADD_VENDOR" ? "ADD_VENDOR" : "ADD_TAG");
       return deps.cardPresenter.presentInteractionPrompt(
         e,
-        validationResult.interactionType as any,
+        promptType,
         validationResult.message
       );
     }
