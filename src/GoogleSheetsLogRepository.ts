@@ -5,7 +5,6 @@
  * Provides caching for settings, header schema verification/formatting, interactive tag/vendor additions,
  * and delegates document appending to `LogEngine` via `GoogleSheetsStorageAdapter`.
  */
-import { DOCUMENT_LOG_WORKBOOK_VIEW_SPEC } from "./core/config/DocumentLogWorkbookViewSpec";
 
 
 import { GoogleSheetsStorageAdapter } from "./SheetStorageAdapter";

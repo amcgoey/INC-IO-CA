@@ -123,7 +123,7 @@ export class TemplateDriftAuditor {
   }
 
   public static get CODE_SCHEMA_VERSION(): string {
-    return this.spec?.schemaVersion || "1.0.0";
+    return TemplateDriftAuditor.defaultSpec?.schemaVersion || DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION || "1.0.0";
   }
 
   public static auditWorkbook(
