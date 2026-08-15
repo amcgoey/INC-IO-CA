@@ -353,7 +353,14 @@ export class AdminFoldOutPresenter {
  * re-renders SheetAdminFoldOut with inline Schema Health Report card, emits notification toast,
  * and logs telemetry event to _AuditLog tab under Category: SCHEMA_DRIFT (Issue #221, Issue #224).
  */
-export function onRunSchemaDriftAudit(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
+export interface RunSchemaDriftAuditDeps {
+  auditor?: TemplateDriftAuditor;
+  storageAdapter?: any;
+  logEngine?: any;
+  spec?: any;
+}
+
+export function onRunSchemaDriftAudit(e?: any, deps?: RunSchemaDriftAuditDeps): GoogleAppsScript.Card_Service.ActionResponse {
   const BinderClass = getSheetsContextBinderClass();
   const spreadsheetId = BinderClass.extractSpreadsheetId(e);
 
@@ -363,10 +370,11 @@ export function onRunSchemaDriftAudit(e?: any): GoogleAppsScript.Card_Service.Ac
   let report: TemplateDriftReport | undefined;
   let batchReadError: any = undefined;
 
-  const storageAdapter = new StorageAdapterClass(spreadsheetId);
+  const storageAdapter = deps?.storageAdapter || new StorageAdapterClass(spreadsheetId);
+  const auditor = deps?.auditor || new AuditorClass({ spec: deps?.spec });
 
   try {
-    report = AuditorClass.auditWorkbook(storageAdapter, { bypassCache: true });
+    report = auditor.auditWorkbook(storageAdapter, { bypassCache: true, spec: deps?.spec });
   } catch (err: any) {
     if (
       err instanceof SpreadsheetBatchReadException ||
@@ -494,7 +502,16 @@ export function onFlushScriptCache(e?: any): GoogleAppsScript.Card_Service.Actio
  * Action Handler: Executes TemplateDriftAuditor.autoPatchWorkbook under SpreadsheetLockAdapter lock,
  * invalidates PrefixCacheManager cache keys, logs telemetry to _AuditLog tab, and re-renders SheetAdminFoldOut card (Issue #226).
  */
-export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.ActionResponse {
+export interface AutoPatchWorkbookDeps {
+  auditor?: TemplateDriftAuditor;
+  lockAdapter?: SpreadsheetLockAdapter;
+  cacheAdapter?: CacheAdapter;
+  validationAndProtectionAdapter?: any;
+  storageAdapter?: any;
+  spec?: any;
+}
+
+export function onAutoPatchWorkbook(e?: any, deps?: AutoPatchWorkbookDeps): GoogleAppsScript.Card_Service.ActionResponse {
   const BinderClass = getSheetsContextBinderClass();
   const spreadsheetId = BinderClass.extractSpreadsheetId(e);
 
@@ -503,15 +520,28 @@ export function onAutoPatchWorkbook(e?: any): GoogleAppsScript.Card_Service.Acti
 
   const CacheAdapterClass = getGoogleScriptCacheAdapterClass();
 
-  const storageAdapter = new StorageAdapterClass(spreadsheetId);
-  const lockAdapter = (globalThis as any).defaultSpreadsheetLockAdapter;
-  const cacheAdapter = (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
+  const storageAdapter = deps?.storageAdapter || new StorageAdapterClass(spreadsheetId);
+  const lockAdapter = deps?.lockAdapter || (globalThis as any).defaultSpreadsheetLockAdapter;
+  const cacheAdapter = deps?.cacheAdapter || (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
+  const validationAndProtectionAdapter = deps?.validationAndProtectionAdapter;
+
+  const auditor = deps?.auditor || new AuditorClass({
+    spec: deps?.spec,
+    validationAndProtectionAdapter,
+    lockAdapter,
+    cacheAdapter
+  });
 
   let result: AutoPatchResult | null = null;
   let batchReadError: unknown = undefined;
 
   try {
-    result = AuditorClass.autoPatchWorkbook(storageAdapter, { lockAdapter, cacheAdapter });
+    result = auditor.autoPatchWorkbook(storageAdapter, {
+      lockAdapter,
+      cacheAdapter,
+      validationAndProtectionAdapter,
+      spec: deps?.spec
+    });
   } catch (err: unknown) {
     if (
       err instanceof SpreadsheetBatchReadException ||

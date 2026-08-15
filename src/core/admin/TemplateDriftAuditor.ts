@@ -2,6 +2,7 @@
 
 import { DocumentLogWorkbookSpec, DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION } from "../config/DocumentLogWorkbookSpec";
 import { LogEngine } from "../log/LogEngine";
+import { PrefixCacheManager } from "./PrefixCacheManager";
 
 export type SchemaDriftStatus = "MATCH" | "MINOR_DRIFT" | "MAJOR_DRIFT" | "INCOMPATIBLE";
 export type IssueSeverity = "CRITICAL" | "WARNING" | "INFO";
@@ -44,7 +45,16 @@ export interface AutoPatchResult {
   telemetry?: TemplateDriftTelemetry;
 }
 
+export interface TemplateDriftAuditorDependencies {
+  spec?: DocumentLogWorkbookSpec;
+  validationAndProtectionAdapter?: any;
+  lockAdapter?: SpreadsheetLockAdapter;
+  cacheAdapter?: CacheAdapter;
+  logger?: (logPayloadJson: string) => void;
+}
+
 export interface AutoPatchWorkbookOptions {
+  spec?: DocumentLogWorkbookSpec;
   lockAdapter?: SpreadsheetLockAdapter;
   cacheAdapter?: CacheAdapter;
   validationAndProtectionAdapter?: any;
@@ -53,6 +63,7 @@ export interface AutoPatchWorkbookOptions {
 
 export interface AuditWorkbookOptions {
   bypassCache?: boolean;
+  spec?: DocumentLogWorkbookSpec;
   logger?: (logPayloadJson: string) => void;
 }
 
@@ -102,52 +113,87 @@ export interface BatchPayload {
 export type StorageAdapterInput = BatchPayload | SheetStorageSeam | string;
 
 export class TemplateDriftAuditor {
-  private static defaultSpec?: DocumentLogWorkbookSpec;
+  private spec?: DocumentLogWorkbookSpec;
+  private validationAndProtectionAdapter?: any;
+  private lockAdapter?: SpreadsheetLockAdapter;
+  private cacheAdapter?: CacheAdapter;
+  private logger?: (logPayloadJson: string) => void;
 
-  public static setDefaultSpec(spec?: DocumentLogWorkbookSpec): void {
-    TemplateDriftAuditor.defaultSpec = spec;
+  constructor(dependencies?: TemplateDriftAuditorDependencies) {
+    this.spec = dependencies?.spec;
+    this.validationAndProtectionAdapter = dependencies?.validationAndProtectionAdapter;
+    this.lockAdapter = dependencies?.lockAdapter;
+    this.cacheAdapter = dependencies?.cacheAdapter;
+    this.logger = dependencies?.logger;
   }
 
-  public static getDefaultSpec(): DocumentLogWorkbookSpec | undefined {
-    return TemplateDriftAuditor.defaultSpec;
-  }
-
-  private static defaultValidationAndProtectionAdapter?: any;
-
-  public static setDefaultValidationAndProtectionAdapter(adapter?: any): void {
-    TemplateDriftAuditor.defaultValidationAndProtectionAdapter = adapter;
-  }
-
-  public static getDefaultValidationAndProtectionAdapter(): any {
-    return TemplateDriftAuditor.defaultValidationAndProtectionAdapter;
+  public get codeSchemaVersion(): string {
+    return this.spec?.schemaVersion || TemplateDriftAuditor.CODE_SCHEMA_VERSION;
   }
 
   public static get CODE_SCHEMA_VERSION(): string {
-    return TemplateDriftAuditor.defaultSpec?.schemaVersion || DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION || "1.0.0";
+    return DOCUMENT_LOG_WORKBOOK_SCHEMA_VERSION || "1.0.0";
+  }
+
+  public auditWorkbook(
+    storageAdapter: StorageAdapterInput,
+    options: AuditWorkbookOptions = { bypassCache: true }
+  ): TemplateDriftReport {
+    const startTime = Date.now();
+    const effectiveOptions: AuditWorkbookOptions = {
+      ...options,
+      spec: options.spec || this.spec,
+      logger: options.logger || this.logger
+    };
+    const inspector = new TemplateDriftInspector(storageAdapter, effectiveOptions);
+    return inspector.runAudit(startTime);
+  }
+
+  public autoPatchWorkbook(
+    storageAdapter: StorageAdapterInput,
+    options: AutoPatchWorkbookOptions = {}
+  ): AutoPatchResult {
+    const effectiveOptions: AutoPatchWorkbookOptions = {
+      ...options,
+      spec: options.spec || this.spec,
+      validationAndProtectionAdapter: options.validationAndProtectionAdapter || this.validationAndProtectionAdapter,
+      lockAdapter: options.lockAdapter || this.lockAdapter,
+      cacheAdapter: options.cacheAdapter || this.cacheAdapter,
+      logger: options.logger || this.logger
+    };
+    const patcher = new TemplateDriftPatcher(storageAdapter, effectiveOptions);
+    return patcher.runAutoPatch();
   }
 
   public static auditWorkbook(
     storageAdapter: StorageAdapterInput,
     options: AuditWorkbookOptions = { bypassCache: true }
   ): TemplateDriftReport {
-    const startTime = Date.now();
-    const inspector = new TemplateDriftInspector(storageAdapter, options);
-    return inspector.runAudit(startTime);
+    const auditor = new TemplateDriftAuditor({
+      spec: options.spec,
+      logger: options.logger
+    });
+    return auditor.auditWorkbook(storageAdapter, options);
   }
 
   public static autoPatchWorkbook(
     storageAdapter: StorageAdapterInput,
     options: AutoPatchWorkbookOptions = {}
   ): AutoPatchResult {
-    const patcher = new TemplateDriftPatcher(storageAdapter, options);
-    return patcher.runAutoPatch();
+    const auditor = new TemplateDriftAuditor({
+      spec: options.spec,
+      validationAndProtectionAdapter: options.validationAndProtectionAdapter,
+      lockAdapter: options.lockAdapter,
+      cacheAdapter: options.cacheAdapter,
+      logger: options.logger
+    });
+    return auditor.autoPatchWorkbook(storageAdapter, options);
   }
-
 }
 class TemplateDriftInspector {
   private spreadsheetId: string = "active-workbook";
   private get spec(): DocumentLogWorkbookSpec | undefined {
-    return this.options?.spec || TemplateDriftAuditor.getDefaultSpec();
+    return this.options?.spec;
   }
   private apiReadCount: number = 0;
   private inspectionStrategy: "ADVANCED_SHEETS_BATCH_V1" | "STORAGE_ADAPTER_LIVE" = "STORAGE_ADAPTER_LIVE";
@@ -666,7 +712,7 @@ class TemplateDriftPatcher {
   private options: AutoPatchWorkbookOptions;
   private spreadsheetId: string = "active-workbook";
   private get spec(): DocumentLogWorkbookSpec | undefined {
-    return this.options?.spec || TemplateDriftAuditor.getDefaultSpec();
+    return this.options?.spec;
   }
 
   constructor(storageInput: StorageAdapterInput, options: AutoPatchWorkbookOptions) {
@@ -693,9 +739,6 @@ class TemplateDriftPatcher {
 
   private resolveLockAdapter(): SpreadsheetLockAdapter | null {
     if (this.options.lockAdapter) return this.options.lockAdapter;
-    const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
-    if (g.defaultSpreadsheetLockAdapter) return g.defaultSpreadsheetLockAdapter;
-    if (g.FakeSpreadsheetLockAdapter) return new g.FakeSpreadsheetLockAdapter();
     return null;
   }
 
@@ -705,23 +748,11 @@ class TemplateDriftPatcher {
     applyNumberFormats?: (spreadsheet: any, spec?: any) => void;
   } | null {
     if (this.options.validationAndProtectionAdapter) return this.options.validationAndProtectionAdapter;
-    if (TemplateDriftAuditor.getDefaultValidationAndProtectionAdapter()) return TemplateDriftAuditor.getDefaultValidationAndProtectionAdapter();
-    const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
-    if (g.defaultSheetValidationAndProtectionAdapter) return g.defaultSheetValidationAndProtectionAdapter;
-    if (g.SheetValidationAndProtectionAdapter && this.spec) {
-      const viewSpec = g.DOCUMENT_LOG_WORKBOOK_VIEW_SPEC || (typeof DOCUMENT_LOG_WORKBOOK_VIEW_SPEC !== "undefined" ? DOCUMENT_LOG_WORKBOOK_VIEW_SPEC : undefined);
-      if (viewSpec) {
-        return new g.SheetValidationAndProtectionAdapter(this.spec, viewSpec);
-      }
-    }
     return null;
   }
 
   private resolveCacheAdapter(): CacheAdapter | null {
     if (this.options.cacheAdapter) return this.options.cacheAdapter;
-    const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
-    if (g.defaultCacheAdapter) return g.defaultCacheAdapter;
-    if (g.FakeCacheAdapter) return new g.FakeCacheAdapter();
     return null;
   }
 
@@ -729,12 +760,8 @@ class TemplateDriftPatcher {
     const cacheAdapter = this.resolveCacheAdapter();
     if (cacheAdapter) {
       try {
-        const g = typeof globalThis !== "undefined" ? (globalThis as any) : {};
-        const PrefixManagerClass = g.PrefixCacheManager || (typeof PrefixCacheManager !== "undefined" ? PrefixCacheManager : null);
-        if (PrefixManagerClass) {
-          const manager = new PrefixManagerClass(cacheAdapter);
-          manager.invalidatePrefix("DOC_CONFIG_" + this.spreadsheetId);
-        }
+        const manager = new PrefixCacheManager(cacheAdapter);
+        manager.invalidatePrefix("DOC_CONFIG_" + this.spreadsheetId);
       } catch (e) {}
     }
   }
