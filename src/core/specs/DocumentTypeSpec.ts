@@ -81,11 +81,24 @@ export interface FieldMatchRule {
   value: any;
 }
 
+export interface WorkflowPolicySpec {
+  direction?: 'incoming' | 'outgoing' | string;
+  stampPdf?: boolean;
+  updatePreviousStatus?: boolean;
+  previousRowStatus?: string;
+  targetSubfolderTemplate?: string;
+  coverPageTemplateId?: string;
+  stampedFilePrefix?: string;
+  timeoutMs?: number;
+  [key: string]: any;
+}
+
 export interface WorkflowSpec {
   context: string;
   fieldMatches?: FieldMatchRule[];
   isDefault?: boolean;
   sequence: string[];
+  policy?: WorkflowPolicySpec;
 }
 
 export type WorkflowTriggerSpec = WorkflowSpec;

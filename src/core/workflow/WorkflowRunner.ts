@@ -12,8 +12,7 @@ import { MoveDocumentAction } from './MoveDocumentAction';
 class WorkflowRunner {
   /**
    * Executes actions in order, threading and updating the context through each step.
-   * Preserves context.adapters across step executions, injects policy into action context,
-   * and enriches step error propagation.
+   * Preserves context.adapters across step executions and enriches step error propagation.
    *
    * @param actions - Array of DocumentAction instances to execute.
    * @param initialContext - Starting DocumentActionContext.
@@ -23,14 +22,13 @@ class WorkflowRunner {
     actions: DocumentAction[],
     initialContext: DocumentActionContext
   ): Promise<DocumentActionContext> {
-    let context: DocumentActionContext = { ...initialContext };
+    let context = { ...initialContext };
     for (const action of actions) {
       try {
         const nextContext = await action.execute(context);
         context = {
           ...nextContext,
-          adapters: nextContext.adapters || context.adapters,
-          policy: nextContext.policy || context.policy
+          adapters: nextContext.adapters || context.adapters
         };
       } catch (error: any) {
         const actionName = action.name || action.constructor?.name || 'DocumentAction';
@@ -93,7 +91,7 @@ class RenameDocumentAction implements DocumentAction<DocumentActionContext, Docu
     }
 
     const finalName = context.newFileName;
-    const driveApp = context.driveApp || (typeof globalThis !== 'undefined' ? (globalThis as any).DriveApp : null);
+    const driveApp = context.driveApp || (typeof (globalThis as any).DriveApp !== 'undefined' ? (globalThis as any).DriveApp : null);
 
     if (context.fileId && driveApp) {
       const file = driveApp.getFileById(context.fileId);

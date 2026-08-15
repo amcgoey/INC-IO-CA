@@ -1,33 +1,11 @@
 /// <reference path="../../types.ts" />
 /**
  * @file WorkflowPolicy.ts
- * @description Helper functions for workflow action policy, strategy resolution, title extraction, and sheet URL generation.
+ * @description Helper functions for document strategy resolution, title extraction, and sheet URL generation.
  */
 
 import { DeclarativeDocumentLogStrategy } from '../logging/DeclarativeDocumentLogStrategy';
 import { defaultDocumentTypeSpecRegistry } from '../specs/DocumentTypeSpecRegistry';
-
-/**
- * Resolves execution policy settings based on the specified workflow action string.
- *
- * @param action - The workflow action string (e.g., "Received", "Reviewed", "Referred").
- * @returns WorkflowActionPolicy containing execution instructions.
- */
-export function getActionPolicy(action: string): WorkflowActionPolicy {
-  if (action === "Received") {
-    return {
-      direction: "incoming",
-      stampPdf: true,
-      updatePreviousStatus: false
-    };
-  }
-  return {
-    direction: "outgoing",
-    stampPdf: false,
-    updatePreviousStatus: true,
-    previousRowStatus: "Closed"
-  };
-}
 
 /**
  * Factory function returning the appropriate DocumentLogStrategy implementation for a given document.

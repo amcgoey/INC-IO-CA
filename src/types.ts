@@ -642,7 +642,6 @@ declare const defaultDuplicateDocumentAction: DuplicateDocumentAction;
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 
 /** Policy detailing workflow actions (direction, stamping, subfolder rules). */
-declare const getActionPolicy: (action: string) => WorkflowActionPolicy;
 declare const getDocumentLogStrategy: (doc: ValidatedDocument) => DocumentLogStrategy;
 declare const getDocumentTitle: (doc: ValidatedDocument) => string;
 declare const buildDirectRowUrl: (logFileId: string, rowIndex: number, sheetId?: number | null, spreadsheetApp?: any) => string;
@@ -700,6 +699,7 @@ interface DocumentWorkflowResult {
   failedColumns: string[];
   emptyFallbacks: string[];
   newFileName: string;
+  policy?: WorkflowPolicySpec;
 }
 
 
@@ -797,6 +797,9 @@ interface WorkflowPolicySpec {
   stampPdf?: boolean;
   updatePreviousStatus?: boolean;
   previousRowStatus?: string;
+  targetSubfolderTemplate?: string;
+  coverPageTemplateId?: string;
+  stampedFilePrefix?: string;
   timeoutMs?: number;
   [key: string]: any;
 }

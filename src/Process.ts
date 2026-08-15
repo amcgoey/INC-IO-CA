@@ -6,7 +6,6 @@ import { DocumentPipeline } from "./core/intake/DocumentPipeline";
 import { DeclarativeDocumentLogStrategy } from "./core/logging/DeclarativeDocumentLogStrategy";
 import { DocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
 import { DocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
-import { getActionPolicy } from "./core/workflow/WorkflowPolicy";
 import { PipelineBuilder } from "./core/workflow/PipelineBuilder";
 import { ActionRegistry } from "./core/workflow/ActionRegistry";
 import { LogRepository } from "./core/interfaces/LogRepository";
@@ -149,9 +148,9 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
       }
     } catch (_err) {}
 
-    const policy = getActionPolicy(result.action);
+    const policy = result.policy;
 
-    if (policy.direction === "incoming") {
+    if (policy?.direction === "incoming" || (!policy?.direction && result.action === "Received")) {
       return deps.cardPresenter.presentIncomingSuccess(e, result);
     }
 

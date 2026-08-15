@@ -9,7 +9,7 @@ import { WorkflowTriggerMatcher, MatcherContext } from './WorkflowTriggerMatcher
 import { WorkflowSpec } from '../specs/DocumentTypeSpec';
 import { DocumentAction } from '../../types';
 import { WorkflowRunner } from './WorkflowRunner';
-import { getActionPolicy, getDocumentTitle, buildDirectRowUrl } from './WorkflowPolicy';
+import { getDocumentTitle, buildDirectRowUrl } from './WorkflowPolicy';
 import { DocumentTypeSpecRegistry } from '../specs/DocumentTypeSpecRegistry';
 import { DocumentTypeConfigRegistry } from '../../DocumentTypeConfigRegistry';
 
@@ -63,9 +63,10 @@ export class PipelineBuilder {
     const spec = specRegistry.getSpec(docType);
     const workflows = spec?.workflows || [];
 
-    const actions = builder.buildPipeline(workflows, ctx);
+    const matchedTrigger = builder.matcher.findMatch(workflows, ctx);
+    const actions = matchedTrigger ? matchedTrigger.sequence.map(key => registry.get(key)) : [];
 
-    const policy = getActionPolicy(doc?.action || input.selectedAction?.action || 'Received');
+    const policy: WorkflowPolicySpec = input.policy || matchedTrigger?.policy || {};
 
     const initialContext: DocumentActionContext = {
       ...input,
@@ -99,7 +100,8 @@ export class PipelineBuilder {
       directRowUrl: finalContext.directRowUrl || (finalContext.rowIndex ? buildDirectRowUrl(input.logFileId, finalContext.rowIndex, input.logSheetId) : ''),
       failedColumns: finalContext.failedColumns || [],
       emptyFallbacks: finalContext.emptyFallbacks || input.emptyFallbacks || [],
-      localPath: finalContext.localPath || ''
+      localPath: finalContext.localPath || '',
+      policy: finalContext.policy || policy
     };
   }
 }

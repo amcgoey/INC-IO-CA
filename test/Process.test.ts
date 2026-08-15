@@ -62,7 +62,6 @@ const mockFolder: any = {
   getFileById: () => mockFile
 };
 
-import { getActionPolicy } from "../src/core/workflow/WorkflowPolicy";
 import { DeclarativeDocumentLogStrategy } from "../src/DocumentLogStrategy";
 
 const defaultRepoMock = {
