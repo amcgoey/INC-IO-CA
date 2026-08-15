@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file verify-live.test.ts
  * @description Unit tests for verify-live.ts CLI argument parsing, 6-dimension structural auditing,
  * mock row formula evaluation roundtrip, tab taxonomy rules (Log -> Support -> System -> Backup), and markdown report generation.
@@ -194,7 +194,7 @@ test("runLiveVerification - Dimension 2 validates tab order and legacy backup ta
     dryRun: true
   };
 
-  const fakeApiFetcher = async (url: string, init: RequestInit): Promise<Response | unknown> => {
+  const fakeApiFetcher = async (url: string, _init: RequestInit): Promise<Response | unknown> => {
     if (url.includes("fields=sheets")) {
       return {
         ok: true,
@@ -233,7 +233,7 @@ test("runLiveVerification - Dimension 2 fails when legacy _Backup_* tab is mispl
     dryRun: true
   };
 
-  const fakeApiFetcher = async (url: string, init: RequestInit): Promise<Response | unknown> => {
+  const fakeApiFetcher = async (url: string, _init: RequestInit): Promise<Response | unknown> => {
     if (url.includes("fields=sheets")) {
       return {
         ok: true,
@@ -271,7 +271,7 @@ test("runLiveVerification - live execution uses mock apiFetcher for sheetId quer
 
   const apiCalls: { url: string; method: string }[] = [];
 
-  const fakeApiFetcher = async (url: string, init: RequestInit): Promise<Response | unknown> => {
+  const fakeApiFetcher = async (url: string, _init: RequestInit): Promise<Response | unknown> => {
     apiCalls.push({ url, method: init.method || "GET" });
     if (url.includes("fields=sheets")) {
       return { ok: true, json: async () => ({ sheets: [{ properties: { title: "Submittal Arch", sheetId: 101 } }] }) };
@@ -312,7 +312,7 @@ test("runLiveVerification - live execution reports failure on live API error wit
     dryRun: false
   };
 
-  const fakeFailingApiFetcher = async (url: string, init: RequestInit): Promise<Response | unknown> => {
+  const fakeFailingApiFetcher = async (_url: string, _init: RequestInit): Promise<Response | unknown> => {
     throw new Error("HTTP 403 Forbidden: Insufficient Permissions");
   };
 
