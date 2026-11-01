@@ -525,3 +525,300 @@ describe("PicklistResolver & Dynamic Field Rendering (Issue #177)", () => {
     });
   });
 
+  describe("Live Workbook Picklist Precedence & Unlisted Draft Value Fallback (Ticket #306)", () => {
+    let harness: GasMockHarness;
+
+    beforeEach(() => {
+      harness = GasMockHarness.install();
+    });
+
+    it("Tier 1: queries live spreadsheet Named Ranges as primary priority over logSettings and supportData", () => {
+      const ss = harness.sheetsService.openById("test-ss-precedence-tier1");
+      const sharedSheet = ss.insertSheet("_Shared");
+      sharedSheet.setGrid([
+        ["Code", "Name"],
+        ["LIVE_CONTACT", "Live Project Architect"],
+        ["LIVE_GC", "Live General Contractor"]
+      ]);
+      ss.setNamedRange("Shared_Contacts_Arch_Keys", "_Shared", "A2:A3");
+      ss.setNamedRange("Shared_Contacts_Arch", "_Shared", "A2:B3");
+
+      const picklistSource = {
+        supportDataKey: "Contacts_Arch",
+        valueColumnKey: "code",
+        displayColumnKey: "name"
+      };
+
+      const context = {
+        spreadsheet: ss,
+        docTypeKey: "Submittal_Arch",
+        activeSheetName: "Submittal Arch",
+        logSettings: {
+          contacts: [
+            { abbr: "LOG_CONTACT", name: "Log Settings Contact" }
+          ]
+        },
+        supportData: {
+          Contacts_Arch: {
+            key: "Contacts_Arch",
+            columns: [
+              { key: "code", type: "string" as const, isPrimaryKey: true },
+              { key: "name", type: "string" as const, isDisplayLabel: true }
+            ],
+            items: [
+              { code: "SEED_CONTACT", name: "Static Seed Contact" }
+            ]
+          }
+        }
+      };
+
+      const result = PicklistResolver.resolve(picklistSource, context);
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      // Must come from live spreadsheet, NOT logSettings or supportData
+      assert.equal(result.options.length, 2);
+      assert.equal(result.options[0].value, "LIVE_CONTACT");
+      assert.equal(result.options[1].value, "LIVE_GC");
+    });
+
+    it("Tier 2: queries logSettings as secondary priority when live spreadsheet resolution yields zero items", () => {
+      const ss = harness.sheetsService.openById("test-ss-empty-ranges");
+      // Spreadsheet has no matching ranges
+
+      const picklistSource = {
+        supportDataKey: "Contacts_Arch",
+        valueColumnKey: "code",
+        displayColumnKey: "name"
+      };
+
+      const context = {
+        spreadsheet: ss,
+        docTypeKey: "Submittal_Arch",
+        activeSheetName: "Submittal Arch",
+        logSettings: {
+          contacts: [
+            { abbr: "LOG_ARCH", name: "Log Settings Architect" },
+            { abbr: "LOG_GC", name: "Log Settings Contractor" }
+          ]
+        },
+        supportData: {
+          Contacts_Arch: {
+            key: "Contacts_Arch",
+            columns: [
+              { key: "code", type: "string" as const, isPrimaryKey: true },
+              { key: "name", type: "string" as const, isDisplayLabel: true }
+            ],
+            items: [
+              { code: "SEED_ARCH", name: "Static Seed Architect" }
+            ]
+          }
+        }
+      };
+
+      const result = PicklistResolver.resolve(picklistSource, context);
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      // Must come from logSettings, NOT static seed supportData
+      assert.equal(result.options.length, 2);
+      assert.equal(result.options[0].value, "LOG_ARCH");
+      assert.equal(result.options[1].value, "LOG_GC");
+    });
+
+    it("Tier 2: resolves actions, statuses, vendors, and specTags from logSettings", () => {
+      // Actions from logSettings
+      const actionsContext = {
+        logSettings: {
+          actions: [
+            { action: "Log Approved", abbr: "_APP", status: "Outgoing" },
+            { action: "Log Rejected", abbr: "_REJ", status: "Outgoing" }
+          ]
+        }
+      };
+      const actionsResult = PicklistResolver.resolve(
+        { supportDataKey: "Actions", valueColumnKey: "action", displayColumnKey: "action" },
+        actionsContext
+      );
+      assert.equal(actionsResult.success, true);
+      assert.equal(actionsResult.options.length, 2);
+      assert.equal(actionsResult.options[0].value, "Log Approved");
+
+      // Vendors from logSettings.ffeTags.vendors
+      const vendorsContext = {
+        logSettings: {
+          ffeTags: {
+            tags: ["TAG-01"],
+            vendors: ["Log Vendor A", "Log Vendor B"],
+            tagMap: {}
+          }
+        }
+      };
+      const vendorsResult = PicklistResolver.resolve(
+        { supportDataKey: "Vendors", valueColumnKey: "code", displayColumnKey: "name" },
+        vendorsContext
+      );
+      assert.equal(vendorsResult.success, true);
+      assert.equal(vendorsResult.options.length, 2);
+      assert.equal(vendorsResult.options[0].value, "Log Vendor A");
+
+      // SpecTags from logSettings.ffeTags.tags
+      const tagsResult = PicklistResolver.resolve(
+        { supportDataKey: "SpecTags", valueColumnKey: "tag", displayColumnKey: "tag" },
+        vendorsContext
+      );
+      assert.equal(tagsResult.success, true);
+      assert.equal(tagsResult.options.length, 1);
+      assert.equal(tagsResult.options[0].value, "TAG-01");
+    });
+
+    it("Tier 3: falls back to static JSON seed defaults strictly for offline execution or when live resolution yields zero items", () => {
+      const picklistSource = {
+        supportDataKey: "Vendors",
+        valueColumnKey: "code",
+        displayColumnKey: "name"
+      };
+
+      const context = {
+        spreadsheet: null,
+        logSettings: undefined,
+        supportData: {
+          Vendors: {
+            key: "Vendors",
+            columns: [
+              { key: "code", type: "string" as const, isPrimaryKey: true },
+              { key: "name", type: "string" as const, isDisplayLabel: true }
+            ],
+            items: [
+              { code: "FALLBACK_VEND", name: "Offline Fallback Vendor" }
+            ]
+          }
+        }
+      };
+
+      const result = PicklistResolver.resolve(picklistSource, context);
+
+      assert.equal(result.success, true);
+      assert.equal(result.isFallback, false);
+      assert.equal(result.options.length, 1);
+      assert.equal(result.options[0].value, "FALLBACK_VEND");
+    });
+
+    it("resolves dedicated single-column Named Ranges per ADR-0047 and sheet-qualified ranges", () => {
+      const ss = harness.sheetsService.openById("test-ss-adr0047");
+      const supportSheet = ss.insertSheet("Submittal FFE Support");
+      supportSheet.setGrid([
+        ["Vendors Keys", "Vendor Labels"],
+        ["VEND-ADR-1", "ADR Vendor 1"],
+        ["VEND-ADR-2", "ADR Vendor 2"]
+      ]);
+      ss.setNamedRange("Vendors_Keys", "Submittal FFE Support", "A2:A3");
+
+      const result = PicklistResolver.resolvePicklistOptionsRange(
+        "Vendors_Keys",
+        ss,
+        "Submittal_FFE",
+        "Submittal FFE"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.options.length, 2);
+      assert.equal(result.options[0].value, "VEND-ADR-1");
+      assert.equal(result.options[1].value, "VEND-ADR-2");
+    });
+
+    it("resolves direct <TabName>!<ColRange> notations against live spreadsheet", () => {
+      const ss = harness.sheetsService.openById("test-ss-colnotation");
+      const sharedSheet = ss.insertSheet("_Shared");
+      sharedSheet.setGrid([
+        ["Code", "Label", "Col3", "Col4", "Col5", "Action Label"],
+        ["A", "B", "C", "D", "E", "Direct Action 1"],
+        ["A", "B", "C", "D", "E", "Direct Action 2"]
+      ]);
+
+      const result = PicklistResolver.resolvePicklistOptionsRange(
+        "_Shared!F2:F3",
+        ss,
+        "Submittal_Arch",
+        "Submittal Arch"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.options.length, 2);
+      assert.equal(result.options[0].value, "Direct Action 1");
+      assert.equal(result.options[1].value, "Direct Action 2");
+    });
+
+    it("dynamically appends unlisted draft value without dropping, reverting, or crashing", () => {
+      const ss = harness.sheetsService.openById("test-ss-draft-unlisted");
+      const sharedSheet = ss.insertSheet("_Shared");
+      sharedSheet.setGrid([
+        ["Code", "Name"],
+        ["ARCH", "Architect"]
+      ]);
+      ss.setNamedRange("Shared_Contacts_Arch_Keys", "_Shared", "A2:A2");
+
+      const picklistSource = {
+        supportDataKey: "Contacts_Arch",
+        valueColumnKey: "code",
+        displayColumnKey: "name"
+      };
+
+      const context = {
+        spreadsheet: ss,
+        docTypeKey: "Submittal_Arch",
+        activeSheetName: "Submittal Arch"
+      };
+
+      // Unlisted draft contact "NEW_CONSULTANT" not in spreadsheet
+      const result = PicklistResolver.resolve(picklistSource, context, "NEW_CONSULTANT");
+
+      assert.equal(result.success, true);
+      assert.equal(result.options.length, 2);
+      assert.deepEqual(result.options[0], { value: "ARCH", label: "ARCH" });
+      assert.deepEqual(result.options[1], { value: "NEW_CONSULTANT", label: "NEW_CONSULTANT" });
+    });
+
+    it("resolvePicklistOptionsRange also appends unlisted draftValue when supplied", () => {
+      const ss = harness.sheetsService.openById("test-ss-optionsrange-draft");
+      const supportSheet = ss.insertSheet("Submittal FFE Support");
+      supportSheet.setGrid([
+        ["Vendor"],
+        ["Known Vendor"]
+      ]);
+      ss.setNamedRange("Vendors_Keys", "Submittal FFE Support", "A2:A2");
+
+      const result = PicklistResolver.resolvePicklistOptionsRange(
+        "Vendors_Keys",
+        ss,
+        "Submittal_FFE",
+        "Submittal FFE",
+        undefined,
+        undefined,
+        "Unlisted Draft Vendor"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.options.length, 2);
+      assert.deepEqual(result.options[0], { value: "Known Vendor", label: "Known Vendor" });
+      assert.deepEqual(result.options[1], { value: "Unlisted Draft Vendor", label: "Unlisted Draft Vendor" });
+    });
+
+    it("exposes PicklistResolver.resolveOptions alias matching resolve", () => {
+      assert.equal(typeof (PicklistResolver as any).resolveOptions, "function");
+      const result = (PicklistResolver as any).resolveOptions(
+        undefined,
+        {
+          fieldSpec: {
+            key: "test",
+            options: [{ value: "OPT1", label: "Option 1" }]
+          }
+        },
+        "OPT_DRAFT"
+      );
+      assert.equal(result.options.length, 2);
+      assert.equal(result.options[0].value, "OPT1");
+      assert.equal(result.options[1].value, "OPT_DRAFT");
+    });
+  });
+
