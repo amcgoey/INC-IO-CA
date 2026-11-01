@@ -190,6 +190,7 @@ describe('dual-topology tab resolution in getLogSettings', () => {
       expect(ffeSettings.ffeTags.vendors).toContain('Kohler');
       expect(ffeSettings.ffeTags.tagMap['PL101']).toBe('Plumbing Fixture');
     });
+  });
 
   it('automatically expands sheet capacity and inserts first submittal at Row 6 on a 5-row MVT tab', () => {
     const ssId = 'ss-test-log-repo-mvt-5row';
