@@ -247,3 +247,35 @@ test("checkAiModelHealth reports missing key or status when executed", () => {
   assert.strictEqual(typeof health.analysis.ok, "boolean");
 });
 
+test("Ticket 307: Fuzzy project name matching strips email prefixes, punctuation, and project numbers", async () => {
+  setupPropertiesService("valid-api-key-12345");
+
+  (globalThis as any).UrlFetchApp = {
+    fetch: () => createHttpResponse(200, JSON.stringify({
+      candidates: [{
+        content: {
+          parts: [{
+            text: JSON.stringify({
+              predictedProjectName: "[EXTERNAL] RE: 2024-001 - Project Alpha",
+              predictedDiscipline: "Architecture"
+            })
+          }]
+        }
+      }]
+    }))
+  };
+
+  const driveProvider = new FakeDriveNameProvider(["Project Alpha", "Project Beta"]);
+  const adapter = new GeminiAiAnalysisAdapter({
+    driveNameProvider: driveProvider,
+    cacheAdapter: new InMemoryCacheAdapter(),
+    pdfDocumentService: new FakePdfDocumentService()
+  });
+
+  const result = await adapter.triageEmail(sampleEmailData, "msg-fuzzy-1");
+  assert.strictEqual(result.success, true);
+  if (result.success) {
+    assert.strictEqual(result.prediction.predictedProjectName, "Project Alpha");
+  }
+});
+

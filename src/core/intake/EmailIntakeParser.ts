@@ -16,7 +16,11 @@ function padSubmittalNumberEmail_(numStr?: string, targetLen: number = 3): strin
 function normalizeSpecSectionEmail_(secStr?: string): string {
   if (!secStr) return "";
   const codePart = secStr.trim().split(/\s+-\s+|\s+-(?=[A-Za-z])/)[0];
-  return codePart.replace(/[\s.-]+/g, "").toUpperCase();
+  return codePart
+    .replace(/^(\d{2})\.(\d{2})\.(\d{2})/, "$1$2$3")
+    .replace(/[\s-]+/g, "")
+    .replace(/\.+$/, "")
+    .toUpperCase();
 }
 
 function splitNumberAndRevisionEmail_(numRevStr: string): { submittalNum: string; revNum: string } {
@@ -120,7 +124,7 @@ class SubmittalEmailParser {
     const projectMatch = subject.match(/\[([^\]]+)\]/);
     if (projectMatch) result.driveName = projectMatch[1].trim();
 
-    const subMatch = subject.match(/(?:Submittal|Subm)\s*#?\s*(\d{6}|\d{2}[\s.-]?\d{2}[\s.-]?\d{2}|[\w.]+)-([\w.]+)(?:[,\-_|:]\s*|\s+)?(.*)?/i);
+    const subMatch = subject.match(/(?:Submittal|Subm)\s*#?\s*(\d{6}(?:\.\d+)?|\d{2}[\s.-]?\d{2}[\s.-]?\d{2}(?:\.\d+)?|[\w.]+)-([\w.]+(?:-[\w.]+)*)(?:[,\-_|:]\s*|\s+)?(.*)?/i);
     if (subMatch) {
       result.specSection = normalizeSpecSectionEmail_(subMatch[1]);
       result.section = result.specSection;
@@ -155,6 +159,55 @@ class AsiEmailParser {
     return parseNumberedPrefixEmail_("ASI", subject, body);
   }
 }
+
+class FfeEmailParser {
+  static parse(subject: string = "", body: string = "", sender: string = ""): ParsedData {
+    const result: ParsedData = {
+      discipline: "FF&E",
+      documentType: "SUBMITTAL_FFE",
+      action: "Received"
+    };
+
+    const projectMatch = subject.match(/\[([^\]]+)\]/);
+    if (projectMatch) result.driveName = projectMatch[1].trim();
+
+    const searchableContent = (subject + "\n" + (body || "")).replace(/=\r?\n/g, "");
+
+    const tagMatch = searchableContent.match(/(?:Spec\s*Tag|Tag|Item|Mark)\s*#?:?\s*([A-Za-z]{1,4}[-_\s]?\d{1,4}[A-Za-z]?)/i) ||
+                     subject.match(/\b([A-Za-z]{1,4}[-_]\d{1,4}[A-Za-z]?)(?:[-_](\d+))?\b/i);
+    if (tagMatch) {
+      result.specTag = tagMatch[1].replace(/\s+/g, "-").toUpperCase();
+      if (tagMatch[2]) {
+        result.revision = tagMatch[2];
+        result.revNum = tagMatch[2];
+      }
+    }
+
+    const vendorMatch = searchableContent.match(/(?:Vendor|Manufacturer|Supplier|From)\s*:\s*([A-Za-z0-9&.,\s'-]+?)(?:\r?\n|$)/i);
+    if (vendorMatch) {
+      result.vendor = vendorMatch[1].trim();
+    }
+
+    if (!result.revision) {
+      const revMatch = searchableContent.match(/(?:Revision|Rev)\s*#?:?\s*([A-Za-z0-9]+)/i);
+      if (revMatch) {
+        result.revision = revMatch[1].trim();
+        result.revNum = result.revision;
+      }
+    }
+
+    const titleMatch = subject.match(/[-:]\s*(.+)$/);
+    if (titleMatch) {
+      const cleaned = cleanEmailTitle_(titleMatch[1]);
+      if (cleaned) {
+        result.title = cleaned;
+        result.specTitle = cleaned;
+      }
+    }
+
+    return result;
+  }
+}
 class GenericEmailParser {
   static parse(subject: string = "", body: string = "", sender: string = ""): ParsedData {
     const result: ParsedData = {
@@ -166,8 +219,8 @@ class GenericEmailParser {
 
     const searchableEmailContent = (subject + "\n" + (body || "")).replace(/=\r?\n/g, "");
 
-    const submittalSectionMatch = searchableEmailContent.match(/(?:Submittal\s*#?|Subm\s*#?|Spec\s*#?|Section\s*#?|Transmittal\s*(?:for)?\s*)\s*(\d{6}|\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]*#?\s*([\w.]+(?:-[\w.]+)*)/i) ||
-                                searchableEmailContent.match(/(\d{6}|\d{2}[\s.-]?\d{2}[\s.-]?\d{2})[\s._-]+(\d{1,4})(?:[.-](\d{1,3}))?/);
+    const submittalSectionMatch = searchableEmailContent.match(/(?:Submittal\s*#?|Subm\s*#?|Spec\s*#?|Section\s*#?|Transmittal\s*(?:for)?\s*)\s*(\d{6}(?:\.\d+)?|\d{2}[\s.-]?\d{2}[\s.-]?\d{2}(?:\.\d+)?)[\s._-]*#?\s*([\w.]+(?:-[\w.]+)*)/i) ||
+                                searchableEmailContent.match(/(\d{6}(?:\.\d+)?|\d{2}[\s.-]?\d{2}[\s.-]?\d{2}(?:\.\d+)?)[\s._-]+(\d{1,4})(?:[.-](\d{1,3}))?/);
 
     if (submittalSectionMatch) {
       result.specSection = normalizeSpecSectionEmail_(submittalSectionMatch[1]);
@@ -233,7 +286,7 @@ class EmailIntakeParser {
       const { submittalNum, revNum } = splitNumberAndRevisionEmail_(distMatch[2]);
       result.submittalNum = submittalNum;
       result.number = submittalNum;
-      result.revNum = distMatch[2].includes(".") ? revNum : distMatch[2].trim();
+      result.revNum = revNum;
       result.revision = result.revNum;
       if (distMatch[3]) {
         const title = cleanEmailTitle_(distMatch[3]);
@@ -249,7 +302,7 @@ class EmailIntakeParser {
       const { submittalNum, revNum } = splitNumberAndRevisionEmail_(updatedMatch[2]);
       result.submittalNum = submittalNum;
       result.number = submittalNum;
-      result.revNum = updatedMatch[2].includes(".") ? revNum : updatedMatch[2].trim();
+      result.revNum = revNum;
       result.revision = result.revNum;
       if (updatedMatch[3]) {
         const title = cleanEmailTitle_(updatedMatch[3]);
@@ -265,7 +318,7 @@ class EmailIntakeParser {
       const { submittalNum, revNum } = splitNumberAndRevisionEmail_(submittalMatch[2]);
       result.submittalNum = submittalNum;
       result.number = submittalNum;
-      result.revNum = submittalMatch[2].includes(".") ? revNum : submittalMatch[2].trim();
+      result.revNum = revNum;
       result.revision = result.revNum;
     }
 
@@ -362,6 +415,9 @@ class EmailIntakeParser {
     if (normalizedDocType === "ASI") {
       return AsiEmailParser.parse(subject, body, sender);
     }
+    if (normalizedDocType === "FF&E" || normalizedDocType === "FFE" || normalizedDocType === "SUBMITTAL_FFE") {
+      return FfeEmailParser.parse(subject, body, sender);
+    }
 
     const combinedHeaders = (sender + " " + subject).toLowerCase();
     if (combinedHeaders.includes("forma") || combinedHeaders.includes("autodesk") ||
@@ -376,8 +432,13 @@ class EmailIntakeParser {
 
     let parsed = GenericEmailParser.parse(subject, body, sender);
     if (!parsed.specSection && !parsed.number && !parsed.submittalNum) {
-      const fallback = SubmittalEmailParser.parse(subject, body, sender);
-      parsed = { ...parsed, ...fallback };
+      const ffeParsed = FfeEmailParser.parse(subject, body, sender);
+      if (ffeParsed.specTag || ffeParsed.vendor) {
+        parsed = { ...parsed, ...ffeParsed };
+      } else {
+        const fallback = SubmittalEmailParser.parse(subject, body, sender);
+        parsed = { ...parsed, ...fallback };
+      }
     }
 
     return parsed;
@@ -440,6 +501,36 @@ class EmailIntakeParser {
       merged.revision = String(aiRev).trim();
     }
 
+    const regexTag = regexResult.specTag;
+    const aiTag = (aiObj as any).specTag || (aiObj as any).tag;
+    if (regexTag && regexTag.trim() !== "") {
+      merged.specTag = regexTag.trim();
+    } else if (aiTag && aiTag.trim() !== "") {
+      merged.specTag = aiTag.trim();
+    }
+
+    const regexVendor = regexResult.vendor;
+    const aiVendor = (aiObj as any).vendor;
+    if (regexVendor && regexVendor.trim() !== "") {
+      merged.vendor = regexVendor.trim();
+    } else if (aiVendor && aiVendor.trim() !== "") {
+      merged.vendor = aiVendor.trim();
+    }
+
+    const regexSpecTitle = regexResult.specTitle;
+    const aiSpecTitle = (aiObj as any).specTitle;
+    if (regexSpecTitle && regexSpecTitle.trim() !== "") {
+      merged.specTitle = regexSpecTitle.trim();
+    } else if (aiSpecTitle && aiSpecTitle.trim() !== "") {
+      merged.specTitle = aiSpecTitle.trim();
+    }
+
+    if (regexResult.documentType) {
+      (merged as any).documentType = regexResult.documentType;
+    } else if ((aiObj as any).documentType || (aiObj as any).predictedDocType) {
+      (merged as any).documentType = (aiObj as any).documentType || (aiObj as any).predictedDocType;
+    }
+
     return merged;
   }
 
@@ -491,6 +582,7 @@ export {
   SubmittalEmailParser,
   RfiEmailParser,
   AsiEmailParser,
+  FfeEmailParser,
   GenericEmailParser,
   EmailIntakeParser
 };

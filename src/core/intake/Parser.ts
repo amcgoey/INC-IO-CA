@@ -59,7 +59,7 @@ const LEGACY_DRIVE_FILENAME_PATTERNS: FilenamePattern[] = [
     extract: (match: RegExpMatchArray) => ({
       discipline: "Architecture",
       section: match[1],
-      number: match[2],
+      number: typeof padSubmittalNumberEmail_ !== "undefined" ? padSubmittalNumberEmail_(match[2]) : match[2],
       revision: match[3],
       title: match[4].trim(),
       date: match[5]

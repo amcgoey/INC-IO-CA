@@ -138,6 +138,12 @@ class FormIntakeParser {
       rawDoc.action = typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
     }
     rawDoc.documentType = rawDoc.documentType || "Submittal";
+    if (rawDoc.number && /^\d+$/.test(rawDoc.number)) {
+      rawDoc.number = padSubmittalNumber(rawDoc.number);
+    }
+    if (rawDoc.submittalNum && /^\d+$/.test(rawDoc.submittalNum)) {
+      rawDoc.submittalNum = padSubmittalNumber(rawDoc.submittalNum);
+    }
 
     if (context) {
       const listFields = ListDocumentField.createDefaultListFields(context);
@@ -168,7 +174,11 @@ function normalizeSpecSection(secStr?: string): string {
     return PicklistResolver.normalizePicklistValue(secStr, { key: "section", keyNormalizationRule: "code" });
   }
   const codePart = secStr.trim().split(/\s+-\s+|\s+-(?=[A-Za-z])/)[0];
-  return codePart.replace(/[\s.-]+/g, '').toUpperCase();
+  return codePart
+    .replace(/^(\d{2})\.(\d{2})\.(\d{2})/, '$1$2$3')
+    .replace(/[\s-]+/g, '')
+    .replace(/\.+$/, '')
+    .toUpperCase();
 }
 
 function splitNumberAndRevision(numRevStr: string): { submittalNum: string; revNum: string } {
@@ -216,8 +226,8 @@ const DRIVE_FILENAME_PATTERNS: DriveFilenamePattern[] = [
       discipline: "Architecture",
       section: match[1],
       specSection: match[1],
-      number: match[2],
-      submittalNum: match[2],
+      number: padSubmittalNumber(match[2]),
+      submittalNum: padSubmittalNumber(match[2]),
       revision: match[3],
       revNum: match[3],
       title: match[4].trim(),
@@ -360,7 +370,7 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
     const sectionVal = normalizeSpecSection(rawDoc.section);
     if (!sectionVal) warnings.push('Section');
 
-    const numberVal = getTrimmed(rawDoc.number);
+    const numberVal = padSubmittalNumber(getTrimmed(rawDoc.number));
     if (!numberVal) warnings.push('Number');
 
     const revisionVal = getTrimmed(rawDoc.revision);

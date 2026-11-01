@@ -673,7 +673,11 @@ export class PicklistResolver {
 
     if (rule === 'code') {
       const codePart = rawVal.split(/\s+-\s+|\s+-(?=[A-Za-z])/)[0];
-      return codePart.replace(/[\s.-]+/g, '').toUpperCase();
+      return codePart
+        .replace(/^(\d{2})\.(\d{2})\.(\d{2})/, '$1$2$3')
+        .replace(/[\s-]+/g, '')
+        .replace(/\.+$/, '')
+        .toUpperCase();
     }
 
     if (rule === 'exact') {

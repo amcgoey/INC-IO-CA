@@ -190,3 +190,49 @@ test("EmailIntakeParser.parseEmail - accepts pure EmailData parameter signature"
   assert.equal(result.submittalNum, "001");
   assert.equal(result.title, "Concrete Pour");
 });
+
+test("Ticket 307: Procore revisionless parsing - extracts 3-digit submittalNum and revision 0", () => {
+  const subject = "[Skyline Tower] Submittal Distributed 099100-17, Painting";
+  const body = "Notification from Procore";
+  const result = EmailIntakeParser.parseProcoreEmail_(subject, body);
+
+  assert.equal(result.specSection, "099100");
+  assert.equal(result.submittalNum, "017");
+  assert.equal(result.number, "017");
+  assert.equal(result.revNum, "0");
+  assert.equal(result.revision, "0");
+  assert.equal(result.title, "Painting");
+  assert.equal(result.discipline, "Architecture");
+});
+
+test("Ticket 307: Decimal CSI preservation - preserves decimal point across parsing", () => {
+  const subject = "[Skyline Tower] Submittal # 23 82 39.19-063-00 Fan Coil Units";
+  const body = "Details";
+  const result = SubmittalEmailParser.parse(subject, body);
+
+  assert.equal(result.specSection, "238239.19");
+  assert.equal(result.submittalNum, "063");
+  assert.equal(result.revNum, "00");
+  assert.equal(result.title, "Fan Coil Units");
+});
+
+test("Ticket 307: FF&E regex extraction - extracts SpecTag, vendor, and sets FF&E discipline", () => {
+  const subject = "[Skyline Tower] Submittal CH-01-01 Herman Miller Dining Chair";
+  const body = "Spec Tag: CH-01\nVendor: Herman Miller\nRevision: 01";
+  const result = EmailIntakeParser.dispatchParser("SUBMITTAL_FFE", subject, body);
+
+  assert.equal(result.discipline, "FF&E");
+  assert.equal(result.specTag, "CH-01");
+  assert.equal(result.vendor, "Herman Miller");
+  assert.equal(result.revision, "01");
+});
+
+test("Ticket 307: 3-Digit submittal number zero-padding - pads single and double digits", () => {
+  const subject1 = "[Skyline Tower] Submittal # 033000-1 Foundation";
+  const result1 = SubmittalEmailParser.parse(subject1, "");
+  assert.equal(result1.submittalNum, "001");
+
+  const subject2 = "[Skyline Tower] Submittal # 033000-17 Framing";
+  const result2 = SubmittalEmailParser.parse(subject2, "");
+  assert.equal(result2.submittalNum, "017");
+});
