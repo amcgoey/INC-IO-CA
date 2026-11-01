@@ -32,6 +32,7 @@ import { PrefixCacheManager } from "../src/core/admin/PrefixCacheManager";
 import { GoogleScriptCacheAdapter } from "../src/adapters/gas/GoogleScriptCacheAdapter";
 import {
   buildAddOn,
+  handleDynamicPromptSubmission,
   onResetLogSearchCache,
   onClearAiTriageCache,
   onFlushContactsActionsCache
@@ -146,6 +147,12 @@ test("Main.ts buildAddOn integration - error triage sets flashMessage warning an
 // =========================================================================
 // Ticket #309: Global Administrative Cache Eviction Entry Points
 // =========================================================================
+
+test("Ticket #311 - exports handleDynamicPromptSubmission on Main and globalThis", () => {
+  assert.strictEqual(typeof handleDynamicPromptSubmission, "function", "handleDynamicPromptSubmission should be exported from Main.ts");
+  const g = globalThis as any;
+  assert.strictEqual(typeof g.handleDynamicPromptSubmission, "function", "handleDynamicPromptSubmission should exist on globalThis");
+});
 
 test("Ticket #309 - exports onResetLogSearchCache, onClearAiTriageCache, and onFlushContactsActionsCache on Main and globalThis", () => {
   assert.strictEqual(typeof onResetLogSearchCache, "function", "onResetLogSearchCache should be exported from Main.ts");

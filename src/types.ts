@@ -655,6 +655,7 @@ declare const defaultDuplicateDocumentAction: DuplicateDocumentAction;
 
 
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
+declare function handleDynamicPromptSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 
 /** Policy detailing workflow actions (direction, stamping, subfolder rules). */
 declare const getDocumentLogStrategy: (doc: ValidatedDocument) => DocumentLogStrategy;

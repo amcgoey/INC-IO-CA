@@ -26,7 +26,12 @@ import { defaultAiAnalysisService, checkAiModelHealth } from "./AiAnalysisServic
 import { GasSpreadsheetLockAdapter } from "./adapters/gas/GasSpreadsheetLockAdapter";
 import { GasTimeoutBudget } from "./core/log/GasTimeoutBudget";
 import { CONFIG, MESSAGES } from "./Config";
-import { processSubmission as runProcessSubmission, moveSubmittalToClosed as runMoveSubmittalToClosed, ProcessDependencies } from "./Process";
+import {
+  processSubmission as runProcessSubmission,
+  handleDynamicPromptSubmission as runHandleDynamicPromptSubmission,
+  moveSubmittalToClosed as runMoveSubmittalToClosed,
+  ProcessDependencies
+} from "./Process";
 import { defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
 import { defaultDocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
 import {
@@ -420,6 +425,13 @@ async function processSubmission(
   return runProcessSubmission(e, deps);
 }
 
+async function handleDynamicPromptSubmission(
+  e: GoogleAppsScriptEvent,
+  deps: ProcessDependencies = defaultProcessDependencies
+): Promise<any> {
+  return runHandleDynamicPromptSubmission(e, deps);
+}
+
 function moveSubmittalToClosed(
   e: GoogleAppsScriptEvent,
   deps: ProcessDependencies = defaultProcessDependencies
@@ -448,6 +460,7 @@ g.migrateBatchLogSpreadsheets = migrateBatchLogSpreadsheets;
 g.onBatchMigrationContinuationTrigger = onBatchMigrationContinuationTrigger;
 g.repairCrossLogReferences = repairCrossLogReferences;
 g.processSubmission = processSubmission;
+g.handleDynamicPromptSubmission = handleDynamicPromptSubmission;
 g.moveSubmittalToClosed = moveSubmittalToClosed;
 g.handleRefreshCache = handleRefreshCache;
 g.handleDeepAnalysis = handleDeepAnalysis;
@@ -493,6 +506,7 @@ export {
   onBatchMigrationContinuationTrigger,
   repairCrossLogReferences,
   processSubmission,
+  handleDynamicPromptSubmission,
   moveSubmittalToClosed,
   handleRefreshCache,
   handleDeepAnalysis,
