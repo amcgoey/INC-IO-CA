@@ -20,12 +20,12 @@ import { defaultCardPresenter as presenter } from "../src/adapters/gas/CardPrese
 export function generateCardSnapshots() {
 
   // 1. Main Card (default state)
-  const mainEvent = EventFactory.createGmailContextEvent({ discipline: "Architecture" });
+  const mainEvent = EventFactory.createGmailContextEvent({ discipline: "Architecture", date: "260815" });
   const mainCardResponse = presenter.presentCardReload(mainEvent);
   const mainCardJson = CardSerializer.actionResponseToJSON(mainCardResponse);
 
   // 2. Validation Error Card
-  const validationEvent = EventFactory.createCardSubmitEvent({ discipline: "Architecture" });
+  const validationEvent = EventFactory.createCardSubmitEvent({ discipline: "Architecture", date: "260815" });
   const validationResponse = presenter.presentValidationError(validationEvent, ["Title is required", "Date is invalid"], ["title", "date"]);
   const validationCardJson = CardSerializer.actionResponseToJSON(validationResponse);
 
@@ -57,7 +57,7 @@ export function generateCardSnapshots() {
   const archSuccessCardJson = CardSerializer.actionResponseToJSON(archSuccessResponse);
 
   // 6. Outgoing Success Card (FF&E)
-  const ffeEvent = EventFactory.createCardSubmitEvent({ discipline: "FF&E" });
+  const ffeEvent = EventFactory.createCardSubmitEvent({ discipline: "FF&E", date: "260815" });
   const ffeResult = {
     fileId: "file-ffe-002",
     newFileName: "CH-01 Side Chair Submittal.pdf",
