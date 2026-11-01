@@ -108,4 +108,37 @@ describe('GoogleSheetsLogRepository - updateDocumentLink', () => {
       repo.updateDocumentLink('ss-id', { rowIndex: 1, url: '' });
     }).not.toThrow();
   });
+
+  it('automatically expands sheet capacity and inserts first submittal at Row 6 on a 5-row MVT tab', () => {
+    const ssId = 'ss-test-log-repo-mvt-5row';
+    const ss = (globalThis as any).SpreadsheetApp.openById(ssId);
+    const sheet = ss.insertSheet('Submittal Arch');
+
+    // MVT tab initially has exactly 5 rows (Rows 1-5)
+    sheet.getRange(1, 1, 5, 4).setValues([
+      ['Project Title', '', '', ''],
+      ['2026-11-01', '', '', ''],
+      ['Section', 'Number', 'Revision', 'Title'],
+      ['', '', '', '=MAP(A5:A, LAMBDA(s, s))'], // Row 4: FormulaRow
+      ['', '', '', '']                          // Row 5: BufferRow
+    ]);
+    expect(sheet.getMaxRows()).toBe(5);
+
+    const repo = new GoogleSheetsLogRepository();
+    const plan = { targetRowIndex: 5, insertBlankBefore: false, insertBlankAfter: false, finalRowIndex: 6 };
+    const res = repo.insertLogRow(ssId, ['Section', 'Number', 'Revision', 'Title'], ['033000', '001', '0', 'Concrete Mix'], plan, 'Submittal Arch');
+
+    expect(res.rowIndex).toBe(6);
+    expect(sheet.getMaxRows()).toBeGreaterThanOrEqual(6);
+    const grid = sheet.getDataRange().getValues();
+    // Row 4 FormulaRow intact
+    expect(grid[3][3]).toBe('=MAP(A5:A, LAMBDA(s, s))');
+    // Row 5 BufferRow intact (empty)
+    expect(grid[4].every((c: any) => c === '')).toBe(true);
+    // Row 6 contains the new submittal
+    expect(grid[5][0]).toBe('033000');
+    expect(grid[5][1]).toBe('001');
+    expect(grid[5][2]).toBe('0');
+    expect(grid[5][3]).toBe('Concrete Mix');
+  });
 });

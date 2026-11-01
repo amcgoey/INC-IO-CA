@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file GoogleSheetsDocumentTypeSpecAdapter.ts
  * @description Tier 2 GAS Infrastructure Adapter for DocumentTypeSpec.
  * Compiles DocumentTypeSpec[] into DocumentLogWorkbookSpec models and
@@ -35,7 +35,9 @@ import type {
 } from './SpreadsheetBatchReaderAdapter';
 
 /** Log Tab default layout constants */
-const DATA_ROW_START_INDEX = 4;
+export const FORMULA_RANGE_START_INDEX = 5;
+export const MVT_DATA_ROW_START_INDEX = 6;
+export const LEGACY_DATA_ROW_START_INDEX = 4;
 const DEFAULT_LOG_TAB_ROW_COUNT = 25;
 const DEFAULT_LOG_TAB_MIN_COLUMN_COUNT = 26;
 
@@ -216,6 +218,51 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
 
     // 3. Validate candidate specs through ValidationEngine
     return candidateSpecs.map((spec) => ValidationEngine.validateSpec(spec));
+  }
+
+  /**
+   * Determines the 1-based data row start index for a given sheet or grid rows:
+   * Returns 6 for MVT 5-row header stack tabs (Row 4 FormulaRow / Row 5 BufferRow).
+   * Returns 4 for legacy 3-row header stack tabs.
+   */
+  public static getDataRowStartIndex(sheetOrRows?: SheetPayload | GridRow[]): number {
+    if (!sheetOrRows) return MVT_DATA_ROW_START_INDEX;
+    const rows = Array.isArray(sheetOrRows) && (sheetOrRows.length === 0 || Array.isArray(sheetOrRows[0]))
+      ? (sheetOrRows as GridRow[])
+      : this.extractGridRows(sheetOrRows as SheetPayload);
+
+    // If row 4 (0-based index 3) exists and contains =MAP( or is a formula row, it's MVT
+    const isMvt = rows.length > 3 && (
+      rows[3].some(cell => String(cell || "").includes("=MAP(")) ||
+      String(rows[3][0] || "").toLowerCase().includes("formula row")
+    );
+    return isMvt ? MVT_DATA_ROW_START_INDEX : LEGACY_DATA_ROW_START_INDEX;
+  }
+
+  /**
+   * Extracts data rows from a log tab, aligning with the 5-row header stack:
+   * Inspects starting at Row 6 (0-based index 5) on MVT tabs,
+   * or Row 4 (0-based index 3) on legacy tabs.
+   */
+  public static extractLogDataRows(sheetOrRows?: SheetPayload | GridRow[]): GridRow[] {
+    if (!sheetOrRows) return [];
+    const rows = Array.isArray(sheetOrRows) && (sheetOrRows.length === 0 || Array.isArray(sheetOrRows[0]))
+      ? (sheetOrRows as GridRow[])
+      : this.extractGridRows(sheetOrRows as SheetPayload);
+
+    const startRow1Based = this.getDataRowStartIndex(rows);
+    const startIdx = startRow1Based - 1; // 5 for MVT (Row 6), 3 for legacy (Row 4)
+
+    const dataRows: GridRow[] = [];
+    for (let r = startIdx; r < rows.length; r++) {
+      const row = rows[r];
+      if (!row) continue;
+      // Skip empty buffer rows
+      const isBlank = row.every(c => c === undefined || c === null || String(c).trim() === "");
+      if (isBlank) continue;
+      dataRows.push(row);
+    }
+    return dataRows;
   }
 
   /**
@@ -788,11 +835,11 @@ export class GoogleSheetsDocumentTypeSpecAdapter {
     for (const spec of specs) {
       const logTabName = spec.label || spec.name;
 
-      // Build column coordinates map for all fields (Row 4 data start)
+      // Build column coordinates map for all fields (Row 5 BufferRow anchor for MVT 5-row stack)
       const columnMap: Record<string, string> = {};
       spec.fields.forEach((field, idx) => {
         const colLetter = getColumnLetter(idx);
-        columnMap[field.key] = `${colLetter}${DATA_ROW_START_INDEX}:${colLetter}`;
+        columnMap[field.key] = `${colLetter}${FORMULA_RANGE_START_INDEX}:${colLetter}`;
       });
 
       // Build ColumnSpec array

@@ -171,3 +171,43 @@ test("Submittal Arch - GasMockHarness loads WorkbookSpec and verifies calculated
     GasMockHarness.uninstall();
   }
 });
+
+test("Submittal Arch - Row 4 =MAP array formulas anchored at Row 5 preserve anchor and spill into Row 6 without shifting to Row 7 upon insertion", () => {
+  const harness = GasMockHarness.install();
+  try {
+    const ss = harness.sheetsService.create("Test Spill Preservation");
+    const sheet = ss.insertSheet("Submittal Arch");
+
+    // Initialize 5-row MVT header stack with Row 4 =MAP formula anchored at B5:B
+    sheet.getRange(1, 1, 5, 5).setValues([
+      ["Title", "", "", "", ""],                                                          // Row 1
+      ["Subtitle", "", "", "", ""],                                                       // Row 2
+      ["Status", "Section", "Number", "Revision", "Calc Number"],                          // Row 3: Headers
+      ["", "", "", "", '=MAP(B5:B, LAMBDA(sec, IF(OR(ISBLANK(sec), sec=""), "", sec)))'], // Row 4: FormulaRow
+      ["", "", "", "", ""]                                                                // Row 5: BufferRow
+    ]);
+
+    // Simulate Row 6 insertion via insertRowAfter(5)
+    sheet.insertRowAfter(5);
+    sheet.getRange(6, 1, 1, 4).setValues([["Open", "033000", 1, "0"]]);
+
+    // Verify Row 4 formula is preserved and still anchored at B5:B (not shifted to B7:B)
+    const row4Formula = sheet.getRange(4, 5).getValue();
+    assert.strictEqual(
+      row4Formula,
+      '=MAP(B5:B, LAMBDA(sec, IF(OR(ISBLANK(sec), sec=""), "", sec)))',
+      "Row 4 formula reference must remain anchored at B5:B"
+    );
+
+    // Verify Row 5 BufferRow is blank
+    const row5Values = sheet.getRange(5, 1, 1, 5).getValues()[0];
+    assert.strictEqual(row5Values.every((c: any) => c === ""), true, "Row 5 BufferRow must remain empty");
+
+    // Verify Row 6 has the inserted data
+    const row6Values = sheet.getRange(6, 1, 1, 4).getValues()[0];
+    assert.strictEqual(row6Values[1], "033000", "Row 6 must contain inserted section");
+  } finally {
+    GasMockHarness.uninstall();
+  }
+});
+

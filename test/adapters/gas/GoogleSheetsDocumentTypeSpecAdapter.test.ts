@@ -77,7 +77,7 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
       const calcFileNameCol = logTab?.columns?.find((c) => c.id === 'calcFileName');
       expect(calcFileNameCol).toBeDefined();
       expect(calcFileNameCol?.formula).toBe(
-        '=MAP(B4:B, C4:C, D4:D, LAMBDA(section, number, revision, TEXTJOIN("-", TRUE, IF(ISBLANK(section), "", section), IF(ISBLANK(number), "", number), IF(ISBLANK(revision), "", revision))))'
+        '=MAP(B5:B, C5:C, D5:D, LAMBDA(section, number, revision, IF(OR(ISBLANK(section), section=""), "", TEXTJOIN("-", TRUE, IF(ISBLANK(section), "", section), IF(ISBLANK(number), "", number), IF(ISBLANK(revision), "", revision)))))'
       );
 
       const calcCustomCol = logTab?.columns?.find((c) => c.id === 'calcCustom');
@@ -112,7 +112,7 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
       const calcCol = logTab?.columns?.find((c) => c.id === 'calcCol');
 
       expect(calcCol?.formula).toBe(
-        '=MAP(B4:B, E4:E, LAMBDA(colB, colE, TEXTJOIN("-", TRUE, IF(ISBLANK(colB), "", colB), IF(ISBLANK(colE), "", colE))))'
+        '=MAP(B5:B, E5:E, LAMBDA(colB, colE, IF(OR(ISBLANK(colB), colB=""), "", TEXTJOIN("-", TRUE, IF(ISBLANK(colB), "", colB), IF(ISBLANK(colE), "", colE)))))'
       );
     });
 
@@ -920,6 +920,40 @@ describe('GoogleSheetsDocumentTypeSpecAdapter', () => {
       if (results[0].status === 'invalid') {
         expect(results[0].errors.length).toBeGreaterThan(0);
       }
+    });
+
+    it('should align reverse decompilation with 5-row header stack starting data row inspection at Row 6', () => {
+      // MVT Tab with 5-row header stack
+      const mvtSheetData: any[][] = [
+        ['Project Title Banner'],
+        ['2026-11-01 Subtitle'],
+        ['Section', 'Number', 'Revision', 'Title'],
+        ['', '', '', '=MAP(A5:A, LAMBDA(s, s))'], // Row 4: FormulaRow
+        ['', '', '', ''],                          // Row 5: BufferRow
+        ['033000', '001', '0', 'Concrete Mix'],    // Row 6: First Data Row
+        ['042000', '002', '1', 'Unit Masonry'],    // Row 7: Second Data Row
+      ];
+
+      expect(GoogleSheetsDocumentTypeSpecAdapter.getDataRowStartIndex(mvtSheetData)).toBe(6);
+      const mvtDataRows = GoogleSheetsDocumentTypeSpecAdapter.extractLogDataRows(mvtSheetData);
+      expect(mvtDataRows.length).toBe(2);
+      expect(mvtDataRows[0]).toEqual(['033000', '001', '0', 'Concrete Mix']);
+      expect(mvtDataRows[1]).toEqual(['042000', '002', '1', 'Unit Masonry']);
+
+      // Legacy standalone Log Tab (3-row header stack)
+      const legacySheetData: any[][] = [
+        ['Project Title Banner'],
+        ['2026-11-01 Subtitle'],
+        ['Section', 'Number', 'Revision', 'Title'],
+        ['033000', '001', '0', 'Concrete Mix'],    // Row 4: First Data Row
+        ['042000', '002', '1', 'Unit Masonry'],    // Row 5: Second Data Row
+      ];
+
+      expect(GoogleSheetsDocumentTypeSpecAdapter.getDataRowStartIndex(legacySheetData)).toBe(4);
+      const legacyDataRows = GoogleSheetsDocumentTypeSpecAdapter.extractLogDataRows(legacySheetData);
+      expect(legacyDataRows.length).toBe(2);
+      expect(legacyDataRows[0]).toEqual(['033000', '001', '0', 'Concrete Mix']);
+      expect(legacyDataRows[1]).toEqual(['042000', '002', '1', 'Unit Masonry']);
     });
   });
 });

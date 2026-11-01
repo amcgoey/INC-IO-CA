@@ -91,7 +91,7 @@ export class TemplateFormatCompiler {
     if (!primaryDelimiter && tokens.length === 1 && formatStr.trim() === `\${${tokens[0]}}`) {
       const token = tokens[0];
       const range = columnMap && columnMap[token] ? columnMap[token] : token;
-      return `=MAP(${range}, LAMBDA(${token}, IF(ISBLANK(${token}), "", ${token})))`;
+      return `=MAP(${range}, LAMBDA(${token}, IF(OR(ISBLANK(${token}), ${token}=""), "", ${token})))`;
     }
 
     // Default to '-' if none found but tokens exist
@@ -149,7 +149,9 @@ export class TemplateFormatCompiler {
 
     const ranges = tokens.map((t) => (columnMap && columnMap[t] ? columnMap[t] : t));
     const lambdaArgs = tokens.join(', ');
+    const primaryToken = tokens[0];
+    const guardedBody = `IF(OR(ISBLANK(${primaryToken}), ${primaryToken}=""), "", ${lambdaBody})`;
 
-    return `=MAP(${ranges.join(', ')}, LAMBDA(${lambdaArgs}, ${lambdaBody}))`;
+    return `=MAP(${ranges.join(', ')}, LAMBDA(${lambdaArgs}, ${guardedBody}))`;
   }
 }

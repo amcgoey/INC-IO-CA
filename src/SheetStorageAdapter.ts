@@ -128,6 +128,23 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
     rowData: any[],
     plan: RowInsertionPlan
   ): { rowIndex: number; failedColumns: string[] } {
+    const sheet = this.getSheet(sheetName);
+    if (typeof (sheet as any).getMaxRows === "function") {
+      const currentMax = (sheet as any).getMaxRows();
+      if (currentMax < 6 || currentMax <= plan.targetRowIndex) {
+        const rowsNeeded = Math.max(25 - currentMax, (plan.targetRowIndex + 1) - currentMax);
+        if (rowsNeeded > 0) {
+          if (typeof (sheet as any).insertRowsAfter === "function") {
+            (sheet as any).insertRowsAfter(currentMax, rowsNeeded);
+          } else if (typeof sheet.insertRowAfter === "function") {
+            for (let i = 0; i < rowsNeeded; i++) {
+              sheet.insertRowAfter(currentMax + i);
+            }
+          }
+        }
+      }
+    }
+
     this.insertRowAfter(sheetName, plan.targetRowIndex);
     
     if (plan.insertBlankBefore) {

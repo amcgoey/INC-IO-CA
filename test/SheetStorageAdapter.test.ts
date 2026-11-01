@@ -161,3 +161,37 @@ test('GoogleSheetsStorageAdapter insertLogRow executes physical sheet operations
     'setValues:6,1'
   ]);
 });
+
+test('GoogleSheetsStorageAdapter insertLogRow automatically expands sheet row capacity when MVT tab has fewer than 6 rows', () => {
+  const calls: string[] = [];
+  let maxRows = 5; // Sheet only has 5 rows (Rows 1-5 MVT header stack)
+  const fakeSheet = {
+    getMaxRows: () => maxRows,
+    insertRowsAfter: (afterIdx: number, count: number) => {
+      calls.push(`insertRowsAfter:${afterIdx},${count}`);
+      maxRows += count;
+    },
+    insertRowAfter: (idx: number) => calls.push('insertRowAfter:' + idx),
+    insertRowBefore: (idx: number) => calls.push('insertRowBefore:' + idx),
+    getRange: (row: number, col: number) => ({
+      setValues: () => calls.push('setValues:' + row + ',' + col),
+      setValue: () => calls.push('setValue:' + row + ',' + col)
+    })
+  };
+  (globalThis as any).SpreadsheetApp = {
+    openById: () => ({
+      getSheetByName: () => fakeSheet
+    })
+  };
+
+  const adapter = new GoogleSheetsStorageAdapter('test-ss-id');
+  const plan = { targetRowIndex: 5, insertBlankBefore: false, insertBlankAfter: false, finalRowIndex: 6 };
+  const res = adapter.insertLogRow('Submittal Arch', ['Sec', 'Num'], ['033000', '001'], plan);
+
+  assert.strictEqual(res.rowIndex, 6);
+  // Capacity expansion must occur BEFORE insertRowAfter:5
+  assert.strictEqual(calls[0], 'insertRowsAfter:5,20');
+  assert.strictEqual(calls[1], 'insertRowAfter:5');
+  assert.strictEqual(calls[2], 'setValues:6,1');
+});
+

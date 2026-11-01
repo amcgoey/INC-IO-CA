@@ -238,3 +238,38 @@ test("computeRowInsertionPlan performs case-insensitive group matching while pre
   // Cell text preserved as "Ch-01"
   assert.strictEqual(boundedData[3][0], "Ch-01");
 });
+
+test("computeRowInsertionPlan on empty MVT 5-row header stack inserts first submittal at Row 6 leaving Rows 4 and 5 intact", () => {
+  const headers = ["Section", "Number", "Revision", "Date", "Title", "Contact", "Action", "Notes", "Link", "Calc File Name"];
+  const mvtEmptyData = [
+    ["Project Title Banner"],                                                 // Row 1: TitleRow
+    ["2026-11-01 Subtitle"],                                                 // Row 2: DateRow
+    headers,                                                                 // Row 3: HeaderRow
+    ["", "", "", "", "", "", "", "", "", "=MAP(B5:B, LAMBDA(s, s))"],         // Row 4: FormulaRow
+    ["", "", "", "", "", "", "", "", "", ""]                                 // Row 5: BufferRow
+  ];
+  const newRow = ["033000", "001", "0", "261101", "Concrete Mix", "arch@example.com", "Received", "", "", ""];
+
+  const plan = computeRowInsertionPlan(mvtEmptyData, headers, newRow, "Architecture");
+  assert.strictEqual(plan.targetRowIndex, 5, "Target row index must be 5 so row is inserted after Row 5");
+  assert.strictEqual(plan.finalRowIndex, 6, "Final row index must be 6 so first submittal lands at Row 6");
+  assert.strictEqual(plan.insertBlankBefore, false, "Should not insert blank before on empty log");
+  assert.strictEqual(plan.insertBlankAfter, false, "Should not insert blank after on empty log");
+});
+
+test("computeRowInsertionPlan on legacy 3-row header stack continues to insert first submittal at Row 4", () => {
+  const headers = ["Section", "Number", "Revision", "Date", "Title"];
+  const legacyEmptyData = [
+    ["Banner"],
+    ["Subtitle"],
+    headers
+  ];
+  const newRow = ["033000", "001", "0", "261101", "Concrete Mix"];
+
+  const plan = computeRowInsertionPlan(legacyEmptyData, headers, newRow, "Architecture");
+  assert.strictEqual(plan.targetRowIndex, 3, "Target row index must be 3 for legacy sheet");
+  assert.strictEqual(plan.finalRowIndex, 4, "Final row index must be 4 for legacy sheet");
+  assert.strictEqual(plan.insertBlankBefore, false);
+  assert.strictEqual(plan.insertBlankAfter, false);
+});
+
