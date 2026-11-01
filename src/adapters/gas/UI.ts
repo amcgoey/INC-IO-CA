@@ -686,7 +686,17 @@ function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servi
     const primary = configs.sendAs.find((c: any) => c.isPrimary);
     if (primary && primary.signature) signature = "\n\n" + primary.signature;
   } catch (err) {}
-  const templateData = (p.action === "Referred") ? EMAIL_TEMPLATES.toRefer(p) : (p.action === "Rejected" ? EMAIL_TEMPLATES.rejectedOutgoing(p) : EMAIL_TEMPLATES.standardOutgoing(p));
+  const normAction = (p.action || '').toLowerCase().trim();
+  const normAbbr = (p.actionAbbr || '').toUpperCase().trim();
+  const isRejection =
+    normAction === 'rejected' ||
+    normAction === 'revise and resubmit' ||
+    normAction === 'revise & resubmit' ||
+    normAbbr === 'REJ' ||
+    normAbbr === 'R&R';
+  const templateData = (p.action === "Referred")
+    ? EMAIL_TEMPLATES.toRefer(p)
+    : (isRejection ? EMAIL_TEMPLATES.rejectedOutgoing(p) : EMAIL_TEMPLATES.standardOutgoing(p));
   const draft = GmailApp.createDraft("", templateData.subject, "", { htmlBody: templateData.body + signature });
   const draftUrl = 'https://mail.google.com/mail/u/0/#drafts?compose=' + draft.getMessage().getId();
   

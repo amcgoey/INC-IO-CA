@@ -45,7 +45,7 @@ export class PipelineBuilder {
     const builder = new PipelineBuilder(registry);
 
     const doc = input.validatedDoc;
-    const actionVal = doc?.action || (input.selectedAction?.action) || '';
+    const actionVal = (input.selectedAction?.action) || doc?.action || '';
     const isIncoming = actionVal.toLowerCase() === 'received' || input.policy?.direction === 'incoming';
     const direction = isIncoming ? 'Incoming' : (actionVal ? 'Outgoing' : undefined);
     const triggerContext = direction || actionVal || 'intake_submit';
@@ -61,7 +61,14 @@ export class PipelineBuilder {
       }
     };
 
-    const docType = doc?.documentType || doc?.disciplineDetails?.discipline || 'SUBMITTAL_ARCH';
+    const disc = String(doc?.disciplineDetails?.discipline || (doc as any)?.discipline || '').toLowerCase();
+    const isFfe = disc.includes('ffe') || disc.includes('ff&e') || Boolean(doc?.disciplineDetails?.specTag);
+
+    let docType = isFfe ? 'SUBMITTAL_FFE' : (doc?.documentType || doc?.disciplineDetails?.discipline || 'SUBMITTAL_ARCH');
+    if (!isFfe && (docType === 'Submittal' || docType === 'submittal' || !specRegistry.hasSpec(docType))) {
+      docType = 'SUBMITTAL_ARCH';
+    }
+
     const config = configRegistry.hasConfig(docType)
       ? configRegistry.getConfig(docType)
       : undefined;

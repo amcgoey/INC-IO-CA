@@ -20,6 +20,7 @@ export interface DraftEmailResult {
 
 export interface EmailDraftAdapter {
   createDraft(options: DraftEmailOptions): Promise<DraftEmailResult> | DraftEmailResult;
+  getSignature?(): Promise<string> | string;
 }
 
 declare let module: { exports?: unknown };
