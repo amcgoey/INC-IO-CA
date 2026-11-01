@@ -217,4 +217,42 @@ describe('DualDocumentSubmittalFilingAction', () => {
 
     await expect(action.execute(context)).rejects.toThrow(/PDF is password protected or corrupt/);
   });
+
+  it('uses pure in-memory fallback blob when no attachments or fileId are present, with zero ambient GAS calls', async () => {
+    const doc = createValidatedArchitectureSubmittal({
+      disciplineDetails: {
+        section: '081100',
+        number: '001',
+        title: 'Hollow Metal Doors',
+        revision: '01'
+      }
+    });
+
+    const context: any = {
+      validatedDoc: doc,
+      strategy,
+      targetFolderId: 'submittals-folder-123',
+      incomingRouting: 'To Review',
+      adapters: {
+        driveFilingRepository: fakeDriveRepo,
+        pdfDocumentService: fakePdfService
+      }
+    };
+
+    const origUtilities = (globalThis as any).Utilities;
+    delete (globalThis as any).Utilities;
+
+    try {
+      const result = await action.execute(context);
+      expect(result).toBeDefined();
+      expect(result.stagedReviewFile).toBeDefined();
+      expect(fakeDriveRepo.filedDocuments.length).toBe(2);
+      const stagedDoc = fakeDriveRepo.filedDocuments.find(d => d.options?.newFileName?.startsWith('_'));
+      expect(stagedDoc).toBeDefined();
+    } finally {
+      if (origUtilities) {
+        (globalThis as any).Utilities = origUtilities;
+      }
+    }
+  });
 });

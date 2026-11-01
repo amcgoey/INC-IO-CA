@@ -280,6 +280,51 @@ test("CardPresenter - presentOutgoingSuccess builds pushed SuccessCard ActionRes
   assert.ok(CardSerializer.hasWidgetText(resJson.navigation?.card, "033000"));
   assert.ok(CardSerializer.findButton(resJson.navigation?.card, "Open Drive"));
   assert.ok(CardSerializer.findButton(resJson.navigation?.card, "Draft Email"));
+  const fileBtn = CardSerializer.findButton(resJson.navigation?.card, "File the Submittal");
+  assert.ok(fileBtn);
+  assert.equal(fileBtn.onClickAction?.functionName, "moveSubmittalToClosed");
+  assert.equal(fileBtn.onClickAction?.parameters?.docType, "SUBMITTAL_ARCH");
+});
+
+test("CardPresenter - presentOutgoingSuccess forwards deferredFiling parameters (number, title, rev, docType) into File the Submittal button", () => {
+  const presenter = new CardPresenter();
+  const mockEvent = EventFactory.createCardSubmitEvent({
+    discipline: "Architecture"
+  });
+  const mockResult: any = {
+    fileId: "file-999",
+    newFileName: "033000-003 Test.pdf",
+    url: "http://drive.google.com/file-999",
+    localPath: "G:\\file-999",
+    targetKey: "033000-003",
+    title: "Test Concrete",
+    projectAbbr: "PROJ",
+    action: "Approved",
+    directRowUrl: "http://docs.google.com/sheet?range=A5",
+    failedColumns: [],
+    emptyFallbacks: [],
+    deferredFiling: {
+      number: "003",
+      title: "Test Concrete Submittal",
+      rev: "C",
+      docType: "SUBMITTAL_ARCH"
+    }
+  };
+  const mockParams: any = {
+    targetFolderId: "folder-456",
+    logFileId: "log-789"
+  };
+
+  const response = presenter.presentOutgoingSuccess(mockEvent, mockResult, mockParams);
+  const resJson = CardSerializer.actionResponseToJSON(response);
+
+  const fileBtn = CardSerializer.findButton(resJson.navigation?.card, "File the Submittal");
+  assert.ok(fileBtn);
+  assert.equal(fileBtn.onClickAction?.functionName, "moveSubmittalToClosed");
+  assert.equal(fileBtn.onClickAction?.parameters?.number, "003");
+  assert.equal(fileBtn.onClickAction?.parameters?.title, "Test Concrete Submittal");
+  assert.equal(fileBtn.onClickAction?.parameters?.rev, "C");
+  assert.equal(fileBtn.onClickAction?.parameters?.docType, "SUBMITTAL_ARCH");
 });
 
 test("CardPresenter - presentOutgoingSuccess builds pushed SuccessCard ActionResponse for FF&E", () => {

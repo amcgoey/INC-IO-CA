@@ -501,7 +501,7 @@ declare const PicklistResolver: {
 
 // Global Ambient Function Declarations
 declare function buildIntakeCard(e: GoogleAppsScriptEvent, initialData?: ParsedData | null, flashMessage?: any, aiResult?: AiClassificationResult | null): GoogleAppsScript.Card_Service.Card;
-declare function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled?: boolean, projectAbbr?: string, action?: string, incomingRouting?: string, draftUrl?: string | null, directRowUrl?: string | null, failedColumns?: string[], emptyFallbacks?: string[]): GoogleAppsScript.Card_Service.Card;
+declare function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled?: boolean, projectAbbr?: string, action?: string, incomingRouting?: string, draftUrl?: string | null, directRowUrl?: string | null, failedColumns?: string[], emptyFallbacks?: string[], deferredFiling?: DeferredFilingParams): GoogleAppsScript.Card_Service.Card;
 declare function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData;
 declare function parseDriveFilename(filename: string): ParsedData;
 declare function parseFormaEmail_(subject: string, body: string): Partial<ParsedData>;
@@ -709,6 +709,15 @@ interface DocumentWorkflowInput {
   spreadsheetApp?: any;
 }
 
+export interface DeferredFilingParams {
+  number?: string;
+  title?: string;
+  rev?: string;
+  docType?: string;
+  isFiled?: boolean;
+  targetSubfolder?: string;
+}
+
 /** Output result returned from PipelineBuilder.buildAndExecute. */
 interface DocumentWorkflowResult {
   fileId: string;
@@ -724,6 +733,16 @@ interface DocumentWorkflowResult {
   emptyFallbacks: string[];
   newFileName: string;
   policy?: WorkflowPolicySpec;
+  deferredFiling?: DeferredFilingParams;
+  number?: string;
+  rev?: string;
+  docType?: string;
+  notes?: string;
+  success?: boolean;
+  draftUrl?: string;
+  groupKey?: string;
+  previousRowSheetIndex?: number | null;
+  revGroupKey?: string;
 }
 
 

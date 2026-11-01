@@ -162,7 +162,7 @@ class FormIntakeParser {
   }
 }
 
-function padSubmittalNumber(numStr?: string): string {
+export function padSubmittalNumber(numStr?: string): string {
   if (!numStr) return "";
   const trimmed = numStr.trim();
   if (/^\d+$/.test(trimmed)) {

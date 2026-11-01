@@ -159,5 +159,3 @@ export class OutgoingSubmittalFilingAction
     };
   }
 }
-
-(globalThis as any).OutgoingSubmittalFilingAction = OutgoingSubmittalFilingAction;
