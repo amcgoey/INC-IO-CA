@@ -1,11 +1,11 @@
-﻿/// <reference path="../../types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file PipelineBuilder.ts
  * @description Builds execution pipelines by scanning WorkflowSpec[] and mapping strings to actions.
  */
 
 import { ActionRegistry } from './ActionRegistry';
-import { WorkflowTriggerMatcher, MatcherContext } from './WorkflowTriggerMatcher';
+import { WorkflowTriggerMatcher, MatcherContext, resolveWorkflowDirection } from './WorkflowTriggerMatcher';
 import { WorkflowSpec } from '../specs/DocumentTypeSpec';
 import { DocumentAction } from '../../types';
 import { WorkflowRunner } from './WorkflowRunner';
@@ -15,7 +15,7 @@ import { DocumentTypeConfigRegistry } from '../../DocumentTypeConfigRegistry';
 
 export class PipelineBuilder {
   private registry: ActionRegistry;
-  private matcher: WorkflowTriggerMatcher;
+  public matcher: WorkflowTriggerMatcher;
 
   constructor(registry: ActionRegistry) {
     this.registry = registry;
@@ -45,13 +45,19 @@ export class PipelineBuilder {
     const builder = new PipelineBuilder(registry);
 
     const doc = input.validatedDoc;
-    const triggerContext = doc?.action || (input.selectedAction?.action) || 'intake_submit';
+    const actionVal = doc?.action || (input.selectedAction?.action) || '';
+    const isIncoming = actionVal.toLowerCase() === 'received' || input.policy?.direction === 'incoming';
+    const direction = isIncoming ? 'Incoming' : (actionVal ? 'Outgoing' : undefined);
+    const triggerContext = direction || actionVal || 'intake_submit';
+
     const ctx: MatcherContext = {
       triggerContext,
+      hostContext: input.appContext,
+      direction,
       fieldValues: {
         ...(doc?.disciplineDetails || {}),
         ...doc,
-        action: doc?.action || input.selectedAction?.action || ''
+        action: actionVal
       }
     };
 
@@ -70,6 +76,7 @@ export class PipelineBuilder {
 
     const initialContext: DocumentActionContext = {
       ...input,
+      appContext: input.appContext,
       fileId: input.driveFileId || '',
       document: doc,
       config,
@@ -78,8 +85,10 @@ export class PipelineBuilder {
       sheetId: input.logSheetId,
       strategy: config?.logStrategy,
       adapters: {
-        logRepository: input.logRepository,
-        driveFilingRepository: input.driveFilingRepository
+        logRepository: input.logRepository || (globalThis as any).defaultLogRepository,
+        driveFilingRepository: input.driveFilingRepository || (globalThis as any).defaultDriveFilingRepository,
+        pdfDocumentService: input.pdfDocumentService || (globalThis as any).defaultPdfDocumentService,
+        ...(input as any).adapters
       }
     };
 
@@ -90,6 +99,7 @@ export class PipelineBuilder {
       action: doc?.action || input.selectedAction?.action || '',
       newFileName: finalContext.newFileName || '',
       url: finalContext.url || finalContext.driveFileUrl || '',
+      draftUrl: finalContext.draftUrl || '',
       groupKey: finalContext.groupKey || '',
       previousRowSheetIndex: finalContext.previousRowSheetIndex ?? null,
       revGroupKey: finalContext.revGroupKey || '',
@@ -101,7 +111,8 @@ export class PipelineBuilder {
       failedColumns: finalContext.failedColumns || [],
       emptyFallbacks: finalContext.emptyFallbacks || input.emptyFallbacks || [],
       localPath: finalContext.localPath || '',
-      policy: finalContext.policy || policy
+      policy: finalContext.policy || policy,
+      notes: finalContext.notes || doc?.notes || ''
     };
   }
 }

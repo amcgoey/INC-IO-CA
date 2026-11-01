@@ -175,6 +175,11 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps?: ProcessDepende
         .build();
     }
 
+    const appContext: AppContext | undefined = (p.appContext as AppContext) || (p.messageId ? "Gmail" : (p.driveFileId ? "GoogleDrive" : undefined));
+    if (appContext === "GoogleDrive" && !form.fileSource) {
+      form.fileSource = "drive";
+    }
+
     const disc = form.discipline || CONFIG.DEFAULT_DISCIPLINE;
     if (!p.logFileId) throw new Error(MESSAGES.ERROR_NO_LOG);
 
@@ -213,7 +218,7 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps?: ProcessDepende
       if (validationResult.dynamicPrompts && validationResult.dynamicPrompts.length > 0 && activeDeps.cardPresenter.presentDynamicPromptCard) {
         return activeDeps.cardPresenter.presentDynamicPromptCard(e, validationResult);
       }
-      const promptType = (validationResult.interactionType === "ADD_VENDOR" ? "ADD_VENDOR" : "ADD_TAG");
+      const promptType = (validationResult.interactionType === "ADD_VENDOR" ? "ADD_VENDOR" : (validationResult.interactionType === "FETCH_FILE" ? "FETCH_FILE" : "ADD_TAG"));
       return activeDeps.cardPresenter.presentInteractionPrompt(
         e,
         promptType,
@@ -234,6 +239,7 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps?: ProcessDepende
       : undefined;
 
     const input: DocumentWorkflowInput = {
+      appContext,
       validatedDoc,
       logFileId: p.logFileId,
       logSheetId,

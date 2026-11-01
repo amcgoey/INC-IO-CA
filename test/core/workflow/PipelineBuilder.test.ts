@@ -80,20 +80,24 @@ describe('PipelineBuilder', () => {
         return { ...context, newFileName: 'custom.pdf' };
       }
     };
+    customRegistry.register('ReadLog', mockAction);
+    customRegistry.register('DualDocumentSubmittalFiling', mockAction);
+    customRegistry.register('OutgoingSubmittalFiling', mockAction);
     customRegistry.register('MoveDocument', mockAction);
     customRegistry.register('WriteLog', mockAction);
     customRegistry.register('AnalyzeDocument', mockAction);
+    customRegistry.register('DraftEmail', mockAction);
 
     const input: any = {
       validatedDoc: {
         documentType: 'SUBMITTAL_ARCH',
-        action: 'GoogleDrive',
+        action: 'Received',
         disciplineDetails: { discipline: 'SUBMITTAL_ARCH' }
       },
       logFileId: 'ss-123',
       driveFileId: 'drive-123',
       targetFolderId: 'folder-123',
-      selectedAction: { action: 'GoogleDrive', abbr: 'REC', status: 'Received' }
+      selectedAction: { action: 'Received', abbr: 'REC', status: 'Under Review' }
     };
 
     const specRegistry = new DocumentTypeSpecRegistry();

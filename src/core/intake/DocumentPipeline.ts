@@ -137,6 +137,9 @@ class FormIntakeParser {
     if (rawDoc.action === undefined) {
       rawDoc.action = typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
     }
+    if ((context?.appContext === "GoogleDrive" || (context as any)?.hostContext === "GoogleDrive" || (formInput as any).appContext === "GoogleDrive") && !rawDoc.fileSource) {
+      rawDoc.fileSource = "drive";
+    }
     rawDoc.documentType = rawDoc.documentType || "Submittal";
     if (rawDoc.number && /^\d+$/.test(rawDoc.number)) {
       rawDoc.number = padSubmittalNumber(rawDoc.number);
@@ -282,6 +285,17 @@ class DriveFilenameIntakeParser {
 
 function validateDocFn(raw: RawDocument, context?: ValidationContext): ValidationResult {
   const rawDoc = FormIntakeParser.parse(raw, context);
+
+  // Pre-submission intake guard: fileSource === "link"
+  const fileSource = (rawDoc.fileSource || (raw as any).fileSource || "").toLowerCase();
+  const driveFileId = rawDoc.driveFileId || (raw as any).driveFileId || (raw as any).driveFileUrl || context?.driveFileId;
+  if ((fileSource === "link" || fileSource.startsWith("http")) && !driveFileId) {
+    return {
+      status: "interaction_required",
+      interactionType: "FETCH_FILE",
+      message: '⚠️ Please click "Fetch & Save to Drive" before logging.'
+    };
+  }
   const registry: DocumentTypeConfigRegistry | undefined = defaultDocumentTypeConfigRegistry;
 
   let config: DocumentTypeConfig | undefined;

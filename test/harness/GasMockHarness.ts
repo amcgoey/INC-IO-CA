@@ -1,3 +1,5 @@
+import { FakePdfDocumentService } from "./fakes/FakePdfDocumentService";
+import { FakeDriveFilingRepository } from "./fakes/FakeDriveFilingRepository";
 
 import { CONFIG as ConfigConst } from "../../src/Config";
 
@@ -1125,6 +1127,8 @@ export class GasMockHarness {
     (globalThis as any).LockService = GasMockHarness.instance.lockService;
     (globalThis as any).CONFIG = GasMockHarness.instance.config;
     (globalThis as any).DriveApp = new MockDriveApp(GasMockHarness.instance.driveState);
+    (globalThis as any).defaultPdfDocumentService = new FakePdfDocumentService();
+    (globalThis as any).defaultDriveFilingRepository = new FakeDriveFilingRepository();
     (globalThis as any).Utilities = (globalThis as any).Utilities || { formatDate: (d: any, tz: string, f: string)=> (d && d.toISOString ? d.toISOString().slice(2, 10).replace(/-/g, "") : "260726") };
     (globalThis as any).Session = (globalThis as any).Session || { getScriptTimeZone : () => "America/New_York", getActiveUser: () => ({ getEmail: () => "user@example.com" }) };
     (globalThis as any).CSI_DIVISIONS = options?.csiDivisionsOverrides || DEFAULT_CSI_DIVISIONS;

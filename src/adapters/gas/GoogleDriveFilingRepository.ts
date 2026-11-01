@@ -49,7 +49,18 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
       const name = options.newFileName
         ? (options.newFileName.endsWith(".pdf") ? options.newFileName : options.newFileName + ".pdf")
         : "temp.pdf";
-      filedFile = curFolder.createFile(file.blob.copyBlob().setName(name));
+      let payloadBlob = file.blob;
+      if (typeof payloadBlob.copyBlob === "function") {
+        payloadBlob = payloadBlob.copyBlob();
+      }
+      if (typeof payloadBlob.setName === "function") {
+        payloadBlob.setName(name);
+      } else if (typeof Utilities !== "undefined" && typeof Utilities.newBlob === "function") {
+        const bytes = typeof payloadBlob.getBytes === "function" ? payloadBlob.getBytes() : (payloadBlob.bytes || []);
+        const ct = typeof payloadBlob.getContentType === "function" ? payloadBlob.getContentType() : (payloadBlob.mimeType || "application/pdf");
+        payloadBlob = Utilities.newBlob(bytes, ct, name);
+      }
+      filedFile = curFolder.createFile(payloadBlob);
     } else {
       throw new Error("Either fileId or blob must be provided to fileDocument");
     }
@@ -91,7 +102,13 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
       copiedFile = targetFolder ? srcFile.makeCopy(name, targetFolder) : srcFile.makeCopy(name);
     } else if (source.blob) {
       const name = options?.newFileName || "Copy";
-      const blob = source.blob.copyBlob().setName(name);
+      let blob = source.blob;
+      if (typeof blob.copyBlob === "function") {
+        blob = blob.copyBlob();
+      }
+      if (typeof blob.setName === "function") {
+        blob.setName(name);
+      }
       if (targetFolder) {
         copiedFile = targetFolder.createFile(blob);
       } else {
