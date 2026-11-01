@@ -28,6 +28,10 @@ export interface FilingResult {
   folderId: string;
 }
 
+export interface SubmittalFolderResolution {
+  submittalsFolderId: string;
+  projectRootId: string;
+}
 export interface DriveFilingRepository {
   getLocalPath(fileId: string): string;
   fileDocument(
@@ -38,6 +42,9 @@ export interface DriveFilingRepository {
     source: { fileId?: string; blob?: FilingBlob | any },
     options?: FilingOptions
   ): FilingResult;
+  resolveSubmittalsFolder?(
+    workbookFileId: string
+  ): SubmittalFolderResolution;
 }
 
 declare let module: { exports?: unknown };

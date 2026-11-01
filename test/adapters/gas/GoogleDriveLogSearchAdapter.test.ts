@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { FakeCacheAdapter } from '../../harness/fakes/FakeCacheAdapter';
+import { GasMockHarness } from '../../harness/GasMockHarness';
 import { sampleScorerConfig } from '../../core/logging/LogDisambiguationScorer.test';
 import {
   formatDisjunctiveLogSearchQuery,
@@ -161,6 +162,63 @@ describe('GoogleDriveLogSearchAdapter (Tier 2 GAS Adapter)', () => {
       assert.equal(fetchCount, 1, 'Expected fetchDriveFiles not to be called on cache hit');
       assert.equal(res2.length, 1);
       assert.equal(res2[0].candidate.id, 'file-cached-1');
+    });
+
+    it('enriches candidates with sheetTabNames and _Config manifestDocTypes from candidate spreadsheets', () => {
+      GasMockHarness.install();
+      try {
+        const ss = (globalThis as any).SpreadsheetApp.openById('ss-authentic-mvt');
+        ss.insertSheet('Submittal Arch');
+        ss.insertSheet('Submittal FFE');
+        ss.insertSheet('_Shared');
+        const configSheet = ss.insertSheet('_Config');
+        configSheet.getRange(1, 1, 5, 2).setValues([
+          ['Key', 'Value'],
+          ['MANIFEST_SCHEMA_VERSION', '1.0.0'],
+          ['LOG_TITLE', 'INC Document Log'],
+          ['PROJECT_ABBREVIATION', 'INC'],
+          ['CONTACT_CHAIN_MAX', '-5']
+        ]);
+        configSheet.getRange(7, 1, 3, 4).setValues([
+          ['DocTypeKey', 'DisplayName', 'Prefix', 'LogTabName'],
+          ['SUBMITTAL_ARCH', 'Submittal Arch', 'SUB-ARCH', 'Submittal Arch'],
+          ['SUBMITTAL_FFE', 'Submittal FFE', 'SUB-FFE', 'Submittal FFE']
+        ]);
+        ss.setNamedRange('Config_DocTypes', '_Config', 'A7:D9');
+
+        const rootFolder = (globalThis as any).DriveApp.getFolderById('root');
+        const adminFolder = rootFolder.createFolder('01 Admin');
+        const authenticFile = adminFolder.createFile('INC Project Document Log', 'dummy-content', 'application/vnd.google-apps.spreadsheet');
+        (GasMockHarness.instance!.sheetsService as any).spreadsheets.set(authenticFile.getId(), ss);
+
+        // Also create a copy file in 01 Admin
+        const copyFile = adminFolder.createFile('Copy of INC Project Document Log', 'dummy-content', 'application/vnd.google-apps.spreadsheet');
+
+        const adapter = new GoogleDriveLogSearchAdapter();
+        const searchConfig: any = {
+          documentType: 'SUBMITTAL_ARCH',
+          logSheetName: 'Submittal Arch',
+          logSearchTerms: ['inc project document log', 'document log']
+        };
+
+        const ranked = adapter.searchAndScoreCandidates(searchConfig, undefined, 10);
+        assert.ok(ranked.length >= 2);
+
+        const topCandidate = ranked[0];
+        assert.equal(topCandidate.candidate.id, authenticFile.getId());
+        assert.ok(topCandidate.candidate.sheetTabNames?.includes('Submittal Arch'));
+        assert.ok(topCandidate.candidate.manifestDocTypes?.includes('SUBMITTAL_ARCH'));
+        assert.equal(topCandidate.scoreBreakdown.manifestMatch, 50, 'Must receive +50 manifest match');
+        assert.equal(topCandidate.scoreBreakdown.sheetTabMatch, 40, 'Must receive +40 sheet tab match');
+        assert.equal(topCandidate.scoreBreakdown.parentFolderMatch, 30, 'Must receive +30 admin parent folder match');
+
+        const copyCandidate = ranked.find(c => c.candidate.id === copyFile.getId());
+        assert.ok(copyCandidate, 'Copy candidate must be present');
+        assert.equal(copyCandidate.scoreBreakdown.demotionPenalty, -30, 'Copy candidate must receive -30 demotion penalty');
+        assert.ok(topCandidate.score > copyCandidate.score, 'Authentic workbook must outrank copy workbook');
+      } finally {
+        GasMockHarness.uninstall();
+      }
     });
   });
 });

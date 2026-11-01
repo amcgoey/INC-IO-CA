@@ -4,6 +4,8 @@
  * @description Production implementation of DriveFilingRepository for Google Drive folder hierarchy resolution, subfolder creation, document filing, and Windows G:\ local path mapping.
  */
 
+import type { SubmittalFolderResolution } from "../../core/interfaces/DriveFilingRepository";
+
 export class GoogleDriveFilingRepository implements DriveFilingRepository {
   /**
    * Traverses or creates missing subfolders along the specified subfolder path array.
@@ -142,6 +144,76 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
     } catch (e) {
       return "G:\\Error\\" + fileId;
     }
+  }
+
+  /**
+   * Resolves the target Submittals folder hierarchy starting from a project workbook file ID.
+   * If the workbook is located in an administrative folder (e.g. '01 Admin', 'Admin'),
+   * ascends to the Project Root folder and resolves or creates '04 Construction/Submittals'
+   * (or directly 'Submittals' if no Construction folder exists).
+   * Guarantees 'Submittals' is NEVER created inside an administrative folder.
+   */
+  resolveSubmittalsFolder(workbookFileId: string): SubmittalFolderResolution {
+    if (typeof DriveApp === "undefined") {
+      throw new Error("DriveApp runtime is not available");
+    }
+
+    const logFile = DriveApp.getFileById(workbookFileId);
+    const parents = logFile.getParents();
+    if (!parents.hasNext()) {
+      throw new Error(`Workbook ${workbookFileId} has no parent folder.`);
+    }
+
+    let currentFolder = parents.next();
+    const adminFolderRegex = /\badmin/i;
+
+    // Ascend upward out of administrative folders to find Project Root
+    while (adminFolderRegex.test(currentFolder.getName().trim())) {
+      const pIter = currentFolder.getParents();
+      if (pIter.hasNext()) {
+        const nextParent = pIter.next();
+        // Stop if we hit Drive root
+        if (nextParent.getName() === "Drive" || nextParent.getName() === "My Drive") {
+          break;
+        }
+        currentFolder = nextParent;
+      } else {
+        break;
+      }
+    }
+
+    const projectRoot = currentFolder;
+    const projectRootId = projectRoot.getId();
+
+    // Resolve or find Construction folder inside Project Root
+    let constructionFolder: GoogleAppsScript.Drive.Folder | null = null;
+    const folderIter = projectRoot.getFolders();
+    const constructionRegex = /^(\d*[\s._-]*)?construction/i;
+    while (folderIter.hasNext()) {
+      const child = folderIter.next();
+      if (constructionRegex.test(child.getName().trim())) {
+        constructionFolder = child;
+        break;
+      }
+    }
+
+    const targetParent = constructionFolder || projectRoot;
+    const targetFolderName = (typeof CONFIG !== "undefined" && (CONFIG as any).TARGET_FOLDER_NAME)
+      ? (CONFIG as any).TARGET_FOLDER_NAME
+      : "Submittals";
+
+    const subIter = targetParent.getFoldersByName(targetFolderName);
+    let submittalsFolder: GoogleAppsScript.Drive.Folder;
+    if (subIter.hasNext()) {
+      submittalsFolder = subIter.next();
+    } else {
+      submittalsFolder = targetParent.createFolder(targetFolderName);
+    }
+
+    return {
+      submittalsFolderId: submittalsFolder.getId(),
+      projectRootId
+    };
   }
 }
 

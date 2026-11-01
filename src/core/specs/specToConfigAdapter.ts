@@ -1,4 +1,4 @@
-﻿/// <reference path="../../types.ts" />
+/// <reference path="../../types.ts" />
 /**
  * @file specToConfigAdapter.ts
  * @description Pure Tier 1 projection adapter mapping DocumentTypeSpec to legacy DocumentTypeConfig.
@@ -53,7 +53,7 @@ export function specToConfigAdapter(
   const logSheetName = isFfe
     ? 'Submittal FFE'
     : (spec.key.toUpperCase().includes('ARCH') || spec.key.toUpperCase() === 'SUBMITTAL')
-      ? 'Log'
+      ? 'Submittal Arch'
       : spec.label;
 
   // Validation Hook binding

@@ -54,7 +54,22 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
       if (sheetName === "_AuditLog") {
         sheet = ss.insertSheet(sheetName);
       } else {
-        sheet = ss.getSheetByName("Submittals Log") || ss.getSheetByName("Submittal Arch") || ss.getSheetByName("Submittal FFE") || (ss.getSheets ? ss.getSheets()[0] : null);
+        if (sheetName === "Submittal Arch" || sheetName === "Submittal FFE") {
+          sheet = ss.getSheetByName("Log") || ss.getSheetByName("Submittals Log") || ss.getSheetByName("Submittal Arch") || ss.getSheetByName("Submittal FFE");
+        } else if (sheetName === "_Shared") {
+          sheet = ss.getSheetByName("Settings");
+        } else if (sheetName === "Submittal FFE Support") {
+          sheet = ss.getSheetByName("Tag List");
+        } else if (sheetName === "Log" || sheetName === "Submittals Log") {
+          sheet = ss.getSheetByName("Submittal Arch") || ss.getSheetByName("Submittal FFE");
+        } else if (sheetName === "Settings") {
+          sheet = ss.getSheetByName("_Shared");
+        } else if (sheetName === "Tag List") {
+          sheet = ss.getSheetByName("Submittal FFE Support");
+        }
+        if (!sheet) {
+          sheet = ss.getSheetByName("Submittals Log") || ss.getSheetByName("Submittal Arch") || ss.getSheetByName("Submittal FFE") || (ss.getSheets ? ss.getSheets()[0] : null);
+        }
         if (!sheet) {
           throw new Error(`Sheet '${sheetName}' not found in spreadsheet.`);
         }

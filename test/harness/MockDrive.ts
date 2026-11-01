@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file MockDrive.ts
  * @description Virtual in-memory DriveApp filesystem and state inspector for GasMockHarness.
  */
@@ -233,6 +233,10 @@ export class MockFolder {
   public getFolders(): MockFolderIterator {
     const folderIds = this.state.getFolderSubfolders(this.id);
     return new MockFolderIterator(folderIds.map(fId => new MockFolder(this.state, fId)));
+  }
+
+  public searchFiles(_query?: string): MockFileIterator {
+    return this.getFiles();
   }
 
   public getFiles(): MockFileIterator {
@@ -531,6 +535,11 @@ export class MockDriveApp {
 
   public createFolder(name: string): MockFolder {
     return this.getRootFolder().createFolder(name);
+  }
+
+  public searchFiles(_query?: string): MockFileIterator {
+    const allFiles = Array.from((this.state as any).files.values()).map((f: any) => new MockFile(this.state, f.id));
+    return new MockFileIterator(allFiles);
   }
 
   public createFile(name: string, content: string, mimeType?: string): MockFile {

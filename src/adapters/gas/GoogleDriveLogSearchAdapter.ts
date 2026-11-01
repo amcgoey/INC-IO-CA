@@ -119,11 +119,108 @@ export class GoogleDriveLogSearchAdapter {
       // Ignore date parsing failures
     }
 
-    return {
+    const baseMeta: LogCandidateMetadata = {
       id: file.getId(),
       title: file.getName(),
       parentFolderNames,
       lastModifiedDate
+    };
+
+    return this.enrichCandidateMetadata(baseMeta);
+  }
+
+  /**
+   * Enriches candidate spreadsheet metadata with sheetTabNames and _Config manifestDocTypes.
+   */
+  public enrichCandidateMetadata(candidate: LogCandidateMetadata): LogCandidateMetadata {
+    if (candidate.sheetTabNames && candidate.sheetTabNames.length > 0 && candidate.manifestDocTypes && candidate.manifestDocTypes.length > 0) {
+      return candidate;
+    }
+
+    let sheetTabNames = candidate.sheetTabNames ? [...candidate.sheetTabNames] : undefined;
+    let manifestDocTypes = candidate.manifestDocTypes ? [...candidate.manifestDocTypes] : undefined;
+
+    try {
+      if (typeof SpreadsheetApp !== 'undefined' && SpreadsheetApp.openById) {
+        const ss = SpreadsheetApp.openById(candidate.id);
+        if (ss) {
+          if ((!sheetTabNames || sheetTabNames.length === 0) && typeof ss.getSheets === 'function') {
+            sheetTabNames = ss.getSheets().map((s: GoogleAppsScript.Spreadsheet.Sheet) => s.getName());
+          }
+
+          if (!manifestDocTypes || manifestDocTypes.length === 0) {
+            const configSheet = typeof ss.getSheetByName === 'function' ? ss.getSheetByName('_Config') : null;
+            if (configSheet) {
+              const types: string[] = [];
+
+              // 1. Check named range Config_DocTypes or _Config_Doc_Types
+              if (typeof ss.getRangeByName === 'function') {
+                const namedRange = ss.getRangeByName('Config_DocTypes') || ss.getRangeByName('_Config_Doc_Types');
+                if (namedRange) {
+                  const values = namedRange.getValues();
+                  for (const row of values) {
+                    const docTypeKey = row && row[0] ? String(row[0]).trim() : '';
+                    if (docTypeKey && docTypeKey.toLowerCase() !== 'doctypekey' && !types.includes(docTypeKey)) {
+                      types.push(docTypeKey);
+                    }
+                  }
+                }
+              }
+
+              // 2. Scan _Config sheet data range
+              if (types.length === 0 && typeof configSheet.getDataRange === 'function') {
+                const data = configSheet.getDataRange().getValues();
+                let inDocTypes = false;
+                for (let r = 0; r < data.length; r++) {
+                  const firstCol = data[r] && data[r][0] !== undefined ? String(data[r][0]).trim() : '';
+                  if (firstCol.toLowerCase() === 'doctypekey') {
+                    inDocTypes = true;
+                    continue;
+                  }
+                  if (inDocTypes) {
+                    if (!firstCol) {
+                      inDocTypes = false;
+                    } else {
+                      if (!types.includes(firstCol)) {
+                        types.push(firstCol);
+                      }
+                    }
+                  }
+                }
+              }
+
+              // 3. Named ranges matching Config_<DocTypeKey>
+              if (types.length === 0 && typeof ss.getNamedRanges === 'function') {
+                const nrs = ss.getNamedRanges();
+                for (const nr of nrs) {
+                  const name = nr.getName();
+                  const m = name.match(/^Config_([A-Za-z0-9_]+)$/);
+                  if (m && m[1]) {
+                    const key = m[1];
+                    if (!['Manifest', 'DocTypes', 'Doc_Types'].includes(key) && !key.endsWith('_Fields') && !key.endsWith('_Identity') && !key.endsWith('_Storage') && !key.endsWith('_Workflows')) {
+                      if (!types.includes(key)) {
+                        types.push(key);
+                      }
+                    }
+                  }
+                }
+              }
+
+              if (types.length > 0) {
+                manifestDocTypes = types;
+              }
+            }
+          }
+        }
+      }
+    } catch (_e) {
+      // Ignore inspection errors gracefully
+    }
+
+    return {
+      ...candidate,
+      ...(sheetTabNames ? { sheetTabNames } : {}),
+      ...(manifestDocTypes ? { manifestDocTypes } : {})
     };
   }
 
@@ -160,7 +257,7 @@ export class GoogleDriveLogSearchAdapter {
     let candidates: LogCandidateMetadata[] = [];
 
     if (this.fetchDriveFiles) {
-      candidates = this.fetchDriveFiles(query, cappedLimit, driveId);
+      candidates = this.fetchDriveFiles(query, cappedLimit, driveId).map((c: LogCandidateMetadata) => this.enrichCandidateMetadata(c));
     } else if (typeof DriveApp !== 'undefined') {
       // Native GAS DriveApp execution fallback with driveId folder scoping if provided
       let searchFiles: GoogleAppsScript.Drive.FileIterator;

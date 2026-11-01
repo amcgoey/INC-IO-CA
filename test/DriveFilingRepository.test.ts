@@ -114,3 +114,92 @@ test("GoogleDriveFilingRepository returns fallback path on error", () => {
 test("defaultDriveFilingRepository is an instance of GoogleDriveFilingRepository", () => {
   assert.ok(defaultDriveFilingRepository instanceof GoogleDriveFilingRepository);
 });
+
+test("GoogleDriveFilingRepository.resolveSubmittalsFolder resolves Project Root/04 Construction/Submittals/ when workbook is in 01 Admin/", () => {
+  GasMockHarness.install();
+  try {
+    const rootFolder = (globalThis as any).DriveApp.getFolderById("root");
+    const projectRoot = rootFolder.createFolder("1234 Project Name");
+    const adminFolder = projectRoot.createFolder("01 Admin");
+    const constructionFolder = projectRoot.createFolder("04 Construction");
+    const workbookFile = adminFolder.createFile("INC Project Document Log", "dummy", "application/vnd.google-apps.spreadsheet");
+
+    const repo = new GoogleDriveFilingRepository();
+    const resolution = repo.resolveSubmittalsFolder(workbookFile.getId());
+
+    assert.strictEqual(resolution.projectRootId, projectRoot.getId(), "Project Root should be resolved, escaping 01 Admin/");
+    
+    // Submittals folder should be inside 04 Construction
+    const submittalsFolder = (globalThis as any).DriveApp.getFolderById(resolution.submittalsFolderId);
+    assert.strictEqual(submittalsFolder.getName(), "Submittals");
+    assert.strictEqual(submittalsFolder.getParents().next().getId(), constructionFolder.getId(), "Submittals should be child of 04 Construction");
+
+    // 01 Admin must NOT have a Submittals folder
+    assert.strictEqual(adminFolder.getFoldersByName("Submittals").hasNext(), false, "Never create Submittals inside 01 Admin/");
+  } finally {
+    GasMockHarness.uninstall();
+  }
+});
+
+test("GoogleDriveFilingRepository.resolveSubmittalsFolder resolves Project Root/Submittals/ when no Construction folder exists", () => {
+  GasMockHarness.install();
+  try {
+    const rootFolder = (globalThis as any).DriveApp.getFolderById("root");
+    const projectRoot = rootFolder.createFolder("1234 Project Without Construction Folder");
+    const adminFolder = projectRoot.createFolder("01 Admin");
+    const workbookFile = adminFolder.createFile("INC Project Document Log", "dummy", "application/vnd.google-apps.spreadsheet");
+
+    const repo = new GoogleDriveFilingRepository();
+    const resolution = repo.resolveSubmittalsFolder(workbookFile.getId());
+
+    assert.strictEqual(resolution.projectRootId, projectRoot.getId());
+    
+    const submittalsFolder = (globalThis as any).DriveApp.getFolderById(resolution.submittalsFolderId);
+    assert.strictEqual(submittalsFolder.getName(), "Submittals");
+    assert.strictEqual(submittalsFolder.getParents().next().getId(), projectRoot.getId(), "Submittals should be child of Project Root when no Construction folder");
+    assert.strictEqual(adminFolder.getFoldersByName("Submittals").hasNext(), false, "Never create Submittals inside 01 Admin/");
+  } finally {
+    GasMockHarness.uninstall();
+  }
+});
+
+test("GoogleDriveFilingRepository.resolveSubmittalsFolder escapes nested admin folders", () => {
+  GasMockHarness.install();
+  try {
+    const rootFolder = (globalThis as any).DriveApp.getFolderById("root");
+    const projectRoot = rootFolder.createFolder("5678 Project Name");
+    const adminFolder = projectRoot.createFolder("01 Admin");
+    const subAdminFolder = adminFolder.createFolder("01.01 Admin Working");
+    const constructionFolder = projectRoot.createFolder("04 Construction");
+    const workbookFile = subAdminFolder.createFile("INC Project Document Log", "dummy", "application/vnd.google-apps.spreadsheet");
+
+    const repo = new GoogleDriveFilingRepository();
+    const resolution = repo.resolveSubmittalsFolder(workbookFile.getId());
+
+    assert.strictEqual(resolution.projectRootId, projectRoot.getId(), "Traverses out of nested admin folders to Project Root");
+    assert.strictEqual(adminFolder.getFoldersByName("Submittals").hasNext(), false);
+    assert.strictEqual(subAdminFolder.getFoldersByName("Submittals").hasNext(), false);
+    assert.strictEqual(constructionFolder.getFoldersByName("Submittals").hasNext(), true);
+  } finally {
+    GasMockHarness.uninstall();
+  }
+});
+
+test("GoogleDriveFilingRepository.resolveSubmittalsFolder resolves when workbook is placed directly in Project Root", () => {
+  GasMockHarness.install();
+  try {
+    const rootFolder = (globalThis as any).DriveApp.getFolderById("root");
+    const projectRoot = rootFolder.createFolder("9999 Project Root Direct");
+    const constructionFolder = projectRoot.createFolder("04 Construction");
+    const workbookFile = projectRoot.createFile("INC Project Document Log", "dummy", "application/vnd.google-apps.spreadsheet");
+
+    const repo = new GoogleDriveFilingRepository();
+    const resolution = repo.resolveSubmittalsFolder(workbookFile.getId());
+
+    assert.strictEqual(resolution.projectRootId, projectRoot.getId());
+    assert.strictEqual(constructionFolder.getFoldersByName("Submittals").hasNext(), true);
+  } finally {
+    GasMockHarness.uninstall();
+  }
+  assert.ok(defaultDriveFilingRepository instanceof GoogleDriveFilingRepository);
+});
