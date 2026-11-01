@@ -12,6 +12,9 @@ import { InsertPagesAction } from '../../InsertPagesAction';
 import { RenameDocumentAction } from './WorkflowRunner';
 import { defaultTriageDocumentAction } from '../../TriageDocumentAction';
 import { defaultAnalyzeDocumentAction } from '../../AnalyzeDocumentAction';
+import { DualDocumentSubmittalFilingAction } from './DualDocumentSubmittalFilingAction';
+import { OutgoingSubmittalFilingAction } from './OutgoingSubmittalFilingAction';
+import { DraftEmailAction } from './DraftEmailAction';
 
 export class ActionRegistry {
   private actions = new Map<string, DocumentAction>();
@@ -48,6 +51,9 @@ export function populateDefaultActionRegistry(registry: ActionRegistry): void {
   registry.register("ExtractPages", new ExtractPagesAction());
   registry.register("InsertPages", new InsertPagesAction());
   registry.register("RenameDocument", new RenameDocumentAction());
+  registry.register("DualDocumentSubmittalFiling", new DualDocumentSubmittalFilingAction());
+  registry.register("OutgoingSubmittalFiling", new OutgoingSubmittalFilingAction());
+  registry.register("DraftEmail", new DraftEmailAction());
   if (defaultTriageDocumentAction) registry.register("TriageDocument", defaultTriageDocumentAction);
   if (defaultAnalyzeDocumentAction) registry.register("AnalyzeDocument", defaultAnalyzeDocumentAction);
 }

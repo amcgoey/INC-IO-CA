@@ -7,7 +7,7 @@
  */
 
 import readline from "node:readline";
-import { CardDraftStateManager, ResolvedCardState } from "../src/prototypes/CardDraftStateManager";
+import { CardDraftStateManager, ResolvedCardState } from "../src/core/state/CardDraftStateManager";
 import { InMemoryCacheAdapter } from "../test/harness/fakes/FakeCacheAdapter";
 
 // ANSI Styling Constants

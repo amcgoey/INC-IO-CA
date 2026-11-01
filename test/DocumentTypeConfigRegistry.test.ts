@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   DocumentTypeConfigRegistry,
   defaultDocumentTypeConfigRegistry,
@@ -25,7 +25,7 @@ describe('DocumentTypeConfigRegistry (Adapter Seam over DocumentTypeSpecRegistry
     expect(config.closedRootFolderName).toBe('Closed');
     expect(config.filenamePrefix).toBe('_');
     expect(config.logSearchTerms).toEqual(['document log', 'inc document log', 'submittal log']);
-    expect(config.logSheetName).toBe('Log');
+    expect(config.logSheetName).toBe('Submittal Arch');
     expect(config.logAdapterKey).toBe('GoogleSheetsLogRepository');
     expect(config.filingAdapterKey).toBe('GoogleDriveFilingRepository');
     expect(config.pdfAdapterKey).toBe('PdfDocumentService');

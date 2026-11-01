@@ -53,6 +53,9 @@ The working copy of an incoming document created by duplicating the OriginalDocu
 **CoverPageDocument**:
 The cover sheet document (template PDF or doc) inserted into the front of a ReviewDocument to receive review markup, routing details, and status updates.
 
+**CompositeSourceDocument**:
+The unified, multi-page PDF document produced by sorting multiple PDF attachments from a single incoming submittal email in natural alphanumeric filename order and merging them in sequence prior to cover page prepending and archive filing, while archiving any accompanying non-PDF attachments directly into the Closed subfolder.
+
 **RawDocument**:
 The untrusted, string-heavy data coming directly from the UI form submission for any document type (Submittals, RFIs, etc).
 _Avoid_: FormInput, RawSubmittal
@@ -96,8 +99,14 @@ The application workflow service that orchestrates file retrieval, PDF stamping,
 _Avoid_: ProcessManager, SubmittalWorkflowModule, WorkflowHelper
 
 **DocumentAction**:
-The abstract, reusable workflow step interface (`execute(context: DocumentActionContext<TDoc>): Promise<DocumentActionContext<TDoc>>`) representing a primitive transformation or operation (e.g., `MoveDocument`, `RenameDocument`, `InsertPages`, `ExtractPages`, `WriteLog`, `AnalyzeDocument`, `TriageDocument`) executed by `WorkflowRunner`.
+The abstract, reusable workflow step interface (`execute(context: DocumentActionContext<TDoc>): Promise<DocumentActionContext<TDoc>>`) representing a transformation or operation (e.g., `ReadLog`, `DualDocumentSubmittalFiling`, `OutgoingSubmittalFiling`, `MoveDocument`, `RenameDocument`, `InsertPages`, `ExtractPages`, `WriteLog`, `DraftEmail`, `AnalyzeDocument`, `TriageDocument`) executed by `WorkflowRunner`.
 _Avoid_: ActionStep, PipelineTask
+
+**DualDocumentSubmittalFilingAction**:
+The cohesive incoming `DocumentAction` that encapsulates natural alphanumeric PDF attachment merging (`CompositeSourceDocument`), non-PDF attachment archiving, unmodified `OriginalDocument` filing to `Closed/`, `CoverPageDocument` stamping and prepending, and `ReviewDocument` staging to the `Submittals/` folder, returning the staged `driveFileUrl`, canonical filename, and any non-PDF archive notes for single-pass log persistence.
+
+**OutgoingSubmittalFilingAction**:
+The cohesive outgoing `DocumentAction` that encapsulates `AppContext`-dependent disposition of a reviewed submittal (in-place root renaming without leading underscore in `GoogleDrive` vs immediate relocation to `Closed/<Subfolder>/` in `Gmail`), applies shared view permissions (`ANYONE_WITH_LINK`), and returns the final `driveFileUrl` for single-pass log persistence and outbound email drafting.
 
 **DocumentTypeConfig**:
 Pure, serializable configuration schema encapsulating document-type specific search criteria (root folder and log search terms), closed subfolder maps, cover page template references, filename prefixes, string adapter selection keys, and the unified `fields` specification list (`DocumentFieldSpec[]`).
@@ -243,7 +252,7 @@ The Tier 1 pure helper that performs in-memory normalization of picklist string 
 The declarative property on `DocumentFieldSpec` (`'picklist'` | `'code'` | `'exact'`) that specifies field-specific key normalization behavior during identity key calculation, controlling whether values resolve via picklists, strip labels from numeric codes, or perform exact string matching.
 
 **resolvePicklistOptionsRange**:
-The 3-tier picklist range resolution mechanism in `PicklistResolver` that resolves sheet-scoped named ranges (`'<SheetTabName>'!<RangeName>`), defensively retries bare range names against the active sheet tab, and falls back to static JSON defaults (`src/config/defaults/<DocTypeKey>.json`) for 100% offline execution.
+The 3-tier picklist resolution mechanism in `PicklistResolver` that inspects live spreadsheet named ranges (dedicated single-column ranges per ADR-0047 and sheet-scoped ranges) as absolute primary priority, queries repository `logSettings` as secondary, and falls back to static JSON seed defaults (`supportData[key].items`) strictly for offline execution or when live resolution yields zero items.
 
 
 

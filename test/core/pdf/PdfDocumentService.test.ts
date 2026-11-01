@@ -3,6 +3,7 @@ import assert from "node:assert";
 
 import { GoogleAppsScriptPdfDocumentService } from "../../../src/PdfDocumentService";
 import { FakePdfDocumentService } from "../../harness/index";
+import type { AttachmentDescriptor } from "../../../src/core/interfaces/PdfDocumentService";
 
 test("Tier 1 PDF Unit Tests: FakePdfDocumentService mergeBlobsToPdf records calls and merges blobs", async () => {
   const fakePdfService = new FakePdfDocumentService();
@@ -92,4 +93,24 @@ test("Tier 1 PDF Unit Tests: GoogleAppsScriptPdfDocumentService mergeBlobsToPdf 
   assert.strictEqual(compositeBlob.getContentType(), "application/pdf");
   assert.strictEqual(addedPages.length, 2);
   assert.strictEqual(embeddedImages.length, 2);
+});
+
+test("Tier 1 PDF Unit Tests: PdfDocumentService interface accepts FilingBlob and AttachmentDescriptor", async () => {
+  const fakePdfService = new FakePdfDocumentService();
+  const attachmentDesc: AttachmentDescriptor = {
+    fileName: "spec.pdf",
+    mimeType: "application/pdf",
+    bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46])
+  };
+  const filingBlob = {
+    getName: () => "drawings.pdf",
+    getContentType: () => "application/pdf",
+    getBytes: () => new Uint8Array([0x25, 0x50, 0x44, 0x46])
+  };
+
+  const merged = await fakePdfService.mergeBlobsToPdf([attachmentDesc, filingBlob], "merged.pdf");
+  assert.ok(merged);
+  assert.strictEqual(fakePdfService.mergeBlobsCalls.length, 1);
+  assert.strictEqual(fakePdfService.mergeBlobsCalls[0].blobs.length, 2);
+  assert.strictEqual(fakePdfService.mergeBlobsCalls[0].newFileName, "merged.pdf");
 });

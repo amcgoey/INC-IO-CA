@@ -133,20 +133,34 @@
   ],
   "workflows": [
     {
-      "context": "GoogleDrive",
+      "context": "Incoming",
+      "isDefault": true,
       "sequence": [
-        "AnalyzeDocument",
-        "MoveDocument",
-        "WriteLog"
-      ]
+        "ReadLog",
+        "DualDocumentSubmittalFiling",
+        "WriteLog",
+        "DraftEmail"
+      ],
+      "policy": {
+        "direction": "incoming",
+        "stampPdf": true,
+        "updatePreviousStatus": false
+      }
     },
     {
-      "context": "Gmail",
+      "context": "Outgoing",
       "sequence": [
-        "TriageDocument",
-        "InsertPages",
-        "WriteLog"
-      ]
+        "ReadLog",
+        "OutgoingSubmittalFiling",
+        "WriteLog",
+        "DraftEmail"
+      ],
+      "policy": {
+        "direction": "outgoing",
+        "stampPdf": false,
+        "updatePreviousStatus": true,
+        "previousRowStatus": "Closed"
+      }
     }
   ],
   "supportData": {

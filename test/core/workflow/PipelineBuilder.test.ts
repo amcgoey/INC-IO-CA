@@ -80,20 +80,24 @@ describe('PipelineBuilder', () => {
         return { ...context, newFileName: 'custom.pdf' };
       }
     };
+    customRegistry.register('ReadLog', mockAction);
+    customRegistry.register('DualDocumentSubmittalFiling', mockAction);
+    customRegistry.register('OutgoingSubmittalFiling', mockAction);
     customRegistry.register('MoveDocument', mockAction);
     customRegistry.register('WriteLog', mockAction);
     customRegistry.register('AnalyzeDocument', mockAction);
+    customRegistry.register('DraftEmail', mockAction);
 
     const input: any = {
       validatedDoc: {
         documentType: 'SUBMITTAL_ARCH',
-        action: 'GoogleDrive',
+        action: 'Received',
         disciplineDetails: { discipline: 'SUBMITTAL_ARCH' }
       },
       logFileId: 'ss-123',
       driveFileId: 'drive-123',
       targetFolderId: 'folder-123',
-      selectedAction: { action: 'GoogleDrive', abbr: 'REC', status: 'Received' }
+      selectedAction: { action: 'Received', abbr: 'REC', status: 'Under Review' }
     };
 
     const specRegistry = new DocumentTypeSpecRegistry();
@@ -101,5 +105,57 @@ describe('PipelineBuilder', () => {
     const result = await PipelineBuilder.buildAndExecute(input, customRegistry, specRegistry, configRegistry);
     expect(result.success).toBe(true);
     expect(actionExecuted).toBe(true);
+  });
+
+  it('buildAndExecute forwards deferredFiling, number, rev, and docType from finalContext to result', async () => {
+    const customRegistry = new ActionRegistry();
+    const mockFilingAction = {
+      execute: async (context: any) => ({
+        ...context,
+        newFileName: '033000-002 Concrete.pdf',
+        number: '002',
+        rev: 'A',
+        docType: 'SUBMITTAL_ARCH',
+        deferredFiling: {
+          number: '002',
+          title: 'Concrete Submittal',
+          rev: 'A',
+          docType: 'SUBMITTAL_ARCH'
+        }
+      })
+    };
+    customRegistry.register('ReadLog', mockFilingAction);
+    customRegistry.register('DualDocumentSubmittalFiling', mockFilingAction);
+    customRegistry.register('OutgoingSubmittalFiling', mockFilingAction);
+    customRegistry.register('MoveDocument', mockFilingAction);
+    customRegistry.register('WriteLog', mockFilingAction);
+    customRegistry.register('AnalyzeDocument', mockFilingAction);
+    customRegistry.register('DraftEmail', mockFilingAction);
+
+    const input: any = {
+      validatedDoc: {
+        documentType: 'SUBMITTAL_ARCH',
+        action: 'Approved',
+        disciplineDetails: { discipline: 'SUBMITTAL_ARCH', number: '002', revision: 'A', title: 'Concrete Submittal' }
+      },
+      logFileId: 'ss-123',
+      driveFileId: 'drive-123',
+      targetFolderId: 'folder-123',
+      selectedAction: { action: 'Approved', abbr: 'APP', status: 'Closed' }
+    };
+
+    const specRegistry = new DocumentTypeSpecRegistry();
+    const configRegistry = new DocumentTypeConfigRegistry(specRegistry);
+    const result = await PipelineBuilder.buildAndExecute(input, customRegistry, specRegistry, configRegistry);
+
+    expect(result.deferredFiling).toEqual({
+      number: '002',
+      title: 'Concrete Submittal',
+      rev: 'A',
+      docType: 'SUBMITTAL_ARCH'
+    });
+    expect(result.number).toBe('002');
+    expect(result.rev).toBe('A');
+    expect(result.docType).toBe('SUBMITTAL_ARCH');
   });
 });

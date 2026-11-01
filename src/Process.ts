@@ -1,15 +1,28 @@
 import { CONFIG, MESSAGES } from "./Config";
-import { CardDraftStateManager } from "./prototypes/CardDraftStateManager";
+import { CardDraftStateManager } from "./core/state/CardDraftStateManager";
 import { TransientOverrideLogger } from "./core/logging/TransientOverrideLogger";
 import { buildSuccessCard } from "./adapters/gas/UI";
 import { DocumentPipeline } from "./core/intake/DocumentPipeline";
-import { DocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
-import { DocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
+import { DocumentTypeSpecRegistry, defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
+import { DocumentTypeConfigRegistry, defaultDocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
 import { PipelineBuilder } from "./core/workflow/PipelineBuilder";
-import { ActionRegistry } from "./core/workflow/ActionRegistry";
+import { ActionRegistry, defaultActionRegistry } from "./core/workflow/ActionRegistry";
 import { LogRepository } from "./core/interfaces/LogRepository";
 import { DriveFilingRepository } from "./core/interfaces/DriveFilingRepository";
 import { UserInterfacePresenter } from "./core/interfaces/UserInterfacePresenter";
+import { defaultLogRepository } from "./GoogleSheetsLogRepository";
+import { defaultDriveFilingRepository } from "./DriveFilingRepository";
+import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
+import { PrefixCacheManager } from "./core/admin/PrefixCacheManager";
+import { GoogleScriptCacheAdapter } from "./adapters/gas/GoogleScriptCacheAdapter";
+
+function getGoogleScriptCacheAdapterClass(): any {
+  return GoogleScriptCacheAdapter;
+}
+
+function getPrefixCacheManagerClass(): any {
+  return PrefixCacheManager;
+}
 
 export interface ProcessDependencies {
   actionRegistry: ActionRegistry;
@@ -18,7 +31,103 @@ export interface ProcessDependencies {
   logRepository: LogRepository;
   driveFilingRepository: DriveFilingRepository;
   cardPresenter: UserInterfacePresenter;
+  cacheAdapter?: CacheAdapter;
+  prefixManager?: PrefixCacheManager;
 }
+
+/**
+ * Handles resumption from an interactive dynamic addition prompt (`allowDynamicAddition`),
+ * synchronously persisting confirmed SpecTag or vendor entries to active support tables
+ * (`Submittal FFE Support` / `_Shared`, or legacy `Tag List`) and executing scoped cache eviction
+ * via `PrefixCacheManager` before continuing pipeline execution (Ticket #311).
+ *
+ * @param e - Google Apps Script event object with form inputs and action parameters.
+ * @param deps - Injected dependencies including log repository, UI presenter, and cache managers.
+ * @returns An ActionResponse or Card navigation outcome.
+ */
+async function handleDynamicPromptSubmission(
+  e: GoogleAppsScriptEvent,
+  deps: ProcessDependencies
+): Promise<any> {
+  const p = e.parameters || {};
+  let form = e.formInput || {};
+
+  if (p.originalFormInput) {
+    try {
+      const original = JSON.parse(p.originalFormInput);
+      form = { ...original, ...form };
+      e.formInput = form;
+    } catch (_e) {}
+  }
+
+  const isSpecTag = p.promptSupportDataKey === "SpecTags" || p.promptFieldKey === "specTag" || Boolean(p.newTag);
+  const isVendor = p.promptSupportDataKey === "Vendors" || p.promptFieldKey === "vendor" || Boolean(p.newVendor);
+
+  const tag = form.specTag || form.tag || form.SpecTags_tag || p.promptUserValue || p.newTag || "";
+  const title = form.specTitle || form.SpecTags_specTitle || form.description || form.SpecTags_description || form.title || form.label || p.newTitle || "";
+
+  const vendor = form.vendor || form.Vendors_name || form.name || form.Vendors_code || form.code || p.promptUserValue || p.newVendor || "";
+  const vendorLabel = form.Vendors_name || form.name || form.vendor || p.promptUserValue || vendor;
+
+  const spreadsheetId = p.logFileId;
+
+  try {
+    if (isSpecTag && tag) {
+      if (!spreadsheetId) throw new Error(MESSAGES.ERROR_NO_LOG);
+      deps.logRepository.addNewTagToTagList(spreadsheetId, tag, title);
+    } else if (isVendor && vendor) {
+      if (!spreadsheetId) throw new Error(MESSAGES.ERROR_NO_LOG);
+      deps.logRepository.addNewVendorToTagList(spreadsheetId, vendor, vendorLabel);
+    }
+
+    // Scoped cache eviction immediately after persistence succeeds
+    if (spreadsheetId) {
+      const CacheAdapterClass = getGoogleScriptCacheAdapterClass();
+      const PrefixManagerClass = getPrefixCacheManagerClass();
+      const cacheAdapter = deps.cacheAdapter || (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
+      const prefixManager = deps.prefixManager || new PrefixManagerClass(cacheAdapter);
+
+      prefixManager.invalidatePrefix("DOC_CONFIG_" + spreadsheetId);
+      prefixManager.invalidatePrefix("log_settings_" + spreadsheetId);
+      prefixManager.invalidatePrefix("log_settings_");
+      prefixManager.invalidatePrefix("log_search_" + spreadsheetId);
+    }
+  } catch (err: any) {
+    // Spreadsheet write failure: DO NOT evict cache, halt pipeline before filing!
+    const errorMsg = "Error adding reference entry: " + (err.message || String(err));
+    if (deps.cardPresenter && typeof deps.cardPresenter.presentNotification === "function") {
+      return deps.cardPresenter.presentNotification(errorMsg);
+    }
+    if (deps.cardPresenter && typeof deps.cardPresenter.presentError === "function") {
+      return deps.cardPresenter.presentError(err);
+    }
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification().setText(errorMsg))
+      .build();
+  }
+
+  // Setup bypass parameters and continue with pipeline execution
+  e.parameters = {
+    ...p,
+    resumedFromDynamicPrompt: "persisted",
+    bypassTagValidation: isSpecTag ? "true" : (p.bypassTagValidation || "false"),
+    bypassVendorValidation: isVendor ? "true" : (p.bypassVendorValidation || "false")
+  };
+
+  return processSubmission(e, deps);
+}
+
+const resolveDefaultDependencies = (deps?: ProcessDependencies): ProcessDependencies => {
+  if (deps) return deps;
+  return {
+    actionRegistry: (globalThis as any).defaultActionRegistry || defaultActionRegistry,
+    specRegistry: (globalThis as any).defaultDocumentTypeSpecRegistry || defaultDocumentTypeSpecRegistry,
+    configRegistry: (globalThis as any).defaultDocumentTypeConfigRegistry || defaultDocumentTypeConfigRegistry,
+    logRepository: (globalThis as any).defaultLogRepository || defaultLogRepository,
+    driveFilingRepository: (globalThis as any).defaultDriveFilingRepository || defaultDriveFilingRepository,
+    cardPresenter: (globalThis as any).defaultCardPresenter || defaultCardPresenter
+  };
+};
 
 /**
  * Primary action handler executed when the user clicks "File & Log" in the add-on interface.
@@ -30,21 +139,32 @@ export interface ProcessDependencies {
  * @param deps - Injected dependencies including action, spec, config registries, repositories, and UI presenter.
  * @returns A Promise resolving to an `ActionResponse` with card navigation or error toast notifications.
  */
-async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependencies): Promise<any> {
+async function processSubmission(e: GoogleAppsScriptEvent, deps?: ProcessDependencies): Promise<any> {
+  const activeDeps = resolveDefaultDependencies(deps);
   try {
     let form = e.formInput || {};
     const p = e.parameters || {};
 
+    if (p.resumedFromDynamicPrompt === "true") {
+      return handleDynamicPromptSubmission(e, deps);
+    }
+
     const bypassDatasets: string[] = [];
-    if (p.resumedFromDynamicPrompt === "true" && p.originalFormInput) {
+    if (p.originalFormInput) {
       try {
         const original = JSON.parse(p.originalFormInput);
         form = { ...original, ...form };
         e.formInput = form;
-        if (p.promptSupportDataKey) {
-          bypassDatasets.push(p.promptSupportDataKey);
-        }
       } catch (_e) {}
+    }
+    if (p.promptSupportDataKey) {
+      bypassDatasets.push(p.promptSupportDataKey);
+    }
+    if (p.bypassTagValidation === "true" && !bypassDatasets.includes("SpecTags")) {
+      bypassDatasets.push("SpecTags");
+    }
+    if (p.bypassVendorValidation === "true" && !bypassDatasets.includes("Vendors")) {
+      bypassDatasets.push("Vendors");
     }
 
     // Task 1: Fetch Bypass Validation
@@ -55,6 +175,11 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
         .build();
     }
 
+    const appContext: AppContext | undefined = (p.appContext as AppContext) || (p.messageId ? "Gmail" : (p.driveFileId ? "GoogleDrive" : undefined));
+    if (appContext === "GoogleDrive" && !form.fileSource) {
+      form.fileSource = "drive";
+    }
+
     const disc = form.discipline || CONFIG.DEFAULT_DISCIPLINE;
     if (!p.logFileId) throw new Error(MESSAGES.ERROR_NO_LOG);
 
@@ -62,7 +187,7 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
     const logSheet = openSs.getSheetByName(CONFIG.LOG_SHEET_NAME) || openSs.getSheetByName("Submittals Log") || openSs.getSheetByName("Submittal Arch") || (openSs.getSheets ? openSs.getSheets()[0] : null);  
     if (!logSheet) throw new Error("Log sheet not found in spreadsheet");
 
-    const logRepo = deps.logRepository;
+    const logRepo = activeDeps.logRepository;
     const settings = logRepo.getLogSettings(p.logFileId, disc);  
     const selectedAction = settings.actions.find(a => a.action === form.action) || { action: "", abbr: "", status: "" };
 
@@ -82,7 +207,7 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
     const validationResult = DocumentPipeline.processFormIntake(form, validationContext);
 
     if (validationResult.status === "error") {
-      return deps.cardPresenter.presentValidationError(
+      return activeDeps.cardPresenter.presentValidationError(
         e,
         validationResult.errors,
         validationResult.missingFields
@@ -90,11 +215,11 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
     }
 
     if (validationResult.status === "interaction_required") {
-      if (validationResult.dynamicPrompts && validationResult.dynamicPrompts.length > 0 && deps.cardPresenter.presentDynamicPromptCard) {
-        return deps.cardPresenter.presentDynamicPromptCard(e, validationResult);
+      if (validationResult.dynamicPrompts && validationResult.dynamicPrompts.length > 0 && activeDeps.cardPresenter.presentDynamicPromptCard) {
+        return activeDeps.cardPresenter.presentDynamicPromptCard(e, validationResult);
       }
-      const promptType = (validationResult.interactionType === "ADD_VENDOR" ? "ADD_VENDOR" : "ADD_TAG");
-      return deps.cardPresenter.presentInteractionPrompt(
+      const promptType = (validationResult.interactionType === "ADD_VENDOR" ? "ADD_VENDOR" : (validationResult.interactionType === "FETCH_FILE" ? "FETCH_FILE" : "ADD_TAG"));
+      return activeDeps.cardPresenter.presentInteractionPrompt(
         e,
         promptType,
         validationResult.message
@@ -105,15 +230,16 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
     const emptyFallbacks = validationResult.warnings;
     const logSheetId = logSheet && typeof logSheet.getSheetId === "function" ? logSheet.getSheetId() : undefined;
 
-    const logRepository = deps.logRepository;
-    const driveFilingRepository = deps.driveFilingRepository;
+    const logRepository = activeDeps.logRepository;
+    const driveFilingRepository = activeDeps.driveFilingRepository;
 
     const docType = validatedDoc.documentType || disc;
-    const config = deps.configRegistry.hasConfig(docType)
-      ? deps.configRegistry.getConfig(docType)
+    const config = activeDeps.configRegistry.hasConfig(docType)
+      ? activeDeps.configRegistry.getConfig(docType)
       : undefined;
 
     const input: DocumentWorkflowInput = {
+      appContext,
       validatedDoc,
       logFileId: p.logFileId,
       logSheetId,
@@ -133,9 +259,9 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
 
     const result: DocumentWorkflowResult = await PipelineBuilder.buildAndExecute(
       input,
-      deps.actionRegistry,
-      deps.specRegistry,
-      deps.configRegistry
+      activeDeps.actionRegistry,
+      activeDeps.specRegistry,
+      activeDeps.configRegistry
     );
 
     try {
@@ -161,16 +287,20 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
         if (ctxKey) evictDraft(ctxKey);
         const drftKey = p.draftKey || form.draftKey;
         if (drftKey) evictDraft(drftKey);
+        if (cdsm && typeof cdsm.resolveContextKey === "function") {
+          const resolvedKey = cdsm.resolveContextKey({ ...p, ...form });
+          if (resolvedKey) evictDraft(resolvedKey);
+        }
       }
     } catch (_err) {}
 
     const policy = result.policy;
 
     if (policy?.direction === "incoming" || (!policy?.direction && result.action === "Received")) {
-      return deps.cardPresenter.presentIncomingSuccess(e, result);
+      return activeDeps.cardPresenter.presentIncomingSuccess(e, result);
     }
 
-    return deps.cardPresenter.presentOutgoingSuccess(e, result, p);
+    return activeDeps.cardPresenter.presentOutgoingSuccess(e, result, p);
 
   } catch (err: any) {
     console.error("IntakeCard error:", err);
@@ -187,15 +317,16 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps: ProcessDependen
  * @param deps - Injected process dependencies.
  * @returns ActionResponse updating the card with filing confirmation.
  */
-function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps: ProcessDependencies): any {
+function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps?: ProcessDependencies): any {
+  const activeDeps = resolveDefaultDependencies(deps);
   const p = e.parameters || {};
   try {
-    const docType = p.documentType || p.discipline || "SUBMITTAL_ARCH";
-    const config = deps.configRegistry.hasConfig(docType)
-      ? deps.configRegistry.getConfig(docType)
-      : (deps.specRegistry.findSpecKey(docType) && deps.configRegistry.hasConfig(deps.specRegistry.findSpecKey(docType)!))
-        ? deps.configRegistry.getConfig(deps.specRegistry.findSpecKey(docType)!)
-        : deps.configRegistry.getConfig("SUBMITTAL_ARCH");
+    const docType = p.docType || p.documentType || p.discipline || "SUBMITTAL_ARCH";
+    const config = activeDeps.configRegistry.hasConfig(docType)
+      ? activeDeps.configRegistry.getConfig(docType)
+      : (activeDeps.specRegistry.findSpecKey(docType) && activeDeps.configRegistry.hasConfig(activeDeps.specRegistry.findSpecKey(docType)!))
+        ? activeDeps.configRegistry.getConfig(activeDeps.specRegistry.findSpecKey(docType)!)
+        : activeDeps.configRegistry.getConfig("SUBMITTAL_ARCH");
     const strategy: DocumentLogStrategy | undefined = config.logStrategy;
 
     const doc: ValidatedDocument = {
@@ -208,7 +339,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps: ProcessDependenci
         section: p.section || "",
         specTag: p.specTag || "",
         number: p.number || "",
-        revision: p.revision || "",
+        revision: p.revision || p.rev || "",
         title: p.title || p.itemTitle || "",
         vendor: p.vendor || "",
       },
@@ -221,7 +352,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps: ProcessDependenci
       ? strategy.getFilingSubfolders(doc)
       : [closedFolder];
 
-    const driveFilingRepo = deps.driveFilingRepository;
+    const driveFilingRepo = activeDeps.driveFilingRepository;
     const filingResult = driveFilingRepo.fileDocument(
       { fileId: p.fileId },
       { targetFolderId: p.targetFolderId, subfolderPath }
@@ -235,10 +366,11 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps: ProcessDependenci
     const updated = buildSuccessCard(
       p.fileId, p.newFileName, p.fileUrl, filingResult.localPath, p.stampSubNo, p.itemTitle, p.discipline, p.section, p.specTag, 
       p.targetFolderId, p.logFileId, true, p.projectAbbr, p.action, p.incomingRouting, null,
-      p.directRowUrl, failedCols, emptyFalls
+      p.directRowUrl, failedCols, emptyFalls,
+      { number: p.number, title: p.title || p.itemTitle, rev: p.revision || p.rev, docType }
     );
-    if (deps.cardPresenter.presentMoveToClosedSuccess) {
-      return deps.cardPresenter.presentMoveToClosedSuccess(e, updated, destName);
+    if (activeDeps.cardPresenter.presentMoveToClosedSuccess) {
+      return activeDeps.cardPresenter.presentMoveToClosedSuccess(e, updated, destName);
     }
     return null;
   } catch (err: any) {
@@ -249,5 +381,6 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps: ProcessDependenci
 
 export {
   processSubmission,
+  handleDynamicPromptSubmission,
   moveSubmittalToClosed
 };

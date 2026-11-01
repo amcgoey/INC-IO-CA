@@ -54,7 +54,22 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
       if (sheetName === "_AuditLog") {
         sheet = ss.insertSheet(sheetName);
       } else {
-        sheet = ss.getSheetByName("Submittals Log") || ss.getSheetByName("Submittal Arch") || ss.getSheetByName("Submittal FFE") || (ss.getSheets ? ss.getSheets()[0] : null);
+        if (sheetName === "Submittal Arch" || sheetName === "Submittal FFE") {
+          sheet = ss.getSheetByName("Log") || ss.getSheetByName("Submittals Log") || ss.getSheetByName("Submittal Arch") || ss.getSheetByName("Submittal FFE");
+        } else if (sheetName === "_Shared") {
+          sheet = ss.getSheetByName("Settings");
+        } else if (sheetName === "Submittal FFE Support") {
+          sheet = ss.getSheetByName("Tag List");
+        } else if (sheetName === "Log" || sheetName === "Submittals Log") {
+          sheet = ss.getSheetByName("Submittal Arch") || ss.getSheetByName("Submittal FFE");
+        } else if (sheetName === "Settings") {
+          sheet = ss.getSheetByName("_Shared");
+        } else if (sheetName === "Tag List") {
+          sheet = ss.getSheetByName("Submittal FFE Support");
+        }
+        if (!sheet) {
+          sheet = ss.getSheetByName("Submittals Log") || ss.getSheetByName("Submittal Arch") || ss.getSheetByName("Submittal FFE") || (ss.getSheets ? ss.getSheets()[0] : null);
+        }
         if (!sheet) {
           throw new Error(`Sheet '${sheetName}' not found in spreadsheet.`);
         }
@@ -66,45 +81,65 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
   /** @override */
   getSheetValues(sheetName: string): any[][];
   getSheetValues(sheetName: string): any[][] {
-    return this.getSheet(sheetName).getDataRange().getValues();
+    const s = this.getSheet(sheetName);
+    if (!s || typeof s.getDataRange !== "function") return [];
+    return s.getDataRange().getValues();
   }
 
   getSheetFormulas(sheetName: string): string[][] {
-    return this.getSheet(sheetName).getDataRange().getFormulas();
+    const s = this.getSheet(sheetName);
+    if (!s || typeof s.getDataRange !== "function") return [];
+    return s.getDataRange().getFormulas();
   }
 
   /** @override */
   setSheetValues(sheetName: string, values: any[][]): void {
     const sheet = this.getSheet(sheetName);
-    sheet.clearContents();
-    if (values.length > 0 && values[0].length > 0) {
+    if (!sheet) return;
+    if (typeof (sheet as any).clearContents === "function") {
+      sheet.clearContents();
+    }
+    if (values.length > 0 && values[0].length > 0 && typeof (sheet as any).getRange === "function") {
       sheet.getRange(1, 1, values.length, values[0].length).setValues(values);
     }
   }
 
   /** @override */
   getRangeValue(sheetName: string, rowIndex: number, colIndex: number): any {
-    return this.getSheet(sheetName).getRange(rowIndex, colIndex).getValue();
+    const sheet = this.getSheet(sheetName);
+    if (!sheet || typeof (sheet as any).getRange !== "function") return "";
+    return sheet.getRange(rowIndex, colIndex).getValue();
   }
 
   /** @override */
   setRangeValue(sheetName: string, rowIndex: number, colIndex: number, value: any): void {
-    this.getSheet(sheetName).getRange(rowIndex, colIndex).setValue(value);
+    const sheet = this.getSheet(sheetName);
+    if (!sheet || typeof (sheet as any).getRange !== "function") return;
+    sheet.getRange(rowIndex, colIndex).setValue(value);
   }
 
   /** @override */
   insertRowBefore(sheetName: string, rowIndex: number): void {
-    this.getSheet(sheetName).insertRowBefore(rowIndex);
+    const sheet = this.getSheet(sheetName);
+    if (sheet && typeof (sheet as any).insertRowBefore === "function") {
+      sheet.insertRowBefore(rowIndex);
+    }
   }
 
   /** @override */
   insertRowAfter(sheetName: string, rowIndex: number): void {
-    this.getSheet(sheetName).insertRowAfter(rowIndex);
+    const sheet = this.getSheet(sheetName);
+    if (sheet && typeof (sheet as any).insertRowAfter === "function") {
+      sheet.insertRowAfter(rowIndex);
+    }
   }
 
   /** @override */
   setRowValues(sheetName: string, rowIndex: number, headers: string[], rowData: any[]): { failedColumns: string[] } {
     const sheet = this.getSheet(sheetName);
+    if (!sheet || typeof (sheet as any).getRange !== "function") {
+      return { failedColumns: [] };
+    }
     try {
       sheet.getRange(rowIndex, 1, 1, headers.length).setValues([rowData]);
       return { failedColumns: [] };
@@ -128,6 +163,23 @@ class GoogleSheetsStorageAdapter implements SheetStorageAdapter {
     rowData: any[],
     plan: RowInsertionPlan
   ): { rowIndex: number; failedColumns: string[] } {
+    const sheet = this.getSheet(sheetName);
+    if (typeof (sheet as any).getMaxRows === "function") {
+      const currentMax = (sheet as any).getMaxRows();
+      if (currentMax < 6 || currentMax <= plan.targetRowIndex) {
+        const rowsNeeded = Math.max(25 - currentMax, (plan.targetRowIndex + 1) - currentMax);
+        if (rowsNeeded > 0) {
+          if (typeof (sheet as any).insertRowsAfter === "function") {
+            (sheet as any).insertRowsAfter(currentMax, rowsNeeded);
+          } else if (typeof sheet.insertRowAfter === "function") {
+            for (let i = 0; i < rowsNeeded; i++) {
+              sheet.insertRowAfter(currentMax + i);
+            }
+          }
+        }
+      }
+    }
+
     this.insertRowAfter(sheetName, plan.targetRowIndex);
     
     if (plan.insertBlankBefore) {

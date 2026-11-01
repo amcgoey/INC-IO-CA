@@ -2,6 +2,7 @@ import { defaultAnalyzeDocumentAction } from "../../AnalyzeDocumentAction";
 import { defaultDocumentTypeConfigRegistry, resolve5TierFieldValue } from "../../DocumentTypeConfigRegistry";
 import { MESSAGES, CONFIG } from "../../Config";
 import { defaultLogRepository } from "../../GoogleSheetsLogRepository";
+import { defaultDriveFilingRepository } from "../../DriveFilingRepository";
 import { defaultCardPresenter } from "./CardPresenter";
 import { defaultDriveNameProvider } from "../../GoogleDriveNameProvider";
 import { FieldConfidenceThreshold } from "../../core/interfaces/AiAnalysisService";
@@ -9,6 +10,7 @@ import { PicklistResolver, PicklistOption } from "../../core/config/PicklistReso
 import { DocumentTypeWidgetFactory } from "../../core/specs/DocumentTypeWidgetFactory";
 import { defaultDocumentTypeSpecRegistry } from "../../core/specs/DocumentTypeSpecRegistry";
 import type { DynamicPromptConfig, DynamicPromptPayload } from "../../core/specs/DocumentTypeSpec";
+import { CardDraftStateManager } from "../../core/state/CardDraftStateManager";
 
 /**
  * Helper to append ⚠ Check Value label indicator when field confidence is below threshold (< 0.85).
@@ -341,14 +343,34 @@ function renderDynamicFormFields(
         .setFieldName(field.key)
         .setTitle(displayTitle);
 
+      const ss = hydrationContext.spreadsheet || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp.getActiveSpreadsheet() : null);
+      const docTypeKey = hydrationContext.docTypeKey || "Submittal_Arch";
+      const activeSheetName = hydrationContext.activeSheetName || "Submittal Arch";
+
       let optionsList: PicklistOption[] = field.options || [];
 
-      if (field.optionsRange) {
-        const ss = hydrationContext.spreadsheet || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp.getActiveSpreadsheet() : null);
-        const docTypeKey = hydrationContext.docTypeKey || "Submittal_Arch";
-        const activeSheetName = hydrationContext.activeSheetName || "Submittal Arch";
-
-        const resolvedResult = PicklistResolver.resolvePicklistOptionsRange(field.optionsRange, ss, docTypeKey, activeSheetName, field);
+      if (field.picklistSource) {
+        const pickContext: PicklistResolutionContext = {
+          ...hydrationContext,
+          spreadsheet: ss,
+          docTypeKey,
+          activeSheetName,
+          fieldSpec: field
+        };
+        const resolved = PicklistResolver.resolve(field.picklistSource, pickContext, hydratedValue);
+        if (resolved.options && resolved.options.length > 0) {
+          optionsList = resolved.options;
+        }
+      } else if (field.optionsRange) {
+        const resolvedResult = PicklistResolver.resolvePicklistOptionsRange(
+          field.optionsRange,
+          ss,
+          docTypeKey,
+          activeSheetName,
+          field,
+          undefined,
+          hydratedValue
+        );
         optionsList = resolvedResult.options || optionsList;
         if (resolvedResult.warningBanner) {
           section.addWidget(
@@ -360,13 +382,22 @@ function renderDynamicFormFields(
         }
       }
 
+      // Ensure hydrated draftValue is dynamically appended as a fallback option when not in resolved list
+      optionsList = PicklistResolver.injectDraftValue(optionsList, hydratedValue, field);
+
+      let selectedFound = false;
       if (optionsList.length === 0) {
         dropdownWidget.addItem("-- None --", "", true);
       } else {
         optionsList.forEach(opt => {
           const isSelected = String(opt.value) === String(hydratedValue) || String(opt.label) === String(hydratedValue);
+          if (isSelected) selectedFound = true;
           dropdownWidget.addItem(opt.label || opt.value, opt.value, isSelected);
         });
+      }
+
+      if (hydratedValue && !selectedFound && optionsList.length > 0) {
+        dropdownWidget.addItem(String(hydratedValue), String(hydratedValue), true);
       }
 
       if (onStateActionName) {
@@ -588,7 +619,7 @@ function handleFetchUrl(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service
  * @param emptyFallbacks - List of optional fields that fell back to empty strings.
  * @returns Constructed `GoogleAppsScript.Card_Service.Card` instance.
  */
-function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled = false, projectAbbr = "", action = "", incomingRouting = "", draftUrl: string | null = null, directRowUrl: string | null = null, failedColumns: string[] = [], emptyFallbacks: string[] = []): GoogleAppsScript.Card_Service.Card {
+function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled = false, projectAbbr = "", action = "", incomingRouting = "", draftUrl: string | null = null, directRowUrl: string | null = null, failedColumns: string[] = [], emptyFallbacks: string[] = [], deferredFiling?: { number?: string; title?: string; rev?: string; docType?: string; isFiled?: boolean; targetSubfolder?: string; }): GoogleAppsScript.Card_Service.Card {
   const header = CardService.newCardHeader().setTitle(MESSAGES.SUCCESS_CARD_TITLE);
   if (CONFIG.LOGO_URL) header.setImageUrl(CONFIG.LOGO_URL);
   const card = CardService.newCardBuilder().setHeader(header);
@@ -616,7 +647,10 @@ function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, 
     logFileId: logFileId || "", isFiledStatus: isFiled ? "true" : "false",
     directRowUrl: directRowUrl || "",
     failedColumns: JSON.stringify(failedColumns || []),
-    emptyFallbacks: JSON.stringify(emptyFallbacks || [])
+    emptyFallbacks: JSON.stringify(emptyFallbacks || []),
+    number: deferredFiling?.number || "",
+    rev: deferredFiling?.rev || "",
+    docType: deferredFiling?.docType || ""
   };
 
   const btnSet = CardService.newButtonSet();
@@ -624,6 +658,11 @@ function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, 
   else btnSet.addButton(CardService.newTextButton().setText("Draft Email").setOnClickAction(CardService.newAction().setFunctionName("createDraftEmail").setParameters(draftParams)).setTextButtonStyle(CardService.TextButtonStyle.FILLED));
   
   if (!isFiled) {
+    const defNumber = deferredFiling?.number || "";
+    const defTitle = deferredFiling?.title || itemTitle || "";
+    const defRev = deferredFiling?.rev || "";
+    const defDocType = deferredFiling?.docType || (discipline === "FF&E" ? "SUBMITTAL_FFE" : "SUBMITTAL_ARCH");
+
     btnSet.addButton(CardService.newTextButton().setText("File the Submittal").setOnClickAction(CardService.newAction().setFunctionName("moveSubmittalToClosed")
       .setParameters({ 
         fileId: fileId || "", newFileName: newFileName || "", fileUrl: fileUrl || "", stampSubNo: targetKey || "", itemTitle: itemTitle || "", 
@@ -631,7 +670,11 @@ function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, 
         projectAbbr: projectAbbr || "", action: action || "", incomingRouting: incomingRouting || "",
         directRowUrl: directRowUrl || "",
         failedColumns: JSON.stringify(failedColumns || []),
-        emptyFallbacks: JSON.stringify(emptyFallbacks || [])
+        emptyFallbacks: JSON.stringify(emptyFallbacks || []),
+        number: defNumber,
+        title: defTitle,
+        rev: defRev,
+        docType: defDocType
       })).setTextButtonStyle(CardService.TextButtonStyle.OUTLINED));
   }
   sec.addWidget(btnSet);
@@ -655,14 +698,24 @@ function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servi
     const primary = configs.sendAs.find((c: any) => c.isPrimary);
     if (primary && primary.signature) signature = "\n\n" + primary.signature;
   } catch (err) {}
-  const templateData = (p.action === "Referred") ? EMAIL_TEMPLATES.toRefer(p) : (p.action === "Rejected" ? EMAIL_TEMPLATES.rejectedOutgoing(p) : EMAIL_TEMPLATES.standardOutgoing(p));
+  const normAction = (p.action || '').toLowerCase().trim();
+  const normAbbr = (p.actionAbbr || '').toUpperCase().trim();
+  const isRejection =
+    normAction === 'rejected' ||
+    normAction === 'revise and resubmit' ||
+    normAction === 'revise & resubmit' ||
+    normAbbr === 'REJ' ||
+    normAbbr === 'R&R';
+  const templateData = (p.action === "Referred")
+    ? EMAIL_TEMPLATES.toRefer(p)
+    : (isRejection ? EMAIL_TEMPLATES.rejectedOutgoing(p) : EMAIL_TEMPLATES.standardOutgoing(p));
   const draft = GmailApp.createDraft("", templateData.subject, "", { htmlBody: templateData.body + signature });
   const draftUrl = 'https://mail.google.com/mail/u/0/#drafts?compose=' + draft.getMessage().getId();
   
   const failedCols = p.failedColumns ? JSON.parse(p.failedColumns) : [];
   const emptyFalls = p.emptyFallbacks ? JSON.parse(p.emptyFallbacks) : [];
 
-  const updated = buildSuccessCard(p.fileId, p.newFileName, p.url, p.localPath, p.targetKey, p.title, p.discipline, p.section, p.specTag, p.targetFolderId, p.logFileId, p.isFiledStatus === "true", p.projectAbbr, p.action, p.incomingRouting, draftUrl, p.directRowUrl, failedCols, emptyFalls);
+  const updated = buildSuccessCard(p.fileId, p.newFileName, p.url, p.localPath, p.targetKey, p.title, p.discipline, p.section, p.specTag, p.targetFolderId, p.logFileId, p.isFiledStatus === "true", p.projectAbbr, p.action, p.incomingRouting, draftUrl, p.directRowUrl, failedCols, emptyFalls, { number: p.number, title: p.title, rev: p.rev, docType: p.docType });
   return defaultCardPresenter.presentDraftEmailSuccess(e, updated);
 }
 
@@ -673,6 +726,13 @@ function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servi
  * @returns ActionResponse instructing CardService to reload the UI card.
  */
 function onStateChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse { 
+  try {
+    const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
+    const contextKey = CardDraftStateManager.resolveContextKey(e);
+    if (userCache && contextKey && e && e.formInput) {
+      CardDraftStateManager.saveDraft(userCache, contextKey, e.formInput);
+    }
+  } catch (_err) {}
   return defaultCardPresenter.presentCardReload(e);
 }
 
@@ -683,6 +743,13 @@ function onStateChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.
  * @returns ActionResponse reloading the card with updated spec title suggestions.
  */
 function onSpecTagChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse { 
+  try {
+    const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
+    const contextKey = CardDraftStateManager.resolveContextKey(e);
+    if (userCache && contextKey && e && e.formInput) {
+      CardDraftStateManager.saveDraft(userCache, contextKey, e.formInput);
+    }
+  } catch (_err) {}
   return defaultCardPresenter.presentCardReload(e, true);
 }
 
@@ -776,6 +843,10 @@ function buildIntakeCard(
   const messageId = (e && e.gmail && e.gmail.messageId) || p.messageId || null;
   const driveFileId = p.driveFileId || formInput.driveFileId || (flashMessage && flashMessage.newDriveFileId) || "";
 
+  const contextKey = CardDraftStateManager.resolveContextKey(e);
+  const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
+  const cachedDraft = (userCache && contextKey) ? CardDraftStateManager.getDraft(userCache, contextKey) : null;
+
   const registry = defaultDocumentTypeConfigRegistry;
   const resolvedDocType =
     formInput.documentType !== undefined
@@ -790,20 +861,20 @@ function buildIntakeCard(
 
   // Resolved Cascading State
   const state = {
-    project: formInput.project || (initialData && initialData.driveName) || p.project || "",
+    project: formInput.project || (cachedDraft && (cachedDraft.project || cachedDraft.projectId)) || (initialData && initialData.driveName) || p.project || "",
     documentType: resolvedDocType,
-    section: formInput.section || (initialData && initialData.section) || "",
-    number: formInput.number || (initialData && (initialData.number || (initialData as any).rfiNumber || (initialData as any).asiNumber)) || "",
-    revision: formInput.revision || (initialData && initialData.revision) || "0",
-    title: formInput.title || (initialData && initialData.title) || "",
-    specTag: formInput.specTag || (initialData && initialData.specTag) || "",
-    relatedTag: formInput.relatedTag || (initialData && initialData.relatedTag) || "",
-    specTitle: formInput.specTitle || (initialData && initialData.specTitle) || "",
-    vendor: formInput.vendor || (initialData && initialData.vendor) || "",
-    rfiNumber: formInput.rfiNumber || (initialData && ((initialData as any).rfiNumber || initialData.number)) || "",
-    asiNumber: formInput.asiNumber || (initialData && ((initialData as any).asiNumber || initialData.number)) || "",
-    date: formInput.date || (initialData && initialData.date) || formatGasDate(new Date()),
-    notes: formInput.notes || ""
+    section: formInput.section || (cachedDraft && (cachedDraft.section || cachedDraft.csiSection)) || (initialData && initialData.section) || "",
+    number: formInput.number || (cachedDraft && cachedDraft.number) || (initialData && (initialData.number || (initialData as any).rfiNumber || (initialData as any).asiNumber)) || "",
+    revision: formInput.revision || (cachedDraft && (cachedDraft.revision || cachedDraft.rev)) || (initialData && initialData.revision) || "0",
+    title: formInput.title || (cachedDraft && (cachedDraft.title || cachedDraft.specTitle)) || (initialData && initialData.title) || "",
+    specTag: formInput.specTag || (cachedDraft && cachedDraft.specTag) || (initialData && initialData.specTag) || "",
+    relatedTag: formInput.relatedTag || (cachedDraft && cachedDraft.relatedTag) || (initialData && initialData.relatedTag) || "",
+    specTitle: formInput.specTitle || (cachedDraft && (cachedDraft.specTitle || cachedDraft.title)) || (initialData && initialData.specTitle) || "",
+    vendor: formInput.vendor || (cachedDraft && cachedDraft.vendor) || (initialData && initialData.vendor) || "",
+    rfiNumber: formInput.rfiNumber || (cachedDraft && cachedDraft.rfiNumber) || (initialData && ((initialData as any).rfiNumber || initialData.number)) || "",
+    asiNumber: formInput.asiNumber || (cachedDraft && cachedDraft.asiNumber) || (initialData && ((initialData as any).asiNumber || initialData.number)) || "",
+    date: formInput.date || (cachedDraft && cachedDraft.date) || (initialData && initialData.date) || formatGasDate(new Date()),
+    notes: formInput.notes || (cachedDraft && cachedDraft.notes) || ""
   };
 
   const driveProvider = defaultDriveNameProvider;
@@ -871,7 +942,14 @@ function buildIntakeCard(
 
   if (activeLogFileId && !targetFolderId) {
     try {
-      if (typeof DriveApp !== "undefined" && DriveApp.getFileById) {
+      const filingRepo = defaultDriveFilingRepository || (globalThis as any).defaultDriveFilingRepository;
+      if (filingRepo && typeof filingRepo.resolveSubmittalsFolder === "function") {
+        const resolution = filingRepo.resolveSubmittalsFolder(activeLogFileId);
+        if (resolution && resolution.submittalsFolderId) {
+          targetFolderId = resolution.submittalsFolderId;
+        }
+      }
+      if (!targetFolderId && typeof DriveApp !== "undefined" && DriveApp.getFileById) {
         const logFile = DriveApp.getFileById(activeLogFileId);
         const parents = logFile.getParents();
         if (parents.hasNext()) {
@@ -916,6 +994,14 @@ function buildIntakeCard(
     card.addSection(
       CardService.newCardSection().addWidget(
         CardService.newTextParagraph().setText(msgText)
+      )
+    );
+  }
+
+  if (cachedDraft && cachedDraft.exceededSizeGuard && cachedDraft.warningMessage) {
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextParagraph().setText(cachedDraft.warningMessage)
       )
     );
   }
@@ -1164,14 +1250,34 @@ function buildIntakeCard(
       workflows: []
     };
 
+    const targetTabName = state.documentType === "SUBMITTAL_FFE"
+      ? "Submittal FFE"
+      : (state.documentType === "RFI" ? "RFI Log" : (state.documentType === "ASI" ? "ASI Log" : "Submittal Arch"));
+
+    const liveSpreadsheet = (typeof SpreadsheetApp !== "undefined" && activeLogFileId && SpreadsheetApp.openById)
+      ? SpreadsheetApp.openById(activeLogFileId)
+      : (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+
+    const userCacheDraftForSection = cachedDraft ? {
+      ...cachedDraft,
+      title: cachedDraft.title || cachedDraft.specTitle || "",
+      specTitle: cachedDraft.specTitle || cachedDraft.title || "",
+      revision: cachedDraft.revision || cachedDraft.rev || "0",
+      rev: cachedDraft.rev || cachedDraft.revision || "0"
+    } : {};
+
     const sectionVm = DocumentTypeWidgetFactory.buildSectionViewModel(spec, {
       hydrationContext: {
         formInput,
         state,
         initialData,
+        userCacheDraft: userCacheDraftForSection,
         parserResult: initialData,
         aiMetadata: aiClassification,
-        logSettings
+        logSettings,
+        spreadsheet: liveSpreadsheet,
+        docTypeKey: state.documentType,
+        activeSheetName: targetTabName
       },
       validationContext: {
         missingFields: flashMessage && flashMessage.missingFields ? flashMessage.missingFields : [],
@@ -1207,9 +1313,13 @@ function buildIntakeCard(
           formInput,
           state,
           initialData,
+          userCacheDraft: userCacheDraftForSection,
           parserResult: initialData,
           aiMetadata: aiClassification,
-          logSettings
+          logSettings,
+          spreadsheet: liveSpreadsheet,
+          docTypeKey: state.documentType,
+          activeSheetName: targetTabName
         },
         {
           missingFields: flashMessage && flashMessage.missingFields ? flashMessage.missingFields : [],
@@ -1376,9 +1486,21 @@ function onDynamicPromptCancel(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_
     .build();
 }
 
+/**
+ * Action callback when saving and resuming from a dynamic addition prompt.
+ * Delegates to global handleDynamicPromptSubmission or processSubmission (Ticket #311).
+ */
+function handleDynamicPromptSubmission(e: GoogleAppsScriptEvent): any {
+  if (typeof (globalThis as any).handleDynamicPromptSubmission === "function") {
+    return (globalThis as any).handleDynamicPromptSubmission(e);
+  }
+  return processSubmission(e);
+}
+
 export {
   buildDynamicSupportDataCard,
   onDynamicPromptCancel,
+  handleDynamicPromptSubmission,
   renderDynamicFormFields,
   buildIntakeCard,
   buildSuccessCard,

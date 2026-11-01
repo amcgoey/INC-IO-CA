@@ -137,7 +137,16 @@ class FormIntakeParser {
     if (rawDoc.action === undefined) {
       rawDoc.action = typeof CONFIG !== "undefined" && CONFIG.DEFAULT_ACTION ? CONFIG.DEFAULT_ACTION : "Received";
     }
+    if ((context?.appContext === "GoogleDrive" || (context as any)?.hostContext === "GoogleDrive" || (formInput as any).appContext === "GoogleDrive") && !rawDoc.fileSource) {
+      rawDoc.fileSource = "drive";
+    }
     rawDoc.documentType = rawDoc.documentType || "Submittal";
+    if (rawDoc.number && /^\d+$/.test(rawDoc.number)) {
+      rawDoc.number = padSubmittalNumber(rawDoc.number);
+    }
+    if (rawDoc.submittalNum && /^\d+$/.test(rawDoc.submittalNum)) {
+      rawDoc.submittalNum = padSubmittalNumber(rawDoc.submittalNum);
+    }
 
     if (context) {
       const listFields = ListDocumentField.createDefaultListFields(context);
@@ -153,7 +162,7 @@ class FormIntakeParser {
   }
 }
 
-function padSubmittalNumber(numStr?: string): string {
+export function padSubmittalNumber(numStr?: string): string {
   if (!numStr) return "";
   const trimmed = numStr.trim();
   if (/^\d+$/.test(trimmed)) {
@@ -168,7 +177,11 @@ function normalizeSpecSection(secStr?: string): string {
     return PicklistResolver.normalizePicklistValue(secStr, { key: "section", keyNormalizationRule: "code" });
   }
   const codePart = secStr.trim().split(/\s+-\s+|\s+-(?=[A-Za-z])/)[0];
-  return codePart.replace(/[\s.-]+/g, '').toUpperCase();
+  return codePart
+    .replace(/^(\d{2})\.(\d{2})\.(\d{2})/, '$1$2$3')
+    .replace(/[\s-]+/g, '')
+    .replace(/\.+$/, '')
+    .toUpperCase();
 }
 
 function splitNumberAndRevision(numRevStr: string): { submittalNum: string; revNum: string } {
@@ -216,8 +229,8 @@ const DRIVE_FILENAME_PATTERNS: DriveFilenamePattern[] = [
       discipline: "Architecture",
       section: match[1],
       specSection: match[1],
-      number: match[2],
-      submittalNum: match[2],
+      number: padSubmittalNumber(match[2]),
+      submittalNum: padSubmittalNumber(match[2]),
       revision: match[3],
       revNum: match[3],
       title: match[4].trim(),
@@ -272,6 +285,17 @@ class DriveFilenameIntakeParser {
 
 function validateDocFn(raw: RawDocument, context?: ValidationContext): ValidationResult {
   const rawDoc = FormIntakeParser.parse(raw, context);
+
+  // Pre-submission intake guard: fileSource === "link"
+  const fileSource = (rawDoc.fileSource || (raw as any).fileSource || "").toLowerCase();
+  const driveFileId = rawDoc.driveFileId || (raw as any).driveFileId || (raw as any).driveFileUrl || context?.driveFileId;
+  if ((fileSource === "link" || fileSource.startsWith("http")) && !driveFileId) {
+    return {
+      status: "interaction_required",
+      interactionType: "FETCH_FILE",
+      message: '⚠️ Please click "Fetch & Save to Drive" before logging.'
+    };
+  }
   const registry: DocumentTypeConfigRegistry | undefined = defaultDocumentTypeConfigRegistry;
 
   let config: DocumentTypeConfig | undefined;
@@ -360,7 +384,7 @@ function validateDocFn(raw: RawDocument, context?: ValidationContext): Validatio
     const sectionVal = normalizeSpecSection(rawDoc.section);
     if (!sectionVal) warnings.push('Section');
 
-    const numberVal = getTrimmed(rawDoc.number);
+    const numberVal = padSubmittalNumber(getTrimmed(rawDoc.number));
     if (!numberVal) warnings.push('Number');
 
     const revisionVal = getTrimmed(rawDoc.revision);

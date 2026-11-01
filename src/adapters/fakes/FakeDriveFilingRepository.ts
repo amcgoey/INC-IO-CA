@@ -4,12 +4,14 @@
  * @description In-memory fake implementation of DriveFilingRepository for unit testing and fake adapter composition.
  */
 
-import { DriveFilingRepository, FilingOptions, FilingResult } from "../../core/interfaces/DriveFilingRepository";
+import { DriveFilingRepository, FilingOptions, FilingResult, SubmittalFolderResolution } from "../../core/interfaces/DriveFilingRepository";
 
 export class FakeDriveFilingRepository implements DriveFilingRepository {
   public calls: string[] = [];
   public filedDocuments: Array<{ file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob }; options: FilingOptions; result: FilingResult }> = [];
   public duplicatedDocuments: Array<{ source: { fileId?: string; blob?: GoogleAppsScript.Base.Blob }; options?: FilingOptions; result: FilingResult }> = [];
+  public renamedDocuments: Array<{ fileId: string; newFileName: string; result: FilingResult }> = [];
+  public sharedFiles: Array<{ fileId: string; accessType: string; permissionType: string }> = [];
   public customPaths: Record<string, string>;
 
   constructor(customPaths: Record<string, string> = {}) {
@@ -20,6 +22,8 @@ export class FakeDriveFilingRepository implements DriveFilingRepository {
     this.calls = [];
     this.filedDocuments = [];
     this.duplicatedDocuments = [];
+    this.renamedDocuments = [];
+    this.sharedFiles = [];
   }
 
   getLocalPath(fileId: string): string {
@@ -57,6 +61,27 @@ export class FakeDriveFilingRepository implements DriveFilingRepository {
     const result: FilingResult = { fileId: newId, url, localPath, folderId };
     this.duplicatedDocuments.push({ source, options, result });
     return result;
+  }
+
+  renameDocument(fileId: string, newFileName: string): FilingResult {
+    this.calls.push(fileId);
+    const finalName = newFileName.endsWith(".pdf") ? newFileName : newFileName + ".pdf";
+    const url = "http://drive.google.com/" + fileId;
+    const localPath = this.getLocalPath(fileId);
+    const result: FilingResult = { fileId, url, localPath, folderId: "folder-staged" };
+    this.renamedDocuments.push({ fileId, newFileName: finalName, result });
+    return result;
+  }
+
+  setSharing(fileId: string, accessType: string, permissionType: string): void {
+    this.sharedFiles.push({ fileId, accessType, permissionType });
+  }
+
+  resolveSubmittalsFolder(workbookFileId: string): SubmittalFolderResolution {
+    return {
+      submittalsFolderId: "folder-submittals-" + workbookFileId,
+      projectRootId: "folder-project-root-" + workbookFileId
+    };
   }
 }
 

@@ -69,7 +69,10 @@
                       "isFiledStatus": "false",
                       "directRowUrl": "https://docs.google.com/spreadsheets/d/log-ffe/edit?gid=0#gid=0",
                       "failedColumns": "[]",
-                      "emptyFallbacks": "[]"
+                      "emptyFallbacks": "[]",
+                      "number": "",
+                      "rev": "",
+                      "docType": "SUBMITTAL_FFE"
                     }
                   }
                 },
@@ -96,7 +99,11 @@
                       "incomingRouting": "",
                       "directRowUrl": "https://docs.google.com/spreadsheets/d/log-ffe/edit?gid=0#gid=0",
                       "failedColumns": "[]",
-                      "emptyFallbacks": "[]"
+                      "emptyFallbacks": "[]",
+                      "number": "",
+                      "title": "Dining Side Chair",
+                      "rev": "",
+                      "docType": "SUBMITTAL_FFE"
                     }
                   }
                 }

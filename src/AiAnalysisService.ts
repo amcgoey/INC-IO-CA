@@ -106,6 +106,74 @@ const fetchGeminiWithRetryHelper = (
 /**
  * Production implementation of `AiAnalysisService` using the Gemini API.
  */
+function cleanProjectNameCandidate(name: string): string {
+  let cleaned = (name || '').trim();
+  let prev = '';
+  while (prev !== cleaned) {
+    prev = cleaned;
+    cleaned = cleaned
+      .replace(/^\[(?:EXTERNAL|EXT|SPAM|CONFIDENTIAL)\]\s*/i, '')
+      .replace(/^(?:re|fw|fwd)\s*:\s*/i, '')
+      .replace(/^\[[^\]]+\]\s*/, '')
+      .trim();
+  }
+  cleaned = cleaned.replace(/^(?:[A-Za-z]?\d+[\s._-]+)+/, '').trim();
+  return cleaned;
+}
+
+function canonicalProjectTokens(name: string): string {
+  return cleanProjectNameCandidate(name)
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function matchFuzzyProjectName(predicted: string, driveNames: string[]): string {
+  if (!predicted || !driveNames || driveNames.length === 0) return '';
+  const trimmed = predicted.trim();
+  if (driveNames.includes(trimmed)) return trimmed;
+
+  const lowerPred = trimmed.toLowerCase();
+  const exactCaseInsensitive = driveNames.find(d => d.toLowerCase() === lowerPred);
+  if (exactCaseInsensitive) return exactCaseInsensitive;
+
+  const cleanedPred = canonicalProjectTokens(trimmed);
+  if (!cleanedPred) return '';
+
+  for (const driveName of driveNames) {
+    if (canonicalProjectTokens(driveName) === cleanedPred) {
+      return driveName;
+    }
+  }
+
+  let bestMatch = '';
+  let maxScore = 0;
+
+  for (const driveName of driveNames) {
+    const cleanedDrive = canonicalProjectTokens(driveName);
+    if (!cleanedDrive) continue;
+
+    if (cleanedPred === cleanedDrive) {
+      return driveName;
+    }
+
+    if (cleanedPred.includes(cleanedDrive) && cleanedDrive.length >= 3) {
+      if (cleanedDrive.length > maxScore) {
+        maxScore = cleanedDrive.length;
+        bestMatch = driveName;
+      }
+    } else if (cleanedDrive.includes(cleanedPred) && cleanedPred.length >= 3) {
+      if (cleanedPred.length > maxScore) {
+        maxScore = cleanedPred.length;
+        bestMatch = driveName;
+      }
+    }
+  }
+
+  return bestMatch;
+}
+
 class GeminiAiAnalysisAdapter implements AiAnalysisService {
   private driveNameProvider?: DriveNameProvider;
   private cacheAdapter?: CacheAdapter;
@@ -263,10 +331,8 @@ Your task is to logically deduce the project. Return JSON.
         const text = json.candidates[0].content.parts[0].text.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsedResponse = JSON.parse(text);
 
-        let projectName = parsedResponse.predictedProjectName || "";
-        if (projectName && !driveNames.includes(projectName)) {
-          projectName = "";
-        }
+        const rawProjectName = parsedResponse.predictedProjectName || "";
+        const projectName = matchFuzzyProjectName(rawProjectName, driveNames);
 
         const triagePrediction: AIPrediction = {
           predictedProjectName: projectName,

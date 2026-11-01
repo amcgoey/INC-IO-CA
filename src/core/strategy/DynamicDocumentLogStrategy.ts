@@ -9,22 +9,35 @@ import { getRowGroupKey, getRowSortKey } from '../../RowPositionCalculator';
 export function formatDateStr(rawDate: unknown): string {
   if (rawDate instanceof Date) {
     if (isNaN(rawDate.getTime())) return '';
-    const yyyy = String(rawDate.getFullYear());
+    const yy = String(rawDate.getFullYear()).slice(-2);
     const mm = String(rawDate.getMonth() + 1).padStart(2, '0');
     const dd = String(rawDate.getDate()).padStart(2, '0');
-    return yyyy + mm + dd;
+    return yy + mm + dd;
   }
-  return String(rawDate || '').replace(/\D/g, '').padStart(6, '0');
+  const str = String(rawDate || '').trim();
+  if (!str) return '';
+  const digits = str.replace(/\D/g, '');
+  if (digits.length === 8) {
+    return digits.slice(-6);
+  }
+  if (digits.length === 6) {
+    return digits;
+  }
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const yy = String(parsed.getFullYear()).slice(-2);
+    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+    const dd = String(parsed.getDate()).padStart(2, '0');
+    return yy + mm + dd;
+  }
+  return digits.padStart(6, '0');
 }
 
 /**
  * Safely pads a numeric or string value with leading zeros to the specified target length.
  */
 function safePadNum(val: unknown, len: number): string {
-  if (typeof (globalThis as Record<string, unknown>).padNum === 'function') {
-    return ((globalThis as Record<string, unknown>).padNum as (v: unknown, l: number) => string)(val, len);
-  }
-  return String(val || '').trim().padStart(len, '0');
+  return String(val ?? '').trim().padStart(len, '0');
 }
 
 export class DynamicDocumentLogStrategy implements DocumentLogStrategy<ValidatedDocument> {
@@ -62,6 +75,15 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
       const numStr = String(record.number).trim();
       record.number = /^\d+$/.test(numStr) ? safePadNum(numStr, 3) : numStr;
     }
+    if (record.specTag !== undefined && record.specTag !== null) {
+      record.specTag = String(record.specTag).trim().toUpperCase();
+    }
+    if (record.tag !== undefined && record.tag !== null) {
+      record.tag = String(record.tag).trim().toUpperCase();
+    }
+    if (record.revision !== undefined && record.revision !== null) {
+      record.revision = String(record.revision).trim();
+    }
 
     return record;
   }
@@ -69,29 +91,27 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
   public getGroupKey(doc: ValidatedDocument): string {
     const record = this.extractRecord(doc);
     const groupKey = this.compiler.evaluate(this.spec.identity.groupFormat, record);
-    return groupKey.toLowerCase();
-  }
-
-  public getSortKey(doc: ValidatedDocument): string {
-    const groupKey = this.getGroupKey(doc);
-    const record = this.extractRecord(doc);
-    const revStr = record.revision !== undefined && record.revision !== null ? String(record.revision).trim() : '0';
-    const rev = /^\d+$/.test(revStr) ? safePadNum(revStr, 3) : revStr;
-    const dateStr = formatDateStr(record.date);
-    return `${groupKey}-${rev}-${dateStr}`;
+    return groupKey.trim().toUpperCase();
   }
 
   public getTargetKey(doc: ValidatedDocument): string {
     const record = this.extractRecord(doc);
     const targetFormat = this.spec.identity.revisionGroupFormat || this.spec.identity.format;
-    return this.compiler.evaluate(targetFormat, record);
+    return this.compiler.evaluate(targetFormat, record).trim().toUpperCase();
+  }
+
+  public getSortKey(doc: ValidatedDocument): string {
+    const revGroupKey = this.getTargetKey(doc);
+    const record = this.extractRecord(doc);
+    const dateStr = formatDateStr(record.date);
+    return `${revGroupKey}-${dateStr}`.trim().toUpperCase();
   }
 
   public getIdentityData(doc: ValidatedDocument): IdentityData {
     return {
       identityGroup: this.getGroupKey(doc),
-      identityRevisionGroup: this.getSortKey(doc),
-      identity: this.getTargetKey(doc),
+      identityRevisionGroup: this.getTargetKey(doc),
+      identity: this.getSortKey(doc),
     };
   }
 
@@ -156,10 +176,14 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
   public getFileName(doc: ValidatedDocument, contactHistory: string, actionAbbr: string): string {
     const record = this.extractRecord(doc);
     const targetKey = this.getTargetKey(doc);
-    const descriptor = String(record.title || (record.vendor ? record.vendor : (record.specTitle || '')));
-    const suffix = actionAbbr ? actionAbbr : '';
-    const dateStr = String(doc.date || record.date || '');
-    return `${targetKey} ${descriptor} - ${dateStr} ${contactHistory}${suffix}`;
+    const descriptor = String(record.title || (record.vendor ? record.vendor : (record.specTitle || ''))).trim();
+    const suffix = (actionAbbr || '').trim();
+    const dateStr = formatDateStr(doc.date || record.date);
+    const contact = (contactHistory || '').trim();
+    const tailParts = [contact, suffix].filter(Boolean).join(' ');
+    const tail = tailParts ? ` ${tailParts}` : '';
+    const descPart = descriptor ? ` ${descriptor}` : '';
+    return `${targetKey}${descPart} - ${dateStr}${tail}`.trim();
   }
 
   private extractRowRecord(row: unknown[], headers: string[]): Record<string, unknown> {
@@ -172,21 +196,34 @@ export class DynamicDocumentLogStrategy implements DocumentLogStrategy<Validated
       }
       rowRecord[h] = String(row[i] || '').trim();
     }
+    if (rowRecord.specTag !== undefined && rowRecord.specTag !== null) {
+      rowRecord.specTag = String(rowRecord.specTag).trim().toUpperCase();
+    }
+    if (rowRecord.tag !== undefined && rowRecord.tag !== null) {
+      rowRecord.tag = String(rowRecord.tag).trim().toUpperCase();
+    }
+    if (rowRecord.revision !== undefined && rowRecord.revision !== null) {
+      rowRecord.revision = String(rowRecord.revision).trim();
+    }
     return rowRecord;
   }
 
   public getGroupKeyFromRow(row: unknown[], headers: string[]): string {
-    return getRowGroupKey(row, '', headers, this.spec.fields as any);
+    return getRowGroupKey(row, '', headers, this.spec.fields as any).trim().toUpperCase();
   }
 
   public getSortKeyFromRow(row: unknown[], headers: string[]): string {
-    return getRowSortKey(row, '', headers, this.spec.fields as any);
+    const revGroupKey = this.getTargetKeyFromRow(row, headers);
+    const dateIdx = headers.indexOf('Date');
+    const rawDate = dateIdx !== -1 ? row[dateIdx] : '';
+    const dateStr = formatDateStr(rawDate);
+    return (dateStr ? `${revGroupKey}-${dateStr}` : revGroupKey).trim().toUpperCase();
   }
 
   public getTargetKeyFromRow(row: unknown[], headers: string[]): string {
     const rowRecord = this.extractRowRecord(row, headers);
     const targetFormat = this.spec.identity.revisionGroupFormat || this.spec.identity.format;
-    return this.compiler.evaluate(targetFormat, rowRecord);
+    return this.compiler.evaluate(targetFormat, rowRecord).trim().toUpperCase();
   }
 
   public getRevisionGroupKeyFromRow(row: unknown[], headers: string[]): string {

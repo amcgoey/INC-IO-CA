@@ -22,6 +22,7 @@ export interface UserInterfacePresenter {
   presentCardReload(event: any, isTagChange?: boolean): unknown;
   presentIntakeCard(event: any, initialData?: any, flashMessage?: any): unknown;
   presentNotification(notificationText: string): unknown;
+  presentToast?(notificationText: string): unknown;
   presentError(error: Error | string): unknown;
   presentMoveToClosedSuccess?(event: any, updatedCard: any, destName: string): unknown;
 }

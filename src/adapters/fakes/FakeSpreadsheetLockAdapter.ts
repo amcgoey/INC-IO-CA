@@ -5,6 +5,8 @@
 
 export class FakeSpreadsheetLockAdapter implements SpreadsheetLockAdapter {
   private locks: Map<string, { executionId: string; expiresAt: number }> = new Map();
+  public acquiredCount: number = 0;
+  public releasedCount: number = 0;
 
   acquireLock(spreadsheetId: string, ttlMs: number = 900000): string | null {
     const existing = this.locks.get(spreadsheetId);
@@ -17,6 +19,7 @@ export class FakeSpreadsheetLockAdapter implements SpreadsheetLockAdapter {
       executionId,
       expiresAt: now + ttlMs
     });
+    this.acquiredCount++;
     return executionId;
   }
 
@@ -25,6 +28,7 @@ export class FakeSpreadsheetLockAdapter implements SpreadsheetLockAdapter {
     if (!existing) return false;
     if (existing.executionId === executionId) {
       this.locks.delete(spreadsheetId);
+      this.releasedCount++;
       return true;
     }
     return false;

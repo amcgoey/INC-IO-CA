@@ -27,7 +27,8 @@ test("ReadLogAction - resolves IdentityData from DeclarativeDocumentLogStrategy 
   const entry = fakeRepo.readLogEntries[0];
   assert.equal(entry.spreadsheetId, "test-ss-123");
   assert.equal(entry.identityData.identityGroup, "081100-001");
-  assert.equal(entry.identityData.identity, "081100-001-01");
+  assert.equal(entry.identityData.identityRevisionGroup, "081100-001-01");
+  assert.equal(entry.identityData.identity, "081100-001-01-260725");
   assert.equal(result.found, false);
 });
 
@@ -107,5 +108,5 @@ test("WorkflowRunner.runSequence - executes ReadLogAction in sequence pipeline",
 
   assert.equal(results.length, 1);
   assert.equal(fakeRepo.readLogEntries.length, 1);
-  assert.equal(fakeRepo.readLogEntries[0].identityData.identityGroup, "ch-01");
+  assert.equal(fakeRepo.readLogEntries[0].identityData.identityGroup, "CH-01");
 });

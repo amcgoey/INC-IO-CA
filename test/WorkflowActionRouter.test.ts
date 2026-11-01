@@ -1,7 +1,7 @@
 /// <reference path="../src/types.ts" />
 /**
  * @file WorkflowActionRouter.test.ts
- * @description Behavioral test suite for WorkflowActionRouter, ReadLogAction, MoveDocumentAction, WriteLogAction, AnalyzeDocumentAction, InsertPagesAction, and end-to-end WorkflowRunner integration.
+ * @description Behavioral test suite for ReadLogAction, MoveDocumentAction, WriteLogAction, AnalyzeDocumentAction, InsertPagesAction, and end-to-end WorkflowRunner integration.
  */
 
 import test from 'node:test';
@@ -13,7 +13,6 @@ import { WriteLogAction } from '../src/WriteLogAction';
 import { AnalyzeDocumentAction } from '../src/AnalyzeDocumentAction';
 import { InsertPagesAction } from '../src/InsertPagesAction';
 import { WorkflowRunner } from '../src/core/workflow/WorkflowRunner';
-import { WorkflowActionRouter } from '../src/core/workflow/WorkflowActionRouter';
 import { createTestContext } from '../src/core/workflow/WorkflowContextFactory';
 import { DeclarativeDocumentLogStrategy } from '../src/DocumentLogStrategy';
 import { defaultDocumentTypeSpecRegistry } from '../src/core/specs/DocumentTypeSpecRegistry';
@@ -29,40 +28,6 @@ function createMockBlob(name: string = "test_submittal.pdf", content: string = "
     copyBlob: function() { return this; }
   } as any;
 }
-
-test('WorkflowActionRouter - getSequence Submittal Incoming_Filing returns ordered sequence [ReadLogAction, MoveDocumentAction]', () => {
-  const sequence = WorkflowActionRouter.getSequence('Submittal', 'Incoming_Filing');
-  assert.equal(sequence.length, 2);
-  assert.equal(sequence[0].name, 'ReadLog');
-  assert.equal(sequence[1].name, 'MoveDocument');
-});
-
-test('WorkflowActionRouter - getSequence Submittal Incoming_Analysis returns ordered actions', () => {
-  const sequence = WorkflowActionRouter.getSequence('Submittal', 'Incoming_Analysis');
-  assert.equal(sequence.length, 2);
-  assert.ok(sequence[0] instanceof AnalyzeDocumentAction);
-  assert.ok(sequence[1] instanceof InsertPagesAction);
-});
-
-test('WorkflowActionRouter - getSequence Submittal Outgoing returns ordered sequence [WriteLogAction, MoveDocumentAction]', () => {
-  const sequence = WorkflowActionRouter.getSequence('Submittal', 'Outgoing');
-  assert.equal(sequence.length, 2);
-  assert.equal(sequence[0].name, 'WriteLog');
-  assert.equal(sequence[1].name, 'MoveDocument');
-});
-
-test('WorkflowActionRouter - custom sequence registration and clearRegistry', () => {
-  const dummyAction = { name: 'Dummy', async execute(ctx: any) { return ctx; } };
-  WorkflowActionRouter.registerSequence('RFI', 'Custom_Sequence', [dummyAction]);
-
-  const registered = WorkflowActionRouter.getSequence('RFI', 'Custom_Sequence');
-  assert.equal(registered.length, 1);
-  assert.equal(registered[0].name, 'Dummy');
-
-  WorkflowActionRouter.clearRegistry();
-  const cleared = WorkflowActionRouter.getSequence('RFI', 'Custom_Sequence');
-  assert.equal(cleared.length, 0);
-});
 
 test('ReadLogAction - early guard validation throws descriptive error when logRepository is missing', async () => {
   const action = new ReadLogAction();
@@ -142,7 +107,7 @@ test('End-to-End Behavioral Test - WorkflowRunner runs Submittal Incoming_Filing
     subfolderPath: ['08 OPENINGS', 'Submittals']
   });
 
-  const sequence = WorkflowActionRouter.getSequence('Submittal', 'Incoming_Filing');
+  const sequence = [new ReadLogAction(), new MoveDocumentAction()];
   const resultContext = await WorkflowRunner.run(sequence, testContext);
 
   // Assert ReadLogAction execution & results
@@ -181,7 +146,7 @@ test('End-to-End Behavioral Test - WorkflowRunner runs Submittal Incoming_Filing
     previousRowUpdated: true
   };
 
-  const sequence = WorkflowActionRouter.getSequence('Submittal', 'Incoming_Filing');
+  const sequence = [new ReadLogAction(), new MoveDocumentAction()];
   const resultContext = await WorkflowRunner.run(sequence, testContext);
 
   // Assert ReadLogAction log record parsing
@@ -224,7 +189,7 @@ test('WorkflowActionRouter & WorkflowRunner - End-to-end incoming submittal tria
     emailText: 'Please review the attached concrete submittal.'
   });
 
-  const sequence = WorkflowActionRouter.getSequence('Submittal', 'Incoming_Analysis');
+  const sequence = [new AnalyzeDocumentAction(), new InsertPagesAction()];
   assert.equal(sequence.length, 2);
 
   const finalContext = await WorkflowRunner.run(sequence, context);
@@ -255,7 +220,7 @@ test('End-to-End Behavioral Test - WorkflowRunner runs Submittal Outgoing sequen
     selectedAction: { action: 'Approved', abbr: 'APP', status: 'Approved' }
   });
 
-  const sequence = WorkflowActionRouter.getSequence('Submittal', 'Outgoing');
+  const sequence = [new WriteLogAction(), new MoveDocumentAction()];
   assert.equal(sequence.length, 2);
   assert.equal(sequence[0].name, 'WriteLog');
   assert.equal(sequence[1].name, 'MoveDocument');

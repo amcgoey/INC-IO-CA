@@ -13,12 +13,16 @@ import { DuplicateDocumentAction } from "./core/workflow/DuplicateDocumentAction
 import { ExtractPagesAction } from "./core/workflow/ExtractPagesAction";
 import { InsertPagesAction } from "./InsertPagesAction";
 import { RenameDocumentAction } from "./core/workflow/WorkflowRunner";
+import { DualDocumentSubmittalFilingAction } from "./core/workflow/DualDocumentSubmittalFilingAction";
+import { OutgoingSubmittalFilingAction } from "./core/workflow/OutgoingSubmittalFilingAction";
+import { DraftEmailAction } from "./core/workflow/DraftEmailAction";
 import { defaultTriageDocumentAction } from "./TriageDocumentAction";
 import { defaultAnalyzeDocumentAction } from "./AnalyzeDocumentAction";
 import { BatchMigrationEngine } from "./core/log/BatchMigrationEngine";
 import { LogMigrationEngine } from "./core/log/LogMigrationEngine";
 import { DocumentPipeline } from "./core/intake/DocumentPipeline";
 import { defaultPdfDocumentService } from "./PdfDocumentService";
+import { defaultEmailDraftAdapter, GoogleGmailDraftAdapter } from "./adapters/gas/GoogleGmailDraftAdapter";
 import { defaultLogRepository } from "./GoogleSheetsLogRepository";
 import { defaultDriveFilingRepository } from "./DriveFilingRepository";
 import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
@@ -26,7 +30,12 @@ import { defaultAiAnalysisService, checkAiModelHealth } from "./AiAnalysisServic
 import { GasSpreadsheetLockAdapter } from "./adapters/gas/GasSpreadsheetLockAdapter";
 import { GasTimeoutBudget } from "./core/log/GasTimeoutBudget";
 import { CONFIG, MESSAGES } from "./Config";
-import { processSubmission as runProcessSubmission, moveSubmittalToClosed as runMoveSubmittalToClosed, ProcessDependencies } from "./Process";
+import {
+  processSubmission as runProcessSubmission,
+  handleDynamicPromptSubmission as runHandleDynamicPromptSubmission,
+  moveSubmittalToClosed as runMoveSubmittalToClosed,
+  ProcessDependencies
+} from "./Process";
 import { defaultDocumentTypeSpecRegistry } from "./core/specs/DocumentTypeSpecRegistry";
 import { defaultDocumentTypeConfigRegistry } from "./DocumentTypeConfigRegistry";
 import {
@@ -46,7 +55,10 @@ import {
   onRunSchemaDriftAudit,
   onFlushScriptCache,
   onAutoPatchWorkbook,
-  onSaveToJsonConfiguration
+  onSaveToJsonConfiguration,
+  onResetLogSearchCache,
+  onClearAiTriageCache,
+  onFlushContactsActionsCache
 } from "./adapters/gas/AdminFoldOutPresenter";
 import { onSheetsContextRefresh, buildSheetsRootCard } from "./adapters/gas/SheetsRootCard";
 import { SheetsContextBinder } from "./adapters/gas/SheetsContextBinder";
@@ -417,6 +429,13 @@ async function processSubmission(
   return runProcessSubmission(e, deps);
 }
 
+async function handleDynamicPromptSubmission(
+  e: GoogleAppsScriptEvent,
+  deps: ProcessDependencies = defaultProcessDependencies
+): Promise<any> {
+  return runHandleDynamicPromptSubmission(e, deps);
+}
+
 function moveSubmittalToClosed(
   e: GoogleAppsScriptEvent,
   deps: ProcessDependencies = defaultProcessDependencies
@@ -432,6 +451,9 @@ actionRegistry.register("DuplicateDocument", new DuplicateDocumentAction());
 actionRegistry.register("ExtractPages", new ExtractPagesAction());
 actionRegistry.register("InsertPages", new InsertPagesAction());
 actionRegistry.register("RenameDocument", new RenameDocumentAction());
+actionRegistry.register("DualDocumentSubmittalFiling", new DualDocumentSubmittalFilingAction());
+actionRegistry.register("OutgoingSubmittalFiling", new OutgoingSubmittalFilingAction());
+actionRegistry.register("DraftEmail", new DraftEmailAction());
 if (defaultTriageDocumentAction) actionRegistry.register("TriageDocument", defaultTriageDocumentAction);
 if (defaultAnalyzeDocumentAction) actionRegistry.register("AnalyzeDocument", defaultAnalyzeDocumentAction);
 
@@ -445,6 +467,7 @@ g.migrateBatchLogSpreadsheets = migrateBatchLogSpreadsheets;
 g.onBatchMigrationContinuationTrigger = onBatchMigrationContinuationTrigger;
 g.repairCrossLogReferences = repairCrossLogReferences;
 g.processSubmission = processSubmission;
+g.handleDynamicPromptSubmission = handleDynamicPromptSubmission;
 g.moveSubmittalToClosed = moveSubmittalToClosed;
 g.handleRefreshCache = handleRefreshCache;
 g.handleDeepAnalysis = handleDeepAnalysis;
@@ -458,6 +481,9 @@ g.onRunSchemaDriftAudit = onRunSchemaDriftAudit;
 g.onFlushScriptCache = onFlushScriptCache;
 g.onAutoPatchWorkbook = onAutoPatchWorkbook;
 g.onSaveToJsonConfiguration = onSaveToJsonConfiguration;
+g.onResetLogSearchCache = onResetLogSearchCache;
+g.onClearAiTriageCache = onClearAiTriageCache;
+g.onFlushContactsActionsCache = onFlushContactsActionsCache;
 g.onSheetsContextRefresh = onSheetsContextRefresh;
 g.buildSheetsAddOn = buildSheetsAddOn;
 g.checkAiModelHealth = checkAiModelHealth;
@@ -466,6 +492,8 @@ g.buildIntakeCard = buildIntakeCard;
 g.buildDynamicSupportDataCard = buildDynamicSupportDataCard;
 g.onDynamicPromptCancel = onDynamicPromptCancel;
 g.defaultPdfDocumentService = defaultPdfDocumentService;
+g.defaultEmailDraftAdapter = defaultEmailDraftAdapter;
+g.GoogleGmailDraftAdapter = GoogleGmailDraftAdapter;
 g.defaultLogRepository = defaultLogRepository;
 g.defaultDriveFilingRepository = defaultDriveFilingRepository;
 g.defaultCardPresenter = defaultCardPresenter;
@@ -487,6 +515,7 @@ export {
   onBatchMigrationContinuationTrigger,
   repairCrossLogReferences,
   processSubmission,
+  handleDynamicPromptSubmission,
   moveSubmittalToClosed,
   handleRefreshCache,
   handleDeepAnalysis,
@@ -500,6 +529,9 @@ export {
   onFlushScriptCache,
   onAutoPatchWorkbook,
   onSaveToJsonConfiguration,
+  onResetLogSearchCache,
+  onClearAiTriageCache,
+  onFlushContactsActionsCache,
   onSheetsContextRefresh,
   buildSheetsAddOn,
   checkAiModelHealth,

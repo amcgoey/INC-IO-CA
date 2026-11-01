@@ -4,6 +4,8 @@
  * @description Production implementation of DriveFilingRepository for Google Drive folder hierarchy resolution, subfolder creation, document filing, and Windows G:\ local path mapping.
  */
 
+import type { SubmittalFolderResolution } from "../../core/interfaces/DriveFilingRepository";
+
 export class GoogleDriveFilingRepository implements DriveFilingRepository {
   /**
    * Traverses or creates missing subfolders along the specified subfolder path array.
@@ -47,7 +49,18 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
       const name = options.newFileName
         ? (options.newFileName.endsWith(".pdf") ? options.newFileName : options.newFileName + ".pdf")
         : "temp.pdf";
-      filedFile = curFolder.createFile(file.blob.copyBlob().setName(name));
+      let payloadBlob = file.blob;
+      if (typeof payloadBlob.copyBlob === "function") {
+        payloadBlob = payloadBlob.copyBlob();
+      }
+      if (typeof payloadBlob.setName === "function") {
+        payloadBlob.setName(name);
+      } else if (typeof Utilities !== "undefined" && typeof Utilities.newBlob === "function") {
+        const bytes = typeof payloadBlob.getBytes === "function" ? payloadBlob.getBytes() : (payloadBlob.bytes || []);
+        const ct = typeof payloadBlob.getContentType === "function" ? payloadBlob.getContentType() : (payloadBlob.mimeType || "application/pdf");
+        payloadBlob = Utilities.newBlob(bytes, ct, name);
+      }
+      filedFile = curFolder.createFile(payloadBlob);
     } else {
       throw new Error("Either fileId or blob must be provided to fileDocument");
     }
@@ -89,7 +102,13 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
       copiedFile = targetFolder ? srcFile.makeCopy(name, targetFolder) : srcFile.makeCopy(name);
     } else if (source.blob) {
       const name = options?.newFileName || "Copy";
-      const blob = source.blob.copyBlob().setName(name);
+      let blob = source.blob;
+      if (typeof blob.copyBlob === "function") {
+        blob = blob.copyBlob();
+      }
+      if (typeof blob.setName === "function") {
+        blob.setName(name);
+      }
       if (targetFolder) {
         copiedFile = targetFolder.createFile(blob);
       } else {
@@ -105,6 +124,41 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
     const localPath = this.getLocalPath(fileId);
 
     return { fileId, url, localPath, folderId };
+  }
+
+  /**
+   * Renames a document in place within Google Drive.
+   */
+  renameDocument(fileId: string, newFileName: string): FilingResult {
+    if (typeof DriveApp === "undefined") {
+      throw new Error("DriveApp runtime is not available");
+    }
+    const finalName = newFileName.endsWith(".pdf") ? newFileName : newFileName + ".pdf";
+    const file = DriveApp.getFileById(fileId);
+    file.setName(finalName);
+    const parentFolder = file.getParents().hasNext() ? file.getParents().next() : null;
+    return {
+      fileId,
+      url: file.getUrl(),
+      localPath: this.getLocalPath(fileId),
+      folderId: parentFolder ? parentFolder.getId() : ""
+    };
+  }
+
+  /**
+   * Updates file sharing permissions in Google Drive.
+   */
+  setSharing(fileId: string, accessType: string, permissionType: string): void {
+    if (typeof DriveApp !== "undefined") {
+      try {
+        const file = DriveApp.getFileById(fileId);
+        const access = (DriveApp.Access as any)[accessType] || DriveApp.Access.ANYONE_WITH_LINK;
+        const permission = (DriveApp.Permission as any)[permissionType] || DriveApp.Permission.VIEW;
+        file.setSharing(access, permission);
+      } catch (_e) {
+        // Fall back gracefully if domain sharing permissions restrict link sharing
+      }
+    }
   }
 
   getLocalPath(fileId: string): string {
@@ -142,6 +196,76 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
     } catch (e) {
       return "G:\\Error\\" + fileId;
     }
+  }
+
+  /**
+   * Resolves the target Submittals folder hierarchy starting from a project workbook file ID.
+   * If the workbook is located in an administrative folder (e.g. '01 Admin', 'Admin'),
+   * ascends to the Project Root folder and resolves or creates '04 Construction/Submittals'
+   * (or directly 'Submittals' if no Construction folder exists).
+   * Guarantees 'Submittals' is NEVER created inside an administrative folder.
+   */
+  resolveSubmittalsFolder(workbookFileId: string): SubmittalFolderResolution {
+    if (typeof DriveApp === "undefined") {
+      throw new Error("DriveApp runtime is not available");
+    }
+
+    const logFile = DriveApp.getFileById(workbookFileId);
+    const parents = logFile.getParents();
+    if (!parents.hasNext()) {
+      throw new Error(`Workbook ${workbookFileId} has no parent folder.`);
+    }
+
+    let currentFolder = parents.next();
+    const adminFolderRegex = /\badmin/i;
+
+    // Ascend upward out of administrative folders to find Project Root
+    while (adminFolderRegex.test(currentFolder.getName().trim())) {
+      const pIter = currentFolder.getParents();
+      if (pIter.hasNext()) {
+        const nextParent = pIter.next();
+        // Stop if we hit Drive root
+        if (nextParent.getName() === "Drive" || nextParent.getName() === "My Drive") {
+          break;
+        }
+        currentFolder = nextParent;
+      } else {
+        break;
+      }
+    }
+
+    const projectRoot = currentFolder;
+    const projectRootId = projectRoot.getId();
+
+    // Resolve or find Construction folder inside Project Root
+    let constructionFolder: GoogleAppsScript.Drive.Folder | null = null;
+    const folderIter = projectRoot.getFolders();
+    const constructionRegex = /^(\d*[\s._-]*)?construction/i;
+    while (folderIter.hasNext()) {
+      const child = folderIter.next();
+      if (constructionRegex.test(child.getName().trim())) {
+        constructionFolder = child;
+        break;
+      }
+    }
+
+    const targetParent = constructionFolder || projectRoot;
+    const targetFolderName = (typeof CONFIG !== "undefined" && (CONFIG as any).TARGET_FOLDER_NAME)
+      ? (CONFIG as any).TARGET_FOLDER_NAME
+      : "Submittals";
+
+    const subIter = targetParent.getFoldersByName(targetFolderName);
+    let submittalsFolder: GoogleAppsScript.Drive.Folder;
+    if (subIter.hasNext()) {
+      submittalsFolder = subIter.next();
+    } else {
+      submittalsFolder = targetParent.createFolder(targetFolderName);
+    }
+
+    return {
+      submittalsFolderId: submittalsFolder.getId(),
+      projectRootId
+    };
   }
 }
 

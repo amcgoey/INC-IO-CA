@@ -5,6 +5,8 @@
  * Delegates execution to `DocumentPipeline.parseFilename`, `DocumentPipeline.parseEmail`, and `EmailIntakeParser`.
  */
 
+import { padSubmittalNumber } from "./DocumentPipeline";
+
 interface SubjectPattern {
   id: string;
   regex: RegExp;
@@ -52,14 +54,14 @@ const EMAIL_SUBJECT_PATTERNS: SubjectPattern[] = [
 /**
  * Modular configuration for Drive filename parsing patterns.
  */
-const LEGACY_DRIVE_FILENAME_PATTERNS: FilenamePattern[] = [
+export const LEGACY_DRIVE_FILENAME_PATTERNS: FilenamePattern[] = [
   {
     id: 'ArchitectureStandard',
     regex: /^[^A-Za-z0-9]*([A-Za-z0-9]+)-([A-Za-z0-9\.]+)-([A-Za-z0-9]+)\s+(.*?)\s+-\s+(\d{6})/i,
     extract: (match: RegExpMatchArray) => ({
       discipline: "Architecture",
       section: match[1],
-      number: match[2],
+      number: padSubmittalNumber(match[2]),
       revision: match[3],
       title: match[4].trim(),
       date: match[5]
@@ -85,7 +87,7 @@ const LEGACY_DRIVE_FILENAME_PATTERNS: FilenamePattern[] = [
  * @param filename - Target filename string.
  * @returns `ParsedData` object containing extracted fields.
  */
-function parseDriveFilename(filename: string): ParsedData {
+export function parseDriveFilename(filename: string): ParsedData {
   if (typeof DocumentPipeline !== "undefined" && typeof DocumentPipeline.parseFilename === "function") {
     return DocumentPipeline.parseFilename(filename);
   }

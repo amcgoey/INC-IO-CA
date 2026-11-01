@@ -21,6 +21,7 @@ import { LogEngine } from "../../core/log/LogEngine";
 import { SheetsRootCard } from "./SheetsRootCard";
 import { GoogleScriptCacheAdapter } from "./GoogleScriptCacheAdapter";
 import { PrefixCacheManager } from "../../core/admin/PrefixCacheManager";
+import { defaultCardPresenter } from "./CardPresenter";
 
 function getSheetsContextBinderClass(): any {
   return SheetsContextBinder;
@@ -761,5 +762,142 @@ export function onSaveToJsonConfiguration(
 
   return CardService.newActionResponseBuilder()
     .setNotification(CardService.newNotification().setText("Saved " + savedFileNames.length + " configuration file(s) to Google Drive."))
+    .build();
+}
+
+/**
+ * Dependencies interface for cache eviction action handlers.
+ */
+export interface CacheEvictionDeps {
+  cacheAdapter?: any;
+  prefixManager?: PrefixCacheManager;
+  presenter?: any;
+}
+
+/**
+ * Action Handler: Resets the Google Drive candidate log workbook search cache (log_search_).
+ * Evicts prefix scopes without wiping unrelated application state (ADR 0035, Issue #309).
+ */
+export function onResetLogSearchCache(
+  e?: any,
+  deps?: CacheEvictionDeps
+): GoogleAppsScript.Card_Service.ActionResponse {
+  const CacheAdapterClass = getGoogleScriptCacheAdapterClass();
+  const PrefixManagerClass = getPrefixCacheManagerClass();
+
+  const cacheAdapter = deps?.cacheAdapter || (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
+  const prefixManager = deps?.prefixManager || new PrefixManagerClass(cacheAdapter);
+  const presenter = deps?.presenter || (globalThis as any).defaultCardPresenter || defaultCardPresenter;
+
+  const driveId = e?.parameters?.driveId;
+  prefixManager.invalidatePrefix("log_search_");
+  if (driveId && typeof driveId === "string" && driveId.trim() !== "") {
+    prefixManager.invalidatePrefix(`log_search_${driveId.trim()}`);
+    if (!driveId.trim().endsWith("_")) {
+      prefixManager.invalidatePrefix(`log_search_${driveId.trim()}_`);
+    }
+  }
+
+  if (typeof Logger !== "undefined" && Logger.log) {
+    try {
+      Logger.log(JSON.stringify({
+        tag: "ADMIN_TELEMETRY",
+        action: "onResetLogSearchCache",
+        driveId: driveId || null,
+        timestamp: new Date().toISOString()
+      }));
+    } catch (_err) {}
+  }
+
+  const toastMessage = "✅ Log search cache reset successfully.";
+  if (presenter && typeof presenter.presentToast === "function") {
+    return presenter.presentToast(toastMessage);
+  }
+  if (presenter && typeof presenter.presentNotification === "function") {
+    return presenter.presentNotification(toastMessage);
+  }
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification().setText(toastMessage))
+    .build();
+}
+
+/**
+ * Action Handler: Clears AI triage predictions and document classifications cache (ai_triage_, ai_pred_).
+ * Evicts prefix scopes without wiping unrelated application state (ADR 0035, Issue #309).
+ */
+export function onClearAiTriageCache(
+  e?: any,
+  deps?: CacheEvictionDeps
+): GoogleAppsScript.Card_Service.ActionResponse {
+  const CacheAdapterClass = getGoogleScriptCacheAdapterClass();
+  const PrefixManagerClass = getPrefixCacheManagerClass();
+
+  const cacheAdapter = deps?.cacheAdapter || (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
+  const prefixManager = deps?.prefixManager || new PrefixManagerClass(cacheAdapter);
+  const presenter = deps?.presenter || (globalThis as any).defaultCardPresenter || defaultCardPresenter;
+
+  prefixManager.invalidatePrefix("ai_triage_");
+  prefixManager.invalidatePrefix("ai_pred_");
+
+  if (typeof Logger !== "undefined" && Logger.log) {
+    try {
+      Logger.log(JSON.stringify({
+        tag: "ADMIN_TELEMETRY",
+        action: "onClearAiTriageCache",
+        timestamp: new Date().toISOString()
+      }));
+    } catch (_err) {}
+  }
+
+  const toastMessage = "✅ AI triage cache cleared successfully.";
+  if (presenter && typeof presenter.presentToast === "function") {
+    return presenter.presentToast(toastMessage);
+  }
+  if (presenter && typeof presenter.presentNotification === "function") {
+    return presenter.presentNotification(toastMessage);
+  }
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification().setText(toastMessage))
+    .build();
+}
+
+/**
+ * Action Handler: Flushes contacts, actions, and log settings picklist caches (contacts_, actions_, log_settings_).
+ * Evicts prefix scopes without wiping unrelated application state (ADR 0035, Issue #309).
+ */
+export function onFlushContactsActionsCache(
+  e?: any,
+  deps?: CacheEvictionDeps
+): GoogleAppsScript.Card_Service.ActionResponse {
+  const CacheAdapterClass = getGoogleScriptCacheAdapterClass();
+  const PrefixManagerClass = getPrefixCacheManagerClass();
+
+  const cacheAdapter = deps?.cacheAdapter || (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
+  const prefixManager = deps?.prefixManager || new PrefixManagerClass(cacheAdapter);
+  const presenter = deps?.presenter || (globalThis as any).defaultCardPresenter || defaultCardPresenter;
+
+  prefixManager.invalidatePrefix("contacts_");
+  prefixManager.invalidatePrefix("actions_");
+  prefixManager.invalidatePrefix("log_settings_");
+
+  if (typeof Logger !== "undefined" && Logger.log) {
+    try {
+      Logger.log(JSON.stringify({
+        tag: "ADMIN_TELEMETRY",
+        action: "onFlushContactsActionsCache",
+        timestamp: new Date().toISOString()
+      }));
+    } catch (_err) {}
+  }
+
+  const toastMessage = "✅ Contacts and actions cache flushed successfully.";
+  if (presenter && typeof presenter.presentToast === "function") {
+    return presenter.presentToast(toastMessage);
+  }
+  if (presenter && typeof presenter.presentNotification === "function") {
+    return presenter.presentNotification(toastMessage);
+  }
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification().setText(toastMessage))
     .build();
 }

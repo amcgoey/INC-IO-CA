@@ -8,7 +8,9 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 import { GasMockHarness } from "./harness/GasMockHarness";
 import { CardSerializer } from "./harness/CardSerializer";
-import { AdminFoldOutPresenter, onFlushScriptCache, onSaveToJsonConfiguration, NO_SPECS_FOUND_ERROR } from "../src/adapters/gas/AdminFoldOutPresenter";
+import { AdminFoldOutPresenter, onFlushScriptCache, onSaveToJsonConfiguration, onResetLogSearchCache, onClearAiTriageCache, onFlushContactsActionsCache, NO_SPECS_FOUND_ERROR } from "../src/adapters/gas/AdminFoldOutPresenter";
+import { PrefixCacheManager } from "../src/core/admin/PrefixCacheManager";
+import { GoogleScriptCacheAdapter } from "../src/adapters/gas/GoogleScriptCacheAdapter";
 import { SpreadsheetBatchData } from "../src/adapters/gas/SpreadsheetBatchReaderAdapter";
 import { GoogleSheetsDocumentTypeSpecAdapter } from "../src/adapters/gas/GoogleSheetsDocumentTypeSpecAdapter";
 import type { DocumentTypeSpec } from "../src/core/specs/DocumentTypeSpec";
@@ -524,5 +526,79 @@ describe("AdminFoldOutPresenter & SheetAdminFoldOut (Issue #220, #224)", () => {
     } finally {
       GoogleSheetsDocumentTypeSpecAdapter.decompile = originalDecompile;
     }
+  });
+
+  it("wires TriageAdminFoldOut buttons to onResetLogSearchCache, onClearAiTriageCache, and onFlushContactsActionsCache", () => {
+    const section = AdminFoldOutPresenter.renderAdminSection("Gmail", { driveId: "drive-123" });
+    const card = CardService.newCardBuilder().addSection(section).build();
+    const json = CardSerializer.toJSON(card);
+
+    const btnReset = CardSerializer.findButton(json, "onResetLogSearchCache");
+    assert.ok(btnReset, "Should find button for onResetLogSearchCache");
+
+    const btnAi = CardSerializer.findButton(json, "onClearAiTriageCache");
+    assert.ok(btnAi, "Should find button for onClearAiTriageCache");
+
+    const btnContacts = CardSerializer.findButton(json, "onFlushContactsActionsCache");
+    assert.ok(btnContacts, "Should find button for onFlushContactsActionsCache");
+  });
+
+  it("onResetLogSearchCache evicts only log_search_ prefixes and returns confirmation toast", () => {
+    const cacheAdapter = new GoogleScriptCacheAdapter();
+    const prefixManager = new PrefixCacheManager(cacheAdapter);
+
+    prefixManager.putScoped("log_search_", "log_search_unscoped", "val1", 3600);
+    prefixManager.putScoped("log_search_drive_123_", "log_search_scoped", "val2", 3600);
+    prefixManager.putScoped("DOC_CONFIG_wb_1", "DOC_CONFIG_val", "val3", 3600);
+    prefixManager.putScoped("ai_triage_", "ai_triage_val", "val4", 3600);
+
+    const response = onResetLogSearchCache({ parameters: { driveId: "drive_123" } });
+    const actionJson = CardSerializer.actionResponseToJSON(response);
+
+    assert.ok(actionJson.notification?.text?.includes("Log search cache reset"));
+    assert.strictEqual(prefixManager.getScoped("log_search_", "log_search_unscoped"), null);
+    assert.strictEqual(prefixManager.getScoped("log_search_drive_123_", "log_search_scoped"), null);
+    assert.strictEqual(prefixManager.getScoped("DOC_CONFIG_wb_1", "DOC_CONFIG_val"), "val3");
+    assert.strictEqual(prefixManager.getScoped("ai_triage_", "ai_triage_val"), "val4");
+  });
+
+  it("onClearAiTriageCache evicts only ai_triage_ and ai_pred_ prefixes and returns confirmation toast", () => {
+    const cacheAdapter = new GoogleScriptCacheAdapter();
+    const prefixManager = new PrefixCacheManager(cacheAdapter);
+
+    prefixManager.putScoped("ai_triage_", "ai_triage_k1", "v1", 3600);
+    prefixManager.putScoped("ai_pred_", "ai_pred_k2", "v2", 3600);
+    prefixManager.putScoped("DOC_CONFIG_wb_2", "DOC_CONFIG_v2", "v3", 3600);
+    prefixManager.putScoped("contacts_", "contacts_v", "v4", 3600);
+
+    const response = onClearAiTriageCache();
+    const actionJson = CardSerializer.actionResponseToJSON(response);
+
+    assert.ok(actionJson.notification?.text?.includes("AI triage cache cleared"));
+    assert.strictEqual(prefixManager.getScoped("ai_triage_", "ai_triage_k1"), null);
+    assert.strictEqual(prefixManager.getScoped("ai_pred_", "ai_pred_k2"), null);
+    assert.strictEqual(prefixManager.getScoped("DOC_CONFIG_wb_2", "DOC_CONFIG_v2"), "v3");
+    assert.strictEqual(prefixManager.getScoped("contacts_", "contacts_v"), "v4");
+  });
+
+  it("onFlushContactsActionsCache evicts contacts_, actions_, and log_settings_ prefixes and returns toast", () => {
+    const cacheAdapter = new GoogleScriptCacheAdapter();
+    const prefixManager = new PrefixCacheManager(cacheAdapter);
+
+    prefixManager.putScoped("contacts_", "contacts_k1", "c1", 3600);
+    prefixManager.putScoped("actions_", "actions_k2", "a2", 3600);
+    prefixManager.putScoped("log_settings_", "log_settings_k3", "s3", 3600);
+    prefixManager.putScoped("DOC_CONFIG_wb_3", "DOC_CONFIG_v3", "d3", 3600);
+    prefixManager.putScoped("log_search_", "log_search_v3", "l3", 3600);
+
+    const response = onFlushContactsActionsCache();
+    const actionJson = CardSerializer.actionResponseToJSON(response);
+
+    assert.ok(actionJson.notification?.text?.includes("Contacts and actions cache flushed"));
+    assert.strictEqual(prefixManager.getScoped("contacts_", "contacts_k1"), null);
+    assert.strictEqual(prefixManager.getScoped("actions_", "actions_k2"), null);
+    assert.strictEqual(prefixManager.getScoped("log_settings_", "log_settings_k3"), null);
+    assert.strictEqual(prefixManager.getScoped("DOC_CONFIG_wb_3", "DOC_CONFIG_v3"), "d3");
+    assert.strictEqual(prefixManager.getScoped("log_search_", "log_search_v3"), "l3");
   });
 });

@@ -80,8 +80,8 @@ test('WriteLogAction - resolves IdentityData from DeclarativeDocumentLogStrategy
   const appended = fakeRepo.appendedDocuments[0];
   assert.equal(appended.spreadsheetId, 'test-ss-123');
   assert.equal(appended.options?.identityData?.identityGroup, '081100-001');
-  assert.equal(appended.options?.identityData?.identityRevisionGroup, '081100-001-001-20260725');
-  assert.equal(appended.options?.identityData?.identity, '081100-001-01');
+  assert.equal(appended.options?.identityData?.identityRevisionGroup, '081100-001-01');
+  assert.equal(appended.options?.identityData?.identity, '081100-001-01-260725');
 
   // Verify target row payload formatting
   const payload = strategy.formatRowPayload(doc, { link: 'https://drive.google.com/file/d/abc123', contactHistory: doc.contact, status: 'In Review' });
@@ -146,8 +146,9 @@ test('WorkflowRunner.runAction - executes WriteLogAction seam cleanly for FF&E s
 
   assert.equal(result.targetKey, 'CH-01-01');
   assert.equal(fakeRepo.appendedDocuments.length, 1);
-  assert.equal(fakeRepo.appendedDocuments[0].options?.identityData?.identityGroup, 'ch-01');
-  assert.equal(fakeRepo.appendedDocuments[0].options?.identityData?.identity, 'CH-01-01');
+  assert.equal(fakeRepo.appendedDocuments[0].options?.identityData?.identityGroup, 'CH-01');
+  assert.equal(fakeRepo.appendedDocuments[0].options?.identityData?.identityRevisionGroup, 'CH-01-01');
+  assert.equal(fakeRepo.appendedDocuments[0].options?.identityData?.identity, 'CH-01-01-260725');
 
   // Verify FF&E row payload formatting
   const payload = strategy.formatRowPayload(doc, { link: 'https://drive.google.com/file/d/ffe456', contactHistory: doc.contact, status: 'Approved' });

@@ -69,7 +69,10 @@
                       "isFiledStatus": "false",
                       "directRowUrl": "https://docs.google.com/spreadsheets/d/log-123/edit?gid=0#gid=0",
                       "failedColumns": "[]",
-                      "emptyFallbacks": "[]"
+                      "emptyFallbacks": "[]",
+                      "number": "",
+                      "rev": "",
+                      "docType": "SUBMITTAL_ARCH"
                     }
                   }
                 },
@@ -96,7 +99,11 @@
                       "incomingRouting": "To Review",
                       "directRowUrl": "https://docs.google.com/spreadsheets/d/log-123/edit?gid=0#gid=0",
                       "failedColumns": "[]",
-                      "emptyFallbacks": "[]"
+                      "emptyFallbacks": "[]",
+                      "number": "",
+                      "title": "Cast-in-Place Concrete",
+                      "rev": "",
+                      "docType": "SUBMITTAL_ARCH"
                     }
                   }
                 }

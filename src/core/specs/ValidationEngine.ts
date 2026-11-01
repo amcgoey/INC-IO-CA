@@ -448,6 +448,25 @@ export class ValidationEngine {
       }
     }
 
+    for (const field of fields) {
+      if (sanitizedData[field.key] !== undefined && sanitizedData[field.key] !== null) {
+        const valStr = String(sanitizedData[field.key]).trim();
+        if (field.keyNormalizationRule === 'code') {
+          const codePart = valStr.split(/\s+-\s+|\s+-(?=[A-Za-z])/)[0];
+          sanitizedData[field.key] = codePart
+            .replace(/^(\d{2})\.(\d{2})\.(\d{2})/, '$1$2$3')
+            .replace(/[\s-]+/g, '')
+            .replace(/\.+$/, '')
+            .toUpperCase();
+        } else if (field.keyNormalizationRule === 'exact') {
+          sanitizedData[field.key] = valStr.toUpperCase();
+        }
+        if ((field.key === 'number' || field.key === 'submittalNum') && /^\d+$/.test(valStr)) {
+          sanitizedData[field.key] = valStr.length < 3 ? valStr.padStart(3, '0') : valStr;
+        }
+      }
+    }
+
     return {
       status: 'valid',
       data: sanitizedData,

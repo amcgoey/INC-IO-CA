@@ -33,10 +33,10 @@ test("DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) extracts keys, formats fil
 
   assert.strictEqual(strategy.getGroupKey(doc), "033000-001");
   assert.strictEqual(strategy.getTargetKey(doc), "033000-001-001");
-  assert.strictEqual(strategy.getSortKey(doc), "033000-001-001-20260725");
+  assert.strictEqual(strategy.getSortKey(doc), "033000-001-001-260725");
 
   const fileName = strategy.getFileName(doc, "GC", " Rev");
-  assert.strictEqual(fileName, "033000-001-001 Cast-in-Place Concrete - 2026-07-25 GC Rev");
+  assert.strictEqual(fileName, "033000-001-001 Cast-in-Place Concrete - 260725 GC Rev");
 
   const payload = strategy.formatRowPayload(doc, { link: "http://example.com/file.pdf", contactHistory: "GC", status: "Open" });
   assert.strictEqual(payload["Section"], "033000");
@@ -66,10 +66,10 @@ test("DeclarativeDocumentLogStrategy (SUBMITTAL_ARCH) handles empty section (non
 
   assert.strictEqual(strategy.getGroupKey(doc), "001");
   assert.strictEqual(strategy.getTargetKey(doc), "001-0");
-  assert.strictEqual(strategy.getSortKey(doc), "001-000-20260725");
+  assert.strictEqual(strategy.getSortKey(doc), "001-0-260725");
 
   const fileName = strategy.getFileName(doc, "GC", " Rev");
-  assert.strictEqual(fileName, "001-0 General Submittal - 2026-07-25 GC Rev");
+  assert.strictEqual(fileName, "001-0 General Submittal - 260725 GC Rev");
 
   const headers = ["Section", "Number", "Title", "Revision", "Date", "Contact", "Action", "Status", "Notes", "Link", "Contact History"];
   const rowWithNoSection = ["", "001", "General Submittal", "0", "2026-07-25", "GC", "Submitted", "Open", "", "", "GC"];
@@ -115,7 +115,7 @@ test("LogEngine appends new Architecture document end-to-end with InMemorySheetS
 
   assert.strictEqual(result.targetKey, "033000-001-001");
   assert.strictEqual(result.contactHistory, "Subcontractor");
-  assert.strictEqual(result.newFileName, "033000-001-001 Concrete Mix - 2026-07-25 Subcontractor Rec");
+  assert.strictEqual(result.newFileName, "033000-001-001 Concrete Mix - 260725 Subcontractor Rec");
   assert.strictEqual(result.previousRowUpdated, false);
   assert.strictEqual(result.rowIndex, 4);
 
@@ -172,7 +172,7 @@ test("LogEngine handles revision workflow by updating previous row status and ch
 
   assert.strictEqual(result.targetKey, "033000-001-001");
   assert.strictEqual(result.contactHistory, "Subcontractor Architect");
-  assert.strictEqual(result.newFileName, "033000-001-001 Concrete Mix - 2026-07-25 Subcontractor Architect Appr");
+  assert.strictEqual(result.newFileName, "033000-001-001 Concrete Mix - 260725 Subcontractor Architect Appr");
   assert.strictEqual(result.previousRowUpdated, true);
 
   const sheetValues = adapter.getSheetValues("Submittals Log");
@@ -239,12 +239,12 @@ test("DeclarativeDocumentLogStrategy (SUBMITTAL_FFE) extracts keys, formats file
     }
   });
 
-  assert.strictEqual(strategy.getGroupKey(doc), "ch-01");
+  assert.strictEqual(strategy.getGroupKey(doc), "CH-01");
   assert.strictEqual(strategy.getTargetKey(doc), "CH-01-001");
-  assert.strictEqual(strategy.getSortKey(doc), "ch-01-001-20260725");
+  assert.strictEqual(strategy.getSortKey(doc), "CH-01-001-260725");
 
   const fileName = strategy.getFileName(doc, "Vendor A", " Rec");
-  assert.strictEqual(fileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec");
+  assert.strictEqual(fileName, "CH-01-001 Furniture Co - 260725 Vendor A Rec");
 
   const payload = strategy.formatRowPayload(doc, { link: "http://example.com/ffe.pdf", contactHistory: "Vendor A", status: "Under Review" });
   assert.strictEqual(payload["Spec Tag"], "CH-01");
@@ -294,7 +294,7 @@ test("LogEngine appends new FF&E document end-to-end with InMemorySheetStorageAd
 
   assert.strictEqual(result.targetKey, "CH-01-001");
   assert.strictEqual(result.contactHistory, "Vendor A");
-  assert.strictEqual(result.newFileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Rec");
+  assert.strictEqual(result.newFileName, "CH-01-001 Furniture Co - 260725 Vendor A Rec");
   assert.strictEqual(result.previousRowUpdated, false);
   assert.strictEqual(result.rowIndex, 4);
 
@@ -350,7 +350,7 @@ test("LogEngine handles FF&E revision workflow by updating previous row status t
 
   assert.strictEqual(result.targetKey, "CH-01-001");
   assert.strictEqual(result.contactHistory, "Vendor A Designer");
-  assert.strictEqual(result.newFileName, "CH-01-001 Furniture Co - 2026-07-25 Vendor A Designer Appr");
+  assert.strictEqual(result.newFileName, "CH-01-001 Furniture Co - 260725 Vendor A Designer Appr");
   assert.strictEqual(result.previousRowUpdated, true);
 
   const sheetValues = adapter.getSheetValues("Submittals Log");
@@ -532,7 +532,7 @@ test("LogEngine uses ListDocumentField contact abbreviation in contact history c
   });
 
   assert.strictEqual(res2.contactHistory, "SUB ARCH");
-  assert.strictEqual(res2.newFileName, "033000-001-001 Concrete Mix - 2026-07-25 SUB ARCH Appr");
+  assert.strictEqual(res2.newFileName, "033000-001-001 Concrete Mix - 260725 SUB ARCH Appr");
 
   const sheetValues = adapter.getSheetValues("Submittals Log");
   assert.strictEqual(sheetValues[4][10], "SUB ARCH");

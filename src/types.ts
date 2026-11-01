@@ -111,7 +111,8 @@ interface ParsedData {
   targetKey?: string;
   driveFileId?: string;
   blob?: GoogleAppsScript.Base.Blob;
-  attachments?: GoogleAppsScript.Base.Blob[];
+  attachments?: Array<AttachmentDescriptor | GoogleAppsScript.Base.Blob | any>;
+  attachmentDescriptors?: AttachmentDescriptor[];
   attachmentIndex?: number;
   pdfUrl?: string;
   fileName?: string;
@@ -500,7 +501,7 @@ declare const PicklistResolver: {
 
 // Global Ambient Function Declarations
 declare function buildIntakeCard(e: GoogleAppsScriptEvent, initialData?: ParsedData | null, flashMessage?: any, aiResult?: AiClassificationResult | null): GoogleAppsScript.Card_Service.Card;
-declare function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled?: boolean, projectAbbr?: string, action?: string, incomingRouting?: string, draftUrl?: string | null, directRowUrl?: string | null, failedColumns?: string[], emptyFallbacks?: string[]): GoogleAppsScript.Card_Service.Card;
+declare function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled?: boolean, projectAbbr?: string, action?: string, incomingRouting?: string, draftUrl?: string | null, directRowUrl?: string | null, failedColumns?: string[], emptyFallbacks?: string[], deferredFiling?: DeferredFilingParams): GoogleAppsScript.Card_Service.Card;
 declare function parseEmailData(message?: GoogleAppsScript.Gmail.GmailMessage | null): ParsedData;
 declare function parseDriveFilename(filename: string): ParsedData;
 declare function parseFormaEmail_(subject: string, body: string): Partial<ParsedData>;
@@ -565,6 +566,13 @@ interface ExtractPagesResult {
   base64: string;
 }
 
+/** Pure Tier 1 attachment descriptor representing file name, MIME type, and bytes. */
+interface AttachmentDescriptor {
+  fileName: string;
+  mimeType: string;
+  bytes: Uint8Array | number[];
+}
+
 /** Service interface for PDF stamping, page slicing, and form action extraction. */
 interface PdfDocumentService {
   extractFormAction(fileId: string): Promise<string | null>;
@@ -588,9 +596,15 @@ interface PdfDocumentService {
 }
 
 /** Repository interface for Drive filing and local path resolution. */
+interface SubmittalFolderResolution {
+  submittalsFolderId: string;
+  projectRootId: string;
+}
+
 interface DriveFilingRepository {
   getLocalPath(fileId: string): string;
   fileDocument(file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob }, options: FilingOptions): FilingResult;
+  resolveSubmittalsFolder?(workbookFileId: string): SubmittalFolderResolution;
 }
 
 /** Provider interface for Shared Drive lists. */
@@ -649,6 +663,7 @@ declare const defaultDuplicateDocumentAction: DuplicateDocumentAction;
 
 
 declare function processSubmission(e: GoogleAppsScriptEvent): Promise<any>;
+declare function handleDynamicPromptSubmission(e: GoogleAppsScriptEvent): Promise<any>;
 
 /** Policy detailing workflow actions (direction, stamping, subfolder rules). */
 declare const getDocumentLogStrategy: (doc: ValidatedDocument) => DocumentLogStrategy;
@@ -694,6 +709,15 @@ interface DocumentWorkflowInput {
   spreadsheetApp?: any;
 }
 
+export interface DeferredFilingParams {
+  number?: string;
+  title?: string;
+  rev?: string;
+  docType?: string;
+  isFiled?: boolean;
+  targetSubfolder?: string;
+}
+
 /** Output result returned from PipelineBuilder.buildAndExecute. */
 interface DocumentWorkflowResult {
   fileId: string;
@@ -709,6 +733,16 @@ interface DocumentWorkflowResult {
   emptyFallbacks: string[];
   newFileName: string;
   policy?: WorkflowPolicySpec;
+  deferredFiling?: DeferredFilingParams;
+  number?: string;
+  rev?: string;
+  docType?: string;
+  notes?: string;
+  success?: boolean;
+  draftUrl?: string;
+  groupKey?: string;
+  previousRowSheetIndex?: number | null;
+  revGroupKey?: string;
 }
 
 
