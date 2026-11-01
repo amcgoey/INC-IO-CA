@@ -515,6 +515,18 @@ export class CardPresenter implements UserInterfacePresenter {
       .setNotification(CardService.newNotification().setText(notificationText))
       .build();
   }
+
+  /**
+   * Returns a simple toast notification ActionResponse (alias for presentNotification).
+   *
+   * @param notificationText - Text to display in the toast notification.
+   * @returns ActionResponse displaying toast.
+   */
+  presentToast(
+    notificationText: string
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    return this.presentNotification(notificationText);
+  }
 }
 
 /** Global default instance seam for CardPresenter. */
