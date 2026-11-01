@@ -341,14 +341,34 @@ function renderDynamicFormFields(
         .setFieldName(field.key)
         .setTitle(displayTitle);
 
+      const ss = hydrationContext.spreadsheet || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp.getActiveSpreadsheet() : null);
+      const docTypeKey = hydrationContext.docTypeKey || "Submittal_Arch";
+      const activeSheetName = hydrationContext.activeSheetName || "Submittal Arch";
+
       let optionsList: PicklistOption[] = field.options || [];
 
-      if (field.optionsRange) {
-        const ss = hydrationContext.spreadsheet || (typeof SpreadsheetApp !== "undefined" ? SpreadsheetApp.getActiveSpreadsheet() : null);
-        const docTypeKey = hydrationContext.docTypeKey || "Submittal_Arch";
-        const activeSheetName = hydrationContext.activeSheetName || "Submittal Arch";
-
-        const resolvedResult = PicklistResolver.resolvePicklistOptionsRange(field.optionsRange, ss, docTypeKey, activeSheetName, field);
+      if (field.picklistSource) {
+        const pickContext: PicklistResolutionContext = {
+          ...hydrationContext,
+          spreadsheet: ss,
+          docTypeKey,
+          activeSheetName,
+          fieldSpec: field
+        };
+        const resolved = PicklistResolver.resolve(field.picklistSource, pickContext, hydratedValue);
+        if (resolved.options && resolved.options.length > 0) {
+          optionsList = resolved.options;
+        }
+      } else if (field.optionsRange) {
+        const resolvedResult = PicklistResolver.resolvePicklistOptionsRange(
+          field.optionsRange,
+          ss,
+          docTypeKey,
+          activeSheetName,
+          field,
+          undefined,
+          hydratedValue
+        );
         optionsList = resolvedResult.options || optionsList;
         if (resolvedResult.warningBanner) {
           section.addWidget(
@@ -360,13 +380,22 @@ function renderDynamicFormFields(
         }
       }
 
+      // Ensure hydrated draftValue is dynamically appended as a fallback option when not in resolved list
+      optionsList = PicklistResolver.injectDraftValue(optionsList, hydratedValue, field);
+
+      let selectedFound = false;
       if (optionsList.length === 0) {
         dropdownWidget.addItem("-- None --", "", true);
       } else {
         optionsList.forEach(opt => {
           const isSelected = String(opt.value) === String(hydratedValue) || String(opt.label) === String(hydratedValue);
+          if (isSelected) selectedFound = true;
           dropdownWidget.addItem(opt.label || opt.value, opt.value, isSelected);
         });
+      }
+
+      if (hydratedValue && !selectedFound && optionsList.length > 0) {
+        dropdownWidget.addItem(String(hydratedValue), String(hydratedValue), true);
       }
 
       if (onStateActionName) {
@@ -1164,6 +1193,14 @@ function buildIntakeCard(
       workflows: []
     };
 
+    const targetTabName = state.documentType === "SUBMITTAL_FFE"
+      ? "Submittal FFE"
+      : (state.documentType === "RFI" ? "RFI Log" : (state.documentType === "ASI" ? "ASI Log" : "Submittal Arch"));
+
+    const liveSpreadsheet = (typeof SpreadsheetApp !== "undefined" && activeLogFileId && SpreadsheetApp.openById)
+      ? SpreadsheetApp.openById(activeLogFileId)
+      : (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+
     const sectionVm = DocumentTypeWidgetFactory.buildSectionViewModel(spec, {
       hydrationContext: {
         formInput,
@@ -1171,7 +1208,10 @@ function buildIntakeCard(
         initialData,
         parserResult: initialData,
         aiMetadata: aiClassification,
-        logSettings
+        logSettings,
+        spreadsheet: liveSpreadsheet,
+        docTypeKey: state.documentType,
+        activeSheetName: targetTabName
       },
       validationContext: {
         missingFields: flashMessage && flashMessage.missingFields ? flashMessage.missingFields : [],
@@ -1209,7 +1249,10 @@ function buildIntakeCard(
           initialData,
           parserResult: initialData,
           aiMetadata: aiClassification,
-          logSettings
+          logSettings,
+          spreadsheet: liveSpreadsheet,
+          docTypeKey: state.documentType,
+          activeSheetName: targetTabName
         },
         {
           missingFields: flashMessage && flashMessage.missingFields ? flashMessage.missingFields : [],
