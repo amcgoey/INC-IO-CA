@@ -37,10 +37,7 @@ export function formatDateStr(rawDate: unknown): string {
  * Safely pads a numeric or string value with leading zeros to the specified target length.
  */
 function safePadNum(val: unknown, len: number): string {
-  if (typeof (globalThis as Record<string, unknown>).padNum === 'function') {
-    return ((globalThis as Record<string, unknown>).padNum as (v: unknown, l: number) => string)(val, len);
-  }
-  return String(val || '').trim().padStart(len, '0');
+  return String(val ?? '').trim().padStart(len, '0');
 }
 
 export class DynamicDocumentLogStrategy implements DocumentLogStrategy<ValidatedDocument> {

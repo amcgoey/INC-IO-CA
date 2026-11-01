@@ -4,6 +4,8 @@
  * Zero GAS globals, zero Node.js built-in imports (ADR-0013).
  */
 
+import type { FilingBlob } from './DriveFilingRepository';
+
 export interface AttachmentDescriptor {
   fileName: string;
   mimeType: string;
@@ -31,25 +33,20 @@ export interface StampOptions {
 export interface PdfDocumentService {
   extractFormAction(bytesOrFileId: Uint8Array | number[] | string): Promise<string | null>;
   stampSubmittal(
-    source: Uint8Array | number[] | GoogleAppsScript.Base.Blob | AttachmentDescriptor | any,
+    source: Uint8Array | number[] | AttachmentDescriptor | FilingBlob | unknown,
     data: StampData | ParsedData,
     options: StampOptions
-  ): Promise<Uint8Array | GoogleAppsScript.Base.Blob | AttachmentDescriptor | any>;
+  ): Promise<Uint8Array | AttachmentDescriptor | FilingBlob | unknown>;
   mergeBlobsToPdf(
-    documents: Array<AttachmentDescriptor | GoogleAppsScript.Base.Blob | any>,
+    documents: Array<AttachmentDescriptor | FilingBlob | Uint8Array | unknown>,
     newFileName?: string
-  ): Promise<AttachmentDescriptor | GoogleAppsScript.Base.Blob | any>;
+  ): Promise<AttachmentDescriptor | FilingBlob | Uint8Array | unknown>;
   slicePagesToBase64(
-    source: Uint8Array | number[] | GoogleAppsScript.Base.Blob | AttachmentDescriptor | any,
+    source: Uint8Array | number[] | AttachmentDescriptor | FilingBlob | unknown,
     maxPages: number
   ): Promise<string>;
   extractPages?(
-    source: Uint8Array | number[] | GoogleAppsScript.Base.Blob | AttachmentDescriptor | any,
+    source: Uint8Array | number[] | AttachmentDescriptor | FilingBlob | unknown,
     maxPages?: number
-  ): Promise<Uint8Array | GoogleAppsScript.Base.Blob | AttachmentDescriptor | any>;
-}
-
-declare let module: { exports?: unknown };
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {};
+  ): Promise<Uint8Array | AttachmentDescriptor | FilingBlob | unknown>;
 }

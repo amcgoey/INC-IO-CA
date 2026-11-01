@@ -97,5 +97,3 @@ export class DraftEmailAction implements DocumentAction<DocumentActionContext, D
     };
   }
 }
-
-(globalThis as any).DraftEmailAction = DraftEmailAction;

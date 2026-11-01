@@ -125,16 +125,14 @@ export class DualDocumentSubmittalFilingAction
     } else {
       // Fallback empty composite blob for test harness or headless mock execution
       const dummyBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
-      compositeBlob = (typeof Utilities !== 'undefined' && Utilities.newBlob)
-        ? Utilities.newBlob(Array.from(dummyBytes), 'application/pdf', `${cleanBase}.pdf`)
-        : {
-            fileName: `${cleanBase}.pdf`,
-            getName: () => `${cleanBase}.pdf`,
-            mimeType: 'application/pdf',
-            getContentType: () => 'application/pdf',
-            bytes: dummyBytes,
-            getBytes: () => dummyBytes
-          };
+      compositeBlob = {
+        fileName: `${cleanBase}.pdf`,
+        getName: () => `${cleanBase}.pdf`,
+        mimeType: 'application/pdf',
+        getContentType: () => 'application/pdf',
+        bytes: dummyBytes,
+        getBytes: () => dummyBytes
+      };
     }
 
     // 6. Subfolder resolution for Closed storage
@@ -237,5 +235,3 @@ export class DualDocumentSubmittalFilingAction
     };
   }
 }
-
-(globalThis as any).DualDocumentSubmittalFilingAction = DualDocumentSubmittalFilingAction;

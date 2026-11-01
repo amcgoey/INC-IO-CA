@@ -380,6 +380,13 @@ export class CardPresenter implements UserInterfacePresenter {
     const specTagVal = isFFE ? (form.specTag || eventParams.specTag || "") : "";
     const itemTitle = result.title || form.title || (isFFE ? form.specTitle : "") || eventParams.itemTitle || eventParams.title || "";
 
+    const deferredFiling = result.deferredFiling || {
+      number: result.number || "",
+      title: itemTitle || result.title || "",
+      rev: result.rev || "",
+      docType: result.docType || (discipline === "FF&E" ? "SUBMITTAL_FFE" : "SUBMITTAL_ARCH")
+    };
+
     const card = buildSuccessCard(
       result.fileId,
       result.newFileName,
@@ -399,7 +406,8 @@ export class CardPresenter implements UserInterfacePresenter {
       null,
       result.directRowUrl,
       result.failedColumns,
-      result.emptyFallbacks
+      result.emptyFallbacks,
+      deferredFiling
     );
 
     return this.buildPushCardResponse(card);

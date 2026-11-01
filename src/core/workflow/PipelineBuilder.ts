@@ -119,7 +119,11 @@ export class PipelineBuilder {
       emptyFallbacks: finalContext.emptyFallbacks || input.emptyFallbacks || [],
       localPath: finalContext.localPath || '',
       policy: finalContext.policy || policy,
-      notes: finalContext.notes || doc?.notes || ''
+      notes: finalContext.notes || doc?.notes || '',
+      deferredFiling: finalContext.deferredFiling,
+      number: finalContext.number || finalContext.deferredFiling?.number,
+      rev: finalContext.rev || finalContext.deferredFiling?.rev,
+      docType: finalContext.docType || finalContext.deferredFiling?.docType
     };
   }
 }

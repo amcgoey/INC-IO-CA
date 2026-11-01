@@ -3,15 +3,17 @@
  * @description Tier 2 GAS adapter implementing EmailDraftAdapter using GmailApp and the advanced Gmail service.
  */
 
-globalThis.__currentFileTier = 2;
-
 import type { EmailDraftAdapter, DraftEmailOptions, DraftEmailResult } from '../../core/interfaces/EmailDraftAdapter';
 
 export class GoogleGmailDraftAdapter implements EmailDraftAdapter {
   createDraft(options: DraftEmailOptions): DraftEmailResult {
     try {
       if (typeof GmailApp === 'undefined') {
-        return { success: false };
+        return {
+          draftId: '',
+          draftUrl: '',
+          subject: options.subject
+        };
       }
       const draft = GmailApp.createDraft(
         options.to || '',
@@ -23,13 +25,15 @@ export class GoogleGmailDraftAdapter implements EmailDraftAdapter {
       const messageId = draft.getMessage().getId();
       const draftUrl = `https://mail.google.com/mail/u/0/#drafts?compose=${messageId}`;
       return {
-        draftId,
-        draftUrl,
-        success: true
+        draftId: draftId || '',
+        draftUrl: draftUrl || '',
+        subject: options.subject
       };
     } catch (_err) {
       return {
-        success: false
+        draftId: '',
+        draftUrl: '',
+        subject: options.subject
       };
     }
   }

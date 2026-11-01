@@ -619,7 +619,7 @@ function handleFetchUrl(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service
  * @param emptyFallbacks - List of optional fields that fell back to empty strings.
  * @returns Constructed `GoogleAppsScript.Card_Service.Card` instance.
  */
-function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled = false, projectAbbr = "", action = "", incomingRouting = "", draftUrl: string | null = null, directRowUrl: string | null = null, failedColumns: string[] = [], emptyFallbacks: string[] = []): GoogleAppsScript.Card_Service.Card {
+function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, localPath: string, targetKey: string, itemTitle: string, discipline: string, section: string, specTag: string, targetFolderId: string, logFileId: string, isFiled = false, projectAbbr = "", action = "", incomingRouting = "", draftUrl: string | null = null, directRowUrl: string | null = null, failedColumns: string[] = [], emptyFallbacks: string[] = [], deferredFiling?: { number?: string; title?: string; rev?: string; docType?: string; isFiled?: boolean; targetSubfolder?: string; }): GoogleAppsScript.Card_Service.Card {
   const header = CardService.newCardHeader().setTitle(MESSAGES.SUCCESS_CARD_TITLE);
   if (CONFIG.LOGO_URL) header.setImageUrl(CONFIG.LOGO_URL);
   const card = CardService.newCardBuilder().setHeader(header);
@@ -647,7 +647,10 @@ function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, 
     logFileId: logFileId || "", isFiledStatus: isFiled ? "true" : "false",
     directRowUrl: directRowUrl || "",
     failedColumns: JSON.stringify(failedColumns || []),
-    emptyFallbacks: JSON.stringify(emptyFallbacks || [])
+    emptyFallbacks: JSON.stringify(emptyFallbacks || []),
+    number: deferredFiling?.number || "",
+    rev: deferredFiling?.rev || "",
+    docType: deferredFiling?.docType || ""
   };
 
   const btnSet = CardService.newButtonSet();
@@ -655,6 +658,11 @@ function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, 
   else btnSet.addButton(CardService.newTextButton().setText("Draft Email").setOnClickAction(CardService.newAction().setFunctionName("createDraftEmail").setParameters(draftParams)).setTextButtonStyle(CardService.TextButtonStyle.FILLED));
   
   if (!isFiled) {
+    const defNumber = deferredFiling?.number || "";
+    const defTitle = deferredFiling?.title || itemTitle || "";
+    const defRev = deferredFiling?.rev || "";
+    const defDocType = deferredFiling?.docType || (discipline === "FF&E" ? "SUBMITTAL_FFE" : "SUBMITTAL_ARCH");
+
     btnSet.addButton(CardService.newTextButton().setText("File the Submittal").setOnClickAction(CardService.newAction().setFunctionName("moveSubmittalToClosed")
       .setParameters({ 
         fileId: fileId || "", newFileName: newFileName || "", fileUrl: fileUrl || "", stampSubNo: targetKey || "", itemTitle: itemTitle || "", 
@@ -662,7 +670,11 @@ function buildSuccessCard(fileId: string, newFileName: string, fileUrl: string, 
         projectAbbr: projectAbbr || "", action: action || "", incomingRouting: incomingRouting || "",
         directRowUrl: directRowUrl || "",
         failedColumns: JSON.stringify(failedColumns || []),
-        emptyFallbacks: JSON.stringify(emptyFallbacks || [])
+        emptyFallbacks: JSON.stringify(emptyFallbacks || []),
+        number: defNumber,
+        title: defTitle,
+        rev: defRev,
+        docType: defDocType
       })).setTextButtonStyle(CardService.TextButtonStyle.OUTLINED));
   }
   sec.addWidget(btnSet);
@@ -703,7 +715,7 @@ function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servi
   const failedCols = p.failedColumns ? JSON.parse(p.failedColumns) : [];
   const emptyFalls = p.emptyFallbacks ? JSON.parse(p.emptyFallbacks) : [];
 
-  const updated = buildSuccessCard(p.fileId, p.newFileName, p.url, p.localPath, p.targetKey, p.title, p.discipline, p.section, p.specTag, p.targetFolderId, p.logFileId, p.isFiledStatus === "true", p.projectAbbr, p.action, p.incomingRouting, draftUrl, p.directRowUrl, failedCols, emptyFalls);
+  const updated = buildSuccessCard(p.fileId, p.newFileName, p.url, p.localPath, p.targetKey, p.title, p.discipline, p.section, p.specTag, p.targetFolderId, p.logFileId, p.isFiledStatus === "true", p.projectAbbr, p.action, p.incomingRouting, draftUrl, p.directRowUrl, failedCols, emptyFalls, { number: p.number, title: p.title, rev: p.rev, docType: p.docType });
   return defaultCardPresenter.presentDraftEmailSuccess(e, updated);
 }
 

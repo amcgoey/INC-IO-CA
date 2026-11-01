@@ -321,7 +321,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps?: ProcessDependenc
   const activeDeps = resolveDefaultDependencies(deps);
   const p = e.parameters || {};
   try {
-    const docType = p.documentType || p.discipline || "SUBMITTAL_ARCH";
+    const docType = p.docType || p.documentType || p.discipline || "SUBMITTAL_ARCH";
     const config = activeDeps.configRegistry.hasConfig(docType)
       ? activeDeps.configRegistry.getConfig(docType)
       : (activeDeps.specRegistry.findSpecKey(docType) && activeDeps.configRegistry.hasConfig(activeDeps.specRegistry.findSpecKey(docType)!))
@@ -339,7 +339,7 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps?: ProcessDependenc
         section: p.section || "",
         specTag: p.specTag || "",
         number: p.number || "",
-        revision: p.revision || "",
+        revision: p.revision || p.rev || "",
         title: p.title || p.itemTitle || "",
         vendor: p.vendor || "",
       },
@@ -366,7 +366,8 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps?: ProcessDependenc
     const updated = buildSuccessCard(
       p.fileId, p.newFileName, p.fileUrl, filingResult.localPath, p.stampSubNo, p.itemTitle, p.discipline, p.section, p.specTag, 
       p.targetFolderId, p.logFileId, true, p.projectAbbr, p.action, p.incomingRouting, null,
-      p.directRowUrl, failedCols, emptyFalls
+      p.directRowUrl, failedCols, emptyFalls,
+      { number: p.number, title: p.title || p.itemTitle, rev: p.revision || p.rev, docType }
     );
     if (activeDeps.cardPresenter.presentMoveToClosedSuccess) {
       return activeDeps.cardPresenter.presentMoveToClosedSuccess(e, updated, destName);

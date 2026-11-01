@@ -417,8 +417,3 @@ export class CardDraftStateManager {
     return stateResult;
   }
 }
-
-// Global attachment for Google Apps Script runtime
-if (typeof globalThis !== "undefined") {
-  (globalThis as any).CardDraftStateManager = CardDraftStateManager;
-}

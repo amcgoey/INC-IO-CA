@@ -178,4 +178,24 @@ describe('DynamicDocumentLogStrategy', () => {
       );
     });
   });
+
+  describe('safePadNum normalization without globalThis.padNum', () => {
+    it('pads section to 6 digits and number to 3 digits using standard padStart', () => {
+      delete (globalThis as any).padNum;
+      const strategy = new DynamicDocumentLogStrategy(mockSpec, mockCompiler);
+      const docWithUnpaddedNums = {
+        disciplineDetails: {
+          section: '33000',
+          number: '1',
+          revision: '0'
+        }
+      } as any;
+
+      strategy.getFilingSubfolders(docWithUnpaddedNums);
+      expect(mockCompiler.evaluate).toHaveBeenCalledWith(
+        'Closed/${section}',
+        expect.objectContaining({ section: '033000', number: '001' })
+      );
+    });
+  });
 });
