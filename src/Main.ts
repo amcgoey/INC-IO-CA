@@ -46,7 +46,10 @@ import {
   onRunSchemaDriftAudit,
   onFlushScriptCache,
   onAutoPatchWorkbook,
-  onSaveToJsonConfiguration
+  onSaveToJsonConfiguration,
+  onResetLogSearchCache,
+  onClearAiTriageCache,
+  onFlushContactsActionsCache
 } from "./adapters/gas/AdminFoldOutPresenter";
 import { onSheetsContextRefresh, buildSheetsRootCard } from "./adapters/gas/SheetsRootCard";
 import { SheetsContextBinder } from "./adapters/gas/SheetsContextBinder";
@@ -458,6 +461,9 @@ g.onRunSchemaDriftAudit = onRunSchemaDriftAudit;
 g.onFlushScriptCache = onFlushScriptCache;
 g.onAutoPatchWorkbook = onAutoPatchWorkbook;
 g.onSaveToJsonConfiguration = onSaveToJsonConfiguration;
+g.onResetLogSearchCache = onResetLogSearchCache;
+g.onClearAiTriageCache = onClearAiTriageCache;
+g.onFlushContactsActionsCache = onFlushContactsActionsCache;
 g.onSheetsContextRefresh = onSheetsContextRefresh;
 g.buildSheetsAddOn = buildSheetsAddOn;
 g.checkAiModelHealth = checkAiModelHealth;
@@ -500,6 +506,9 @@ export {
   onFlushScriptCache,
   onAutoPatchWorkbook,
   onSaveToJsonConfiguration,
+  onResetLogSearchCache,
+  onClearAiTriageCache,
+  onFlushContactsActionsCache,
   onSheetsContextRefresh,
   buildSheetsAddOn,
   checkAiModelHealth,
