@@ -1464,9 +1464,21 @@ function onDynamicPromptCancel(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_
     .build();
 }
 
+/**
+ * Action callback when saving and resuming from a dynamic addition prompt.
+ * Delegates to global handleDynamicPromptSubmission or processSubmission (Ticket #311).
+ */
+function handleDynamicPromptSubmission(e: GoogleAppsScriptEvent): any {
+  if (typeof (globalThis as any).handleDynamicPromptSubmission === "function") {
+    return (globalThis as any).handleDynamicPromptSubmission(e);
+  }
+  return processSubmission(e);
+}
+
 export {
   buildDynamicSupportDataCard,
   onDynamicPromptCancel,
+  handleDynamicPromptSubmission,
   renderDynamicFormFields,
   buildIntakeCard,
   buildSuccessCard,

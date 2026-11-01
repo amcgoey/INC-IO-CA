@@ -13,6 +13,16 @@ import { UserInterfacePresenter } from "./core/interfaces/UserInterfacePresenter
 import { defaultLogRepository } from "./GoogleSheetsLogRepository";
 import { defaultDriveFilingRepository } from "./DriveFilingRepository";
 import { defaultCardPresenter } from "./adapters/gas/CardPresenter";
+import { PrefixCacheManager } from "./core/admin/PrefixCacheManager";
+import { GoogleScriptCacheAdapter } from "./adapters/gas/GoogleScriptCacheAdapter";
+
+function getGoogleScriptCacheAdapterClass(): any {
+  return GoogleScriptCacheAdapter;
+}
+
+function getPrefixCacheManagerClass(): any {
+  return PrefixCacheManager;
+}
 
 export interface ProcessDependencies {
   actionRegistry: ActionRegistry;
@@ -21,6 +31,90 @@ export interface ProcessDependencies {
   logRepository: LogRepository;
   driveFilingRepository: DriveFilingRepository;
   cardPresenter: UserInterfacePresenter;
+  cacheAdapter?: CacheAdapter;
+  prefixManager?: PrefixCacheManager;
+}
+
+/**
+ * Handles resumption from an interactive dynamic addition prompt (`allowDynamicAddition`),
+ * synchronously persisting confirmed SpecTag or vendor entries to active support tables
+ * (`Submittal FFE Support` / `_Shared`, or legacy `Tag List`) and executing scoped cache eviction
+ * via `PrefixCacheManager` before continuing pipeline execution (Ticket #311).
+ *
+ * @param e - Google Apps Script event object with form inputs and action parameters.
+ * @param deps - Injected dependencies including log repository, UI presenter, and cache managers.
+ * @returns An ActionResponse or Card navigation outcome.
+ */
+async function handleDynamicPromptSubmission(
+  e: GoogleAppsScriptEvent,
+  deps: ProcessDependencies
+): Promise<any> {
+  const p = e.parameters || {};
+  let form = e.formInput || {};
+
+  if (p.originalFormInput) {
+    try {
+      const original = JSON.parse(p.originalFormInput);
+      form = { ...original, ...form };
+      e.formInput = form;
+    } catch (_e) {}
+  }
+
+  const isSpecTag = p.promptSupportDataKey === "SpecTags" || p.promptFieldKey === "specTag" || Boolean(p.newTag);
+  const isVendor = p.promptSupportDataKey === "Vendors" || p.promptFieldKey === "vendor" || Boolean(p.newVendor);
+
+  const tag = form.specTag || form.tag || form.SpecTags_tag || p.promptUserValue || p.newTag || "";
+  const title = form.specTitle || form.SpecTags_specTitle || form.description || form.SpecTags_description || form.title || form.label || p.newTitle || "";
+
+  const vendor = form.vendor || form.Vendors_name || form.name || form.Vendors_code || form.code || p.promptUserValue || p.newVendor || "";
+  const vendorLabel = form.Vendors_name || form.name || form.vendor || p.promptUserValue || vendor;
+
+  const spreadsheetId = p.logFileId;
+
+  try {
+    if (isSpecTag && tag) {
+      if (!spreadsheetId) throw new Error(MESSAGES.ERROR_NO_LOG);
+      deps.logRepository.addNewTagToTagList(spreadsheetId, tag, title);
+    } else if (isVendor && vendor) {
+      if (!spreadsheetId) throw new Error(MESSAGES.ERROR_NO_LOG);
+      deps.logRepository.addNewVendorToTagList(spreadsheetId, vendor, vendorLabel);
+    }
+
+    // Scoped cache eviction immediately after persistence succeeds
+    if (spreadsheetId) {
+      const CacheAdapterClass = getGoogleScriptCacheAdapterClass();
+      const PrefixManagerClass = getPrefixCacheManagerClass();
+      const cacheAdapter = deps.cacheAdapter || (globalThis as any).defaultCacheAdapter || new CacheAdapterClass();
+      const prefixManager = deps.prefixManager || new PrefixManagerClass(cacheAdapter);
+
+      prefixManager.invalidatePrefix("DOC_CONFIG_" + spreadsheetId);
+      prefixManager.invalidatePrefix("log_settings_" + spreadsheetId);
+      prefixManager.invalidatePrefix("log_settings_");
+      prefixManager.invalidatePrefix("log_search_" + spreadsheetId);
+    }
+  } catch (err: any) {
+    // Spreadsheet write failure: DO NOT evict cache, halt pipeline before filing!
+    const errorMsg = "Error adding reference entry: " + (err.message || String(err));
+    if (deps.cardPresenter && typeof deps.cardPresenter.presentNotification === "function") {
+      return deps.cardPresenter.presentNotification(errorMsg);
+    }
+    if (deps.cardPresenter && typeof deps.cardPresenter.presentError === "function") {
+      return deps.cardPresenter.presentError(err);
+    }
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification().setText(errorMsg))
+      .build();
+  }
+
+  // Setup bypass parameters and continue with pipeline execution
+  e.parameters = {
+    ...p,
+    resumedFromDynamicPrompt: "persisted",
+    bypassTagValidation: isSpecTag ? "true" : (p.bypassTagValidation || "false"),
+    bypassVendorValidation: isVendor ? "true" : (p.bypassVendorValidation || "false")
+  };
+
+  return processSubmission(e, deps);
 }
 
 const resolveDefaultDependencies = (deps?: ProcessDependencies): ProcessDependencies => {
@@ -51,16 +145,26 @@ async function processSubmission(e: GoogleAppsScriptEvent, deps?: ProcessDepende
     let form = e.formInput || {};
     const p = e.parameters || {};
 
+    if (p.resumedFromDynamicPrompt === "true") {
+      return handleDynamicPromptSubmission(e, deps);
+    }
+
     const bypassDatasets: string[] = [];
-    if (p.resumedFromDynamicPrompt === "true" && p.originalFormInput) {
+    if (p.originalFormInput) {
       try {
         const original = JSON.parse(p.originalFormInput);
         form = { ...original, ...form };
         e.formInput = form;
-        if (p.promptSupportDataKey) {
-          bypassDatasets.push(p.promptSupportDataKey);
-        }
       } catch (_e) {}
+    }
+    if (p.promptSupportDataKey) {
+      bypassDatasets.push(p.promptSupportDataKey);
+    }
+    if (p.bypassTagValidation === "true" && !bypassDatasets.includes("SpecTags")) {
+      bypassDatasets.push("SpecTags");
+    }
+    if (p.bypassVendorValidation === "true" && !bypassDatasets.includes("Vendors")) {
+      bypassDatasets.push("Vendors");
     }
 
     // Task 1: Fetch Bypass Validation
@@ -270,5 +374,6 @@ function moveSubmittalToClosed(e: GoogleAppsScriptEvent, deps?: ProcessDependenc
 
 export {
   processSubmission,
+  handleDynamicPromptSubmission,
   moveSubmittalToClosed
 };

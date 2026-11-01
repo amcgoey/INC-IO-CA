@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { GasMockHarness } from './harness/GasMockHarness';
 import { GoogleSheetsLogRepository } from '../src/GoogleSheetsLogRepository';
 import { DocumentLogWorkbookViewSpec } from '../src/core/config/DocumentLogWorkbookViewSpec';
+import { PrefixCacheManager } from '../src/core/admin/PrefixCacheManager';
+import { FakeCacheAdapter } from '../src/adapters/fakes/FakeCacheAdapter';
 
 describe('GoogleSheetsLogRepository - updateDocumentLink', () => {
   beforeEach(() => {
@@ -223,5 +225,94 @@ describe('dual-topology tab resolution in getLogSettings', () => {
     expect(grid[5][1]).toBe('001');
     expect(grid[5][2]).toBe('0');
     expect(grid[5][3]).toBe('Concrete Mix');
+  });
+
+  describe('Ticket #311 - dynamic support table persistence & scoped cache eviction', () => {
+    it('persists newly confirmed SpecTag to Submittal FFE Support and executes scoped cache eviction', () => {
+      const ssId = 'ss-mvt-ffe-persist-tag';
+      const ss = (globalThis as any).SpreadsheetApp.openById(ssId);
+
+      const ffeSupportSheet = ss.insertSheet('Submittal FFE Support');
+      ffeSupportSheet.getRange(1, 1, 4, 4).setValues([
+        ['Vendor Key', 'Vendor Label', 'SpecTag Key', 'SpecTag Label'],
+        ['Berman Falk', 'Berman Falk', 'AC102', 'HOOK'],
+        ['Ashley Lighting', 'Ashley Lighting', 'CG104', 'BED - KING'],
+        ['', '', '', '']
+      ]);
+
+      const fakeCache = new FakeCacheAdapter();
+      (globalThis as any).defaultCacheAdapter = fakeCache;
+      const prefixManager = new PrefixCacheManager(fakeCache);
+      prefixManager.putScoped(`DOC_CONFIG_${ssId}`, `DOC_CONFIG_${ssId}_ffe`, JSON.stringify({ version: 1 }), 3600);
+      prefixManager.putScoped('log_search_', 'log_search_unrelated', 'keep_me', 3600);
+
+      const repo = new GoogleSheetsLogRepository();
+      // Insert 'CG100' which is alphabetically between AC102 and CG104
+      repo.addNewTagToTagList(ssId, 'CG100', 'BED - QUEEN');
+
+      // 1. Check scoped cache eviction
+      expect(prefixManager.getScoped(`DOC_CONFIG_${ssId}`, `DOC_CONFIG_${ssId}_ffe`)).toBeNull();
+      // Unrelated scope remains intact
+      expect(prefixManager.getScoped('log_search_', 'log_search_unrelated')).toBe('keep_me');
+
+      // 2. Check updated settings observation
+      const settings = repo.getLogSettings(ssId, 'FF&E');
+      expect(settings.ffeTags.tags).toContain('CG100');
+      expect(settings.ffeTags.tagMap['CG100']).toBe('BED - QUEEN');
+    });
+
+    it('persists newly confirmed Vendor to Submittal FFE Support and executes scoped cache eviction', () => {
+      const ssId = 'ss-mvt-ffe-persist-vendor';
+      const ss = (globalThis as any).SpreadsheetApp.openById(ssId);
+
+      const ffeSupportSheet = ss.insertSheet('Submittal FFE Support');
+      ffeSupportSheet.getRange(1, 1, 3, 4).setValues([
+        ['Vendor Key', 'Vendor Label', 'SpecTag Key', 'SpecTag Label'],
+        ['Berman Falk', 'Berman Falk', 'AC102', 'HOOK'],
+        ['', '', 'CG104', 'BED - KING']
+      ]);
+
+      const fakeCache = new FakeCacheAdapter();
+      (globalThis as any).defaultCacheAdapter = fakeCache;
+      const prefixManager = new PrefixCacheManager(fakeCache);
+      prefixManager.putScoped(`DOC_CONFIG_${ssId}`, `DOC_CONFIG_${ssId}_ffe`, JSON.stringify({ version: 1 }), 3600);
+
+      const repo = new GoogleSheetsLogRepository();
+      repo.addNewVendorToTagList(ssId, 'Herman Miller');
+
+      expect(prefixManager.getScoped(`DOC_CONFIG_${ssId}`, `DOC_CONFIG_${ssId}_ffe`)).toBeNull();
+
+      const settings = repo.getLogSettings(ssId, 'FF&E');
+      expect(settings.ffeTags.vendors).toContain('Herman Miller');
+    });
+
+    it('persists tag and vendor to legacy Tag List tab when MVT tabs are absent', () => {
+      const ssId = 'ss-legacy-persist';
+      const ss = (globalThis as any).SpreadsheetApp.openById(ssId);
+
+      const tagSheet = ss.insertSheet('Tag List');
+      tagSheet.getRange(1, 1, 4, 3).setValues([
+        ['', '', ''],
+        ['', '', ''],
+        ['Spec Tag', 'Spec Title', 'Vendor'],
+        ['AC100', 'Hook Legacy', 'Old Vendor']
+      ]);
+
+      const fakeCache = new FakeCacheAdapter();
+      (globalThis as any).defaultCacheAdapter = fakeCache;
+      const prefixManager = new PrefixCacheManager(fakeCache);
+      prefixManager.putScoped(`DOC_CONFIG_${ssId}`, `DOC_CONFIG_${ssId}_leg`, 'cached', 3600);
+
+      const repo = new GoogleSheetsLogRepository();
+      repo.addNewTagToTagList(ssId, 'AC101', 'Hook 2');
+      repo.addNewVendorToTagList(ssId, 'New Legacy Vendor');
+
+      expect(prefixManager.getScoped(`DOC_CONFIG_${ssId}`, `DOC_CONFIG_${ssId}_leg`)).toBeNull();
+
+      const settings = repo.getLogSettings(ssId, 'FF&E');
+      expect(settings.ffeTags.tags).toContain('AC101');
+      expect(settings.ffeTags.tagMap['AC101']).toBe('Hook 2');
+      expect(settings.ffeTags.vendors).toContain('New Legacy Vendor');
+    });
   });
 });
