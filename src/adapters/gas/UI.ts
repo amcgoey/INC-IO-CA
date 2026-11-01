@@ -2,6 +2,7 @@ import { defaultAnalyzeDocumentAction } from "../../AnalyzeDocumentAction";
 import { defaultDocumentTypeConfigRegistry, resolve5TierFieldValue } from "../../DocumentTypeConfigRegistry";
 import { MESSAGES, CONFIG } from "../../Config";
 import { defaultLogRepository } from "../../GoogleSheetsLogRepository";
+import { defaultDriveFilingRepository } from "../../DriveFilingRepository";
 import { defaultCardPresenter } from "./CardPresenter";
 import { defaultDriveNameProvider } from "../../GoogleDriveNameProvider";
 import { FieldConfidenceThreshold } from "../../core/interfaces/AiAnalysisService";
@@ -871,7 +872,14 @@ function buildIntakeCard(
 
   if (activeLogFileId && !targetFolderId) {
     try {
-      if (typeof DriveApp !== "undefined" && DriveApp.getFileById) {
+      const filingRepo = defaultDriveFilingRepository || (globalThis as any).defaultDriveFilingRepository;
+      if (filingRepo && typeof filingRepo.resolveSubmittalsFolder === "function") {
+        const resolution = filingRepo.resolveSubmittalsFolder(activeLogFileId);
+        if (resolution && resolution.submittalsFolderId) {
+          targetFolderId = resolution.submittalsFolderId;
+        }
+      }
+      if (!targetFolderId && typeof DriveApp !== "undefined" && DriveApp.getFileById) {
         const logFile = DriveApp.getFileById(activeLogFileId);
         const parents = logFile.getParents();
         if (parents.hasNext()) {

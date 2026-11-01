@@ -24,7 +24,7 @@ describe('specToConfigAdapter (Tier 1 Pure Core)', () => {
     expect(config.closedRootFolderName).toBe('Closed');
     expect(config.closedSubfolderMap).toBeUndefined();
     expect(config.filenamePrefix).toBe('_');
-    expect(config.logSheetName).toBe('Log');
+    expect(config.logSheetName).toBe('Submittal Arch');
     expect(config.logSearchTerms).toEqual(['document log', 'inc document log', 'submittal log']);
     expect(config.logAdapterKey).toBe('GoogleSheetsLogRepository');
     expect(config.filingAdapterKey).toBe('GoogleDriveFilingRepository');

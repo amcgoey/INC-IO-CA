@@ -588,9 +588,15 @@ interface PdfDocumentService {
 }
 
 /** Repository interface for Drive filing and local path resolution. */
+interface SubmittalFolderResolution {
+  submittalsFolderId: string;
+  projectRootId: string;
+}
+
 interface DriveFilingRepository {
   getLocalPath(fileId: string): string;
   fileDocument(file: { fileId?: string; blob?: GoogleAppsScript.Base.Blob }, options: FilingOptions): FilingResult;
+  resolveSubmittalsFolder?(workbookFileId: string): SubmittalFolderResolution;
 }
 
 /** Provider interface for Shared Drive lists. */

@@ -59,9 +59,15 @@ export class LogDisambiguationScorer {
     // 1. Structural Inspection: Manifest Match (+50 pts)
     let manifestMatch = 0;
     if (candidate.manifestDocTypes && candidate.manifestDocTypes.length > 0) {
-      const match = candidate.manifestDocTypes.some(
-        (dt: string) => dt.trim().toLowerCase() === targetDocType.trim().toLowerCase()
-      );
+      const normTarget = targetDocType.trim().toLowerCase().replace(/[\s_-]+/g, '');
+      const match = candidate.manifestDocTypes.some((dt: string) => {
+        const normDt = dt.trim().toLowerCase().replace(/[\s_-]+/g, '');
+        return (
+          normDt === normTarget ||
+          dt.trim().toLowerCase() === targetDocType.trim().toLowerCase() ||
+          (normTarget.startsWith('submittal') && normDt.startsWith('submittal'))
+        );
+      });
       if (match) {
         manifestMatch = 50;
       }
@@ -70,8 +76,12 @@ export class LogDisambiguationScorer {
     // 2. Structural Inspection: Sheet Tab Match (+40 pts)
     let sheetTabMatch = 0;
     if (candidate.sheetTabNames && candidate.sheetTabNames.length > 0 && config.logSheetName) {
+      const targetTabs = [config.logSheetName, (config as any).targetTab].filter(Boolean).map((t: string) => t.trim().toLowerCase());
+      if (targetTabs.some((t: string) => t.includes('submittal'))) {
+        targetTabs.push('log', 'submittals log');
+      }
       const match = candidate.sheetTabNames.some(
-        (tab: string) => tab.trim().toLowerCase() === config.logSheetName.trim().toLowerCase()
+        (tab: string) => targetTabs.includes(tab.trim().toLowerCase())
       );
       if (match) {
         sheetTabMatch = 40;

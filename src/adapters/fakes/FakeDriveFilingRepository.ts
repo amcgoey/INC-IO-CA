@@ -4,7 +4,7 @@
  * @description In-memory fake implementation of DriveFilingRepository for unit testing and fake adapter composition.
  */
 
-import { DriveFilingRepository, FilingOptions, FilingResult } from "../../core/interfaces/DriveFilingRepository";
+import { DriveFilingRepository, FilingOptions, FilingResult, SubmittalFolderResolution } from "../../core/interfaces/DriveFilingRepository";
 
 export class FakeDriveFilingRepository implements DriveFilingRepository {
   public calls: string[] = [];
@@ -57,6 +57,13 @@ export class FakeDriveFilingRepository implements DriveFilingRepository {
     const result: FilingResult = { fileId: newId, url, localPath, folderId };
     this.duplicatedDocuments.push({ source, options, result });
     return result;
+  }
+
+  resolveSubmittalsFolder(workbookFileId: string): SubmittalFolderResolution {
+    return {
+      submittalsFolderId: "folder-submittals-" + workbookFileId,
+      projectRootId: "folder-project-root-" + workbookFileId
+    };
   }
 }
 
