@@ -5,9 +5,14 @@ import {
   DocumentSectionViewModel,
   DocumentWidgetViewModel
 } from "../../core/specs/DocumentTypeWidgetFactory";
-import { FieldConfidenceThreshold } from "../../core/interfaces/AiAnalysisService";
+import {
+  FieldConfidenceThreshold,
+  AiClassificationResult,
+  AiClassificationField
+} from "../../core/interfaces/AiAnalysisService";
 import { MESSAGES, CONFIG } from "../../Config";
 import type { UserInterfacePresenter } from "../../core/interfaces/UserInterfacePresenter";
+import { CardDraftStateManager } from "../../core/state/CardDraftStateManager";
 
 /**
  * @file CardPresenter.ts
@@ -15,6 +20,24 @@ import type { UserInterfacePresenter } from "../../core/interfaces/UserInterface
  *
  * Encapsulates card updates (`updateCard`), card pushes (`pushCard`), and toast notifications (`setNotification`).
  */
+
+function hydrateIfEmpty(
+  formInput: Record<string, any>,
+  key: string,
+  aiVal: any,
+  aliases: string[] = []
+): void {
+  if (aiVal === undefined || aiVal === null || String(aiVal).trim() === "") return;
+  const current = formInput[key];
+  const hasCurrent = current !== undefined && current !== null && String(current).trim() !== "";
+  const hasAlias = aliases.some(alias => {
+    const val = formInput[alias];
+    return val !== undefined && val !== null && String(val).trim() !== "";
+  });
+  if (!hasCurrent && !hasAlias) {
+    formInput[key] = String(aiVal);
+  }
+}
 
 /**
  * Application presenter class creating standardized `ActionResponse` UI navigation outcomes.
@@ -299,7 +322,16 @@ export class CardPresenter implements UserInterfacePresenter {
     e: GoogleAppsScriptEvent,
     _isTagChange?: boolean
   ): GoogleAppsScript.Card_Service.ActionResponse {
-    const card = buildIntakeCard(e, null);
+    try {
+      const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
+      const contextKey = CardDraftStateManager.resolveContextKey(e);
+      if (userCache && contextKey && e && e.formInput) {
+        CardDraftStateManager.saveDraft(userCache, contextKey, e.formInput);
+      }
+    } catch (_err) {}
+
+    const buildCard = (typeof globalThis !== "undefined" && (globalThis as any).buildIntakeCard) || buildIntakeCard;
+    const card = buildCard(e, null);
 
     return this.buildUpdateCardResponse(card);
   }
@@ -445,6 +477,8 @@ export class CardPresenter implements UserInterfacePresenter {
     e: GoogleAppsScriptEvent,
     analysisResult?: DeepAnalysisResult | any
   ): GoogleAppsScript.Card_Service.ActionResponse {
+    let aiClassification: AiClassificationResult | null = null;
+
     if (analysisResult) {
       if (analysisResult.success === false) {
         let notifyMsg = MESSAGES.ERROR_AI_GENERAL ? MESSAGES.ERROR_AI_GENERAL(analysisResult.error ? analysisResult.error.userMessage : 'Unknown Error') : '\u274C AI Error';
@@ -454,28 +488,91 @@ export class CardPresenter implements UserInterfacePresenter {
         return this.presentNotification(notifyMsg);
       }
 
-      if (analysisResult.success === true && analysisResult.analysis) {
+      if (analysisResult.success === true) {
         const analysis = analysisResult.analysis;
-        const p = (e && e.parameters) || {};
-        const form = (e && e.formInput) || {};
-        const discipline = form.discipline || p.discipline || "Architecture";
-        e.formInput = e.formInput || {};
-        if (discipline === "Architecture") {
-          if (analysis.predictedSection) e.formInput.section = analysis.predictedSection;
-          if (analysis.predictedNumber) e.formInput.number = analysis.predictedNumber;
-          if (analysis.predictedTitle) e.formInput.title = analysis.predictedTitle;
-        } else {
-          if (analysis.predictedSpecTag) e.formInput.specTag = analysis.predictedSpecTag;
-          if (analysis.predictedVendor) e.formInput.vendor = analysis.predictedVendor;
+        if (analysis) {
+          const p = (e && e.parameters) || {};
+          const form = (e && e.formInput) || {};
+          const discipline = form.discipline || p.discipline || "Architecture";
+          e.formInput = e.formInput || {};
+
+          if (discipline === "Architecture") {
+            hydrateIfEmpty(e.formInput, "section", analysis.predictedSection);
+            hydrateIfEmpty(e.formInput, "number", analysis.predictedNumber);
+            hydrateIfEmpty(e.formInput, "title", analysis.predictedTitle);
+          } else {
+            hydrateIfEmpty(e.formInput, "specTag", analysis.predictedSpecTag);
+            hydrateIfEmpty(e.formInput, "vendor", analysis.predictedVendor);
+          }
+
+          hydrateIfEmpty(e.formInput, "revision", analysis.predictedRevision, ["rev"]);
+          hydrateIfEmpty(e.formInput, "contact", analysis.predictedContactAbbr);
+          hydrateIfEmpty(e.formInput, "action", analysis.predictedAction);
         }
 
-        if (analysis.predictedRevision) e.formInput.revision = String(analysis.predictedRevision);
-        if (analysis.predictedContactAbbr) e.formInput.contact = analysis.predictedContactAbbr;
-        if (analysis.predictedAction) e.formInput.action = analysis.predictedAction;
+        // Construct AiClassificationResult for low-confidence indicators and top warning banner
+        if (analysisResult.fields) {
+          aiClassification = {
+            overallConfidence: analysisResult.overallConfidence,
+            fields: analysisResult.fields
+          };
+        } else {
+          const confMap: Record<string, number> =
+            analysisResult.fieldConfidence ||
+            (analysisResult.analysis && analysisResult.analysis.fieldConfidence) ||
+            {};
+
+          const overallConf: number | undefined =
+            analysisResult.overallConfidence ??
+            (analysisResult.analysis && analysisResult.analysis.overallConfidence) ??
+            analysisResult.confidence ??
+            (analysisResult.analysis && analysisResult.analysis.confidence);
+
+          const fieldsObj: Record<string, AiClassificationField> = {};
+          for (const [rawKey, conf] of Object.entries(confMap)) {
+            let canonicalKey = rawKey;
+            if (rawKey.startsWith("predicted")) {
+              const stripped = rawKey.replace(/^predicted/, "");
+              canonicalKey = stripped.charAt(0).toLowerCase() + stripped.slice(1);
+              if (canonicalKey === "contactAbbr") canonicalKey = "contact";
+            }
+            const val =
+              (e.formInput && (e.formInput[canonicalKey] ?? e.formInput[rawKey])) ??
+              (analysisResult.analysis ? (analysisResult.analysis as any)[rawKey] || (analysisResult.analysis as any)[canonicalKey] : "");
+
+            fieldsObj[canonicalKey] = {
+              value: String(val ?? ""),
+              confidence: Number(conf)
+            };
+            if (canonicalKey !== rawKey) {
+              fieldsObj[rawKey] = {
+                value: String(val ?? ""),
+                confidence: Number(conf)
+              };
+            }
+          }
+
+          if (Object.keys(fieldsObj).length > 0 || overallConf !== undefined) {
+            aiClassification = {
+              overallConfidence: overallConf,
+              fields: fieldsObj
+            };
+          }
+        }
+
+        // Save hydrated form state to UserCache draft
+        try {
+          const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
+          const contextKey = CardDraftStateManager.resolveContextKey(e);
+          if (userCache && contextKey && e && e.formInput) {
+            CardDraftStateManager.saveDraft(userCache, contextKey, e.formInput);
+          }
+        } catch (_err) {}
       }
     }
 
-    const card = buildIntakeCard(e);
+    const buildCard = (typeof globalThis !== "undefined" && (globalThis as any).buildIntakeCard) || buildIntakeCard;
+    const card = buildCard(e, null, null, aiClassification);
 
     const successText = MESSAGES.SUCCESS_ANALYSIS ? MESSAGES.SUCCESS_ANALYSIS : '\u2705 Analysis complete!';
     return CardService.newActionResponseBuilder()

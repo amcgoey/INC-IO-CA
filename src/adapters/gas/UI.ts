@@ -10,6 +10,7 @@ import { PicklistResolver, PicklistOption } from "../../core/config/PicklistReso
 import { DocumentTypeWidgetFactory } from "../../core/specs/DocumentTypeWidgetFactory";
 import { defaultDocumentTypeSpecRegistry } from "../../core/specs/DocumentTypeSpecRegistry";
 import type { DynamicPromptConfig, DynamicPromptPayload } from "../../core/specs/DocumentTypeSpec";
+import { CardDraftStateManager } from "../../core/state/CardDraftStateManager";
 
 /**
  * Helper to append ⚠ Check Value label indicator when field confidence is below threshold (< 0.85).
@@ -703,6 +704,13 @@ function createDraftEmail(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Servi
  * @returns ActionResponse instructing CardService to reload the UI card.
  */
 function onStateChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse { 
+  try {
+    const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
+    const contextKey = CardDraftStateManager.resolveContextKey(e);
+    if (userCache && contextKey && e && e.formInput) {
+      CardDraftStateManager.saveDraft(userCache, contextKey, e.formInput);
+    }
+  } catch (_err) {}
   return defaultCardPresenter.presentCardReload(e);
 }
 
@@ -713,6 +721,13 @@ function onStateChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.
  * @returns ActionResponse reloading the card with updated spec title suggestions.
  */
 function onSpecTagChange(e: GoogleAppsScriptEvent): GoogleAppsScript.Card_Service.ActionResponse { 
+  try {
+    const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
+    const contextKey = CardDraftStateManager.resolveContextKey(e);
+    if (userCache && contextKey && e && e.formInput) {
+      CardDraftStateManager.saveDraft(userCache, contextKey, e.formInput);
+    }
+  } catch (_err) {}
   return defaultCardPresenter.presentCardReload(e, true);
 }
 
@@ -806,6 +821,10 @@ function buildIntakeCard(
   const messageId = (e && e.gmail && e.gmail.messageId) || p.messageId || null;
   const driveFileId = p.driveFileId || formInput.driveFileId || (flashMessage && flashMessage.newDriveFileId) || "";
 
+  const contextKey = CardDraftStateManager.resolveContextKey(e);
+  const userCache = typeof CacheService !== "undefined" ? CacheService.getUserCache() : null;
+  const cachedDraft = (userCache && contextKey) ? CardDraftStateManager.getDraft(userCache, contextKey) : null;
+
   const registry = defaultDocumentTypeConfigRegistry;
   const resolvedDocType =
     formInput.documentType !== undefined
@@ -820,20 +839,20 @@ function buildIntakeCard(
 
   // Resolved Cascading State
   const state = {
-    project: formInput.project || (initialData && initialData.driveName) || p.project || "",
+    project: formInput.project || (cachedDraft && (cachedDraft.project || cachedDraft.projectId)) || (initialData && initialData.driveName) || p.project || "",
     documentType: resolvedDocType,
-    section: formInput.section || (initialData && initialData.section) || "",
-    number: formInput.number || (initialData && (initialData.number || (initialData as any).rfiNumber || (initialData as any).asiNumber)) || "",
-    revision: formInput.revision || (initialData && initialData.revision) || "0",
-    title: formInput.title || (initialData && initialData.title) || "",
-    specTag: formInput.specTag || (initialData && initialData.specTag) || "",
-    relatedTag: formInput.relatedTag || (initialData && initialData.relatedTag) || "",
-    specTitle: formInput.specTitle || (initialData && initialData.specTitle) || "",
-    vendor: formInput.vendor || (initialData && initialData.vendor) || "",
-    rfiNumber: formInput.rfiNumber || (initialData && ((initialData as any).rfiNumber || initialData.number)) || "",
-    asiNumber: formInput.asiNumber || (initialData && ((initialData as any).asiNumber || initialData.number)) || "",
-    date: formInput.date || (initialData && initialData.date) || formatGasDate(new Date()),
-    notes: formInput.notes || ""
+    section: formInput.section || (cachedDraft && (cachedDraft.section || cachedDraft.csiSection)) || (initialData && initialData.section) || "",
+    number: formInput.number || (cachedDraft && cachedDraft.number) || (initialData && (initialData.number || (initialData as any).rfiNumber || (initialData as any).asiNumber)) || "",
+    revision: formInput.revision || (cachedDraft && (cachedDraft.revision || cachedDraft.rev)) || (initialData && initialData.revision) || "0",
+    title: formInput.title || (cachedDraft && (cachedDraft.title || cachedDraft.specTitle)) || (initialData && initialData.title) || "",
+    specTag: formInput.specTag || (cachedDraft && cachedDraft.specTag) || (initialData && initialData.specTag) || "",
+    relatedTag: formInput.relatedTag || (cachedDraft && cachedDraft.relatedTag) || (initialData && initialData.relatedTag) || "",
+    specTitle: formInput.specTitle || (cachedDraft && (cachedDraft.specTitle || cachedDraft.title)) || (initialData && initialData.specTitle) || "",
+    vendor: formInput.vendor || (cachedDraft && cachedDraft.vendor) || (initialData && initialData.vendor) || "",
+    rfiNumber: formInput.rfiNumber || (cachedDraft && cachedDraft.rfiNumber) || (initialData && ((initialData as any).rfiNumber || initialData.number)) || "",
+    asiNumber: formInput.asiNumber || (cachedDraft && cachedDraft.asiNumber) || (initialData && ((initialData as any).asiNumber || initialData.number)) || "",
+    date: formInput.date || (cachedDraft && cachedDraft.date) || (initialData && initialData.date) || formatGasDate(new Date()),
+    notes: formInput.notes || (cachedDraft && cachedDraft.notes) || ""
   };
 
   const driveProvider = defaultDriveNameProvider;
@@ -953,6 +972,14 @@ function buildIntakeCard(
     card.addSection(
       CardService.newCardSection().addWidget(
         CardService.newTextParagraph().setText(msgText)
+      )
+    );
+  }
+
+  if (cachedDraft && cachedDraft.exceededSizeGuard && cachedDraft.warningMessage) {
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextParagraph().setText(cachedDraft.warningMessage)
       )
     );
   }
@@ -1209,11 +1236,20 @@ function buildIntakeCard(
       ? SpreadsheetApp.openById(activeLogFileId)
       : (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
 
+    const userCacheDraftForSection = cachedDraft ? {
+      ...cachedDraft,
+      title: cachedDraft.title || cachedDraft.specTitle || "",
+      specTitle: cachedDraft.specTitle || cachedDraft.title || "",
+      revision: cachedDraft.revision || cachedDraft.rev || "0",
+      rev: cachedDraft.rev || cachedDraft.revision || "0"
+    } : {};
+
     const sectionVm = DocumentTypeWidgetFactory.buildSectionViewModel(spec, {
       hydrationContext: {
         formInput,
         state,
         initialData,
+        userCacheDraft: userCacheDraftForSection,
         parserResult: initialData,
         aiMetadata: aiClassification,
         logSettings,
@@ -1255,6 +1291,7 @@ function buildIntakeCard(
           formInput,
           state,
           initialData,
+          userCacheDraft: userCacheDraftForSection,
           parserResult: initialData,
           aiMetadata: aiClassification,
           logSettings,
