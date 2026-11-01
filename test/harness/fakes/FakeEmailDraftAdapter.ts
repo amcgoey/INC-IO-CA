@@ -3,6 +3,11 @@ import { DraftEmailOptions, DraftEmailResult, EmailDraftAdapter } from '../../..
 export class FakeEmailDraftAdapter implements EmailDraftAdapter {
   public drafts: DraftEmailOptions[] = [];
   public createdDrafts: DraftEmailResult[] = [];
+  public signature: string = "";
+
+  getSignature(): string {
+    return this.signature;
+  }
 
   createDraft(options: DraftEmailOptions): DraftEmailResult {
     this.drafts.push(options);

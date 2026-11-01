@@ -121,9 +121,9 @@ export function createRowIdentityRevisionGroupKeyFn(fieldSpecs?: DocumentFieldSp
     if (revIdx !== -1 && row[revIdx] !== undefined && String(row[revIdx]).trim() !== "") {
       const revStr = String(row[revIdx]).trim();
       const rev = /^\d+$/.test(revStr) ? padNum(revStr, 1) : revStr;
-      return `${groupKey}-${rev}`;
+      return `${groupKey}-${rev}`.trim().toUpperCase();
     }
-    return groupKey;
+    return groupKey.trim().toUpperCase();
   };
 }
 
@@ -136,7 +136,7 @@ export function createRowIdentityKeyFn(fieldSpecs?: DocumentFieldSpec[]): RowKey
     const dateIdx = headers.indexOf("Date");
     const rawDate = dateIdx !== -1 ? row[dateIdx] : "";
     const dateStr = formatRowDate(rawDate);
-    return dateStr ? `${revGroupKey}-${dateStr}` : revGroupKey;
+    return (dateStr ? `${revGroupKey}-${dateStr}` : revGroupKey).trim().toUpperCase();
   };
 }
 
@@ -205,7 +205,7 @@ export function getRowSortKey(row: unknown[], disciplineOrGroupKeyFn: string | R
   }
 
   const groupKey = getRowGroupKey(row, disciplineOrGroupKeyFn, headers, fieldSpecs);
-  return `${groupKey}-${rev}-${dateStr}`;
+  return `${groupKey}-${rev}-${dateStr}`.trim().toUpperCase();
 }
 
 /**

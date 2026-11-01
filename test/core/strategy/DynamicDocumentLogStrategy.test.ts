@@ -67,9 +67,67 @@ describe('DynamicDocumentLogStrategy', () => {
 
       expect(identity).toEqual({
         identityGroup: '123-001',
-        identityRevisionGroup: '123-001-000-20260815',
-        identity: '123-001-0'
+        identityRevisionGroup: '123-001-0',
+        identity: '123-001-0-260815'
       });
+    });
+
+    it('should normalize alphanumeric SpecTag to uppercase and trim whitespace', () => {
+      const ffeSpec = {
+        key: 'SUBMITTAL_FFE',
+        label: 'Submittal FF&E',
+        name: 'Submittal Furniture, Fixtures & Equipment',
+        identity: {
+          format: '${specTag}-${revision}-${date}',
+          groupFormat: '${specTag}',
+          revisionGroupFormat: '${specTag}-${revision}'
+        },
+        fields: [
+          { key: 'specTag', label: 'Spec Tag', type: 'string', header: 'Spec Tag' },
+          { key: 'revision', label: 'Revision', type: 'string', header: 'Revision' }
+        ],
+        storage: [],
+        workflows: []
+      } as unknown as DocumentTypeSpec;
+
+      const ffeDoc = {
+        date: '2026-11-01',
+        contact: 'ARCH',
+        action: 'No Exceptions Taken',
+        disciplineDetails: {
+          specTag: '  ch-01  ',
+          revision: '0'
+        }
+      } as unknown as import('../../../src/types').ValidatedDocument;
+
+      const ffeCompiler = {
+        evaluate: vi.fn((format: string, record: Record<string, unknown>) => {
+          if (format === ffeSpec.identity.groupFormat) return String(record.specTag);
+          if (format === ffeSpec.identity.revisionGroupFormat) return `${record.specTag}-${record.revision}`;
+          return '';
+        })
+      } as unknown as typeof TemplateFormatCompiler;
+
+      const strategy = new DynamicDocumentLogStrategy(ffeSpec, ffeCompiler);
+      const identity = strategy.getIdentityData(ffeDoc);
+
+      expect(identity.identityGroup).toBe('CH-01');
+      expect(identity.identityRevisionGroup).toBe('CH-01-0');
+      expect(identity.identity).toBe('CH-01-0-261101');
+    });
+  });
+
+  describe('getFileName', () => {
+    it('uses 6-digit YYMMDD dates and single-space separation between contact chain and action suffix', () => {
+      const strategy = new DynamicDocumentLogStrategy(mockSpec, mockCompiler);
+      const fileName = strategy.getFileName(mockDoc, 'GC ARCH', 'APP');
+      expect(fileName).toBe('123-001-0 - 260815 GC ARCH APP');
+    });
+
+    it('formats filename cleanly when suffix is empty', () => {
+      const strategy = new DynamicDocumentLogStrategy(mockSpec, mockCompiler);
+      const fileName = strategy.getFileName(mockDoc, 'GC', '');
+      expect(fileName).toBe('123-001-0 - 260815 GC');
     });
   });
 

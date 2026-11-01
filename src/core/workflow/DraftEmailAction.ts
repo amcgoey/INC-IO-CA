@@ -15,8 +15,18 @@ export class DraftEmailAction implements DocumentAction<DocumentActionContext, D
   async execute(context: DocumentActionContext): Promise<DocumentActionContext> {
     const doc = context.validatedDoc || context.document;
     const actionName = context.action || context.selectedAction?.action || doc?.action || '';
+    const actionAbbr = context.selectedAction?.abbr || context.actionAbbr || '';
+    const normAction = actionName.toLowerCase().trim();
+    const normAbbr = actionAbbr.toUpperCase().trim();
+    const isRejection =
+      normAction === 'rejected' ||
+      normAction === 'revise and resubmit' ||
+      normAction === 'revise & resubmit' ||
+      normAbbr === 'REJ' ||
+      normAbbr === 'R&R';
+
     const incomingRouting = context.incomingRouting || doc?.incomingRouting || '';
-    const isIncoming = actionName.toLowerCase() === 'received' || context.policy?.direction === 'incoming';
+    const isIncoming = !isRejection && (actionName.toLowerCase() === 'received' || context.policy?.direction === 'incoming');
 
     // Incoming workflows only create an email draft when routed "To Refer"
     if (isIncoming && incomingRouting !== 'To Refer') {
@@ -52,16 +62,31 @@ export class DraftEmailAction implements DocumentAction<DocumentActionContext, D
 
     if (isIncoming) {
       templateData = EMAIL_TEMPLATES.toRefer(templateParams);
-    } else if (actionName === 'Rejected') {
+    } else if (isRejection) {
       templateData = EMAIL_TEMPLATES.rejectedOutgoing(templateParams);
     } else {
       templateData = EMAIL_TEMPLATES.standardOutgoing(templateParams);
     }
 
+    let signature = context.signature || '';
+    if (!signature && typeof emailDraftAdapter.getSignature === 'function') {
+      try {
+        const sig = await emailDraftAdapter.getSignature();
+        if (sig) signature = sig;
+      } catch (_err) {}
+    }
+
+    const htmlBody = signature
+      ? `${templateData.body}${signature.startsWith('\n') || signature.startsWith('<') ? signature : '\n\n' + signature}`
+      : templateData.body;
+    const plainBody = signature
+      ? `${templateData.body}\n\n${signature.replace(/<[^>]*>/g, '').trim()}`
+      : templateData.body;
+
     const draftResult: DraftEmailResult = await emailDraftAdapter.createDraft({
       subject: templateData.subject,
-      body: templateData.body,
-      htmlBody: templateData.body
+      body: plainBody,
+      htmlBody
     });
 
     return {

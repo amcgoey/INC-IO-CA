@@ -42,6 +42,15 @@ export interface DriveFilingRepository {
     source: { fileId?: string; blob?: FilingBlob | any },
     options?: FilingOptions
   ): FilingResult;
+  renameDocument?(
+    fileId: string,
+    newFileName: string
+  ): FilingResult;
+  setSharing?(
+    fileId: string,
+    accessType: string,
+    permissionType: string
+  ): void;
   resolveSubmittalsFolder?(
     workbookFileId: string
   ): SubmittalFolderResolution;

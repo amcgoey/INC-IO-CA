@@ -17,7 +17,7 @@ export function getBoundedData(logData: unknown[][]): unknown[][] {
  * Extracts the resolved contact abbreviation
  */
 function getContactAbbreviation(document: ValidatedDocument): string {
-  return document.listFields?.contact?.abbreviation || "";
+  return document.listFields?.contact?.abbreviation || (typeof document.contact === 'string' ? document.contact : '') || '';
 }
 
 function safePadNumLogEngine_(val: unknown, len: number): string {
@@ -95,7 +95,7 @@ export class LogEngine {
     const sec = secIdx !== -1 ? String(row[secIdx] || "").trim() : "";
     const num = numIdx !== -1 ? String(row[numIdx] || "").trim() : "";
     const specTag = specTagIdx !== -1 ? String(row[specTagIdx] || "").trim() : "";
-    return sec ? `${safePadNumLogEngine_(sec, 6)}-${safePadNumLogEngine_(num, 3)}`.toLowerCase() : (specTag ? specTag.toLowerCase() : num.toLowerCase());
+    return (sec ? `${safePadNumLogEngine_(sec, 6)}-${safePadNumLogEngine_(num, 3)}` : (specTag ? specTag : num)).trim().toUpperCase();
   }
 
   private findAllMatchingRows(
@@ -109,30 +109,36 @@ export class LogEngine {
     const revGroupMatches: Array<{ rowIndex: number; row: unknown[] }> = [];
     const groupMatches: Array<{ rowIndex: number; row: unknown[] }> = [];
 
+    const idSort = (identityData.identity || '').trim().toUpperCase();
+    const idRev = (identityData.identityRevisionGroup || '').trim().toUpperCase();
+    const idGroup = (identityData.identityGroup || '').trim().toUpperCase();
+
     for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
       const row = boundedData[i];
       if (strategy) {
-        const groupKey = strategy.getGroupKeyFromRow(row, headers);
-        const targetKey = strategy.getTargetKeyFromRow(row, headers);
-        const revGroupKey = strategy.getRevisionGroupKeyFromRow
+        const groupKey = strategy.getGroupKeyFromRow(row, headers).trim().toUpperCase();
+        const targetKey = strategy.getTargetKeyFromRow(row, headers).trim().toUpperCase();
+        const revGroupKey = (strategy.getRevisionGroupKeyFromRow
           ? strategy.getRevisionGroupKeyFromRow(row, headers)
-          : targetKey;
-        const sortKey = strategy.getSortKeyFromRow ? strategy.getSortKeyFromRow(row, headers) : targetKey;
+          : targetKey).trim().toUpperCase();
+        const sortKey = (strategy.getSortKeyFromRow ? strategy.getSortKeyFromRow(row, headers) : targetKey).trim().toUpperCase();
 
-        if (sortKey === identityData.identity || targetKey === identityData.identity) {
+        if (idSort && (sortKey === idSort || targetKey === idSort)) {
           exactMatches.push({ rowIndex: i + 1, row });
-        } else if (revGroupKey === identityData.identityRevisionGroup || targetKey === identityData.identityRevisionGroup) {
+        } else if (idRev && (revGroupKey === idRev || targetKey === idRev)) {
           revGroupMatches.push({ rowIndex: i + 1, row });
-        } else if (groupKey === identityData.identityGroup) {
+        } else if (idGroup && groupKey === idGroup) {
           groupMatches.push({ rowIndex: i + 1, row });
         }
       } else {
         const rowGroup = this.extractFallbackRowGroupKey(row, headers);
-        if (row[0] && String(row[0]).trim() === identityData.identity) {
+        const rowFirst = row[0] ? String(row[0]).trim().toUpperCase() : '';
+
+        if (rowFirst && idSort && rowFirst === idSort) {
           exactMatches.push({ rowIndex: i + 1, row });
-        } else if (rowGroup === identityData.identityRevisionGroup) {
+        } else if (idRev && rowGroup === idRev) {
           revGroupMatches.push({ rowIndex: i + 1, row });
-        } else if (rowGroup === identityData.identityGroup) {
+        } else if (idGroup && rowGroup === idGroup) {
           groupMatches.push({ rowIndex: i + 1, row });
         }
       }
@@ -151,15 +157,16 @@ export class LogEngine {
     dataStartIdx: number = 3
   ): Array<{ rowIndex: number; row: unknown[] }> {
     const results: Array<{ rowIndex: number; row: unknown[] }> = [];
+    const targetGroup = (identityData.identityGroup || '').trim().toUpperCase();
     for (let i = boundedData.length - 1; i >= dataStartIdx; i--) {
       const row = boundedData[i];
       let matches = false;
       if (strategy) {
-        const groupKey = strategy.getGroupKeyFromRow(row, headers);
-        if (groupKey === identityData.identityGroup) matches = true;
+        const groupKey = strategy.getGroupKeyFromRow(row, headers).trim().toUpperCase();
+        if (targetGroup && groupKey === targetGroup) matches = true;
       } else {
         const rowGroup = this.extractFallbackRowGroupKey(row, headers);
-        if (rowGroup === identityData.identityGroup) matches = true;
+        if (targetGroup && rowGroup === targetGroup) matches = true;
       }
       if (matches) results.push({ rowIndex: i + 1, row });
     }
@@ -269,10 +276,10 @@ export class LogEngine {
     const boundedData = getBoundedData(logData);
     const identityData: IdentityData = options.identityData || (strategy.getIdentityData ? strategy.getIdentityData(document) : {
       identityGroup: strategy.getGroupKey(document),
-      identityRevisionGroup: strategy.getSortKey(document),
-      identity: strategy.getTargetKey(document)
+      identityRevisionGroup: strategy.getTargetKey(document),
+      identity: strategy.getSortKey(document)
     });
-    const targetKey = identityData.identity;
+    const targetKey = identityData.identityRevisionGroup || (strategy.getTargetKey ? strategy.getTargetKey(document) : identityData.identity);
 
     const historyColIdx = headers.indexOf("Contact History");
     const calcChainColIdx = headers.indexOf("Calc Contact Chain");

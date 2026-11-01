@@ -68,7 +68,7 @@ class WriteLogAction
       const defaultStatus = isIncoming ? 'Under Review' : '';
       const status = actionObj.status || context.status || defaultStatus;
 
-      const targetKey = identityData.identity || (strategy.getTargetKey ? strategy.getTargetKey(doc) : '');
+      const targetKey = identityData.identityRevisionGroup || (strategy.getTargetKey ? strategy.getTargetKey(doc) : identityData.identity);
       let link = context.options?.link || context.link || context.url || '';
       if (context.driveFileUrl) {
         link = `=HYPERLINK("${context.driveFileUrl}", "${targetKey}")`;

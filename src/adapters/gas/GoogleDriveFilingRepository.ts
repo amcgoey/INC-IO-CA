@@ -126,6 +126,41 @@ export class GoogleDriveFilingRepository implements DriveFilingRepository {
     return { fileId, url, localPath, folderId };
   }
 
+  /**
+   * Renames a document in place within Google Drive.
+   */
+  renameDocument(fileId: string, newFileName: string): FilingResult {
+    if (typeof DriveApp === "undefined") {
+      throw new Error("DriveApp runtime is not available");
+    }
+    const finalName = newFileName.endsWith(".pdf") ? newFileName : newFileName + ".pdf";
+    const file = DriveApp.getFileById(fileId);
+    file.setName(finalName);
+    const parentFolder = file.getParents().hasNext() ? file.getParents().next() : null;
+    return {
+      fileId,
+      url: file.getUrl(),
+      localPath: this.getLocalPath(fileId),
+      folderId: parentFolder ? parentFolder.getId() : ""
+    };
+  }
+
+  /**
+   * Updates file sharing permissions in Google Drive.
+   */
+  setSharing(fileId: string, accessType: string, permissionType: string): void {
+    if (typeof DriveApp !== "undefined") {
+      try {
+        const file = DriveApp.getFileById(fileId);
+        const access = (DriveApp.Access as any)[accessType] || DriveApp.Access.ANYONE_WITH_LINK;
+        const permission = (DriveApp.Permission as any)[permissionType] || DriveApp.Permission.VIEW;
+        file.setSharing(access, permission);
+      } catch (_e) {
+        // Fall back gracefully if domain sharing permissions restrict link sharing
+      }
+    }
+  }
+
   getLocalPath(fileId: string): string {
     try {
       if (typeof Drive !== "undefined" && (Drive as any).Files) {
