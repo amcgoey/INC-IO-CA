@@ -683,6 +683,19 @@ export class MockSheet {
     this.recordCall("insertRowAfter", [rowIndex]);
     this.insertBlankRowAt(rowIndex);
   }
+
+  public getMaxRows(): number {
+    this.recordCall("getMaxRows", []);
+    return this.grid.length;
+  }
+
+  public insertRowsAfter(afterPosition: number, howMany: number): void {
+    this.recordCall("insertRowsAfter", [afterPosition, howMany]);
+    const colCount = Math.max(1, ...this.grid.map(r => r.length), 1);
+    const safeIdx = Math.min(this.grid.length, Math.max(0, afterPosition));
+    const newRows = Array.from({ length: howMany }, () => new Array(colCount).fill(""));
+    this.grid.splice(safeIdx, 0, ...newRows);
+  }
 }
 
 export class MockSpreadsheet {

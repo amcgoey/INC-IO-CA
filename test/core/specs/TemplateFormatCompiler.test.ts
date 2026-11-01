@@ -67,72 +67,72 @@ describe('TemplateFormatCompiler', () => {
   });
 
   describe('compileToSheetsFormula', () => {
-    it('should compile simple hyphen-delimited format to MAP LAMBDA TEXTJOIN spill formula', () => {
+    it('should compile simple hyphen-delimited format to MAP LAMBDA TEXTJOIN spill formula with empty/buffer-row guard', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         '${section}-${number}-${revision}',
-        { section: 'B4:B', number: 'C4:C', revision: 'D4:D' }
+        { section: 'B5:B', number: 'C5:C', revision: 'D5:D' }
       );
       expect(formula).toBe(
-        '=MAP(B4:B, C4:C, D4:D, LAMBDA(section, number, revision, TEXTJOIN("-", TRUE, IF(ISBLANK(section), "", section), IF(ISBLANK(number), "", number), IF(ISBLANK(revision), "", revision))))'
+        '=MAP(B5:B, C5:C, D5:D, LAMBDA(section, number, revision, IF(OR(ISBLANK(section), section=""), "", TEXTJOIN("-", TRUE, IF(ISBLANK(section), "", section), IF(ISBLANK(number), "", number), IF(ISBLANK(revision), "", revision)))))'
       );
     });
 
-    it('should compile prefixed path format to MAP LAMBDA TEXTJOIN spill formula', () => {
+    it('should compile prefixed path format with empty/buffer-row guard preventing static literal spill on empty row', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         'Closed/${section}',
-        { section: 'B4:B' }
+        { section: 'B5:B' }
       );
       expect(formula).toBe(
-        '=MAP(B4:B, LAMBDA(section, TEXTJOIN("/", TRUE, "Closed", IF(ISBLANK(section), "", section))))'
+        '=MAP(B5:B, LAMBDA(section, IF(OR(ISBLANK(section), section=""), "", TEXTJOIN("/", TRUE, "Closed", IF(ISBLANK(section), "", section)))))'
       );
     });
 
-    it('should fall back to field names if no columnMap is provided', () => {
+    it('should fall back to field names if no columnMap is provided with empty/buffer-row guard', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         '${section}-${number}'
       );
       expect(formula).toBe(
-        '=MAP(section, number, LAMBDA(section, number, TEXTJOIN("-", TRUE, IF(ISBLANK(section), "", section), IF(ISBLANK(number), "", number))))'
+        '=MAP(section, number, LAMBDA(section, number, IF(OR(ISBLANK(section), section=""), "", TEXTJOIN("-", TRUE, IF(ISBLANK(section), "", section), IF(ISBLANK(number), "", number)))))'
       );
     });
 
-    it('should compile composite multi-token format strings with mixed delimiters into MAP LAMBDA spill formula', () => {
+    it('should compile composite multi-token format strings with mixed delimiters into MAP LAMBDA spill formula with guard', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         'Closed/${section}-${revision}',
-        { section: 'B4:B', revision: 'D4:D' }
+        { section: 'B5:B', revision: 'D5:D' }
       );
       expect(formula).toBe(
-        '=MAP(B4:B, D4:D, LAMBDA(section, revision, TEXTJOIN("-", TRUE, IF(ISBLANK(section), "", "Closed/" & section), IF(ISBLANK(revision), "", revision))))'
+        '=MAP(B5:B, D5:D, LAMBDA(section, revision, IF(OR(ISBLANK(section), section=""), "", TEXTJOIN("-", TRUE, IF(ISBLANK(section), "", "Closed/" & section), IF(ISBLANK(revision), "", revision)))))'
       );
     });
 
-    it('should compile multi-token path formats with uniform slash delimiter into MAP LAMBDA formula', () => {
+    it('should compile multi-token path formats with uniform slash delimiter into MAP LAMBDA formula with guard', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         'Closed/${specCategory}/${specTag}',
-        { specCategory: 'B4:B', specTag: 'C4:C' }
+        { specCategory: 'B5:B', specTag: 'C5:C' }
       );
       expect(formula).toBe(
-        '=MAP(B4:B, C4:C, LAMBDA(specCategory, specTag, TEXTJOIN("/", TRUE, "Closed", IF(ISBLANK(specCategory), "", specCategory), IF(ISBLANK(specTag), "", specTag))))'
+        '=MAP(B5:B, C5:C, LAMBDA(specCategory, specTag, IF(OR(ISBLANK(specCategory), specCategory=""), "", TEXTJOIN("/", TRUE, "Closed", IF(ISBLANK(specCategory), "", specCategory), IF(ISBLANK(specTag), "", specTag)))))'
       );
     });
 
-    it('should compile underscore-delimited format with literals into MAP LAMBDA formula', () => {
+    it('should compile underscore-delimited format with literals into MAP LAMBDA formula with guard', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         'PREFIX_${tag}_SUFFIX',
-        { tag: 'A4:A' }
+        { tag: 'A5:A' }
       );
       expect(formula).toBe(
-        '=MAP(A4:A, LAMBDA(tag, TEXTJOIN("_", TRUE, "PREFIX", IF(ISBLANK(tag), "", tag), "SUFFIX")))'
+        '=MAP(A5:A, LAMBDA(tag, IF(OR(ISBLANK(tag), tag=""), "", TEXTJOIN("_", TRUE, "PREFIX", IF(ISBLANK(tag), "", tag), "SUFFIX"))))'
       );
     });
 
-    it('should compile single variable without delimiter into MAP LAMBDA formula', () => {
+    it('should compile single variable without delimiter into MAP LAMBDA formula with guard', () => {
       const formula = TemplateFormatCompiler.compileToSheetsFormula(
         '${title}',
-        { title: 'E4:E' }
+        { title: 'E5:E' }
       );
       expect(formula).toBe(
-        '=MAP(E4:E, LAMBDA(title, IF(ISBLANK(title), "", title)))'
+        '=MAP(E5:E, LAMBDA(title, IF(OR(ISBLANK(title), title=""), "", title)))'
       );
     });
 

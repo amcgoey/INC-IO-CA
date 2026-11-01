@@ -493,11 +493,32 @@ class GoogleSheetsLogRepository implements LogRepository {
     spreadsheetId: string,
     headers: string[],
     rowData: any[],
-    plan: RowInsertionPlan
+    plan: RowInsertionPlan,
+    sheetName?: string
   ): { rowIndex: number; failedColumns: string[] } {
     const ss = SpreadsheetApp.openById(spreadsheetId);
-    const sheet = ss.getSheetByName(CONFIG.LOG_SHEET_NAME);
+    const targetSheetName = sheetName || (typeof CONFIG !== "undefined" ? CONFIG.LOG_SHEET_NAME : "Submittals Log");
+    let sheet = ss.getSheetByName(targetSheetName);
+    if (!sheet) {
+      sheet = ss.getSheetByName("Submittal Arch") || ss.getSheetByName("Submittal FFE") || ss.getActiveSheet();
+    }
     if (!sheet) throw new Error("Log sheet not found in spreadsheet.");
+
+    if (typeof (sheet as any).getMaxRows === "function") {
+      const currentMax = (sheet as any).getMaxRows();
+      if (currentMax < 6 || currentMax <= plan.targetRowIndex) {
+        const rowsNeeded = Math.max(25 - currentMax, (plan.targetRowIndex + 1) - currentMax);
+        if (rowsNeeded > 0) {
+          if (typeof (sheet as any).insertRowsAfter === "function") {
+            (sheet as any).insertRowsAfter(currentMax, rowsNeeded);
+          } else if (typeof sheet.insertRowAfter === "function") {
+            for (let i = 0; i < rowsNeeded; i++) {
+              sheet.insertRowAfter(currentMax + i);
+            }
+          }
+        }
+      }
+    }
 
     sheet.insertRowAfter(plan.targetRowIndex);
 
