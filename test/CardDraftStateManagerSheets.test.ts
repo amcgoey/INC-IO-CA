@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CardDraftStateManager } from "../src/prototypes/CardDraftStateManager";
+import { CardDraftStateManager } from "../src/core/state/CardDraftStateManager";
 import { InMemoryCacheAdapter } from "./harness/index";
 
 test("CardDraftStateManager Sheets: formatSheetsContextKey generates correct context key", () => {

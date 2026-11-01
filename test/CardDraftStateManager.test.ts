@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CardDraftStateManager } from "../src/prototypes/CardDraftStateManager";
+import { CardDraftStateManager } from "../src/core/state/CardDraftStateManager";
 import { InMemoryCacheAdapter } from "./harness/index";
 
 test("CardDraftStateManager: returns null when no draft exists in cache", () => {
@@ -92,4 +92,67 @@ test("CardDraftStateManager: resolveCardFormState precedence algorithm", () => {
 
   assert.equal(state.docTypeKey, "SUBMITTAL");
   assert.equal(state.provenance.docTypeKey, "LIVE_INPUT");
+});
+
+test("CardDraftStateManager: polymorphic context keys formatDriveContextKey and resolveContextKey", () => {
+  assert.equal(CardDraftStateManager.formatDriveContextKey("file_999"), "DRIVE_file_999");
+
+  // Explicit contextKey
+  assert.equal(CardDraftStateManager.resolveContextKey({ contextKey: "EXPLICIT_KEY" }), "EXPLICIT_KEY");
+  // Gmail context
+  assert.equal(CardDraftStateManager.resolveContextKey({ messageId: "msg_abc" }), "GMAIL_msg_abc");
+  assert.equal(CardDraftStateManager.resolveContextKey({ gmail: { messageId: "msg_def" } }), "GMAIL_msg_def");
+  assert.equal(CardDraftStateManager.resolveContextKey({ parameters: { messageId: "msg_ghi" } }), "GMAIL_msg_ghi");
+  // Sheets context
+  assert.equal(
+    CardDraftStateManager.resolveContextKey({ spreadsheetId: "ss_123", tabName: "Submittal Arch" }),
+    "SHEETS_ss_123_Submittal%20Arch"
+  );
+  assert.equal(
+    CardDraftStateManager.resolveContextKey({ sheets: { spreadsheetId: "ss_456", sheetName: "Submittal FFE" } }),
+    "SHEETS_ss_456_Submittal%20FFE"
+  );
+  // Drive context
+  assert.equal(CardDraftStateManager.resolveContextKey({ driveFileId: "drive_001" }), "DRIVE_drive_001");
+  assert.equal(CardDraftStateManager.resolveContextKey({ parameters: { driveFileId: "drive_002" } }), "DRIVE_drive_002");
+});
+
+test("CardDraftStateManager: resolveState shorthand method", () => {
+  const cache = new InMemoryCacheAdapter();
+  CardDraftStateManager.saveDraft(cache, "GMAIL_msg_101", {
+    notes: "Cached notes",
+    csiSection: "03 30 00"
+  });
+
+  const state = CardDraftStateManager.resolveState(cache, "GMAIL_msg_101", { notes: "Live notes" }, { docTypeKey: "SUBMITTAL_ARCH" });
+  assert.equal(state.notes, "Live notes");
+  assert.equal(state.csiSection, "03 30 00");
+  assert.equal(state.docTypeKey, "SUBMITTAL_ARCH");
+});
+
+test("CardDraftStateManager: preserves arbitrary form input fields across save and retrieval", () => {
+  const cache = new InMemoryCacheAdapter();
+  const formFields = {
+    title: "Cast-in-Place Concrete",
+    revision: "2",
+    section: "033000",
+    number: "001",
+    specTag: "CH-01",
+    vendor: "Herman Miller",
+    contact: "ARCH",
+    action: "Reviewed"
+  };
+
+  CardDraftStateManager.saveDraft(cache, "GMAIL_msg_fields", formFields);
+  const retrieved = CardDraftStateManager.getDraft(cache, "GMAIL_msg_fields");
+
+  assert.ok(retrieved);
+  assert.equal(retrieved?.title, "Cast-in-Place Concrete");
+  assert.equal(retrieved?.revision, "2");
+  assert.equal(retrieved?.section, "033000");
+  assert.equal(retrieved?.number, "001");
+  assert.equal(retrieved?.specTag, "CH-01");
+  assert.equal(retrieved?.vendor, "Herman Miller");
+  assert.equal(retrieved?.contact, "ARCH");
+  assert.equal(retrieved?.action, "Reviewed");
 });

@@ -41,12 +41,22 @@ test.afterEach(() => {
   return card.build();
 };
 
-(globalThis as any).buildIntakeCard = (e: any, initialData: any, flashData: any) => {
+(globalThis as any).buildIntakeCard = (e: any, initialData: any, flashData: any, aiResult?: any) => {
   const harness = GasMockHarness.install();
   const CardService = harness.cardService;
   const header = CardService.newCardHeader().setTitle("MainCard");
   const card = CardService.newCardBuilder().setHeader(header);
   const sec = CardService.newCardSection();
+
+  if (aiResult) {
+    const fields = aiResult.fields || {};
+    const hasLow = Object.keys(fields).some(k => fields[k].confidence < 0.85) ||
+      (aiResult.overallConfidence !== undefined && aiResult.overallConfidence < 0.85);
+    if (hasLow) {
+      sec.addWidget(CardService.newTextParagraph().setText("⚠️ Low AI Confidence (<85%) — please review indicated field predictions before processing."));
+    }
+  }
+
   if (flashData && flashData.error) {
     sec.addWidget(CardService.newTextParagraph().setText(flashData.error));
   }
@@ -444,6 +454,95 @@ test("CardPresenter - presentDeepAnalysisResult updates main card with navigatio
   assert.ok(response);
   assert.equal(resJson.navigation?.action, "updateCard");
   assert.equal(CardSerializer.getNotificationText(response), "✅ Analysis complete!");
+});
+
+test("CardPresenter - presentDeepAnalysisResult non-destructively hydrates form inputs preserving user-edited values", () => {
+  const presenter = new CardPresenter();
+  const mockEvent = EventFactory.createCardSubmitEvent(
+    {
+      title: "User Custom Concrete Title",
+      revision: "2",
+      section: "" // empty, should be populated
+    },
+    { parameters: { discipline: "Architecture" } }
+  );
+
+  const mockResult: any = {
+    success: true,
+    analysis: {
+      predictedSection: "033000",
+      predictedNumber: "001",
+      predictedTitle: "AI Suggested Title",
+      predictedRevision: "0"
+    }
+  };
+
+  const response = presenter.presentDeepAnalysisResult(mockEvent, mockResult);
+
+  // User-edited title and revision must be preserved!
+  assert.equal(mockEvent.formInput.title, "User Custom Concrete Title");
+  assert.equal(mockEvent.formInput.revision, "2");
+  // Empty section and number must be populated from AI predictions
+  assert.equal(mockEvent.formInput.section, "033000");
+  assert.equal(mockEvent.formInput.number, "001");
+});
+
+test("CardPresenter - presentDeepAnalysisResult preserves user-edited rev alias and populates whitespace-only fields", () => {
+  const presenter = new CardPresenter();
+  const mockEvent = EventFactory.createCardSubmitEvent(
+    {
+      rev: "5", // user set rev alias
+      title: "   " // whitespace should be treated as empty and populated
+    },
+    { parameters: { discipline: "Architecture" } }
+  );
+
+  const mockResult: any = {
+    success: true,
+    analysis: {
+      predictedSection: "033000",
+      predictedTitle: "AI Predicted Title",
+      predictedRevision: "0"
+    }
+  };
+
+  presenter.presentDeepAnalysisResult(mockEvent, mockResult);
+
+  // User set rev = "5", so revision should not overwrite with predicted "0"
+  assert.notEqual(mockEvent.formInput.revision, "0");
+  // Whitespace-only title should be replaced by predicted title
+  assert.equal(mockEvent.formInput.title, "AI Predicted Title");
+});
+
+test("CardPresenter - presentDeepAnalysisResult passes low-confidence AI predictions to buildIntakeCard and renders warning banner", () => {
+  const presenter = new CardPresenter();
+  const mockEvent = EventFactory.createCardSubmitEvent(
+    { project: "PROJ", documentType: "SUBMITTAL_ARCH" },
+    { parameters: { project: "PROJ", documentType: "SUBMITTAL_ARCH", discipline: "Architecture" } }
+  );
+
+  const mockResult: any = {
+    success: true,
+    analysis: {
+      predictedSection: "033000",
+      predictedTitle: "Concrete Slab",
+      fieldConfidence: {
+        section: 0.60,
+        title: 0.95
+      }
+    }
+  };
+
+  const response = presenter.presentDeepAnalysisResult(mockEvent, mockResult);
+  const resJson = CardSerializer.actionResponseToJSON(response);
+
+  // Low confidence (<0.85 on section) must render the yellow status warning banner on the card
+  assert.ok(
+    CardSerializer.hasWidgetText(
+      resJson.navigation?.card,
+      "⚠️ Low AI Confidence (<85%) — please review indicated field predictions before processing."
+    )
+  );
 });
 
 test("CardPresenter - presentDeepAnalysisResult returns error notification toast on failed analysisResult", () => {
