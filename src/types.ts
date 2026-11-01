@@ -111,7 +111,8 @@ interface ParsedData {
   targetKey?: string;
   driveFileId?: string;
   blob?: GoogleAppsScript.Base.Blob;
-  attachments?: GoogleAppsScript.Base.Blob[];
+  attachments?: Array<AttachmentDescriptor | GoogleAppsScript.Base.Blob | any>;
+  attachmentDescriptors?: AttachmentDescriptor[];
   attachmentIndex?: number;
   pdfUrl?: string;
   fileName?: string;
@@ -563,6 +564,13 @@ interface ExtractPagesInput {
 interface ExtractPagesResult {
   blob: GoogleAppsScript.Base.Blob;
   base64: string;
+}
+
+/** Pure Tier 1 attachment descriptor representing file name, MIME type, and bytes. */
+interface AttachmentDescriptor {
+  fileName: string;
+  mimeType: string;
+  bytes: Uint8Array | number[];
 }
 
 /** Service interface for PDF stamping, page slicing, and form action extraction. */

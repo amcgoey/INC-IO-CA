@@ -3,10 +3,12 @@
  * @file WriteLogAction.ts
  * @description DocumentAction implementation for persisting validated document log entries using abstract IdentityData.
  *
- * Operates on DocumentActionContext and wraps LogRepository.appendDocument() into a primitive DocumentAction handler.
+ * Operates on DocumentActionContext and executes single-pass atomic row insertion under SpreadsheetLockAdapter concurrency lock.
+ * Zero direct SpreadsheetApp or LockService calls (ADR-0013).
  */
 
 import { getDocumentLogStrategy } from './core/workflow/WorkflowPolicy';
+import { SpreadsheetLockAdapter } from './core/interfaces/SpreadsheetLockAdapter';
 
 class WriteLogAction
   implements DocumentAction<DocumentActionContext, DocumentActionContext> {
@@ -46,35 +48,69 @@ class WriteLogAction
 
     const spreadsheetId = context.spreadsheetId || context.logFileId || '';
 
-    const actionObj = context.selectedAction || { action: doc.action || '', abbr: '', status: '' };
-    const appendOptions: AppendDocumentOptions = {
-      link: context.link || context.url || '',
-      status: actionObj.status || context.status || '',
-      actionAbbr: actionObj.abbr || context.actionAbbr || '',
-      updatePreviousStatus: context.updatePreviousStatus ?? true,
-      previousRowStatus: context.previousRowStatus ?? 'Closed',
-      sheetName: context.config?.logSheetName || context.sheetName || (strategy as any).logSheetName,
-      identityData,
-      ...context.options
-    };
+    // Concurrency locking under SpreadsheetLockAdapter
+    const lockAdapter: SpreadsheetLockAdapter | undefined =
+      context.adapters?.spreadsheetLockAdapter ||
+      (context as any).spreadsheetLockAdapter ||
+      (globalThis as any).defaultSpreadsheetLockAdapter;
 
-    const appendResult = await logRepository.appendDocument(
-      spreadsheetId,
-      doc,
-      strategy,
-      appendOptions
-    );
+    let lockId: string | null = null;
+    if (lockAdapter && spreadsheetId) {
+      lockId = lockAdapter.acquireLock(spreadsheetId);
+      if (!lockId) {
+        throw new Error(`Failed to acquire lock for spreadsheet: ${spreadsheetId}`);
+      }
+    }
 
-    return {
-      ...context,
-      targetKey: appendResult.targetKey,
-      newFileName: appendResult.newFileName,
-      contactHistory: appendResult.contactHistory,
-      rowIndex: appendResult.rowIndex,
-      failedColumns: appendResult.failedColumns,
-      previousRowUpdated: appendResult.previousRowUpdated,
-      appendDocumentResult: appendResult
-    };
+    try {
+      const actionObj = context.selectedAction || { action: doc.action || '', abbr: '', status: '' };
+      const isIncoming = (doc.action && doc.action.toLowerCase() === 'received') || context.policy?.direction === 'incoming';
+      const defaultStatus = isIncoming ? 'Under Review' : '';
+      const status = actionObj.status || context.status || defaultStatus;
+
+      const targetKey = identityData.identity || (strategy.getTargetKey ? strategy.getTargetKey(doc) : '');
+      let link = context.options?.link || context.link || context.url || '';
+      if (context.driveFileUrl) {
+        link = `=HYPERLINK("${context.driveFileUrl}", "${targetKey}")`;
+      } else if (link && link.startsWith('http') && targetKey) {
+        link = `=HYPERLINK("${link}", "${targetKey}")`;
+      }
+
+      const appendOptions: AppendDocumentOptions = {
+        link,
+        status,
+        actionAbbr: actionObj.abbr || context.actionAbbr || '',
+        updatePreviousStatus: context.updatePreviousStatus ?? (isIncoming ? false : true),
+        previousRowStatus: context.previousRowStatus ?? 'Closed',
+        sheetName: context.config?.logSheetName || context.sheetName || (strategy as any).logSheetName,
+        identityData,
+        ...context.options,
+        ...(link ? { link } : {}),
+        ...(status ? { status } : {})
+      };
+
+      const appendResult = await logRepository.appendDocument(
+        spreadsheetId,
+        doc,
+        strategy,
+        appendOptions
+      );
+
+      return {
+        ...context,
+        targetKey: appendResult.targetKey,
+        newFileName: appendResult.newFileName,
+        contactHistory: appendResult.contactHistory,
+        rowIndex: appendResult.rowIndex,
+        failedColumns: appendResult.failedColumns,
+        previousRowUpdated: appendResult.previousRowUpdated,
+        appendDocumentResult: appendResult
+      };
+    } finally {
+      if (lockAdapter && lockId && spreadsheetId) {
+        lockAdapter.releaseLock(spreadsheetId, lockId);
+      }
+    }
   }
 }
 

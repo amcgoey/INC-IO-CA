@@ -462,3 +462,5 @@ if (typeof module !== "undefined" && module.exports) {
     getPdfCheckboxCandidates
   };
 }
+
+(globalThis as any).defaultPdfDocumentService = defaultPdfDocumentService;

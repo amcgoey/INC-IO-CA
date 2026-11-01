@@ -5,16 +5,16 @@
  */
 
 export class FakePdfDocumentService implements PdfDocumentService {
-  mergeBlobsCalls: Array<{ blobs: GoogleAppsScript.Base.Blob[]; newFileName?: string }> = [];
+  mergeBlobsCalls: Array<{ blobs: any[]; newFileName?: string }> = [];
   mergeBlobsResultBlob: GoogleAppsScript.Base.Blob | null = null;
 
   setMergeBlobsResultBlob(blob: GoogleAppsScript.Base.Blob | null): void {
     this.mergeBlobsResultBlob = blob;
   }
   public extractCalls: string[] = [];
-  public stampCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; data: ParsedData; options: StampOptions }> = [];
-  public sliceCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; maxPages: number }> = [];
-  public extractPagesCalls: Array<{ sourceBlob: GoogleAppsScript.Base.Blob; maxPages: number }> = [];
+  public stampCalls: Array<{ sourceBlob: any; data: ParsedData; options: StampOptions }> = [];
+  public sliceCalls: Array<{ sourceBlob: any; maxPages: number }> = [];
+  public extractPagesCalls: Array<{ sourceBlob: any; maxPages: number }> = [];
   private extractPagesResultBlob: GoogleAppsScript.Base.Blob | null = null;
   public calls: Array<{ method: string; args: any[] }> = [];
   private actionMap: Map<string, string | null> = new Map();
@@ -68,7 +68,7 @@ export class FakePdfDocumentService implements PdfDocumentService {
   }
 
   async stampSubmittal(
-    sourceBlob: GoogleAppsScript.Base.Blob,
+    sourceBlob: any,
     data: ParsedData,
     options: StampOptions
   ): Promise<GoogleAppsScript.Base.Blob> {
@@ -84,7 +84,7 @@ export class FakePdfDocumentService implements PdfDocumentService {
   }
 
   async extractPages(
-    sourceBlob: GoogleAppsScript.Base.Blob,
+    sourceBlob: any,
     maxPages = 3
   ): Promise<GoogleAppsScript.Base.Blob> {
     this.extractPagesCalls.push({ sourceBlob, maxPages });
@@ -96,7 +96,7 @@ export class FakePdfDocumentService implements PdfDocumentService {
   }
 
   async slicePagesToBase64(
-    sourceBlob: GoogleAppsScript.Base.Blob,
+    sourceBlob: any,
     maxPages: number
   ): Promise<string> {
     this.sliceCalls.push({ sourceBlob, maxPages });
@@ -104,7 +104,7 @@ export class FakePdfDocumentService implements PdfDocumentService {
     return this.sliceResultBase64;
   }
   async mergeBlobsToPdf(
-    blobs: GoogleAppsScript.Base.Blob[],
+    blobs: any[],
     newFileName?: string
   ): Promise<GoogleAppsScript.Base.Blob> {
     this.mergeBlobsCalls.push({ blobs, newFileName });
@@ -116,7 +116,7 @@ export class FakePdfDocumentService implements PdfDocumentService {
     return (typeof Utilities !== "undefined" && Utilities.newBlob)
       ? Utilities.newBlob(bytesArray, "application/pdf", name)
       : ({
-         getBytes: () => mockBytes,
+         fileName: name, mimeType: 'application/pdf', bytes: mockBytes, getBytes: () => mockBytes,
          getName: () => name,
          getContentType: () => "application/pdf"
         } as unknown as GoogleAppsScript.Base.Blob);
