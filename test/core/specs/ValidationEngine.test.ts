@@ -317,4 +317,26 @@ describe('ValidationEngine', () => {
     });
     expect(validResult.status).toBe('valid');
   });
+
+  it('Ticket 307: validateSubmission normalizes code preserving decimal and pads submittalNum', () => {
+    const specWithCodeAndNumber: DocumentTypeSpec = {
+      ...validSpec,
+      fields: [
+        { key: 'section', label: 'Section', type: 'string', required: true, keyNormalizationRule: 'code' },
+        { key: 'number', label: 'Number', type: 'string', required: true }
+      ]
+    };
+
+    const submission = {
+      section: '23 82 39.19 - Fan Coil Units',
+      number: '17'
+    };
+
+    const res = ValidationEngine.validateSubmission(specWithCodeAndNumber, submission);
+    expect(res.status).toBe('valid');
+    if (res.status === 'valid') {
+      expect(res.data.section).toBe('238239.19');
+      expect(res.data.number).toBe('017');
+    }
+  });
 });

@@ -67,6 +67,155 @@ function blobToUint8Array(b: GoogleAppsScript.Base.Blob): Uint8Array {
 /**
  * Production implementation of `PdfDocumentService` using `pdf-lib` and Google Drive APIs.
  */
+interface ActionNormalizationEntry {
+  canonicalUiAction: string;
+  aliases: string[];
+}
+
+const ACTION_NORMALIZATION_TABLE: ActionNormalizationEntry[] = [
+  {
+    canonicalUiAction: 'Approved as Noted',
+    aliases: [
+      'APPROVED AS NOTED',
+      'Approved as Noted',
+      'approved as noted',
+      'NO OBJECTIONS AS CORRECTED',
+      'NO OBJECTION AS CORRECTED',
+      'No Objection as Corrected',
+      'No Objections as Corrected',
+      'no objection as corrected',
+      'no objections as corrected',
+      'AAN',
+      'aan',
+      'NOAC',
+      'noac',
+      'AN',
+      'an'
+    ]
+  },
+  {
+    canonicalUiAction: 'No Exceptions Taken',
+    aliases: [
+      'NO EXCEPTIONS TAKEN',
+      'No Exceptions Taken',
+      'no exceptions taken',
+      'NET',
+      'net',
+      'APPROVED',
+      'Approved',
+      'approved',
+      'APP',
+      'app'
+    ]
+  },
+  {
+    canonicalUiAction: 'Revise & Resubmit',
+    aliases: [
+      'REVISE AND RESUBMIT',
+      'REVISE & RESUBMIT',
+      'Revise and Resubmit',
+      'Revise & Resubmit',
+      'revise and resubmit',
+      'revise & resubmit',
+      'R&R',
+      'r&r',
+      'RR',
+      'rr'
+    ]
+  },
+  {
+    canonicalUiAction: 'Rejected',
+    aliases: [
+      'REJECTED',
+      'Rejected',
+      'rejected',
+      'REJ',
+      'rej'
+    ]
+  },
+  {
+    canonicalUiAction: 'Not Reviewed',
+    aliases: [
+      'NOT REVIEWED',
+      'Not Reviewed',
+      'not reviewed',
+      'NR',
+      'nr',
+      'RETURNED',
+      'Returned',
+      'returned'
+    ]
+  }
+];
+
+function normalizePdfAction(rawAction: string): string | null {
+  if (!rawAction) return null;
+  const trimmed = rawAction.trim();
+  const lower = trimmed.toLowerCase();
+
+  for (const entry of ACTION_NORMALIZATION_TABLE) {
+    if (entry.canonicalUiAction.toLowerCase() === lower) {
+      return entry.canonicalUiAction;
+    }
+    for (const alias of entry.aliases) {
+      if (alias.toLowerCase() === lower) {
+        return entry.canonicalUiAction;
+      }
+    }
+  }
+
+  const cbMap = typeof PDF_CHECKBOX_MAP !== "undefined" ? PDF_CHECKBOX_MAP : (globalThis as any).PDF_CHECKBOX_MAP;
+  if (cbMap) {
+    for (const [uiAction, cbName] of Object.entries(cbMap)) {
+      if (uiAction.toLowerCase() === lower || String(cbName).toLowerCase() === lower) {
+        return uiAction;
+      }
+    }
+  }
+
+  return trimmed;
+}
+
+function getPdfCheckboxCandidates(action: string): string[] {
+  if (!action) return [];
+  const trimmed = action.trim();
+  const lower = trimmed.toLowerCase();
+
+  const candidates: string[] = [];
+
+  const cbMap = typeof PDF_CHECKBOX_MAP !== "undefined" ? PDF_CHECKBOX_MAP : (globalThis as any).PDF_CHECKBOX_MAP;
+  if (cbMap) {
+    if (cbMap[trimmed] && !candidates.includes(cbMap[trimmed])) {
+      candidates.push(cbMap[trimmed]);
+    }
+    if (cbMap[trimmed.toUpperCase()] && !candidates.includes(cbMap[trimmed.toUpperCase()])) {
+      candidates.push(cbMap[trimmed.toUpperCase()]);
+    }
+    for (const [uiAction, cbName] of Object.entries(cbMap)) {
+      if (uiAction.toLowerCase() === lower && !candidates.includes(cbName as string)) {
+        candidates.push(cbName as string);
+      }
+    }
+  }
+
+  for (const entry of ACTION_NORMALIZATION_TABLE) {
+    const isMatch = entry.canonicalUiAction.toLowerCase() === lower ||
+      entry.aliases.some(a => a.toLowerCase() === lower);
+    if (isMatch) {
+      for (const alias of entry.aliases) {
+        if (!candidates.includes(alias)) candidates.push(alias);
+      }
+      if (!candidates.includes(entry.canonicalUiAction)) candidates.push(entry.canonicalUiAction);
+      break;
+    }
+  }
+
+  if (!candidates.includes(trimmed)) candidates.push(trimmed);
+  if (!candidates.includes(trimmed.toUpperCase())) candidates.push(trimmed.toUpperCase());
+
+  return candidates;
+}
+
 class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
   /**
    * Extracts form field response actions (checkboxes or radio group selections) from a PDF document stored in Drive.
@@ -83,19 +232,29 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
 
       const pdfDoc = await PDFDocument.load(unsigned);
       const form = pdfDoc.getForm();
-      const reverseMap: Record<string, string> = {};
 
-      for (const [uiAction, cbName] of Object.entries(PDF_CHECKBOX_MAP)) reverseMap[cbName] = uiAction;
+      for (const entry of ACTION_NORMALIZATION_TABLE) {
+        for (const alias of entry.aliases) {
+          try {
+            const cb = form.getCheckBox(alias);
+            if (cb && cb.isChecked()) return entry.canonicalUiAction;
+          } catch (e) { }
+        }
+      }
 
-      for (const cbName of Object.values(PDF_CHECKBOX_MAP)) {
-        try {
-          if (form.getCheckBox(cbName).isChecked()) return reverseMap[cbName];
-        } catch (e) { }
+      const cbMap = typeof PDF_CHECKBOX_MAP !== "undefined" ? PDF_CHECKBOX_MAP : (globalThis as any).PDF_CHECKBOX_MAP;
+      if (cbMap) {
+        for (const [uiAction, cbName] of Object.entries(cbMap)) {
+          try {
+            const cb = form.getCheckBox(cbName as string);
+            if (cb && cb.isChecked()) return normalizePdfAction(uiAction) || uiAction;
+          } catch (e) { }
+        }
       }
 
       try {
         const selected = form.getRadioGroup('Submittal Response').getSelected();
-        if (selected) return reverseMap[selected.trim().toUpperCase()] || selected;
+        if (selected) return normalizePdfAction(selected) || selected;
       } catch (e) { }
 
       return null;
@@ -142,18 +301,31 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
     fill(['Submittal No', 'Submittal No.', 'Submittal Number'], options.stampSubmittalNo);
 
     const act = data && data.action ? String(data.action) : "";
-    const cbMap = typeof PDF_CHECKBOX_MAP !== "undefined" ? PDF_CHECKBOX_MAP : {};
-
     if (act) {
+      const candidates = getPdfCheckboxCandidates(act);
       try {
-        const rg = form.getRadioGroup('Submittal Response'), opts = rg.getOptions();
-        if (opts.includes(act)) rg.select(act);
-        else if (opts.includes(act.toUpperCase())) rg.select(act.toUpperCase());
-        else if (cbMap[act] && opts.includes(cbMap[act])) rg.select(cbMap[act]);
+        const rg = form.getRadioGroup('Submittal Response');
+        const opts = rg.getOptions();
+        let selected = false;
+        for (const cand of candidates) {
+          if (opts.includes(cand)) {
+            rg.select(cand);
+            selected = true;
+            break;
+          }
+        }
+        if (!selected && opts.includes(act)) {
+          rg.select(act);
+        }
       } catch (e) {
-        const box = cbMap[act] || (act ? cbMap[act.toUpperCase()] : null);
-        if (box) {
-          try { form.getCheckBox(box).check(); } catch (err) {}
+        for (const cand of candidates) {
+          try {
+            const cb = form.getCheckBox(cand);
+            if (cb) {
+              cb.check();
+              break;
+            }
+          } catch (err) { }
         }
       }
     }
@@ -285,6 +457,8 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     GoogleAppsScriptPdfDocumentService,
     defaultPdfDocumentService,
-    getPdfLib
+    getPdfLib,
+    normalizePdfAction,
+    getPdfCheckboxCandidates
   };
 }

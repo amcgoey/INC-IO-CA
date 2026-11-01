@@ -565,3 +565,27 @@ test('normalizePicklistValue resolves option display labels case-insensitively',
   assert.equal(PicklistResolver.normalizePicklistValue('TO FILE', fieldSpec), 'FILE');
   assert.equal(PicklistResolver.normalizePicklistValue('Unknown', fieldSpec), 'UNKNOWN');
 });
+
+test('Ticket 307: validateDocument preserves decimal CSI sections and zero-pads submittal numbers', () => {
+  const raw = {
+    discipline: 'Architecture',
+    date: '2026-07-25',
+    contact: 'John Doe',
+    action: 'Approved',
+    incomingRouting: 'To Refer',
+    title: 'Fan Coil Units',
+    section: '23 82 39.19 - Fan Coil Units',
+    number: '17',
+    revision: '0'
+  };
+
+  const result = validateDocument(raw);
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    const details = result.data.disciplineDetails;
+    if (details.discipline === 'Architecture') {
+      assert.equal(details.section, '238239.19');
+      assert.equal(details.number, '017');
+    }
+  }
+});

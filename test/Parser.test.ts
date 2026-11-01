@@ -83,7 +83,8 @@ test("EmailIntakeParser.parseProcoreEmail_ extracts project driveName, spec sect
 
   assert.equal(result.driveName, "Project Alpha");
   assert.equal(result.specSection, "033000");
-  assert.equal(result.revNum, "001");
+  assert.equal(result.submittalNum, "001");
+  assert.equal(result.revNum, "0");
   assert.equal(result.discipline, "Architecture");
   assert.equal(result.action, "Received");
 });
@@ -96,7 +97,8 @@ test("EmailIntakeParser.parseProcoreEmail_ identifies returned or reviewed submi
 
   assert.equal(result.driveName, "Project Beta");
   assert.equal(result.specSection, "081100");
-  assert.equal(result.revNum, "02");
+  assert.equal(result.submittalNum, "002");
+  assert.equal(result.revNum, "0");
   assert.equal(result.discipline, "Architecture");
   assert.equal(result.action, "Received");
 });
@@ -162,7 +164,8 @@ test("DocumentPipeline.parseEmail facade delegates to EmailIntakeParser.parseEma
 
   assert.equal(parsed.driveName, "Skyline Tower");
   assert.equal(parsed.specSection, "230000");
-  assert.equal(parsed.revNum, "03");
+  assert.equal(parsed.submittalNum, "003");
+  assert.equal(parsed.revNum, "0");
   assert.equal(parsed.discipline, "Architecture");
   assert.equal(parsed.action, "Received");
 });
@@ -203,7 +206,7 @@ test('DriveFilenameIntakeParser.parse - extracts ArchitectureStandard filename p
 
   assert.equal(result.discipline, 'Architecture');
   assert.equal(result.section, '081113');
-  assert.equal(result.number, '01');
+  assert.equal(result.number, '001');
   assert.equal(result.revision, '00');
   assert.equal(result.title, 'Hollow Metal Doors and Frames');
   assert.equal(result.date, '240115');
@@ -228,7 +231,7 @@ test('DriveFilenameIntakeParser.parse - handles leading non-alphanumeric charact
 
   assert.equal(result.discipline, 'Architecture');
   assert.equal(result.section, '081113');
-  assert.equal(result.number, '01');
+  assert.equal(result.number, '001');
   assert.equal(result.revision, '00');
   assert.equal(result.title, 'Hollow Metal Doors');
   assert.equal(result.date, '240115');
@@ -262,7 +265,7 @@ test('DocumentPipeline.parseFilename - facade delegates to DriveFilenameIntakePa
 
   assert.equal(result.discipline, 'Architecture');
   assert.equal(result.section, '081113');
-  assert.equal(result.number, '02');
+  assert.equal(result.number, '002');
   assert.equal(result.revision, '01');
   assert.equal(result.title, 'Metal Frames');
   assert.equal(result.date, '240201');
@@ -286,7 +289,7 @@ test('Main.ts onDriveItemsSelected - invokes DocumentPipeline.parseFilename and 
   assert.equal(card.cardType, 'MainCard');
   assert.equal(card.parsedData.discipline, 'Architecture');
   assert.equal(card.parsedData.section, '081113');
-  assert.equal(card.parsedData.number, '05');
+  assert.equal(card.parsedData.number, '005');
   assert.equal(card.parsedData.revision, '02');
   assert.equal(card.parsedData.title, 'Custom Architectural Millwork');
   assert.equal(card.parsedData.date, '240615');

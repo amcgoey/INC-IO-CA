@@ -411,3 +411,52 @@ test("GoogleAppsScriptPdfDocumentService.mergeBlobsToPdf masks signed bytes corr
   assert.ok(loadedBytes);
   assert.deepStrictEqual(Array.from(loadedBytes!), [255, 128, 127]);
 });
+
+test("Ticket 307: Bidirectional PDF Checkbox & UI Action Mapping (AAN <-> Approved as Noted, NET, R&R)", async () => {
+  let checkedName = "";
+  const mockForm = {
+    getCheckBox: (name: string) => {
+      if (name.toUpperCase() === checkedName.toUpperCase()) {
+        return { isChecked: () => true };
+      }
+      return { isChecked: () => false };
+    },
+    getRadioGroup: () => { throw new Error("No radio group"); }
+  };
+
+  (globalThis as any).PDFLib = {
+    PDFDocument: {
+      load: async () => ({
+        getForm: () => mockForm
+      })
+    }
+  };
+
+  (globalThis as any).DriveApp = {
+    getFileById: () => ({
+      getBlob: () => ({
+        getBytes: () => [1, 2, 3]
+      })
+    })
+  };
+
+  const service = new GoogleAppsScriptPdfDocumentService();
+
+  checkedName = "AAN";
+  assert.strictEqual(await service.extractFormAction("file-aan"), "Approved as Noted");
+
+  checkedName = "Approved as Noted";
+  assert.strictEqual(await service.extractFormAction("file-aan-full"), "Approved as Noted");
+
+  checkedName = "NET";
+  assert.strictEqual(await service.extractFormAction("file-net"), "No Exceptions Taken");
+
+  checkedName = "R&R";
+  assert.strictEqual(await service.extractFormAction("file-rr"), "Revise & Resubmit");
+
+  checkedName = "REJ";
+  assert.strictEqual(await service.extractFormAction("file-rej"), "Rejected");
+
+  checkedName = "no exceptions taken";
+  assert.strictEqual(await service.extractFormAction("file-lower"), "No Exceptions Taken");
+});
