@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert";
 
 import { GeminiAiAnalysisAdapter, defaultAiAnalysisService } from "../src/AiAnalysisService";
-import { FakeAiAnalysisAdapter, FakePdfDocumentService } from "./harness/index";
+import { FakeAiAnalysisAdapter, FakePdfDocumentService, FakeCacheAdapter } from "./harness/index";
 
 function createMockBlob(bytesLength: number, name = "test.pdf"): any {
   const bytes = new Int8Array(bytesLength);
@@ -828,6 +828,260 @@ test("Ticket 314: analyzeSubmittal uses direct base64 encoding fast path when PD
     assert.strictEqual(fakePdfService.sliceCalls.length, 0, "Must not slice compact PDFs <= 2 MB and <= 3 pages");
     assert.strictEqual(fakePdfService.extractPagesCalls.length, 0, "Must not extract pages for compact PDFs");
     assert.strictEqual(capturedPayload.contents[0].parts[1].inlineData.data, "FAST_PATH_BASE64");
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
+test("Ticket 315: analyzeSubmittal caches successful result in CacheAdapter with 600s TTL", async () => {
+  const fakeCache = new FakeCacheAdapter();
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => (key === "GEMINI_API_KEY" ? "AIzaSyTestKey123" : null),
+      getProperties: () => ({ GEMINI_API_KEY: "AIzaSyTestKey123" })
+    })
+  };
+
+  let fetchCalls = 0;
+  (globalThis as any).UrlFetchApp = {
+    fetch: () => {
+      fetchCalls++;
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ predictedSection: "08 11 13", predictedTitle: "Hollow Metal Doors" }) }] } }]
+        })
+      };
+    }
+  };
+
+  (globalThis as any).Utilities = {
+    base64Encode: () => "MOCK_BASE64",
+    sleep: () => {}
+  };
+
+  try {
+    const adapter = new GeminiAiAnalysisAdapter({ cacheAdapter: fakeCache });
+    const blob = createMockBlob(1024, "submittal-spec-081113.pdf");
+    const expectedKey = `submittal_analysis_submittal-spec-081113.pdf_1024`;
+
+    const result = await adapter.analyzeSubmittal(blob, "Email context", { contacts: [], actions: [] });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(fetchCalls, 1);
+
+    const cachedRaw = fakeCache.get(expectedKey);
+    assert.ok(cachedRaw, "Result must be stored in CacheAdapter under deterministic key");
+    const parsedCache = JSON.parse(cachedRaw!);
+    assert.strictEqual(parsedCache.success, true);
+    assert.strictEqual(parsedCache.analysis.predictedSection, "08 11 13");
+    assert.strictEqual(parsedCache.analysis.predictedTitle, "Hollow Metal Doors");
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
+test("Ticket 315: analyzeSubmittal on cache hit returns cached DeepAnalysisResult without calling PdfDocumentService, ExtractPagesAction, or UrlFetchApp", async () => {
+  const fakeCache = new FakeCacheAdapter();
+  const fakePdfService = new FakePdfDocumentService();
+
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => (key === "GEMINI_API_KEY" ? "AIzaSyTestKey123" : null),
+      getProperties: () => ({ GEMINI_API_KEY: "AIzaSyTestKey123" })
+    })
+  };
+
+  let fetchCalls = 0;
+  (globalThis as any).UrlFetchApp = {
+    fetch: () => {
+      fetchCalls++;
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ predictedSection: "08 11 13" }) }] } }]
+        })
+      };
+    }
+  };
+
+  (globalThis as any).Utilities = {
+    base64Encode: () => "MOCK_BASE64",
+    sleep: () => {}
+  };
+
+  try {
+    const adapter = new GeminiAiAnalysisAdapter({ cacheAdapter: fakeCache, pdfDocumentService: fakePdfService });
+    const blob = createMockBlob(2048, "double-click.pdf");
+    const expectedKey = `submittal_analysis_double-click.pdf_2048`;
+
+    // Prime cache directly
+    const cachedPayload = {
+      success: true,
+      analysis: {
+        predictedSection: "08 71 00",
+        predictedTitle: "Door Hardware",
+        predictedAction: "Approved"
+      }
+    };
+    fakeCache.put(expectedKey, JSON.stringify(cachedPayload), 600);
+
+    const result = await adapter.analyzeSubmittal(blob, "Email context", { contacts: [], actions: [] });
+
+    assert.strictEqual(result.success, true);
+    if (result.success) {
+      assert.strictEqual(result.analysis.predictedSection, "08 71 00");
+      assert.strictEqual(result.analysis.predictedTitle, "Door Hardware");
+      assert.strictEqual(result.analysis.predictedAction, "Approved");
+    }
+
+    // Verify ZERO calls to PdfDocumentService and UrlFetchApp
+    assert.strictEqual(fetchCalls, 0, "UrlFetchApp must not be called on cache hit");
+    assert.strictEqual(fakePdfService.getPageCountCalls.length, 0, "PdfDocumentService.getPageCount must not be called on cache hit");
+    assert.strictEqual(fakePdfService.sliceCalls.length, 0, "PdfDocumentService.slicePagesToBase64 must not be called on cache hit");
+    assert.strictEqual(fakePdfService.extractPagesCalls.length, 0, "ExtractPagesAction must not be called on cache hit");
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
+test("Ticket 315: analyzeSubmittal differentiates cache keys by blob name and byte length", async () => {
+  const fakeCache = new FakeCacheAdapter();
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => (key === "GEMINI_API_KEY" ? "AIzaSyTestKey123" : null),
+      getProperties: () => ({ GEMINI_API_KEY: "AIzaSyTestKey123" })
+    })
+  };
+
+  let fetchCalls = 0;
+  let lastSectionReturned = "";
+  (globalThis as any).UrlFetchApp = {
+    fetch: () => {
+      fetchCalls++;
+      lastSectionReturned = `08 00 0${fetchCalls}`;
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ predictedSection: lastSectionReturned }) }] } }]
+        })
+      };
+    }
+  };
+
+  (globalThis as any).Utilities = {
+    base64Encode: () => "MOCK_BASE64",
+    sleep: () => {}
+  };
+
+  try {
+    const adapter = new GeminiAiAnalysisAdapter({ cacheAdapter: fakeCache });
+
+    // Call 1: submittal-A.pdf, 100 bytes
+    const blobA = createMockBlob(100, "submittal-A.pdf");
+    const resA = await adapter.analyzeSubmittal(blobA, "ctx", { contacts: [], actions: [] });
+    assert.strictEqual(resA.success, true);
+    assert.strictEqual(fetchCalls, 1);
+
+    // Call 2: submittal-B.pdf, 100 bytes (different name) -> cache miss
+    const blobB = createMockBlob(100, "submittal-B.pdf");
+    const resB = await adapter.analyzeSubmittal(blobB, "ctx", { contacts: [], actions: [] });
+    assert.strictEqual(resB.success, true);
+    assert.strictEqual(fetchCalls, 2);
+
+    // Call 3: submittal-A.pdf, 200 bytes (different byte size) -> cache miss
+    const blobC = createMockBlob(200, "submittal-A.pdf");
+    const resC = await adapter.analyzeSubmittal(blobC, "ctx", { contacts: [], actions: [] });
+    assert.strictEqual(resC.success, true);
+    assert.strictEqual(fetchCalls, 3);
+
+    // Call 4: submittal-A.pdf, 100 bytes again -> cache hit
+    const resA2 = await adapter.analyzeSubmittal(blobA, "ctx", { contacts: [], actions: [] });
+    assert.strictEqual(resA2.success, true);
+    assert.strictEqual(fetchCalls, 3, "Fetch calls should not increase on repeated call with identical blob");
+    if (resA2.success && resA.success) {
+      assert.strictEqual(resA2.analysis.predictedSection, resA.analysis.predictedSection);
+    }
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
+test("Ticket 315: analyzeSubmittal does not cache failed analysis results", async () => {
+  const fakeCache = new FakeCacheAdapter();
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => (key === "GEMINI_API_KEY" ? "AIzaSyTestKey123" : null),
+      getProperties: () => ({ GEMINI_API_KEY: "AIzaSyTestKey123" })
+    })
+  };
+
+  let fetchCalls = 0;
+  let returnSuccess = false;
+
+  (globalThis as any).UrlFetchApp = {
+    fetch: () => {
+      fetchCalls++;
+      if (!returnSuccess) {
+        return {
+          getResponseCode: () => 503,
+          getContentText: () => "Service Unavailable"
+        };
+      }
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ predictedSection: "08 11 13" }) }] } }]
+        })
+      };
+    }
+  };
+
+  (globalThis as any).Utilities = {
+    base64Encode: () => "MOCK_BASE64",
+    sleep: () => {}
+  };
+
+  try {
+    const adapter = new GeminiAiAnalysisAdapter({ cacheAdapter: fakeCache });
+    const blob = createMockBlob(500, "failing-submittal.pdf");
+    const expectedKey = `submittal_analysis_failing-submittal.pdf_500`;
+
+    // First attempt: API fails with 503
+    const failResult = await adapter.analyzeSubmittal(blob, "ctx", { contacts: [], actions: [] });
+    assert.strictEqual(failResult.success, false);
+    assert.strictEqual(fakeCache.get(expectedKey), null, "Failed result must NOT be cached");
+
+    // Second attempt: API now recovers
+    returnSuccess = true;
+    const retryResult = await adapter.analyzeSubmittal(blob, "ctx", { contacts: [], actions: [] });
+    assert.strictEqual(retryResult.success, true, "Immediate retry should attempt fetch again and succeed");
+    assert.ok(fetchCalls > 1, "Fetch must be invoked on retry");
+    assert.ok(fakeCache.get(expectedKey) !== null, "Recovered successful result must now be cached");
   } finally {
     (globalThis as any).PropertiesService = originalProperties;
     (globalThis as any).UrlFetchApp = originalUrlFetchApp;

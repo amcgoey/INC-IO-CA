@@ -352,8 +352,10 @@ Your task is to logically deduce the project. Return JSON.
 
   /**
    * Analyzes a submittal PDF document and email body using Gemini multimodal capabilities.
+   * Checks CacheAdapter prior to PDF processing and HTTP requests using key `submittal_analysis_${sourceBlob.getName()}_${sourceBlob.getBytes().length}`.
    * Rejects PDFs exceeding 20 MB with PDF_TOO_LARGE.
    * Direct base64 encodes PDFs <= 2MB and <= 3 pages, or slices the first 3 pages via `ExtractPagesAction` / `PdfDocumentService` for larger files.
+   * Caches successful analysis results for 10 minutes (600 seconds) to deduplicate accidental double-clicks.
    *
    * @param sourceBlob - Source PDF blob.
    * @param emailText - Extracted email body text.
@@ -366,7 +368,9 @@ Your task is to logically deduce the project. Return JSON.
     contextObj: DeepAnalysisContext
   ): Promise<DeepAnalysisResult> {
     let fileBytes: any;
+    let blobName = "";
     try {
+      blobName = typeof sourceBlob.getName === "function" ? sourceBlob.getName() : "";
       fileBytes = sourceBlob.getBytes();
     } catch (e: any) {
       return {
@@ -379,6 +383,20 @@ Your task is to logically deduce the project. Return JSON.
     }
 
     const fileSize = fileBytes ? fileBytes.length : 0;
+    const cacheKey = `submittal_analysis_${blobName}_${fileSize}`;
+    const cacheAdapter = this.getCacheAdapter();
+    if (cacheAdapter) {
+      const cached = cacheAdapter.get(cacheKey);
+      if (cached) {
+        try {
+          const parsed: DeepAnalysisResult = JSON.parse(cached);
+          return parsed;
+        } catch (_e) {
+          // Ignore cache parse errors and proceed to fetch
+        }
+      }
+    }
+
     if (fileSize > 20971520) { // 20 MB hard ceiling
       return {
         success: false,
@@ -531,10 +549,14 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
       if (textCandidate) {
         const text = textCandidate.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsed: DeepAnalysisPrediction = JSON.parse(text);
-        return {
+        const result: DeepAnalysisResult = {
           success: true,
           analysis: parsed
         };
+        if (cacheAdapter) {
+          cacheAdapter.put(cacheKey, JSON.stringify(result), 600);
+        }
+        return result;
       }
       return {
         success: false,
