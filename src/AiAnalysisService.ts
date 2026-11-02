@@ -1,7 +1,8 @@
-import { AiAnalysisService, EmailData, AiPredictionResult, DeepAnalysisContext, DeepAnalysisResult, DeepAnalysisPrediction, AIPrediction, DocumentBlob } from './core/interfaces/AiAnalysisService';
+import { AiAnalysisService, EmailData, AiPredictionResult, DeepAnalysisContext, DeepAnalysisResult, DeepAnalysisPrediction, AIPrediction } from './core/interfaces/AiAnalysisService';
 import { defaultDriveNameProvider } from './GoogleDriveNameProvider';
 import { ExtractPagesAction, defaultExtractPagesAction } from './core/workflow/ExtractPagesAction';
 import { defaultPdfDocumentService } from './PdfDocumentService';
+import { CONFIG } from './Config';
 /**
  * @file AiAnalysisService.ts
  * @description Service interface and implementations for Gemini AI email triage and submittal document deep analysis.
@@ -299,9 +300,9 @@ Your task is to logically deduce the project. Return JSON.
       muteHttpExceptions: true
     };
 
-    const apiUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_TRIAGE)
-      ? CONFIG.GEMINI_API_URL_TRIAGE
-      : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
+    const apiUrl = (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG.GEMINI_API_URL_TRIAGE)
+      ? (globalThis as any).CONFIG.GEMINI_API_URL_TRIAGE
+      : CONFIG.GEMINI_API_URL_TRIAGE;
 
     const fetchResult = fetchGeminiWithRetryHelper(`${apiUrl}?key=${apiKey}`, options);
 
@@ -430,6 +431,31 @@ Email Context: ${emailText}
 
 Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'predictedAction'.`;
 
+    const budget = (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG.GEMINI_THINKING_BUDGET !== undefined)
+      ? (globalThis as any).CONFIG.GEMINI_THINKING_BUDGET
+      : (typeof CONFIG !== "undefined" ? CONFIG.GEMINI_THINKING_BUDGET : 0);
+
+    const generationConfig: Record<string, any> = {
+      response_mime_type: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          predictedSection: { type: "STRING" },
+          predictedNumber: { type: "STRING" },
+          predictedRevision: { type: "STRING" },
+          predictedTitle: { type: "STRING" },
+          predictedSpecTag: { type: "STRING" },
+          predictedVendor: { type: "STRING" },
+          predictedContactAbbr: { type: "STRING" },
+          predictedAction: { type: "STRING" }
+        }
+      }
+    };
+
+    if (budget >= 0) {
+      generationConfig.thinkingConfig = { thinkingBudget: budget };
+    }
+
     const payload = {
       contents: [{
         parts: [
@@ -437,22 +463,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
           { inlineData: { mimeType: "application/pdf", data: base64Pdf } }
         ]
       }],
-      generationConfig: {
-        response_mime_type: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            predictedSection: { type: "STRING" },
-            predictedNumber: { type: "STRING" },
-            predictedRevision: { type: "STRING" },
-            predictedTitle: { type: "STRING" },
-            predictedSpecTag: { type: "STRING" },
-            predictedVendor: { type: "STRING" },
-            predictedContactAbbr: { type: "STRING" },
-            predictedAction: { type: "STRING" }
-          }
-        }
-      }
+      generationConfig
     };
 
     const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
@@ -462,9 +473,9 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
       muteHttpExceptions: true
     };
 
-    const apiUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_ANALYSIS)
-      ? CONFIG.GEMINI_API_URL_ANALYSIS
-      : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+    const apiUrl = (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG.GEMINI_API_URL_ANALYSIS)
+      ? (globalThis as any).CONFIG.GEMINI_API_URL_ANALYSIS
+      : CONFIG.GEMINI_API_URL_ANALYSIS;
 
     const fetchResult = fetchGeminiWithRetryHelper(`${apiUrl}?key=${apiKey}`, options);
 
@@ -490,7 +501,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
     try {
       const responseText = fetchResult.response ? fetchResult.response.getContentText() : "";
       const json = JSON.parse(responseText);
-      const textCandidate = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const textCandidate = json?.candidates?.[0]?.content?.parts?.find((p: any) => !p.thought)?.text;
       if (textCandidate) {
         const text = textCandidate.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsed: DeepAnalysisPrediction = JSON.parse(text);
@@ -529,12 +540,12 @@ function checkAiModelHealth(): {
   analysis: { url: string; ok: boolean; statusCode: number | string; message: string };
 } {
   const apiKey = getGeminiApiKeyHelper();
-  const triageUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_TRIAGE)
-    ? CONFIG.GEMINI_API_URL_TRIAGE
-    : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
-  const analysisUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_ANALYSIS)
-    ? CONFIG.GEMINI_API_URL_ANALYSIS
-    : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+  const triageUrl = (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG.GEMINI_API_URL_TRIAGE)
+    ? (globalThis as any).CONFIG.GEMINI_API_URL_TRIAGE
+    : CONFIG.GEMINI_API_URL_TRIAGE;
+  const analysisUrl = (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG.GEMINI_API_URL_ANALYSIS)
+    ? (globalThis as any).CONFIG.GEMINI_API_URL_ANALYSIS
+    : CONFIG.GEMINI_API_URL_ANALYSIS;
 
   const testEndpoint = (url: string) => {
     if (!apiKey) {

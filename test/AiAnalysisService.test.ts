@@ -6,7 +6,7 @@ import assert from "node:assert";
 // Global environment mocks before requiring modules
 (globalThis as any).CONFIG = {
   GEMINI_API_URL_TRIAGE: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
-  GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
+  GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
 };
 
 import { InMemoryCacheAdapter, FakeDriveNameProvider, FakePdfDocumentService, FakeAiAnalysisAdapter } from "./harness";
@@ -245,6 +245,12 @@ test("checkAiModelHealth reports missing key or status when executed", () => {
   assert.ok(health.analysis);
   assert.strictEqual(typeof health.triage.ok, "boolean");
   assert.strictEqual(typeof health.analysis.ok, "boolean");
+});
+
+test("Ticket 313: checkAiModelHealth uses gemini-3.8-flash analysis endpoint", () => {
+  const health = checkAiModelHealth();
+  assert.ok(health.analysis.url.includes("gemini-3.8-flash:generateContent"));
+  assert.ok(health.triage.url.includes("gemini-3.5-flash-lite:generateContent"));
 });
 
 test("Ticket 307: Fuzzy project name matching strips email prefixes, punctuation, and project numbers", async () => {
