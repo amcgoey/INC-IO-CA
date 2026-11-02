@@ -74,7 +74,7 @@ type DeepAnalysisResult =
   | {
       success: false;
       error: {
-        code: "RATE_LIMITED" | "MISSING_KEY" | "API_FAILURE" | "PARSE_FAILURE" | "PDF_PROCESSING_ERROR";
+        code: "RATE_LIMITED" | "MISSING_KEY" | "API_FAILURE" | "PARSE_FAILURE" | "PDF_PROCESSING_ERROR" | "PDF_TOO_LARGE";
         userMessage: string;
       };
     };
@@ -593,6 +593,9 @@ interface PdfDocumentService {
     blobs: GoogleAppsScript.Base.Blob[],
     newFileName?: string
   ): Promise<GoogleAppsScript.Base.Blob>;
+  getPageCount?(
+    sourceBlob: GoogleAppsScript.Base.Blob | any
+  ): Promise<number>;
 }
 
 /** Repository interface for Drive filing and local path resolution. */

@@ -15,6 +15,9 @@ export class FakePdfDocumentService implements PdfDocumentService {
   public stampCalls: Array<{ sourceBlob: any; data: ParsedData; options: StampOptions }> = [];
   public sliceCalls: Array<{ sourceBlob: any; maxPages: number }> = [];
   public extractPagesCalls: Array<{ sourceBlob: any; maxPages: number }> = [];
+  public getPageCountCalls: Array<{ sourceBlob: any }> = [];
+  private pageCount: number = 1;
+  private pageCountMap: Map<any, number> = new Map();
   private extractPagesResultBlob: GoogleAppsScript.Base.Blob | null = null;
   public calls: Array<{ method: string; args: any[] }> = [];
   private actionMap: Map<string, string | null> = new Map();
@@ -35,7 +38,17 @@ export class FakePdfDocumentService implements PdfDocumentService {
     this.extractCalls = [];
     this.stampCalls = [];
     this.sliceCalls = [];
+    this.getPageCountCalls = [];
     this.calls = [];
+    this.pageCountMap.clear();
+  }
+
+  setPageCount(count: number, sourceBlob?: any): void {
+    if (sourceBlob) {
+      this.pageCountMap.set(sourceBlob, count);
+    } else {
+      this.pageCount = count;
+    }
   }
 
   setFormAction(fileId: string, action: string | null): void {
@@ -102,6 +115,15 @@ export class FakePdfDocumentService implements PdfDocumentService {
     this.sliceCalls.push({ sourceBlob, maxPages });
     this.calls.push({ method: "slicePagesToBase64", args: [sourceBlob, maxPages] });
     return this.sliceResultBase64;
+  }
+
+  async getPageCount(sourceBlob: any): Promise<number> {
+    this.getPageCountCalls.push({ sourceBlob });
+    this.calls.push({ method: "getPageCount", args: [sourceBlob] });
+    if (this.pageCountMap.has(sourceBlob)) {
+      return this.pageCountMap.get(sourceBlob)!;
+    }
+    return this.pageCount;
   }
   async mergeBlobsToPdf(
     blobs: any[],
