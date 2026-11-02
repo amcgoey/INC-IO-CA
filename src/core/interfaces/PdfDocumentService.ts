@@ -49,4 +49,7 @@ export interface PdfDocumentService {
     source: Uint8Array | number[] | AttachmentDescriptor | FilingBlob | unknown,
     maxPages?: number
   ): Promise<Uint8Array | AttachmentDescriptor | FilingBlob | unknown>;
+  getPageCount?(
+    source: Uint8Array | number[] | AttachmentDescriptor | FilingBlob | unknown
+  ): Promise<number>;
 }

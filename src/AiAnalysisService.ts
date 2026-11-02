@@ -367,7 +367,8 @@ Your task is to logically deduce the project. Return JSON.
 
   /**
    * Analyzes a submittal PDF document and email body using Gemini multimodal capabilities.
-   * Direct base64 encodes PDFs <= 2MB, or slices the first 3 pages via `PdfDocumentService` for larger files.
+   * Rejects PDFs exceeding 20 MB with PDF_TOO_LARGE.
+   * Direct base64 encodes PDFs <= 2MB and <= 3 pages, or slices the first 3 pages via `ExtractPagesAction` / `PdfDocumentService` for larger files.
    *
    * @param sourceBlob - Source PDF blob.
    * @param emailText - Extracted email body text.
@@ -379,6 +380,30 @@ Your task is to logically deduce the project. Return JSON.
     emailText: string,
     contextObj: DeepAnalysisContext
   ): Promise<DeepAnalysisResult> {
+    let fileBytes: any;
+    try {
+      fileBytes = sourceBlob.getBytes();
+    } catch (e: any) {
+      return {
+        success: false,
+        error: {
+          code: "PDF_PROCESSING_ERROR",
+          userMessage: sanitizeErrorStringHelper(`Failed to process PDF: ${e && e.message ? e.message : String(e)}`)
+        }
+      };
+    }
+
+    const fileSize = fileBytes ? fileBytes.length : 0;
+    if (fileSize > 20971520) { // 20 MB hard ceiling
+      return {
+        success: false,
+        error: {
+          code: "PDF_TOO_LARGE",
+          userMessage: "Submittal PDF exceeds maximum 20MB limit for AI analysis."
+        }
+      };
+    }
+
     const apiKey = getGeminiApiKeyHelper();
     if (!apiKey) {
       return {
@@ -392,10 +417,26 @@ Your task is to logically deduce the project. Return JSON.
 
     let base64Pdf: string;
     try {
-      const fileBytes = sourceBlob.getBytes();
-      const fileSize = fileBytes.length;
+      let shouldSlice = fileSize > 2097152; // 2 MB
+      if (!shouldSlice) {
+        let pageCount = 1;
+        try {
+          const extractAction = this.getExtractPagesAction();
+          const pdfService = this.getPdfDocumentService();
+          if (extractAction && typeof (extractAction as any).getPageCount === "function") {
+            pageCount = await (extractAction as any).getPageCount(sourceBlob);
+          } else if (pdfService && typeof pdfService.getPageCount === "function") {
+            pageCount = await pdfService.getPageCount(sourceBlob);
+          }
+        } catch (_err) {
+          pageCount = 1;
+        }
+        if (pageCount > 3) {
+          shouldSlice = true;
+        }
+      }
 
-      if (fileSize <= 2097152) { // 2 MB
+      if (!shouldSlice) {
         base64Pdf = Utilities.base64Encode(fileBytes);
       } else {
         const extractAction = this.getExtractPagesAction();

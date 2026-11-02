@@ -638,4 +638,201 @@ test("Ticket 313: analyzeSubmittal defensively resolves candidate part when thou
   }
 });
 
+test("Ticket 314: analyzeSubmittal immediately rejects PDF exceeding 20 MB with PDF_TOO_LARGE without slicing or fetch", async () => {
+  const fakePdfService = new FakePdfDocumentService();
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  let fetchCalled = false;
+  (globalThis as any).UrlFetchApp = {
+    fetch: () => {
+      fetchCalled = true;
+      throw new Error("UrlFetchApp should not be called for >20MB PDFs");
+    }
+  };
+
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => (key === "GEMINI_API_KEY" ? "AIzaSyTestKey123" : null),
+      getProperties: () => ({ GEMINI_API_KEY: "AIzaSyTestKey123" })
+    })
+  };
+
+  try {
+    const adapter = new GeminiAiAnalysisAdapter({ pdfDocumentService: fakePdfService });
+    // 20 MB + 1 byte (20971521 bytes)
+    const giantBlob = createMockBlob(20971521, "huge-spec.pdf");
+    const context: DeepAnalysisContext = { contacts: [], actions: [] };
+
+    const result = await adapter.analyzeSubmittal(giantBlob, "Email text", context);
+
+    assert.strictEqual(result.success, false);
+    if (!result.success) {
+      assert.strictEqual(result.error.code, "PDF_TOO_LARGE");
+      assert.strictEqual(result.error.userMessage, "Submittal PDF exceeds maximum 20MB limit for AI analysis.");
+    }
+    assert.strictEqual(fetchCalled, false, "UrlFetchApp.fetch must not be invoked");
+    assert.strictEqual(fakePdfService.sliceCalls.length, 0, "PDF slicing must not be invoked");
+    assert.strictEqual(fakePdfService.extractPagesCalls.length, 0, "PDF page extraction must not be invoked");
+    assert.strictEqual(fakePdfService.getPageCountCalls.length, 0, "PDF page count check must not be invoked");
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
+test("Ticket 314: analyzeSubmittal delegates to slicing when PDF > 2 MB even if page count <= 3", async () => {
+  const fakePdfService = new FakePdfDocumentService();
+  fakePdfService.setPageCount(1); // Single page, but > 2 MB
+  fakePdfService.setSliceResultBase64("SLICED_3MB_BASE64");
+
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => (key === "GEMINI_API_KEY" ? "AIzaSyTestKey123" : null),
+      getProperties: () => ({ GEMINI_API_KEY: "AIzaSyTestKey123" })
+    })
+  };
+
+  let capturedPayload: any = null;
+  (globalThis as any).UrlFetchApp = {
+    fetch: (_url: string, options: any) => {
+      capturedPayload = JSON.parse(options.payload);
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ predictedSection: "03 30 00" }) }] } }]
+        })
+      };
+    }
+  };
+
+  (globalThis as any).Utilities = {
+    base64Encode: () => "DIRECT_BASE64_SHOULD_NOT_BE_USED",
+    sleep: () => {}
+  };
+
+  try {
+    const adapter = new GeminiAiAnalysisAdapter({ pdfDocumentService: fakePdfService });
+    const largeBlob = createMockBlob(3 * 1024 * 1024, "3mb-vector.pdf");
+    const result = await adapter.analyzeSubmittal(largeBlob, "Email text", { contacts: [], actions: [] });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(fakePdfService.sliceCalls.length, 1, "Must slice when file size > 2 MB");
+    assert.strictEqual(fakePdfService.sliceCalls[0].maxPages, 3);
+    assert.strictEqual(capturedPayload.contents[0].parts[1].inlineData.data, "SLICED_3MB_BASE64");
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
+test("Ticket 314: analyzeSubmittal delegates to slicing when PDF <= 2 MB but page count > 3", async () => {
+  const fakePdfService = new FakePdfDocumentService();
+  fakePdfService.setPageCount(5); // 5 pages (> 3), but only 1 MB
+  fakePdfService.setSliceResultBase64("SLICED_5PAGES_BASE64");
+
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => (key === "GEMINI_API_KEY" ? "AIzaSyTestKey123" : null),
+      getProperties: () => ({ GEMINI_API_KEY: "AIzaSyTestKey123" })
+    })
+  };
+
+  let capturedPayload: any = null;
+  (globalThis as any).UrlFetchApp = {
+    fetch: (_url: string, options: any) => {
+      capturedPayload = JSON.parse(options.payload);
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ predictedSection: "08 11 13" }) }] } }]
+        })
+      };
+    }
+  };
+
+  (globalThis as any).Utilities = {
+    base64Encode: () => "DIRECT_BASE64_SHOULD_NOT_BE_USED",
+    sleep: () => {}
+  };
+
+  try {
+    const adapter = new GeminiAiAnalysisAdapter({ pdfDocumentService: fakePdfService });
+    const compactMultiPageBlob = createMockBlob(1024 * 1024, "compact-5pages.pdf"); // 1 MB
+    const result = await adapter.analyzeSubmittal(compactMultiPageBlob, "Email text", { contacts: [], actions: [] });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(fakePdfService.getPageCountCalls.length, 1, "Must check page count for <= 2MB files");
+    assert.strictEqual(fakePdfService.sliceCalls.length, 1, "Must slice when page count > 3");
+    assert.strictEqual(fakePdfService.sliceCalls[0].maxPages, 3);
+    assert.strictEqual(capturedPayload.contents[0].parts[1].inlineData.data, "SLICED_5PAGES_BASE64");
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
+test("Ticket 314: analyzeSubmittal uses direct base64 encoding fast path when PDF <= 2 MB and <= 3 pages", async () => {
+  const fakePdfService = new FakePdfDocumentService();
+  fakePdfService.setPageCount(2); // 2 pages (<= 3), and 1 MB (<= 2 MB)
+  fakePdfService.setSliceResultBase64("SLICED_SHOULD_NOT_BE_USED");
+
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => (key === "GEMINI_API_KEY" ? "AIzaSyTestKey123" : null),
+      getProperties: () => ({ GEMINI_API_KEY: "AIzaSyTestKey123" })
+    })
+  };
+
+  let capturedPayload: any = null;
+  (globalThis as any).UrlFetchApp = {
+    fetch: (_url: string, options: any) => {
+      capturedPayload = JSON.parse(options.payload);
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ predictedSection: "09 29 00" }) }] } }]
+        })
+      };
+    }
+  };
+
+  (globalThis as any).Utilities = {
+    base64Encode: () => "FAST_PATH_BASE64",
+    sleep: () => {}
+  };
+
+  try {
+    const adapter = new GeminiAiAnalysisAdapter({ pdfDocumentService: fakePdfService });
+    const compactBlob = createMockBlob(1024 * 1024, "compact-2pages.pdf"); // 1 MB
+    const result = await adapter.analyzeSubmittal(compactBlob, "Email text", { contacts: [], actions: [] });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(fakePdfService.getPageCountCalls.length, 1, "Must check page count");
+    assert.strictEqual(fakePdfService.sliceCalls.length, 0, "Must not slice compact PDFs <= 2 MB and <= 3 pages");
+    assert.strictEqual(fakePdfService.extractPagesCalls.length, 0, "Must not extract pages for compact PDFs");
+    assert.strictEqual(capturedPayload.contents[0].parts[1].inlineData.data, "FAST_PATH_BASE64");
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
 
