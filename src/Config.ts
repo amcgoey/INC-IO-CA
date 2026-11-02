@@ -69,7 +69,7 @@ const CONFIG = {
     } catch (e) {}
     return "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
   },
-  /** Gemini API endpoint URL for multimodal PDF submittal analysis (Gemini 3.6 Flash). */
+  /** Gemini API endpoint URL for multimodal PDF submittal analysis (Gemini 3.8 Flash). */
   get GEMINI_API_URL_ANALYSIS(): string {
     try {
       if (typeof PropertiesService !== "undefined" && PropertiesService.getScriptProperties) {
@@ -77,8 +77,18 @@ const CONFIG = {
           || PropertiesService.getScriptProperties().getProperty('GEMINI_API_URL');
         if (custom) return custom;
       }
-    } catch (e) {}
-    return "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+    } catch (_e) {}
+    return "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
+  },
+  /** Thinking budget (reasoning tokens) for Gemini 3.8 Flash. Default: 0. */
+  get GEMINI_THINKING_BUDGET(): number {
+    try {
+      if (typeof PropertiesService !== "undefined" && PropertiesService.getScriptProperties) {
+        const custom = PropertiesService.getScriptProperties().getProperty('GEMINI_THINKING_BUDGET');
+        if (custom !== null && !isNaN(Number(custom))) return Number(custom);
+      }
+    } catch (_e) {}
+    return 0;
   }
 };
 

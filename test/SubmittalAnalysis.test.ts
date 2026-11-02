@@ -445,3 +445,197 @@ test("GeminiAiAnalysisAdapter lazily resolves defaultPdfDocumentService when con
   }
 });
 
+test("Ticket 313: analyzeSubmittal sends requests to gemini-3.8-flash endpoint and includes default thinkingConfig", async () => {
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => (key === "GEMINI_API_KEY" ? "AIzaSyTestKey123" : null),
+      getProperties: () => ({ GEMINI_API_KEY: "AIzaSyTestKey123" })
+    })
+  };
+
+  let calledUrl = "";
+  let payloadObj: any = null;
+
+  (globalThis as any).UrlFetchApp = {
+    fetch: (url: string, options: any) => {
+      calledUrl = url;
+      payloadObj = JSON.parse(options.payload);
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({
+          candidates: [{
+            content: {
+              parts: [{
+                text: JSON.stringify({
+                  predictedSection: "08 11 13",
+                  predictedTitle: "Hollow Metal Doors"
+                })
+              }]
+            }
+          }]
+        })
+      };
+    }
+  };
+
+  (globalThis as any).Utilities = {
+    base64Encode: () => "BASE64_DATA",
+    sleep: () => {}
+  };
+
+  try {
+    const adapter = new GeminiAiAnalysisAdapter();
+    const blob = createMockBlob(1024);
+    const result = await adapter.analyzeSubmittal(blob, "Analyze submittal", { contacts: [], actions: [] });
+
+    assert.strictEqual(result.success, true);
+    // Verifies endpoint targets gemini-3.8-flash
+    assert.ok(calledUrl.includes("models/gemini-3.8-flash:generateContent"));
+    // Verifies thinkingConfig injected with default 0
+    assert.ok(payloadObj?.generationConfig?.thinkingConfig);
+    assert.strictEqual(payloadObj.generationConfig.thinkingConfig.thinkingBudget, 0);
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
+test("Ticket 313: analyzeSubmittal configures thinkingBudget from Script Properties and omits when negative", async () => {
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  let scriptProps: Record<string, string> = {
+    GEMINI_API_KEY: "AIzaSyTestKey123",
+    GEMINI_THINKING_BUDGET: "1024"
+  };
+
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => scriptProps[key] || null,
+      getProperties: () => scriptProps
+    })
+  };
+
+  let capturedPayload: any = null;
+
+  (globalThis as any).UrlFetchApp = {
+    fetch: (_url: string, options: any) => {
+      capturedPayload = JSON.parse(options.payload);
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({
+          candidates: [{
+            content: {
+              parts: [{
+                text: JSON.stringify({ predictedSection: "09 22 00" })
+              }]
+            }
+          }]
+        })
+      };
+    }
+  };
+
+  (globalThis as any).Utilities = {
+    base64Encode: () => "BASE64_DATA",
+    sleep: () => {}
+  };
+
+  try {
+    const adapter = new GeminiAiAnalysisAdapter();
+    const blob = createMockBlob(1024);
+
+    // 1. Positive custom budget: 1024
+    let result = await adapter.analyzeSubmittal(blob, "Analyze submittal", { contacts: [], actions: [] });
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(capturedPayload.generationConfig.thinkingConfig.thinkingBudget, 1024);
+
+    // 2. Negative budget (< 0): thinkingConfig must be omitted
+    scriptProps = {
+      GEMINI_API_KEY: "AIzaSyTestKey123",
+      GEMINI_THINKING_BUDGET: "-1"
+    };
+    result = await adapter.analyzeSubmittal(blob, "Analyze submittal", { contacts: [], actions: [] });
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(capturedPayload.generationConfig.thinkingConfig, undefined);
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
+test("Ticket 313: analyzeSubmittal defensively resolves candidate part when thought part is present", async () => {
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+  const originalUtilities = (globalThis as any).Utilities;
+
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => (key === "GEMINI_API_KEY" ? "AIzaSyTestKey123" : null),
+      getProperties: () => ({ GEMINI_API_KEY: "AIzaSyTestKey123" })
+    })
+  };
+
+  // Response has a reasoning thought part preceding the non-thought JSON response part
+  (globalThis as any).UrlFetchApp = {
+    fetch: () => ({
+      getResponseCode: () => 200,
+      getContentText: () => JSON.stringify({
+        candidates: [{
+          content: {
+            parts: [
+              {
+                thought: true,
+                text: "Reasoning step 1: examining drawings for door schedules and hardware sets..."
+              },
+              {
+                text: JSON.stringify({
+                  predictedSection: "08 11 13",
+                  predictedNumber: "002",
+                  predictedRevision: "1",
+                  predictedTitle: "Hollow Metal Frames",
+                  predictedContactAbbr: "ARCH",
+                  predictedAction: "No Exceptions Taken"
+                })
+              }
+            ]
+          }
+        }]
+      })
+    })
+  };
+
+  (globalThis as any).Utilities = {
+    base64Encode: () => "BASE64_DATA",
+    sleep: () => {}
+  };
+
+  try {
+    const adapter = new GeminiAiAnalysisAdapter();
+    const blob = createMockBlob(1024);
+    const result = await adapter.analyzeSubmittal(blob, "Submittal with thought", { contacts: [], actions: [] });
+
+    assert.strictEqual(result.success, true);
+    if (result.success) {
+      assert.strictEqual(result.analysis.predictedSection, "08 11 13");
+      assert.strictEqual(result.analysis.predictedNumber, "002");
+      assert.strictEqual(result.analysis.predictedRevision, "1");
+      assert.strictEqual(result.analysis.predictedTitle, "Hollow Metal Frames");
+      assert.strictEqual(result.analysis.predictedContactAbbr, "ARCH");
+      assert.strictEqual(result.analysis.predictedAction, "No Exceptions Taken");
+    }
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+    (globalThis as any).Utilities = originalUtilities;
+  }
+});
+
+
