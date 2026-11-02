@@ -50,6 +50,6 @@ export interface PdfDocumentService {
     maxPages?: number
   ): Promise<Uint8Array | AttachmentDescriptor | FilingBlob | unknown>;
   getPageCount?(
-    source: Uint8Array | number[] | AttachmentDescriptor | FilingBlob | unknown
+    source: GoogleAppsScript.Base.Blob | Uint8Array | unknown
   ): Promise<number>;
 }

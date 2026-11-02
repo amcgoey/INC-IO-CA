@@ -2,7 +2,12 @@ import { AiAnalysisService, EmailData, AiPredictionResult, DeepAnalysisContext, 
 import { defaultDriveNameProvider } from './GoogleDriveNameProvider';
 import { ExtractPagesAction, defaultExtractPagesAction } from './core/workflow/ExtractPagesAction';
 import { defaultPdfDocumentService } from './PdfDocumentService';
-import { CONFIG } from './Config';
+import {
+  CONFIG,
+  MAX_SUBMITTAL_PDF_BYTES,
+  MAX_SUBMITTAL_DIRECT_ENCODE_BYTES,
+  MAX_SUBMITTAL_DIRECT_ENCODE_PAGES
+} from './Config';
 import { sanitizeErrorString } from './AIUtils';
 /**
  * @file AiAnalysisService.ts
@@ -397,7 +402,7 @@ Your task is to logically deduce the project. Return JSON.
       }
     }
 
-    if (fileSize > 20971520) { // 20 MB hard ceiling
+    if (fileSize > MAX_SUBMITTAL_PDF_BYTES) { // 20 MB hard ceiling
       return {
         success: false,
         error: {
@@ -420,21 +425,18 @@ Your task is to logically deduce the project. Return JSON.
 
     let base64Pdf: string;
     try {
-      let shouldSlice = fileSize > 2097152; // 2 MB
+      let shouldSlice = fileSize > MAX_SUBMITTAL_DIRECT_ENCODE_BYTES;
       if (!shouldSlice) {
         let pageCount = 1;
         try {
-          const extractAction = this.getExtractPagesAction();
           const pdfService = this.getPdfDocumentService();
-          if (extractAction && typeof (extractAction as any).getPageCount === "function") {
-            pageCount = await (extractAction as any).getPageCount(sourceBlob);
-          } else if (pdfService && typeof pdfService.getPageCount === "function") {
+          if (pdfService && typeof pdfService.getPageCount === "function") {
             pageCount = await pdfService.getPageCount(sourceBlob);
           }
         } catch (_err) {
           pageCount = 1;
         }
-        if (pageCount > 3) {
+        if (pageCount > MAX_SUBMITTAL_DIRECT_ENCODE_PAGES) {
           shouldSlice = true;
         }
       }
@@ -444,14 +446,14 @@ Your task is to logically deduce the project. Return JSON.
       } else {
         const extractAction = this.getExtractPagesAction();
         if (extractAction) {
-          const extractRes = await extractAction.execute({ sourceBlob, maxPages: 3 });
+          const extractRes = await extractAction.execute({ sourceBlob, maxPages: MAX_SUBMITTAL_DIRECT_ENCODE_PAGES });
           base64Pdf = extractRes.base64;
         } else {
           const pdfService = this.getPdfDocumentService();
           if (!pdfService) {
             throw new Error("PdfDocumentService is not available");
           }
-          base64Pdf = await pdfService.slicePagesToBase64(sourceBlob, 3);
+          base64Pdf = await pdfService.slicePagesToBase64(sourceBlob, MAX_SUBMITTAL_DIRECT_ENCODE_PAGES);
         }
       }
     } catch (e: any) {

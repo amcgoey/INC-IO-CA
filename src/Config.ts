@@ -4,10 +4,20 @@ import { sanitizeErrorString } from "./AIUtils";
  * @description Centralized configuration constants, MasterFormat CSI division mappings, PDF form field dictionaries, user-facing UI messages, and email notification templates.
  */
 
+/** Hard ceiling for multimodal PDF analysis input payload size (20 MB). */
+export const MAX_SUBMITTAL_PDF_BYTES = 20 * 1024 * 1024;
+/** Maximum PDF size for direct base64 encoding without page slicing (2 MB). */
+export const MAX_SUBMITTAL_DIRECT_ENCODE_BYTES = 2 * 1024 * 1024;
+/** Maximum page count for direct base64 encoding without page slicing (3 pages). */
+export const MAX_SUBMITTAL_DIRECT_ENCODE_PAGES = 3;
+
 /**
  * System-wide configuration options, Google Script Property dynamic getters, and default values.
  */
 const CONFIG = {
+  MAX_SUBMITTAL_PDF_BYTES,
+  MAX_SUBMITTAL_DIRECT_ENCODE_BYTES,
+  MAX_SUBMITTAL_DIRECT_ENCODE_PAGES,
   /** Target Google Drive subfolder name for filing submittals. */
   TARGET_FOLDER_NAME: "Submittals",
   /** Target subfolder for filed/closed submittals. */

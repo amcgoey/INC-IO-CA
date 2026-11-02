@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CONFIG, MESSAGES } from '../src/Config';
+import {
+  CONFIG,
+  MESSAGES,
+  MAX_SUBMITTAL_PDF_BYTES,
+  MAX_SUBMITTAL_DIRECT_ENCODE_BYTES,
+  MAX_SUBMITTAL_DIRECT_ENCODE_PAGES
+} from '../src/Config';
 
 test('Config - messaging constants use Document Log terminology', () => {
   assert.equal(CONFIG.LOG_FILE_SEARCH_TERM, 'document log');
@@ -110,4 +116,14 @@ test('Config - GEMINI_THINKING_BUDGET defaults to 0 and parses integer script pr
     (globalThis as any).PropertiesService = originalProperties;
   }
 });
+
+test('Config - Guardrail threshold constants defined correctly', () => {
+  assert.equal(MAX_SUBMITTAL_PDF_BYTES, 20 * 1024 * 1024);
+  assert.equal(MAX_SUBMITTAL_DIRECT_ENCODE_BYTES, 2 * 1024 * 1024);
+  assert.equal(MAX_SUBMITTAL_DIRECT_ENCODE_PAGES, 3);
+  assert.equal(CONFIG.MAX_SUBMITTAL_PDF_BYTES, 20 * 1024 * 1024);
+  assert.equal(CONFIG.MAX_SUBMITTAL_DIRECT_ENCODE_BYTES, 2 * 1024 * 1024);
+  assert.equal(CONFIG.MAX_SUBMITTAL_DIRECT_ENCODE_PAGES, 3);
+});
+
 

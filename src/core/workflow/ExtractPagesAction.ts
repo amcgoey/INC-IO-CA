@@ -38,20 +38,6 @@ class ExtractPagesAction implements DocumentAction<ExtractPagesInput | GoogleApp
   }
 
   /**
-   * Returns total page count of a source PDF blob using the underlying PdfDocumentService.
-   *
-   * @param sourceBlob - Source PDF Blob or document bytes.
-   * @returns Total number of pages (defaults to 1 if unsupported).
-   */
-  async getPageCount(sourceBlob: GoogleAppsScript.Base.Blob | any): Promise<number> {
-    const pdfService = this.getPdfDocumentService();
-    if (pdfService && typeof pdfService.getPageCount === "function") {
-      return pdfService.getPageCount(sourceBlob);
-    }
-    return 1;
-  }
-
-  /**
    * Executes PDF page extraction on the input payload or Blob.
    *
    * @param input - Either ExtractPagesInput or a direct PDF Blob.
