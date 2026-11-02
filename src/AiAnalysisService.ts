@@ -31,13 +31,6 @@ interface GeminiFetchResult {
   errorText?: string;
 }
 
-const sanitizeErrorStringHelper = (errorStr: any): string => {
-  if (typeof (globalThis as any).sanitizeErrorString === "function") {
-    return (globalThis as any).sanitizeErrorString(errorStr);
-  }
-  return sanitizeErrorString(errorStr);
-};
-
 /**
  * Retrieves the Gemini API key from global getter or Google Apps Script PropertiesService.
  *
@@ -80,14 +73,14 @@ const fetchGeminiWithRetryHelper = (
       if (statusCode === 200) return { success: true, response: response };
       if (statusCode === 503 || statusCode === 429) {
         attempts++;
-        if (attempts > maxRetries) return { success: false, statusCode: statusCode, errorText: sanitizeErrorStringHelper(response.getContentText()) };
+        if (attempts > maxRetries) return { success: false, statusCode: statusCode, errorText: sanitizeErrorString(response.getContentText()) };
         if (typeof Utilities !== "undefined" && (Utilities as any).sleep) Utilities.sleep(Math.pow(2, attempts) * 1000);
       } else {
-        return { success: false, statusCode: statusCode, errorText: sanitizeErrorStringHelper(response.getContentText()) };
+        return { success: false, statusCode: statusCode, errorText: sanitizeErrorString(response.getContentText()) };
       }
     } catch (e: any) {
       attempts++;
-      if (attempts > maxRetries) return { success: false, statusCode: "EXCEPTION", errorText: sanitizeErrorStringHelper(e.toString()) };
+      if (attempts > maxRetries) return { success: false, statusCode: "EXCEPTION", errorText: sanitizeErrorString(e.toString()) };
       if (typeof Utilities !== "undefined" && (Utilities as any).sleep) Utilities.sleep(Math.pow(2, attempts) * 1000);
     }
   }
@@ -290,9 +283,7 @@ Your task is to logically deduce the project. Return JSON.
       muteHttpExceptions: true
     };
 
-    const apiUrl = (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG.GEMINI_API_URL_TRIAGE)
-      ? (globalThis as any).CONFIG.GEMINI_API_URL_TRIAGE
-      : CONFIG.GEMINI_API_URL_TRIAGE;
+    const apiUrl = CONFIG.GEMINI_API_URL_TRIAGE;
 
     const fetchResult = fetchGeminiWithRetryHelper(`${apiUrl}?key=${apiKey}`, options);
 
@@ -310,7 +301,7 @@ Your task is to logically deduce the project. Return JSON.
         success: false,
         error: {
           code: "API_FAILURE",
-          userMessage: sanitizeErrorStringHelper(`HTTP ${fetchResult.statusCode}: Auto-triage failed.`)
+          userMessage: sanitizeErrorString(`HTTP ${fetchResult.statusCode}: Auto-triage failed.`)
         }
       };
     }
@@ -341,7 +332,7 @@ Your task is to logically deduce the project. Return JSON.
         success: false,
         error: {
           code: "PARSE_FAILURE",
-          userMessage: sanitizeErrorStringHelper("Unexpected API schema returned.")
+          userMessage: sanitizeErrorString("Unexpected API schema returned.")
         }
       };
     } catch (_e: any) {
@@ -349,7 +340,7 @@ Your task is to logically deduce the project. Return JSON.
         success: false,
         error: {
           code: "PARSE_FAILURE",
-          userMessage: sanitizeErrorStringHelper("Failed to parse AI prediction.")
+          userMessage: sanitizeErrorString("Failed to parse AI prediction.")
         }
       };
     }
@@ -382,7 +373,7 @@ Your task is to logically deduce the project. Return JSON.
         success: false,
         error: {
           code: "PDF_PROCESSING_ERROR",
-          userMessage: sanitizeErrorStringHelper(`Failed to process PDF: ${e && e.message ? e.message : String(e)}`)
+          userMessage: sanitizeErrorString(`Failed to process PDF: ${e && e.message ? e.message : String(e)}`)
         }
       };
     }
@@ -461,7 +452,7 @@ Your task is to logically deduce the project. Return JSON.
         success: false,
         error: {
           code: "PDF_PROCESSING_ERROR",
-          userMessage: sanitizeErrorStringHelper(`Failed to process PDF: ${e && e.message ? e.message : String(e)}`)
+          userMessage: sanitizeErrorString(`Failed to process PDF: ${e && e.message ? e.message : String(e)}`)
         }
       };
     }
@@ -477,9 +468,7 @@ Email Context: ${emailText}
 
 Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'predictedAction'.`;
 
-    const budget = (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG.GEMINI_THINKING_BUDGET !== undefined)
-      ? (globalThis as any).CONFIG.GEMINI_THINKING_BUDGET
-      : (typeof CONFIG !== "undefined" ? CONFIG.GEMINI_THINKING_BUDGET : 0);
+    const budget = CONFIG.GEMINI_THINKING_BUDGET;
 
     const generationConfig: Record<string, any> = {
       response_mime_type: "application/json",
@@ -519,9 +508,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
       muteHttpExceptions: true
     };
 
-    const apiUrl = (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG.GEMINI_API_URL_ANALYSIS)
-      ? (globalThis as any).CONFIG.GEMINI_API_URL_ANALYSIS
-      : CONFIG.GEMINI_API_URL_ANALYSIS;
+    const apiUrl = CONFIG.GEMINI_API_URL_ANALYSIS;
 
     const fetchResult = fetchGeminiWithRetryHelper(`${apiUrl}?key=${apiKey}`, options);
 
@@ -531,7 +518,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
           success: false,
           error: {
             code: "RATE_LIMITED",
-            userMessage: sanitizeErrorStringHelper(`HTTP ${fetchResult.statusCode}: ${fetchResult.errorText || 'High server demand or rate limited.'}`)
+            userMessage: sanitizeErrorString(`HTTP ${fetchResult.statusCode}: ${fetchResult.errorText || 'High server demand or rate limited.'}`)
           }
         };
       }
@@ -539,7 +526,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
         success: false,
         error: {
           code: "API_FAILURE",
-          userMessage: sanitizeErrorStringHelper(`HTTP ${fetchResult.statusCode}: ${fetchResult.errorText || 'Gemini API call failed.'}`)
+          userMessage: sanitizeErrorString(`HTTP ${fetchResult.statusCode}: ${fetchResult.errorText || 'Gemini API call failed.'}`)
         }
       };
     }
@@ -564,7 +551,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
         success: false,
         error: {
           code: "PARSE_FAILURE",
-          userMessage: sanitizeErrorStringHelper("No valid text candidate returned from Gemini API.")
+          userMessage: sanitizeErrorString("No valid text candidate returned from Gemini API.")
         }
       };
     } catch (err: any) {
@@ -572,7 +559,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
         success: false,
         error: {
           code: "PARSE_FAILURE",
-          userMessage: sanitizeErrorStringHelper(`API Exception or Parse Failure: ${err && err.message ? err.message : String(err)}`)
+          userMessage: sanitizeErrorString(`API Exception or Parse Failure: ${err && err.message ? err.message : String(err)}`)
         }
       };
     }
@@ -590,16 +577,12 @@ function checkAiModelHealth(): {
   analysis: { url: string; ok: boolean; statusCode: number | string; message: string };
 } {
   const apiKey = getGeminiApiKeyHelper();
-  const triageUrl = (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG.GEMINI_API_URL_TRIAGE)
-    ? (globalThis as any).CONFIG.GEMINI_API_URL_TRIAGE
-    : CONFIG.GEMINI_API_URL_TRIAGE;
-  const analysisUrl = (typeof (globalThis as any).CONFIG !== "undefined" && (globalThis as any).CONFIG.GEMINI_API_URL_ANALYSIS)
-    ? (globalThis as any).CONFIG.GEMINI_API_URL_ANALYSIS
-    : CONFIG.GEMINI_API_URL_ANALYSIS;
+  const triageUrl = CONFIG.GEMINI_API_URL_TRIAGE;
+  const analysisUrl = CONFIG.GEMINI_API_URL_ANALYSIS;
 
   const testEndpoint = (url: string, isAnalysis: boolean = false) => {
     if (!apiKey) {
-      return { url: sanitizeErrorStringHelper(url), ok: false, statusCode: "MISSING_KEY", message: "Missing GEMINI_API_KEY in Script Properties" };
+      return { url: sanitizeErrorString(url), ok: false, statusCode: "MISSING_KEY", message: "Missing GEMINI_API_KEY in Script Properties" };
     }
     const payload: Record<string, any> = {
       contents: [{ parts: [{ text: "ping" }] }]
@@ -620,22 +603,22 @@ function checkAiModelHealth(): {
     try {
       const res = fetchGeminiWithRetryHelper(`${url}?key=${apiKey}`, options, 0);
       if (res.success && (res.statusCode === 200 || (res.response && res.response.getResponseCode() === 200))) {
-        return { url: sanitizeErrorStringHelper(url), ok: true, statusCode: 200, message: "Model active and responding." };
+        return { url: sanitizeErrorString(url), ok: true, statusCode: 200, message: "Model active and responding." };
       }
       const code = res.statusCode || "ERROR";
       const rawText = res.response ? res.response.getContentText() : res.errorText || "";
       return {
-        url: sanitizeErrorStringHelper(url),
+        url: sanitizeErrorString(url),
         ok: false,
         statusCode: code,
-        message: sanitizeErrorStringHelper(rawText || "Failed to reach model endpoint.")
+        message: sanitizeErrorString(rawText || "Failed to reach model endpoint.")
       };
     } catch (err: any) {
       return {
-        url: sanitizeErrorStringHelper(url),
+        url: sanitizeErrorString(url),
         ok: false,
         statusCode: "EXCEPTION",
-        message: sanitizeErrorStringHelper(err && err.message ? err.message : String(err))
+        message: sanitizeErrorString(err && err.message ? err.message : String(err))
       };
     }
   };

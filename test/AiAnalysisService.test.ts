@@ -362,13 +362,16 @@ test("Ticket 316: checkAiModelHealth redacts standalone AIzaSy API keys on netwo
 
 test("Ticket 316: checkAiModelHealth references CONFIG.GEMINI_API_URL_ANALYSIS dynamically", () => {
   const originalProperties = (globalThis as any).PropertiesService;
-  const originalConfig = (globalThis as any).CONFIG;
 
-  setupPropertiesService(null); // Missing key returns URL without fetch
-
-  (globalThis as any).CONFIG = {
+  const customProps: Record<string, string> = {
     GEMINI_API_URL_TRIAGE: "https://custom-triage.endpoint/v1:generateContent",
     GEMINI_API_URL_ANALYSIS: "https://custom-analysis.endpoint/v1:generateContent"
+  };
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => customProps[key] || null,
+      getProperties: () => customProps
+    })
   };
 
   try {
@@ -378,7 +381,6 @@ test("Ticket 316: checkAiModelHealth references CONFIG.GEMINI_API_URL_ANALYSIS d
     assert.strictEqual(health.analysis.url, "https://custom-analysis.endpoint/v1:generateContent");
   } finally {
     (globalThis as any).PropertiesService = originalProperties;
-    (globalThis as any).CONFIG = originalConfig;
   }
 });
 

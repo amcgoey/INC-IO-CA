@@ -30,7 +30,7 @@ We decided to upgrade deep submittal document analysis to `gemini-3.8-flash` wit
    - Delegate to `ExtractPagesAction` to slice the first 3 pages if the blob exceeds 2 MB **or** contains more than 3 pages, preventing vector PDF token explosions while keeping compact single-page sheets on the fast path.
 
 5. **Double-Click Deduplication**:
-   - Introduce a 10-minute cache in `analyzeSubmittal` via `CacheAdapter` keyed on `sourceBlob.getName() + ":" + sourceBlob.getBytes().length` to deduplicate accidental double-clicks and avoid redundant token billing or concurrent CardService update races.
+   - Introduce a 10-minute cache in `analyzeSubmittal` via `CacheAdapter` keyed on ``submittal_analysis_${sourceBlob.getName()}_${sourceBlob.getBytes().length}`` to deduplicate accidental double-clicks and avoid redundant token billing or concurrent CardService update races.
 
 6. **Diagnostics Sanitization & Ping Alignment**:
    - Update `scripts/check-models.ts` and `checkAiModelHealth` to test `gemini-3.8-flash` with matching `thinkingConfig`, ensuring all error outputs pass through `sanitizeErrorString` to prevent plaintext secret leakage.
