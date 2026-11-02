@@ -3,6 +3,7 @@ import { defaultDriveNameProvider } from './GoogleDriveNameProvider';
 import { ExtractPagesAction, defaultExtractPagesAction } from './core/workflow/ExtractPagesAction';
 import { defaultPdfDocumentService } from './PdfDocumentService';
 import { CONFIG } from './Config';
+import { sanitizeErrorString } from './AIUtils';
 /**
  * @file AiAnalysisService.ts
  * @description Service interface and implementations for Gemini AI email triage and submittal document deep analysis.
@@ -29,23 +30,7 @@ const sanitizeErrorStringHelper = (errorStr: any): string => {
   if (typeof (globalThis as any).sanitizeErrorString === "function") {
     return (globalThis as any).sanitizeErrorString(errorStr);
   }
-  if (!errorStr) return "Unknown Error";
-  let sanitized = String(errorStr);
-  try {
-    if (typeof PropertiesService !== "undefined" && PropertiesService.getScriptProperties) {
-      const props = PropertiesService.getScriptProperties().getProperties();
-      for (const key in props) {
-        const val = props[key];
-        if (val && val.trim().length > 5) {
-          const escapedVal = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const regex = new RegExp(escapedVal, 'g');
-          sanitized = sanitized.replace(regex, `[REDACTED_${key}]`);
-        }
-      }
-    }
-  } catch (e) {}
-  sanitized = sanitized.replace(/key=AIza[a-zA-Z0-9-_]+/g, 'key=[REDACTED_API_KEY]');
-  return sanitized;
+  return sanitizeErrorString(errorStr);
 };
 
 /**
@@ -62,7 +47,7 @@ const getGeminiApiKeyHelper = (): string | null => {
     if (typeof PropertiesService !== "undefined" && PropertiesService.getScriptProperties) {
       return PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
     }
-  } catch (e) {}
+  } catch (_e) {}
   return null;
 };
 
@@ -219,7 +204,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (typeof defaultCacheAdapter !== "undefined") return defaultCacheAdapter;
     try {
       return (globalThis as any).defaultCacheAdapter || null;
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   }
@@ -250,7 +235,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
         try {
           const parsed: AIPrediction = JSON.parse(cached);
           return { success: true, prediction: parsed };
-        } catch (e) {
+        } catch (_e) {
           // Ignore cache parse errors and proceed to fetch
         }
       }
@@ -354,7 +339,7 @@ Your task is to logically deduce the project. Return JSON.
           userMessage: sanitizeErrorStringHelper("Unexpected API schema returned.")
         }
       };
-    } catch (e: any) {
+    } catch (_e: any) {
       return {
         success: false,
         error: {
@@ -547,31 +532,52 @@ function checkAiModelHealth(): {
     ? (globalThis as any).CONFIG.GEMINI_API_URL_ANALYSIS
     : CONFIG.GEMINI_API_URL_ANALYSIS;
 
-  const testEndpoint = (url: string) => {
+  const testEndpoint = (url: string, isAnalysis: boolean = false) => {
     if (!apiKey) {
-      return { url, ok: false, statusCode: "MISSING_KEY", message: "Missing GEMINI_API_KEY in Script Properties" };
+      return { url: sanitizeErrorStringHelper(url), ok: false, statusCode: "MISSING_KEY", message: "Missing GEMINI_API_KEY in Script Properties" };
     }
-    const payload = {
+    const payload: Record<string, any> = {
       contents: [{ parts: [{ text: "ping" }] }]
     };
+    if (isAnalysis) {
+      payload.generationConfig = {
+        thinkingConfig: {
+          thinkingBudget: 0
+        }
+      };
+    }
     const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
       method: "post",
       contentType: "application/json",
       payload: JSON.stringify(payload),
       muteHttpExceptions: true
     };
-    const res = fetchGeminiWithRetryHelper(`${url}?key=${apiKey}`, options, 0);
-    if (res.success && (res.statusCode === 200 || (res.response && res.response.getResponseCode() === 200))) {
-      return { url, ok: true, statusCode: 200, message: "Model active and responding." };
+    try {
+      const res = fetchGeminiWithRetryHelper(`${url}?key=${apiKey}`, options, 0);
+      if (res.success && (res.statusCode === 200 || (res.response && res.response.getResponseCode() === 200))) {
+        return { url: sanitizeErrorStringHelper(url), ok: true, statusCode: 200, message: "Model active and responding." };
+      }
+      const code = res.statusCode || "ERROR";
+      const rawText = res.response ? res.response.getContentText() : res.errorText || "";
+      return {
+        url: sanitizeErrorStringHelper(url),
+        ok: false,
+        statusCode: code,
+        message: sanitizeErrorStringHelper(rawText || "Failed to reach model endpoint.")
+      };
+    } catch (err: any) {
+      return {
+        url: sanitizeErrorStringHelper(url),
+        ok: false,
+        statusCode: "EXCEPTION",
+        message: sanitizeErrorStringHelper(err && err.message ? err.message : String(err))
+      };
     }
-    const code = res.statusCode || "ERROR";
-    const rawText = res.response ? res.response.getContentText() : res.errorText || "";
-    return { url, ok: false, statusCode: code, message: rawText || "Failed to reach model endpoint." };
   };
 
   return {
-    triage: testEndpoint(triageUrl),
-    analysis: testEndpoint(analysisUrl)
+    triage: testEndpoint(triageUrl, false),
+    analysis: testEndpoint(analysisUrl, true)
   };
 }
 

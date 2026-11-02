@@ -15,23 +15,26 @@ function sanitizeErrorString(errorStr: any): string {
   let sanitized = String(errorStr);
   
   try {
-    const props = PropertiesService.getScriptProperties().getProperties();
-    for (const key in props) {
-      const val = props[key];
-      // Only mask values longer than 5 chars to avoid wiping out common short words
-      if (val && val.trim().length > 5) {
-        // Escape regex characters in the property value
-        const escapedVal = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escapedVal, 'g');
-        sanitized = sanitized.replace(regex, `[REDACTED_${key}]`);
+    if (typeof PropertiesService !== "undefined" && PropertiesService.getScriptProperties) {
+      const props = PropertiesService.getScriptProperties().getProperties();
+      for (const key in props) {
+        const val = props[key];
+        // Only mask values longer than 5 chars to avoid wiping out common short words
+        if (val && val.trim().length > 5) {
+          // Escape regex characters in the property value
+          const escapedVal = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(escapedVal, 'g');
+          sanitized = sanitized.replace(regex, `[REDACTED_${key}]`);
+        }
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // Fail silently if PropertiesService is inaccessible
   }
 
   // Hard fallback for Google API Keys specifically, in case PropertiesService fails
   sanitized = sanitized.replace(/key=AIza[a-zA-Z0-9-_]+/g, 'key=[REDACTED_API_KEY]');
+  sanitized = sanitized.replace(/AIza[a-zA-Z0-9-_]{20,}/g, '[REDACTED_API_KEY]');
   
   return sanitized;
 }
