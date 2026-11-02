@@ -4,8 +4,60 @@
  */
 
 import { CONFIG } from "../src/Config";
+import { sanitizeErrorString } from "../src/AIUtils";
 
-async function main() {
+export function sanitizeDiagnosticOutput(text: any, customKey?: string): string {
+  let sanitized = sanitizeErrorString(text);
+  if (customKey && customKey.trim().length > 5) {
+    const escapedKey = customKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    sanitized = sanitized.replace(new RegExp(escapedKey, 'g'), '[REDACTED_API_KEY]');
+  }
+  return sanitized;
+}
+
+export async function testModelEndpoint(
+  label: string,
+  url: string,
+  apiKey: string,
+  isAnalysis = false,
+  fetchFn: typeof fetch = fetch
+): Promise<{ ok: boolean; status?: number | string; error?: string; response?: string }> {
+  try {
+    const payload: Record<string, any> = {
+      contents: [{ parts: [{ text: "ping" }] }]
+    };
+    if (isAnalysis) {
+      payload.generationConfig = {
+        thinkingConfig: {
+          thinkingBudget: 0
+        }
+      };
+    }
+
+    const resp = await fetchFn(`${url}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (resp.status === 200) {
+      console.log(`✅ ${label}: ACTIVE (200 OK)`);
+      return { ok: true, status: 200 };
+    } else {
+      const text = await resp.text();
+      const sanitized = sanitizeDiagnosticOutput(text, apiKey);
+      console.log(`❌ ${label}: FAILED (HTTP ${resp.status})`);
+      console.log(`   Response: ${sanitized.substring(0, 300)}`);
+      return { ok: false, status: resp.status, response: sanitized };
+    }
+  } catch (e: any) {
+    const sanitizedError = sanitizeDiagnosticOutput(e && e.message ? e.message : String(e), apiKey);
+    console.log(`❌ ${label}: ERROR (${sanitizedError})`);
+    return { ok: false, error: sanitizedError };
+  }
+}
+
+export async function main(fetchFn: typeof fetch = fetch) {
   console.log("==================================================");
   console.log("      Gemini AI Model Health & Diagnostics");
   console.log("==================================================");
@@ -26,33 +78,13 @@ async function main() {
     return;
   }
 
-  const testEndpoint = async (label: string, url: string) => {
-    try {
-      const resp = await fetch(`${url}?key=${apiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ text: "ping" }] }] })
-      });
-
-      if (resp.status === 200) {
-        console.log(`✅ ${label}: ACTIVE (200 OK)`);
-      } else {
-        const text = await resp.text();
-        console.log(`❌ ${label}: FAILED (HTTP ${resp.status})`);
-        console.log(`   Response: ${text.substring(0, 300)}`);
-      }
-    } catch (e: any) {
-      console.log(`❌ ${label}: ERROR (${e.message})`);
-    }
-  };
-
-  await testEndpoint("Triage Model  (Flash-Lite)", triageUrl);
-  await testEndpoint("Analysis Model (Flash)     ", analysisUrl);
+  await testModelEndpoint("Triage Model  (Flash-Lite)", triageUrl, apiKey, false, fetchFn);
+  await testModelEndpoint("Analysis Model (Flash)     ", analysisUrl, apiKey, true, fetchFn);
 
   console.log("--------------------------------------------------");
   console.log("Fetching available models list from Google API...");
   try {
-    const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const listResp = await fetchFn(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
     if (listResp.status === 200) {
       const data: any = await listResp.json();
       console.log("\nActive Available Gemini Models:");
@@ -64,12 +96,17 @@ async function main() {
           });
       }
     } else {
-      console.log(`Failed to list models: HTTP ${listResp.status}`);
+      const errText = await listResp.text();
+      console.log(`Failed to list models: HTTP ${listResp.status} - ${sanitizeDiagnosticOutput(errText, apiKey)}`);
     }
   } catch (e: any) {
-    console.log(`Failed to list models: ${e.message}`);
+    console.log(`Failed to list models: ${sanitizeDiagnosticOutput(e && e.message ? e.message : String(e), apiKey)}`);
   }
   console.log("==================================================\n");
 }
 
-main().catch(console.error);
+if (process.argv[1] && process.argv[1].includes("check-models")) {
+  main().catch((err: any) => {
+    console.error(sanitizeDiagnosticOutput(err));
+  });
+}
