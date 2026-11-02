@@ -6,7 +6,7 @@ import assert from "node:assert";
 // Global environment mocks before requiring modules
 (globalThis as any).CONFIG = {
   GEMINI_API_URL_TRIAGE: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
-  GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
+  GEMINI_API_URL_ANALYSIS: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
 };
 
 import { InMemoryCacheAdapter, FakeDriveNameProvider, FakePdfDocumentService, FakeAiAnalysisAdapter } from "./harness";
@@ -245,6 +245,143 @@ test("checkAiModelHealth reports missing key or status when executed", () => {
   assert.ok(health.analysis);
   assert.strictEqual(typeof health.triage.ok, "boolean");
   assert.strictEqual(typeof health.analysis.ok, "boolean");
+});
+
+test("Ticket 313: checkAiModelHealth uses gemini-3.8-flash analysis endpoint", () => {
+  const health = checkAiModelHealth();
+  assert.ok(health.analysis.url.includes("gemini-3.8-flash:generateContent"));
+  assert.ok(health.triage.url.includes("gemini-3.5-flash-lite:generateContent"));
+});
+
+test("Ticket 316: checkAiModelHealth sends thinkingConfig thinkingBudget 0 on analysis endpoint and omits on triage endpoint", () => {
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+
+  setupPropertiesService("AIzaSyTestKey_Diagnostics123");
+
+  const calls: { url: string; payload: any }[] = [];
+  (globalThis as any).UrlFetchApp = {
+    fetch: (url: string, options: any) => {
+      calls.push({
+        url,
+        payload: options?.payload ? JSON.parse(options.payload) : null
+      });
+      return createHttpResponse(200, JSON.stringify({
+        candidates: [{ content: { parts: [{ text: "pong" }] } }]
+      }));
+    }
+  };
+
+  try {
+    const health = checkAiModelHealth();
+
+    assert.strictEqual(health.triage.ok, true);
+    assert.strictEqual(health.analysis.ok, true);
+    assert.strictEqual(calls.length, 2);
+
+    const triageCall = calls.find(c => c.url.includes("gemini-3.5-flash-lite"));
+    const analysisCall = calls.find(c => c.url.includes("gemini-3.8-flash"));
+
+    assert.ok(triageCall, "Triage endpoint should be called");
+    assert.ok(analysisCall, "Analysis endpoint should be called");
+
+    // Analysis ping MUST have thinkingConfig with thinkingBudget 0
+    assert.deepStrictEqual(analysisCall.payload.generationConfig, {
+      thinkingConfig: { thinkingBudget: 0 }
+    });
+
+    // Triage ping does NOT have thinkingConfig
+    assert.strictEqual(triageCall.payload.generationConfig, undefined);
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+  }
+});
+
+test("Ticket 316: checkAiModelHealth redacts API keys and Script Properties in error messages on HTTP failure", () => {
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+
+  const testApiKey = "AIzaSyLeakedSecretKey987654321";
+  setupPropertiesService(testApiKey);
+
+  (globalThis as any).UrlFetchApp = {
+    fetch: () => createHttpResponse(400, `Bad Request: Invalid key AIzaSyLeakedSecretKey987654321 for request`)
+  };
+
+  try {
+    const health = checkAiModelHealth();
+
+    assert.strictEqual(health.triage.ok, false);
+    assert.strictEqual(health.analysis.ok, false);
+
+    assert.ok(!health.triage.message.includes(testApiKey), "Triage error message must redact API key");
+    assert.ok(!health.analysis.message.includes(testApiKey), "Analysis error message must redact API key");
+
+    assert.ok(
+      health.triage.message.includes("[REDACTED_GEMINI_API_KEY]") || health.triage.message.includes("[REDACTED_API_KEY]"),
+      "Triage error message must show redacted placeholder"
+    );
+    assert.ok(
+      health.analysis.message.includes("[REDACTED_GEMINI_API_KEY]") || health.analysis.message.includes("[REDACTED_API_KEY]"),
+      "Analysis error message must show redacted placeholder"
+    );
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+  }
+});
+
+test("Ticket 316: checkAiModelHealth redacts standalone AIzaSy API keys on network/fetch exception", () => {
+  const originalProperties = (globalThis as any).PropertiesService;
+  const originalUrlFetchApp = (globalThis as any).UrlFetchApp;
+
+  setupPropertiesService("AIzaSyNetworkExceptionSecretKey999");
+
+  (globalThis as any).UrlFetchApp = {
+    fetch: () => {
+      throw new Error("Connection failed: DNS error connecting with key=AIzaSyNetworkExceptionSecretKey999");
+    }
+  };
+
+  try {
+    const health = checkAiModelHealth();
+
+    assert.strictEqual(health.triage.ok, false);
+    assert.strictEqual(health.analysis.ok, false);
+
+    assert.ok(!health.triage.message.includes("AIzaSyNetworkExceptionSecretKey999"));
+    assert.ok(!health.analysis.message.includes("AIzaSyNetworkExceptionSecretKey999"));
+    assert.ok(health.triage.message.includes("[REDACTED_"));
+    assert.ok(health.analysis.message.includes("[REDACTED_"));
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+    (globalThis as any).UrlFetchApp = originalUrlFetchApp;
+  }
+});
+
+test("Ticket 316: checkAiModelHealth references CONFIG.GEMINI_API_URL_ANALYSIS dynamically", () => {
+  const originalProperties = (globalThis as any).PropertiesService;
+
+  const customProps: Record<string, string> = {
+    GEMINI_API_URL_TRIAGE: "https://custom-triage.endpoint/v1:generateContent",
+    GEMINI_API_URL_ANALYSIS: "https://custom-analysis.endpoint/v1:generateContent"
+  };
+  (globalThis as any).PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key: string) => customProps[key] || null,
+      getProperties: () => customProps
+    })
+  };
+
+  try {
+    const health = checkAiModelHealth();
+
+    assert.strictEqual(health.triage.url, "https://custom-triage.endpoint/v1:generateContent");
+    assert.strictEqual(health.analysis.url, "https://custom-analysis.endpoint/v1:generateContent");
+  } finally {
+    (globalThis as any).PropertiesService = originalProperties;
+  }
 });
 
 test("Ticket 307: Fuzzy project name matching strips email prefixes, punctuation, and project numbers", async () => {

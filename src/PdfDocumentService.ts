@@ -57,10 +57,13 @@ function getPdfLib(): any {
  * @param b - Source Blob instance.
  * @returns Unsigned 8-bit integer array.
  */
-function blobToUint8Array(b: GoogleAppsScript.Base.Blob): Uint8Array {
-  const bytes = b.getBytes();
-  const u = new Uint8Array(bytes.length);
-  for (let i = 0; i < bytes.length; i++) u[i] = bytes[i] & 0xFF;
+function blobToUint8Array(b: GoogleAppsScript.Base.Blob | any): Uint8Array {
+  if (b instanceof Uint8Array) return b;
+  const rawBytes = (b && typeof b.getBytes === "function") ? b.getBytes() : b;
+  if (rawBytes instanceof Uint8Array) return rawBytes;
+  if (!rawBytes || !rawBytes.length) return new Uint8Array(0);
+  const u = new Uint8Array(rawBytes.length);
+  for (let i = 0; i < rawBytes.length; i++) u[i] = rawBytes[i] & 0xFF;
   return u;
 }
 
@@ -398,6 +401,25 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
   ): Promise<string> {
     const slicedBlob = await this.extractPages(sourceBlob, maxPages);
     return Utilities.base64Encode(slicedBlob.getBytes());
+  }
+
+  /**
+   * Returns the total page count of a source PDF blob.
+   *
+   * @param sourceBlob - Source PDF blob or byte array.
+   * @returns Total number of pages in the PDF document.
+   */
+  async getPageCount(
+    sourceBlob: GoogleAppsScript.Base.Blob | Uint8Array | unknown
+  ): Promise<number> {
+    try {
+      const { PDFDocument } = getPdfLib();
+      const unsigned = blobToUint8Array(sourceBlob);
+      const srcDoc = await PDFDocument.load(unsigned);
+      return srcDoc.getPageCount();
+    } catch (_err) {
+      return 1;
+    }
   }
   async mergeBlobsToPdf(
     blobs: GoogleAppsScript.Base.Blob[],

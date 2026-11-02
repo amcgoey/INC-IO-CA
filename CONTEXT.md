@@ -357,7 +357,7 @@ DocumentType-specific email parser strategies (`SubmittalEmailParser`, `RfiEmail
 _Avoid_: MonolithicEmailParser, GenericSubjectParser
 
 **GeminiAiAnalysisAdapter**:
-The concrete implementation of AiAnalysisService that formats prompts, handles Gemini API retries, error masking, and caching.
+The concrete Tier 2 GAS Infrastructure Adapter implementing the Tier 1 AiAnalysisService interface that formats prompts, manages thinking budgets and candidate part resolution, handles Gemini API retries with exponential backoff, masks sensitive Script Properties, and caches predictions.
 _Avoid_: GeminiTriageAdapter
 
 **FakeAiAnalysisAdapter**:

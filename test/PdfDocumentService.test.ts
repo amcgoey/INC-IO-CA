@@ -460,3 +460,43 @@ test("Ticket 307: Bidirectional PDF Checkbox & UI Action Mapping (AAN <-> Approv
   checkedName = "no exceptions taken";
   assert.strictEqual(await service.extractFormAction("file-lower"), "No Exceptions Taken");
 });
+
+test("GoogleAppsScriptPdfDocumentService getPageCount loads PDF and returns document page count", async () => {
+  const originalPDFLib = (globalThis as any).PDFLib;
+  (globalThis as any).PDFLib = {
+    PDFDocument: {
+      load: async () => ({
+        getPageCount: () => 7
+      })
+    }
+  };
+
+  try {
+    const service = new GoogleAppsScriptPdfDocumentService();
+    const mockBlob = {
+      getBytes: () => [1, 2, 3, 4]
+    };
+    const count = await service.getPageCount(mockBlob as any);
+    assert.strictEqual(count, 7);
+  } finally {
+    (globalThis as any).PDFLib = originalPDFLib;
+  }
+});
+
+test("FakePdfDocumentService getPageCount tracks calls and respects setPageCount", async () => {
+  const service = new FakePdfDocumentService();
+  const mockBlob1 = { name: "doc1.pdf" } as any;
+  const mockBlob2 = { name: "doc2.pdf" } as any;
+
+  assert.strictEqual(await service.getPageCount(mockBlob1), 1);
+  service.setPageCount(5);
+  assert.strictEqual(await service.getPageCount(mockBlob1), 5);
+
+  service.setPageCount(10, mockBlob2);
+  assert.strictEqual(await service.getPageCount(mockBlob2), 10);
+  assert.strictEqual(await service.getPageCount(mockBlob1), 5);
+
+  assert.strictEqual(service.getPageCountCalls.length, 4);
+  service.reset();
+  assert.strictEqual(service.getPageCountCalls.length, 0);
+});

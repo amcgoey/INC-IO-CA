@@ -1,7 +1,14 @@
-import { AiAnalysisService, EmailData, AiPredictionResult, DeepAnalysisContext, DeepAnalysisResult, DeepAnalysisPrediction, AIPrediction, DocumentBlob } from './core/interfaces/AiAnalysisService';
+import { AiAnalysisService, EmailData, AiPredictionResult, DeepAnalysisContext, DeepAnalysisResult, DeepAnalysisPrediction, AIPrediction } from './core/interfaces/AiAnalysisService';
 import { defaultDriveNameProvider } from './GoogleDriveNameProvider';
 import { ExtractPagesAction, defaultExtractPagesAction } from './core/workflow/ExtractPagesAction';
 import { defaultPdfDocumentService } from './PdfDocumentService';
+import {
+  CONFIG,
+  MAX_SUBMITTAL_PDF_BYTES,
+  MAX_SUBMITTAL_DIRECT_ENCODE_BYTES,
+  MAX_SUBMITTAL_DIRECT_ENCODE_PAGES
+} from './Config';
+import { sanitizeErrorString } from './AIUtils';
 /**
  * @file AiAnalysisService.ts
  * @description Service interface and implementations for Gemini AI email triage and submittal document deep analysis.
@@ -24,29 +31,6 @@ interface GeminiFetchResult {
   errorText?: string;
 }
 
-const sanitizeErrorStringHelper = (errorStr: any): string => {
-  if (typeof (globalThis as any).sanitizeErrorString === "function") {
-    return (globalThis as any).sanitizeErrorString(errorStr);
-  }
-  if (!errorStr) return "Unknown Error";
-  let sanitized = String(errorStr);
-  try {
-    if (typeof PropertiesService !== "undefined" && PropertiesService.getScriptProperties) {
-      const props = PropertiesService.getScriptProperties().getProperties();
-      for (const key in props) {
-        const val = props[key];
-        if (val && val.trim().length > 5) {
-          const escapedVal = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const regex = new RegExp(escapedVal, 'g');
-          sanitized = sanitized.replace(regex, `[REDACTED_${key}]`);
-        }
-      }
-    }
-  } catch (e) {}
-  sanitized = sanitized.replace(/key=AIza[a-zA-Z0-9-_]+/g, 'key=[REDACTED_API_KEY]');
-  return sanitized;
-};
-
 /**
  * Retrieves the Gemini API key from global getter or Google Apps Script PropertiesService.
  *
@@ -61,7 +45,7 @@ const getGeminiApiKeyHelper = (): string | null => {
     if (typeof PropertiesService !== "undefined" && PropertiesService.getScriptProperties) {
       return PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
     }
-  } catch (e) {}
+  } catch (_e) {}
   return null;
 };
 
@@ -89,14 +73,14 @@ const fetchGeminiWithRetryHelper = (
       if (statusCode === 200) return { success: true, response: response };
       if (statusCode === 503 || statusCode === 429) {
         attempts++;
-        if (attempts > maxRetries) return { success: false, statusCode: statusCode, errorText: sanitizeErrorStringHelper(response.getContentText()) };
+        if (attempts > maxRetries) return { success: false, statusCode: statusCode, errorText: sanitizeErrorString(response.getContentText()) };
         if (typeof Utilities !== "undefined" && (Utilities as any).sleep) Utilities.sleep(Math.pow(2, attempts) * 1000);
       } else {
-        return { success: false, statusCode: statusCode, errorText: sanitizeErrorStringHelper(response.getContentText()) };
+        return { success: false, statusCode: statusCode, errorText: sanitizeErrorString(response.getContentText()) };
       }
     } catch (e: any) {
       attempts++;
-      if (attempts > maxRetries) return { success: false, statusCode: "EXCEPTION", errorText: sanitizeErrorStringHelper(e.toString()) };
+      if (attempts > maxRetries) return { success: false, statusCode: "EXCEPTION", errorText: sanitizeErrorString(e.toString()) };
       if (typeof Utilities !== "undefined" && (Utilities as any).sleep) Utilities.sleep(Math.pow(2, attempts) * 1000);
     }
   }
@@ -218,7 +202,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
     if (typeof defaultCacheAdapter !== "undefined") return defaultCacheAdapter;
     try {
       return (globalThis as any).defaultCacheAdapter || null;
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   }
@@ -249,7 +233,7 @@ class GeminiAiAnalysisAdapter implements AiAnalysisService {
         try {
           const parsed: AIPrediction = JSON.parse(cached);
           return { success: true, prediction: parsed };
-        } catch (e) {
+        } catch (_e) {
           // Ignore cache parse errors and proceed to fetch
         }
       }
@@ -299,9 +283,7 @@ Your task is to logically deduce the project. Return JSON.
       muteHttpExceptions: true
     };
 
-    const apiUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_TRIAGE)
-      ? CONFIG.GEMINI_API_URL_TRIAGE
-      : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
+    const apiUrl = CONFIG.GEMINI_API_URL_TRIAGE;
 
     const fetchResult = fetchGeminiWithRetryHelper(`${apiUrl}?key=${apiKey}`, options);
 
@@ -319,7 +301,7 @@ Your task is to logically deduce the project. Return JSON.
         success: false,
         error: {
           code: "API_FAILURE",
-          userMessage: sanitizeErrorStringHelper(`HTTP ${fetchResult.statusCode}: Auto-triage failed.`)
+          userMessage: sanitizeErrorString(`HTTP ${fetchResult.statusCode}: Auto-triage failed.`)
         }
       };
     }
@@ -350,15 +332,15 @@ Your task is to logically deduce the project. Return JSON.
         success: false,
         error: {
           code: "PARSE_FAILURE",
-          userMessage: sanitizeErrorStringHelper("Unexpected API schema returned.")
+          userMessage: sanitizeErrorString("Unexpected API schema returned.")
         }
       };
-    } catch (e: any) {
+    } catch (_e: any) {
       return {
         success: false,
         error: {
           code: "PARSE_FAILURE",
-          userMessage: sanitizeErrorStringHelper("Failed to parse AI prediction.")
+          userMessage: sanitizeErrorString("Failed to parse AI prediction.")
         }
       };
     }
@@ -366,7 +348,10 @@ Your task is to logically deduce the project. Return JSON.
 
   /**
    * Analyzes a submittal PDF document and email body using Gemini multimodal capabilities.
-   * Direct base64 encodes PDFs <= 2MB, or slices the first 3 pages via `PdfDocumentService` for larger files.
+   * Checks CacheAdapter prior to PDF processing and HTTP requests using key `submittal_analysis_${sourceBlob.getName()}_${sourceBlob.getBytes().length}`.
+   * Rejects PDFs exceeding 20 MB with PDF_TOO_LARGE.
+   * Direct base64 encodes PDFs <= 2MB and <= 3 pages, or slices the first 3 pages via `ExtractPagesAction` / `PdfDocumentService` for larger files.
+   * Caches successful analysis results for 10 minutes (600 seconds) to deduplicate accidental double-clicks.
    *
    * @param sourceBlob - Source PDF blob.
    * @param emailText - Extracted email body text.
@@ -378,6 +363,46 @@ Your task is to logically deduce the project. Return JSON.
     emailText: string,
     contextObj: DeepAnalysisContext
   ): Promise<DeepAnalysisResult> {
+    let fileBytes: any;
+    let blobName = "";
+    try {
+      blobName = typeof sourceBlob.getName === "function" ? sourceBlob.getName() : "";
+      fileBytes = sourceBlob.getBytes();
+    } catch (e: any) {
+      return {
+        success: false,
+        error: {
+          code: "PDF_PROCESSING_ERROR",
+          userMessage: sanitizeErrorString(`Failed to process PDF: ${e && e.message ? e.message : String(e)}`)
+        }
+      };
+    }
+
+    const fileSize = fileBytes ? fileBytes.length : 0;
+    const cacheKey = `submittal_analysis_${blobName}_${fileSize}`;
+    const cacheAdapter = this.getCacheAdapter();
+    if (cacheAdapter) {
+      const cached = cacheAdapter.get(cacheKey);
+      if (cached) {
+        try {
+          const parsed: DeepAnalysisResult = JSON.parse(cached);
+          return parsed;
+        } catch (_e) {
+          // Ignore cache parse errors and proceed to fetch
+        }
+      }
+    }
+
+    if (fileSize > MAX_SUBMITTAL_PDF_BYTES) { // 20 MB hard ceiling
+      return {
+        success: false,
+        error: {
+          code: "PDF_TOO_LARGE",
+          userMessage: "Submittal PDF exceeds maximum 20MB limit for AI analysis."
+        }
+      };
+    }
+
     const apiKey = getGeminiApiKeyHelper();
     if (!apiKey) {
       return {
@@ -391,22 +416,35 @@ Your task is to logically deduce the project. Return JSON.
 
     let base64Pdf: string;
     try {
-      const fileBytes = sourceBlob.getBytes();
-      const fileSize = fileBytes.length;
+      let shouldSlice = fileSize > MAX_SUBMITTAL_DIRECT_ENCODE_BYTES;
+      if (!shouldSlice) {
+        let pageCount = 1;
+        try {
+          const pdfService = this.getPdfDocumentService();
+          if (pdfService && typeof pdfService.getPageCount === "function") {
+            pageCount = await pdfService.getPageCount(sourceBlob);
+          }
+        } catch (_err) {
+          pageCount = 1;
+        }
+        if (pageCount > MAX_SUBMITTAL_DIRECT_ENCODE_PAGES) {
+          shouldSlice = true;
+        }
+      }
 
-      if (fileSize <= 2097152) { // 2 MB
+      if (!shouldSlice) {
         base64Pdf = Utilities.base64Encode(fileBytes);
       } else {
         const extractAction = this.getExtractPagesAction();
         if (extractAction) {
-          const extractRes = await extractAction.execute({ sourceBlob, maxPages: 3 });
+          const extractRes = await extractAction.execute({ sourceBlob, maxPages: MAX_SUBMITTAL_DIRECT_ENCODE_PAGES });
           base64Pdf = extractRes.base64;
         } else {
           const pdfService = this.getPdfDocumentService();
           if (!pdfService) {
             throw new Error("PdfDocumentService is not available");
           }
-          base64Pdf = await pdfService.slicePagesToBase64(sourceBlob, 3);
+          base64Pdf = await pdfService.slicePagesToBase64(sourceBlob, MAX_SUBMITTAL_DIRECT_ENCODE_PAGES);
         }
       }
     } catch (e: any) {
@@ -414,7 +452,7 @@ Your task is to logically deduce the project. Return JSON.
         success: false,
         error: {
           code: "PDF_PROCESSING_ERROR",
-          userMessage: sanitizeErrorStringHelper(`Failed to process PDF: ${e && e.message ? e.message : String(e)}`)
+          userMessage: sanitizeErrorString(`Failed to process PDF: ${e && e.message ? e.message : String(e)}`)
         }
       };
     }
@@ -430,6 +468,29 @@ Email Context: ${emailText}
 
 Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'predictedAction'.`;
 
+    const budget = CONFIG.GEMINI_THINKING_BUDGET;
+
+    const generationConfig: Record<string, any> = {
+      response_mime_type: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          predictedSection: { type: "STRING" },
+          predictedNumber: { type: "STRING" },
+          predictedRevision: { type: "STRING" },
+          predictedTitle: { type: "STRING" },
+          predictedSpecTag: { type: "STRING" },
+          predictedVendor: { type: "STRING" },
+          predictedContactAbbr: { type: "STRING" },
+          predictedAction: { type: "STRING" }
+        }
+      }
+    };
+
+    if (budget >= 0) {
+      generationConfig.thinkingConfig = { thinkingBudget: budget };
+    }
+
     const payload = {
       contents: [{
         parts: [
@@ -437,22 +498,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
           { inlineData: { mimeType: "application/pdf", data: base64Pdf } }
         ]
       }],
-      generationConfig: {
-        response_mime_type: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            predictedSection: { type: "STRING" },
-            predictedNumber: { type: "STRING" },
-            predictedRevision: { type: "STRING" },
-            predictedTitle: { type: "STRING" },
-            predictedSpecTag: { type: "STRING" },
-            predictedVendor: { type: "STRING" },
-            predictedContactAbbr: { type: "STRING" },
-            predictedAction: { type: "STRING" }
-          }
-        }
-      }
+      generationConfig
     };
 
     const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
@@ -462,9 +508,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
       muteHttpExceptions: true
     };
 
-    const apiUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_ANALYSIS)
-      ? CONFIG.GEMINI_API_URL_ANALYSIS
-      : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+    const apiUrl = CONFIG.GEMINI_API_URL_ANALYSIS;
 
     const fetchResult = fetchGeminiWithRetryHelper(`${apiUrl}?key=${apiKey}`, options);
 
@@ -474,7 +518,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
           success: false,
           error: {
             code: "RATE_LIMITED",
-            userMessage: sanitizeErrorStringHelper(`HTTP ${fetchResult.statusCode}: ${fetchResult.errorText || 'High server demand or rate limited.'}`)
+            userMessage: sanitizeErrorString(`HTTP ${fetchResult.statusCode}: ${fetchResult.errorText || 'High server demand or rate limited.'}`)
           }
         };
       }
@@ -482,7 +526,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
         success: false,
         error: {
           code: "API_FAILURE",
-          userMessage: sanitizeErrorStringHelper(`HTTP ${fetchResult.statusCode}: ${fetchResult.errorText || 'Gemini API call failed.'}`)
+          userMessage: sanitizeErrorString(`HTTP ${fetchResult.statusCode}: ${fetchResult.errorText || 'Gemini API call failed.'}`)
         }
       };
     }
@@ -490,20 +534,24 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
     try {
       const responseText = fetchResult.response ? fetchResult.response.getContentText() : "";
       const json = JSON.parse(responseText);
-      const textCandidate = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const textCandidate = json?.candidates?.[0]?.content?.parts?.find((p: any) => !p.thought)?.text;
       if (textCandidate) {
         const text = textCandidate.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsed: DeepAnalysisPrediction = JSON.parse(text);
-        return {
+        const result: DeepAnalysisResult = {
           success: true,
           analysis: parsed
         };
+        if (cacheAdapter) {
+          cacheAdapter.put(cacheKey, JSON.stringify(result), 600);
+        }
+        return result;
       }
       return {
         success: false,
         error: {
           code: "PARSE_FAILURE",
-          userMessage: sanitizeErrorStringHelper("No valid text candidate returned from Gemini API.")
+          userMessage: sanitizeErrorString("No valid text candidate returned from Gemini API.")
         }
       };
     } catch (err: any) {
@@ -511,7 +559,7 @@ Extract metadata strictly. Map sender to 'predictedContactAbbr' and intent to 'p
         success: false,
         error: {
           code: "PARSE_FAILURE",
-          userMessage: sanitizeErrorStringHelper(`API Exception or Parse Failure: ${err && err.message ? err.message : String(err)}`)
+          userMessage: sanitizeErrorString(`API Exception or Parse Failure: ${err && err.message ? err.message : String(err)}`)
         }
       };
     }
@@ -529,38 +577,55 @@ function checkAiModelHealth(): {
   analysis: { url: string; ok: boolean; statusCode: number | string; message: string };
 } {
   const apiKey = getGeminiApiKeyHelper();
-  const triageUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_TRIAGE)
-    ? CONFIG.GEMINI_API_URL_TRIAGE
-    : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
-  const analysisUrl = (typeof CONFIG !== "undefined" && CONFIG.GEMINI_API_URL_ANALYSIS)
-    ? CONFIG.GEMINI_API_URL_ANALYSIS
-    : "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+  const triageUrl = CONFIG.GEMINI_API_URL_TRIAGE;
+  const analysisUrl = CONFIG.GEMINI_API_URL_ANALYSIS;
 
-  const testEndpoint = (url: string) => {
+  const testEndpoint = (url: string, isAnalysis: boolean = false) => {
     if (!apiKey) {
-      return { url, ok: false, statusCode: "MISSING_KEY", message: "Missing GEMINI_API_KEY in Script Properties" };
+      return { url: sanitizeErrorString(url), ok: false, statusCode: "MISSING_KEY", message: "Missing GEMINI_API_KEY in Script Properties" };
     }
-    const payload = {
+    const payload: Record<string, any> = {
       contents: [{ parts: [{ text: "ping" }] }]
     };
+    if (isAnalysis) {
+      payload.generationConfig = {
+        thinkingConfig: {
+          thinkingBudget: 0
+        }
+      };
+    }
     const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
       method: "post",
       contentType: "application/json",
       payload: JSON.stringify(payload),
       muteHttpExceptions: true
     };
-    const res = fetchGeminiWithRetryHelper(`${url}?key=${apiKey}`, options, 0);
-    if (res.success && (res.statusCode === 200 || (res.response && res.response.getResponseCode() === 200))) {
-      return { url, ok: true, statusCode: 200, message: "Model active and responding." };
+    try {
+      const res = fetchGeminiWithRetryHelper(`${url}?key=${apiKey}`, options, 0);
+      if (res.success && (res.statusCode === 200 || (res.response && res.response.getResponseCode() === 200))) {
+        return { url: sanitizeErrorString(url), ok: true, statusCode: 200, message: "Model active and responding." };
+      }
+      const code = res.statusCode || "ERROR";
+      const rawText = res.response ? res.response.getContentText() : res.errorText || "";
+      return {
+        url: sanitizeErrorString(url),
+        ok: false,
+        statusCode: code,
+        message: sanitizeErrorString(rawText || "Failed to reach model endpoint.")
+      };
+    } catch (err: any) {
+      return {
+        url: sanitizeErrorString(url),
+        ok: false,
+        statusCode: "EXCEPTION",
+        message: sanitizeErrorString(err && err.message ? err.message : String(err))
+      };
     }
-    const code = res.statusCode || "ERROR";
-    const rawText = res.response ? res.response.getContentText() : res.errorText || "";
-    return { url, ok: false, statusCode: code, message: rawText || "Failed to reach model endpoint." };
   };
 
   return {
-    triage: testEndpoint(triageUrl),
-    analysis: testEndpoint(analysisUrl)
+    triage: testEndpoint(triageUrl, false),
+    analysis: testEndpoint(analysisUrl, true)
   };
 }
 
