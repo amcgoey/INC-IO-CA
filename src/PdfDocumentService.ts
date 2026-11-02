@@ -410,7 +410,7 @@ class GoogleAppsScriptPdfDocumentService implements PdfDocumentService {
    * @returns Total number of pages in the PDF document.
    */
   async getPageCount(
-    sourceBlob: GoogleAppsScript.Base.Blob | any
+    sourceBlob: GoogleAppsScript.Base.Blob | Uint8Array | unknown
   ): Promise<number> {
     try {
       const { PDFDocument } = getPdfLib();

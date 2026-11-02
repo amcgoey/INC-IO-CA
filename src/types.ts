@@ -594,7 +594,7 @@ interface PdfDocumentService {
     newFileName?: string
   ): Promise<GoogleAppsScript.Base.Blob>;
   getPageCount?(
-    sourceBlob: GoogleAppsScript.Base.Blob | any
+    source: GoogleAppsScript.Base.Blob | Uint8Array | unknown
   ): Promise<number>;
 }
 
